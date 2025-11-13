@@ -1,4 +1,7 @@
-// functions/generate.js (最终方案 V4: 地毯式搜索)
+// functions/generate.js (最终方案 V5: 引入解压库)
+
+// 从一个公共 CDN 导入一个轻量级的 ZIP 解压库 fflate
+import { unzipSync } from 'https://unpkg.com/fflate@0.8.2/esm/browser.js';
 
 export async function onRequest(context) {
   if (context.request.method !== 'POST') {
@@ -41,62 +44,29 @@ export async function onRequest(context) {
     }
 
     const zipBuffer = await response.arrayBuffer();
-    const bytes = new Uint8Array(zipBuffer);
+    const zipBytes = new Uint8Array(zipBuffer);
 
-    // --- 地毯式搜索：在整个二进制流中寻找PNG的起始和结束标记 ---
-    const pngHeader = [137, 80, 78, 71, 13, 10, 26, 10]; // ‰PNG...
-    const pngEnd = [73, 69, 78, 68, 174, 66, 96, 130];   // IEND®B`‚
-
-    let pngStart = -1;
-    let pngEndPos = -1;
-
-    // 寻找PNG文件头
-    for (let i = 0; i < bytes.length - pngHeader.length; i++) {
-      let found = true;
-      for (let j = 0; j < pngHeader.length; j++) {
-        if (bytes[i + j] !== pngHeader[j]) {
-          found = false;
-          break;
-        }
-      }
-      if (found) {
-        pngStart = i;
-        break;
-      }
-    }
-
-    if (pngStart === -1) {
-      return new Response(JSON.stringify({ error: '搜索失败：在响应中找不到PNG文件头。' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-    }
+    // --- 使用 fflate 库解压 ZIP 文件 ---
+    const decompressedFiles = unzipSync(zipBytes);
     
-    // 从文件头开始，寻找PNG文件尾
-    for (let i = pngStart; i < bytes.length - pngEnd.length; i++) {
-        let found = true;
-        for (let j = 0; j < pngEnd.length; j++) {
-            if (bytes[i + j] !== pngEnd[j]) {
-                found = false;
-                break;
-            }
-        }
-        if (found) {
-            pngEndPos = i + pngEnd.length; // 结束位置是标记的末尾
-            break;
-        }
+    // 我们从之前的诊断中知道，图片文件名是 'image_0.png'
+    const imageFileName = 'image_0.png';
+    const imageDataBytes = decompressedFiles[imageFileName];
+
+    if (!imageDataBytes) {
+      // 如果解压后找不到指定的文件
+      const foundFiles = Object.keys(decompressedFiles);
+      return new Response(JSON.stringify({ 
+          error: `解压成功，但在ZIP文件中找不到 '${imageFileName}'。`,
+          details: `找到的文件有: ${foundFiles.join(', ')}`
+      }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
+    // --- 解压成功 ---
 
-    if (pngEndPos === -1) {
-        return new Response(JSON.stringify({ error: '搜索失败：找到了PNG文件头，但找不到文件尾。' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-    }
-
-    // 根据找到的起始和结束位置，精确地切割出完整的PNG数据
-    const imageData = zipBuffer.slice(pngStart, pngEndPos);
-    // --- 搜索结束 ---
-
-    // 将纯粹的图片二进制数据转换为 Base64
+    // 将解压后的、纯粹的图片二进制数据转换为 Base64
     let binary = '';
-    const pngBytes = new Uint8Array(imageData);
-    for (let i = 0; i < pngBytes.byteLength; i++) {
-      binary += String.fromCharCode(pngBytes[i]);
+    for (let i = 0; i < imageDataBytes.byteLength; i++) {
+      binary += String.fromCharCode(imageDataBytes[i]);
     }
     const imageBase64 = btoa(binary);
 
