@@ -1,4 +1,4 @@
-// functions/generate.js (诊断版本)
+// functions/generate.js (最终解决方案)
 
 export async function onRequest(context) {
   if (context.request.method !== 'POST') {
@@ -19,19 +19,40 @@ export async function onRequest(context) {
       input: data.prompt,
       model: 'nai-diffusion-3',
       action: 'generate',
-      parameters: { /* ... 这里是所有的参数 ... */
-        width: data.width, height: data.height, scale: data.scale, sampler: data.sampler,
-        steps: data.steps, n_samples: 1, ucPreset: 0, qualityToggle: true, sm: false,
-        sm_dyn: false, dynamic_thresholding: false, controlnet_strength: 1, legacy: false,
-        add_original_image: false, uncond_scale: 1, cfg_rescale: 0, noise_schedule: 'native',
+      parameters: {
+        width: data.width,
+        height: data.height,
+        scale: data.scale,
+        sampler: data.sampler,
+        steps: data.steps,
+        n_samples: 1,
+        ucPreset: 0,
+        qualityToggle: true,
+        sm: false,
+        sm_dyn: false,
+        dynamic_thresholding: false,
+        controlnet_strength: 1,
+        legacy: false,
+        // --- 关键修改 ---
+        // 我们不要求返回原始图片或元数据，这通常会强制返回纯图片流
+        add_original_image: false, 
+        // --- 修改结束 ---
+        uncond_scale: 1,
+        cfg_rescale: 0,
+        noise_schedule: 'native',
         negative_prompt: data.negative_prompt,
       },
     };
 
     const NAI_URL = 'https://image.novelai.net/ai/generate-image';
+
     const response = await fetch(NAI_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${NOVELAI_API_KEY}` },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/octet-stream', // 明确告诉服务器我们想要二进制流
+        Authorization: `Bearer ${NOVELAI_API_KEY}`,
+      },
       body: JSON.stringify(payload),
     });
 
@@ -40,44 +61,21 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ error: `NovelAI API Error: ${errorText}` }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const responseBuffer = await response.arrayBuffer();
-    const bytes = new Uint8Array(responseBuffer);
-
-    const pngHeader = [137, 80, 78, 71, 13, 10, 26, 10];
-    let pngStart = -1;
-
-    for (let i = 0; i < bytes.length - pngHeader.length; i++) {
-      let found = true;
-      for (let j = 0; j < pngHeader.length; j++) {
-        if (bytes[i + j] !== pngHeader[j]) { found = false; break; }
-      }
-      if (found) { pngStart = i; break; }
-    }
-
-    if (pngStart === -1) {
-      // --- 这是新的诊断部分 ---
-      const contentType = response.headers.get('Content-Type');
-      const firstBytes = Array.from(bytes.slice(0, 16)); // 获取前16个字节
-      const firstBytesAsChars = String.fromCharCode.apply(null, firstBytes);
-
-      return new Response(JSON.stringify({
-        error: '诊断信息：在原始响应中找不到 PNG 文件头。',
-        details: {
-          responseContentType: contentType,
-          responseLengthBytes: responseBuffer.byteLength,
-          responseFirst16Bytes: firstBytes,
-          responseFirst16Chars: firstBytesAsChars
-        }
-      }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-    }
-
-    const pngData = responseBuffer.slice(pngStart);
+    // 既然我们请求的是纯图片，返回的应该直接就是 PNG 数据
+    const imageBuffer = await response.arrayBuffer();
+    
+    // 将纯粹的 PNG 二进制数据转换为 Base64
     let binary = '';
-    const pngBytes = new Uint8Array(pngData);
-    for (let i = 0; i < pngBytes.byteLength; i++) { binary += String.fromCharCode(pngBytes[i]); }
+    const bytes = new Uint8Array(imageBuffer);
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
     const imageBase64 = btoa(binary);
 
-    return new Response(JSON.stringify({ image: `data:image/png;base64,${imageBase64}` }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ image: `data:image/png;base64,${imageBase64}` }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
 
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message, stack: e.stack }), { status: 500, headers: { 'Content-Type': 'application/json' } });
