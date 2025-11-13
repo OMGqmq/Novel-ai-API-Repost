@@ -25,8 +25,8 @@ export async function onRequest(context) {
       action: 'generate',
       parameters: { /* ...所有参数... */
         width: data.width, height: data.height, scale: data.scale, sampler: data.sampler,
-        steps: data.steps, n_samples: 1, ucPreset: 0, qualityToggle: true, sm: false,
-        sm_dyn: false, dynamic_thresholding: false, controlnet_strength: 1, legacy: false,
+        steps: data.steps, n_samples: 1, ucPreset: 0, qualityToggle: true, sm: true,
+        sm_dyn: true, dynamic_thresholding: false, controlnet_strength: 1, legacy: false,
         add_original_image: false, uncond_scale: 1, cfg_rescale: 0, noise_schedule: 'native',
         negative_prompt: data.negative_prompt,
       },
