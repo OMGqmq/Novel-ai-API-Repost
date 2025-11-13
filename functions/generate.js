@@ -1,8 +1,8 @@
-// functions/generate.js (最终方案 V5.1: 修正了导入 URL)
+// functions/generate.js (最终方案 V6: 从本地文件导入)
 
-// 从一个公共 CDN 导入一个轻量级的 ZIP 解压库 fflate
-// 修正了这里的 URL：https:/ -> https://
-import { unzipSync } from 'https://unpkg.com/fflate@0.8.2/esm/browser.js';
+// 从我们项目内部的 fflate.js 文件导入解压工具
+// 这是一个相对路径，表示“在同一个文件夹下的 fflate.js 文件”
+import { unzipSync } from './fflate.js';
 
 export async function onRequest(context) {
   if (context.request.method !== 'POST') {
@@ -47,10 +47,10 @@ export async function onRequest(context) {
     const zipBuffer = await response.arrayBuffer();
     const zipBytes = new Uint8Array(zipBuffer);
 
-    // --- 使用 fflate 库解压 ZIP 文件 (此逻辑已被Python代码验证) ---
+    // --- 使用 fflate 库解压 ZIP 文件 ---
     const decompressedFiles = unzipSync(zipBytes);
     
-    // 我们从之前的诊断和Python代码中知道，图片文件名是 'image_0.png'
+    // 我们从之前的诊断中知道，图片文件名是 'image_0.png'
     const imageFileName = 'image_0.png';
     const imageDataBytes = decompressedFiles[imageFileName];
 
