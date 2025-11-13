@@ -1,7 +1,6 @@
-// functions/generate.js
+// functions/generate.js (带 PNG 提取功能)
 
 export async function onRequest(context) {
-  // 只允许 POST 请求
   if (context.request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
@@ -10,19 +9,16 @@ export async function onRequest(context) {
   }
 
   try {
-    // 从环境变量中获取 API Key
     const NOVELAI_API_KEY = context.env.NOVELAI_API_KEY;
     if (!NOVELAI_API_KEY) {
-      return new Response(JSON.stringify({ error: 'NOVELAI_API_KEY not set in Cloudflare environment variables' }), {
+      return new Response(JSON.stringify({ error: 'NOVELAI_API_KEY not set' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    // 解析前端发来的 JSON 数据
     const data = await context.request.json();
 
-    // 构建 NovelAI 请求的 payload
     const payload = {
       input: data.prompt,
       model: 'nai-diffusion-3',
@@ -36,8 +32,8 @@ export async function onRequest(context) {
         n_samples: 1,
         ucPreset: 0,
         qualityToggle: true,
-        sm: true,
-        sm_dyn: true,
+        sm: false,
+        sm_dyn: false,
         dynamic_thresholding: false,
         controlnet_strength: 1,
         legacy: false,
@@ -49,10 +45,8 @@ export async function onRequest(context) {
       },
     };
 
-    // 使用正确的 NovelAI API URL
     const NAI_URL = 'https://image.novelai.net/ai/generate-image';
 
-    // 发送请求到 NovelAI
     const response = await fetch(NAI_URL, {
       method: 'POST',
       headers: {
@@ -62,7 +56,6 @@ export async function onRequest(context) {
       body: JSON.stringify(payload),
     });
 
-    // 检查 NovelAI 的响应状态
     if (!response.ok) {
        const errorText = await response.text();
        return new Response(JSON.stringify({ error: `NovelAI API Error: ${errorText}` }), {
@@ -71,32 +64,56 @@ export async function onRequest(context) {
        });
     }
 
-    // NovelAI 返回的是一个 zip 文件流 (实际上是一个包含 PNG 的 zip)
-    // 我们需要将它作为二进制数据读取
     const zipBuffer = await response.arrayBuffer();
-    
-    // --- 在 Worker 环境中将 ArrayBuffer (二进制) 转换为 Base64 的标准方法 ---
-    let binary = '';
     const bytes = new Uint8Array(zipBuffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
+
+    // --- 从 ZIP Buffer 中提取 PNG 数据的逻辑 ---
+    // PNG 文件的魔数 (文件头) 是 ‰PNG，即 89 50 4E 47 0D 0A 1A 0A (十六进制)
+    const pngHeader = [137, 80, 78, 71, 13, 10, 26, 10];
+    let pngStart = -1;
+
+    // 遍历字节数组，查找 PNG 文件头的起始位置
+    for (let i = 0; i < bytes.length - pngHeader.length; i++) {
+      let found = true;
+      for (let j = 0; j < pngHeader.length; j++) {
+        if (bytes[i + j] !== pngHeader[j]) {
+          found = false;
+          break;
+        }
+      }
+      if (found) {
+        pngStart = i;
+        break;
+      }
+    }
+
+    if (pngStart === -1) {
+      // 如果找不到 PNG 头，说明返回的数据格式有问题
+      return new Response(JSON.stringify({ error: 'Could not find PNG data in the response from NovelAI.' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 从找到的位置开始，提取出纯粹的 PNG 数据
+    const pngData = zipBuffer.slice(pngStart);
+
+    // --- 将纯粹的 PNG 二进制数据转换为 Base64 ---
+    let binary = '';
+    const pngBytes = new Uint8Array(pngData);
+    for (let i = 0; i < pngBytes.byteLength; i++) {
+      binary += String.fromCharCode(pngBytes[i]);
     }
     const imageBase64 = btoa(binary);
     // --- 转换结束 ---
 
-    // 返回包含 Base64 编码图片的 JSON 响应
     return new Response(JSON.stringify({ image: `data:image/png;base64,${imageBase64}` }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
 
   } catch (e) {
-    // 捕获并返回任何意外错误
-    return new Response(JSON.stringify({ 
-      error: e.message, 
-      stack: e.stack // 包含堆栈信息以便调试
-    }), {
+    return new Response(JSON.stringify({ error: e.message, stack: e.stack }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
