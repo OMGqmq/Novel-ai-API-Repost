@@ -1,4 +1,4 @@
-// functions/generate.js (最终解决方案)
+// functions/generate.js (最终方案：精确ZIP解析)
 
 export async function onRequest(context) {
   if (context.request.method !== 'POST') {
@@ -20,39 +20,18 @@ export async function onRequest(context) {
       model: 'nai-diffusion-3',
       action: 'generate',
       parameters: {
-        width: data.width,
-        height: data.height,
-        scale: data.scale,
-        sampler: data.sampler,
-        steps: data.steps,
-        n_samples: 1,
-        ucPreset: 0,
-        qualityToggle: true,
-        sm: false,
-        sm_dyn: false,
-        dynamic_thresholding: false,
-        controlnet_strength: 1,
-        legacy: false,
-        // --- 关键修改 ---
-        // 我们不要求返回原始图片或元数据，这通常会强制返回纯图片流
-        add_original_image: false, 
-        // --- 修改结束 ---
-        uncond_scale: 1,
-        cfg_rescale: 0,
-        noise_schedule: 'native',
+        width: data.width, height: data.height, scale: data.scale, sampler: data.sampler,
+        steps: data.steps, n_samples: 1, ucPreset: 0, qualityToggle: true, sm: false,
+        sm_dyn: false, dynamic_thresholding: false, controlnet_strength: 1, legacy: false,
+        add_original_image: false, uncond_scale: 1, cfg_rescale: 0, noise_schedule: 'native',
         negative_prompt: data.negative_prompt,
       },
     };
 
     const NAI_URL = 'https://image.novelai.net/ai/generate-image';
-
     const response = await fetch(NAI_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/octet-stream', // 明确告诉服务器我们想要二进制流
-        Authorization: `Bearer ${NOVELAI_API_KEY}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${NOVELAI_API_KEY}` },
       body: JSON.stringify(payload),
     });
 
@@ -61,12 +40,29 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ error: `NovelAI API Error: ${errorText}` }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // 既然我们请求的是纯图片，返回的应该直接就是 PNG 数据
-    const imageBuffer = await response.arrayBuffer();
+    const zipBuffer = await response.arrayBuffer();
     
-    // 将纯粹的 PNG 二进制数据转换为 Base64
+    // --- 精确解析ZIP文件，提取图片数据 ---
+    // DataView 允许我们从二进制数据中读取特定类型（如16位整数）
+    const view = new DataView(zipBuffer);
+
+    // ZIP文件的本地文件头以 'PK\x03\x04' (50 4B 03 04) 开头
+    // 我们从文件头中读取元数据来定位文件内容
+    // 文件名长度存储在偏移量为 26 的位置 (占2个字节)
+    const fileNameLength = view.getUint16(26, true); // true 表示小端字节序
+    // 额外字段长度存储在偏移量为 28 的位置 (占2个字节)
+    const extraFieldLength = view.getUint16(28, true);
+
+    // 图片数据的起始位置 = 本地文件头的固定长度 (30字节) + 文件名长度 + 额外字段长度
+    const imageStartOffset = 30 + fileNameLength + extraFieldLength;
+
+    // 从计算出的起始位置开始，切割出纯粹的图片数据
+    const imageData = zipBuffer.slice(imageStartOffset);
+    // --- 解析结束 ---
+
+    // 将纯粹的图片二进制数据转换为 Base64
     let binary = '';
-    const bytes = new Uint8Array(imageBuffer);
+    const bytes = new Uint8Array(imageData);
     for (let i = 0; i < bytes.byteLength; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
@@ -78,6 +74,11 @@ export async function onRequest(context) {
     });
 
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message, stack: e.stack }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    // 如果解析失败或发生其他错误，返回详细信息
+    return new Response(JSON.stringify({ 
+      error: "An error occurred while processing the ZIP file from NovelAI.",
+      details: e.message,
+      stack: e.stack 
+    }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
