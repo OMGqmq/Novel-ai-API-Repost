@@ -1,7 +1,4 @@
-// functions/generate.js (最终方案 V5: 引入解压库)
-
-// 从一个公共 CDN 导入一个轻量级的 ZIP 解压库 fflate
-import { unzipSync } from 'https://unpkg.com/fflate@0.8.2/esm/browser.js';
+// functions/generate.js (严格按照文档理论的版本)
 
 export async function onRequest(context) {
   if (context.request.method !== 'POST') {
@@ -43,37 +40,30 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ error: `NovelAI API Error: ${errorText}` }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const zipBuffer = await response.arrayBuffer();
-    const zipBytes = new Uint8Array(zipBuffer);
+    // --- 严格按照文档理论的核心步骤 ---
 
-    // --- 使用 fflate 库解压 ZIP 文件 ---
-    const decompressedFiles = unzipSync(zipBytes);
-    
-    // 我们从之前的诊断中知道，图片文件名是 'image_0.png'
-    const imageFileName = 'image_0.png';
-    const imageDataBytes = decompressedFiles[imageFileName];
+    // 1. 假设响应体是一个 JSON，并进行解析。
+    const responseData = await response.json();
 
-    if (!imageDataBytes) {
-      // 如果解压后找不到指定的文件
-      const foundFiles = Object.keys(decompressedFiles);
-      return new Response(JSON.stringify({ 
-          error: `解压成功，但在ZIP文件中找不到 '${imageFileName}'。`,
-          details: `找到的文件有: ${foundFiles.join(', ')}`
-      }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    // 2. 假设 JSON 中有一个 'image' 字段，其值为 Base64 字符串。
+    //    注意：真实的字段名可能不同，比如 'images' 或 'data'，但我们先按最常见的 'image' 假设。
+    const base64Image = responseData.image; 
+
+    if (!base64Image) {
+        return new Response(JSON.stringify({ 
+            error: "按照文档理论解析失败：API返回的JSON中没有找到 'image' 字段。",
+            details: `收到的JSON内容是: ${JSON.stringify(responseData)}`
+        }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
-    // --- 解压成功 ---
 
-    // 将解压后的、纯粹的图片二进制数据转换为 Base64
-    let binary = '';
-    for (let i = 0; i < imageDataBytes.byteLength; i++) {
-      binary += String.fromCharCode(imageDataBytes[i]);
-    }
-    const imageBase64 = btoa(binary);
-
-    return new Response(JSON.stringify({ image: `data:image/png;base64,${imageBase64}` }), {
+    // 3. 直接返回这个 Base64 字符串给前端。
+    //    前端的 JS 代码会自动处理它。
+    //    为了符合我们前端的逻辑，我们依然把它包装在 { image: ... } 对象里。
+    return new Response(JSON.stringify({ image: `data:image/png;base64,${base64Image}` }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
+    // --- 核心步骤结束 ---
 
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message, stack: e.stack }), { status: 500, headers: { 'Content-Type': 'application/json' } });
