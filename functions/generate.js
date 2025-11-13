@@ -1,4 +1,4 @@
-// functions/generate.js (最终方案：精确ZIP解析)
+// functions/generate.js (终极诊断版本)
 
 export async function onRequest(context) {
   if (context.request.method !== 'POST') {
@@ -19,7 +19,7 @@ export async function onRequest(context) {
       input: data.prompt,
       model: 'nai-diffusion-3',
       action: 'generate',
-      parameters: {
+      parameters: { /* ...所有参数... */
         width: data.width, height: data.height, scale: data.scale, sampler: data.sampler,
         steps: data.steps, n_samples: 1, ucPreset: 0, qualityToggle: true, sm: false,
         sm_dyn: false, dynamic_thresholding: false, controlnet_strength: 1, legacy: false,
@@ -42,43 +42,45 @@ export async function onRequest(context) {
 
     const zipBuffer = await response.arrayBuffer();
     
-    // --- 精确解析ZIP文件，提取图片数据 ---
-    // DataView 允许我们从二进制数据中读取特定类型（如16位整数）
-    const view = new DataView(zipBuffer);
-
-    // ZIP文件的本地文件头以 'PK\x03\x04' (50 4B 03 04) 开头
-    // 我们从文件头中读取元数据来定位文件内容
-    // 文件名长度存储在偏移量为 26 的位置 (占2个字节)
-    const fileNameLength = view.getUint16(26, true); // true 表示小端字节序
-    // 额外字段长度存储在偏移量为 28 的位置 (占2个字节)
-    const extraFieldLength = view.getUint16(28, true);
-
-    // 图片数据的起始位置 = 本地文件头的固定长度 (30字节) + 文件名长度 + 额外字段长度
-    const imageStartOffset = 30 + fileNameLength + extraFieldLength;
-
-    // 从计算出的起始位置开始，切割出纯粹的图片数据
-    const imageData = zipBuffer.slice(imageStartOffset);
-    // --- 解析结束 ---
-
-    // 将纯粹的图片二进制数据转换为 Base64
-    let binary = '';
-    const bytes = new Uint8Array(imageData);
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    // --- ZIP文件X光机：读取头部详细元数据 ---
+    if (zipBuffer.byteLength < 30) {
+        return new Response(JSON.stringify({ error: "响应数据太短，不是一个有效的ZIP文件。" }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
-    const imageBase64 = btoa(binary);
 
-    return new Response(JSON.stringify({ image: `data:image/png;base64,${imageBase64}` }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const view = new DataView(zipBuffer);
+    const decoder = new TextDecoder(); // 用于将字节解码为文本
+
+    // 读取本地文件头的各个字段
+    const signature = view.getUint32(0, true); // 文件头标识 (应该是 PK\x03\x04)
+    const compressionMethod = view.getUint16(8, true); // 压缩方法 (0=无, 8=DEFLATE)
+    const compressedSize = view.getUint32(18, true); // 压缩后的大小
+    const uncompressedSize = view.getUint32(22, true); // 原始大小
+    const fileNameLength = view.getUint16(26, true); // 文件名长度
+    const extraFieldLength = view.getUint16(28, true); // 额外字段长度
+
+    // 读取文件名
+    const fileNameBytes = new Uint8Array(zipBuffer, 30, fileNameLength);
+    const fileName = decoder.decode(fileNameBytes);
+
+    // 将诊断信息打包成一个对象
+    const diagnosticReport = {
+        isFileHeaderCorrect: (signature === 0x04034b50), // 检查是否以 'PK\x03\x04' 开头
+        compressionMethod: compressionMethod === 0 ? "0 (No Compression)" : (compressionMethod === 8 ? "8 (DEFLATE)" : `Unknown (${compressionMethod})`),
+        compressedSize: `${compressedSize} bytes`,
+        uncompressedSize: `${uncompressedSize} bytes`,
+        fileNameLength: fileNameLength,
+        extraFieldLength: extraFieldLength,
+        fileName: fileName,
+        totalResponseSize: `${zipBuffer.byteLength} bytes`
+    };
+
+    // 将这份详细的报告发回给前端
+    return new Response(JSON.stringify({
+      error: '终极诊断报告：ZIP文件头部元数据如下。',
+      details: diagnosticReport
+    }), { status: 500, headers: { 'Content-Type': 'application/json' } });
 
   } catch (e) {
-    // 如果解析失败或发生其他错误，返回详细信息
-    return new Response(JSON.stringify({ 
-      error: "An error occurred while processing the ZIP file from NovelAI.",
-      details: e.message,
-      stack: e.stack 
-    }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: e.message, stack: e.stack }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
