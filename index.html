@@ -204,8 +204,6 @@
 
 <!-- JavaScript: 负责网页的交互和功能 -->
 <script>
-    // ✅ 可修改: 这是模板数据，你可以自由地修改、删除或添加新的模板！
-    // 格式: '模板名': { prompt: "提示词", orientation: "画幅" }
     const templates = {
         loli: {
             prompt: "1girl, loli, cat ears, cute, white hair, blue eyes, frills, dress, masterpiece, best quality, cinematic lighting",
@@ -214,15 +212,9 @@
         luffy: {
             prompt: "monkey d. luffy, one piece, male focus, straw hat, red vest, scar under eye, smiling, masterpiece, best quality, intense shadows",
             orientation: "landscape"
-        },
-        // 示例: 添加一个赛博朋克模板
-        // cyberpunk: {
-        //     prompt: "cyberpunk city, neon lights, rainy street, flying cars, female cyborg, masterpiece, Blade Runner style",
-        //     orientation: "landscape"
-        // }
+        }
     };
 
-    // 应用模板函数 (通常不需要修改)
     function applyTemplate(type) {
         const t = templates[type];
         if (t) {
@@ -231,30 +223,24 @@
         }
     }
 
-    // 生成图片核心函数
     async function generateImage() {
         const btn = document.getElementById('generateBtn');
         const loading = document.getElementById('loading');
         const img = document.getElementById('resultImage');
         const errorMsg = document.getElementById('errorMsg');
 
-        // 更新UI状态
         btn.disabled = true;
-        btn.innerText = "生成中..."; // ✅ 可修改: 更改生成过程中的按钮文字
+        btn.innerText = "生成中...";
         loading.style.display = "block";
         img.style.display = "none";
         errorMsg.innerText = "";
 
-        // ✅ 可修改: 如果你更改了上面的画幅选项，需要在这里同步修改对应的分辨率
         let width, height;
         const ori = document.getElementById('orientation').value;
         if (ori === 'portrait') { width = 832; height = 1216; }
         else if (ori === 'landscape') { width = 1216; height = 832; }
         else { width = 1024; height = 1024; }
-        // 比如你想添加一个'ultrawide'超宽屏选项，可以在这里加:
-        // else if (ori === 'ultrawide') { width = 1920; height = 816; }
 
-        // 构建发送给后端的数据包 (payload)
         const payload = {
             prompt: document.getElementById('prompt').value,
             negative_prompt: document.getElementById('negative_prompt').value,
@@ -266,9 +252,6 @@
         };
 
         try {
-            // ⚠️ 关键点: fetch('/generate', ...) 是向后端API发送请求。
-            // '/generate' 是后端的接口地址。如果你部署在不同地方，可能需要改成完整的URL，
-            // 例如: 'http://127.0.0.1:8000/generate'
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -278,19 +261,24 @@
             const data = await response.json();
 
             if (response.ok) {
-                img.src = data.image; // 假设后端返回的数据里有 image 字段
+                img.src = data.image;
                 img.style.display = "block";
             } else {
-                // ✅ 可修改: 自定义错误提示信息
-                errorMsg.innerText = "生成失败: " + (data.error || response.statusText);
+                // --- 这是被修改的部分 ---
+                // 现在它会显示完整的错误对象，而不仅仅是 data.error
+                let fullError = data.error || response.statusText;
+                if (data.details) {
+                    // 使用 JSON.stringify 来格式化 details 对象，使其更易读
+                    fullError += "\n\n详细信息:\n" + JSON.stringify(data.details, null, 2);
+                }
+                errorMsg.innerText = "生成失败: " + fullError;
+                // --- 修改结束 ---
             }
         } catch (e) {
-            // ✅ 可修改: 自定义网络错误提示信息
             errorMsg.innerText = "网络错误，请检查后端服务是否开启: " + e.message;
         } finally {
-            // 恢复UI状态
             btn.disabled = false;
-            btn.innerText = "✨ 开始生成"; // ✅ 可修改: 恢复后的按钮文字
+            btn.innerText = "✨ 开始生成";
             loading.style.display = "none";
         }
     }
