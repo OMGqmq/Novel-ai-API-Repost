@@ -52,7 +52,7 @@ export async function onRequest(context) {
       },
     };
 
-    const NAI_URL = 'https://api.novelai.net/ai/generate-image';
+    const NAI_URL = 'https://image.novelai.net/ai/generate-image';
 
     // 使用 fetch API 发送请求到 NovelAI
     const response = await fetch(NAI_URL, {
