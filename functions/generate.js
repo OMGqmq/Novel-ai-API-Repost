@@ -1,4 +1,4 @@
-// functions/generate.js (终极诊断版本)
+// functions/generate.js (最终方案 V4: 地毯式搜索)
 
 export async function onRequest(context) {
   if (context.request.method !== 'POST') {
@@ -41,44 +41,69 @@ export async function onRequest(context) {
     }
 
     const zipBuffer = await response.arrayBuffer();
-    
-    // --- ZIP文件X光机：读取头部详细元数据 ---
-    if (zipBuffer.byteLength < 30) {
-        return new Response(JSON.stringify({ error: "响应数据太短，不是一个有效的ZIP文件。" }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    const bytes = new Uint8Array(zipBuffer);
+
+    // --- 地毯式搜索：在整个二进制流中寻找PNG的起始和结束标记 ---
+    const pngHeader = [137, 80, 78, 71, 13, 10, 26, 10]; // ‰PNG...
+    const pngEnd = [73, 69, 78, 68, 174, 66, 96, 130];   // IEND®B`‚
+
+    let pngStart = -1;
+    let pngEndPos = -1;
+
+    // 寻找PNG文件头
+    for (let i = 0; i < bytes.length - pngHeader.length; i++) {
+      let found = true;
+      for (let j = 0; j < pngHeader.length; j++) {
+        if (bytes[i + j] !== pngHeader[j]) {
+          found = false;
+          break;
+        }
+      }
+      if (found) {
+        pngStart = i;
+        break;
+      }
     }
 
-    const view = new DataView(zipBuffer);
-    const decoder = new TextDecoder(); // 用于将字节解码为文本
+    if (pngStart === -1) {
+      return new Response(JSON.stringify({ error: '搜索失败：在响应中找不到PNG文件头。' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+    
+    // 从文件头开始，寻找PNG文件尾
+    for (let i = pngStart; i < bytes.length - pngEnd.length; i++) {
+        let found = true;
+        for (let j = 0; j < pngEnd.length; j++) {
+            if (bytes[i + j] !== pngEnd[j]) {
+                found = false;
+                break;
+            }
+        }
+        if (found) {
+            pngEndPos = i + pngEnd.length; // 结束位置是标记的末尾
+            break;
+        }
+    }
 
-    // 读取本地文件头的各个字段
-    const signature = view.getUint32(0, true); // 文件头标识 (应该是 PK\x03\x04)
-    const compressionMethod = view.getUint16(8, true); // 压缩方法 (0=无, 8=DEFLATE)
-    const compressedSize = view.getUint32(18, true); // 压缩后的大小
-    const uncompressedSize = view.getUint32(22, true); // 原始大小
-    const fileNameLength = view.getUint16(26, true); // 文件名长度
-    const extraFieldLength = view.getUint16(28, true); // 额外字段长度
+    if (pngEndPos === -1) {
+        return new Response(JSON.stringify({ error: '搜索失败：找到了PNG文件头，但找不到文件尾。' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
 
-    // 读取文件名
-    const fileNameBytes = new Uint8Array(zipBuffer, 30, fileNameLength);
-    const fileName = decoder.decode(fileNameBytes);
+    // 根据找到的起始和结束位置，精确地切割出完整的PNG数据
+    const imageData = zipBuffer.slice(pngStart, pngEndPos);
+    // --- 搜索结束 ---
 
-    // 将诊断信息打包成一个对象
-    const diagnosticReport = {
-        isFileHeaderCorrect: (signature === 0x04034b50), // 检查是否以 'PK\x03\x04' 开头
-        compressionMethod: compressionMethod === 0 ? "0 (No Compression)" : (compressionMethod === 8 ? "8 (DEFLATE)" : `Unknown (${compressionMethod})`),
-        compressedSize: `${compressedSize} bytes`,
-        uncompressedSize: `${uncompressedSize} bytes`,
-        fileNameLength: fileNameLength,
-        extraFieldLength: extraFieldLength,
-        fileName: fileName,
-        totalResponseSize: `${zipBuffer.byteLength} bytes`
-    };
+    // 将纯粹的图片二进制数据转换为 Base64
+    let binary = '';
+    const pngBytes = new Uint8Array(imageData);
+    for (let i = 0; i < pngBytes.byteLength; i++) {
+      binary += String.fromCharCode(pngBytes[i]);
+    }
+    const imageBase64 = btoa(binary);
 
-    // 将这份详细的报告发回给前端
-    return new Response(JSON.stringify({
-      error: '终极诊断报告：ZIP文件头部元数据如下。',
-      details: diagnosticReport
-    }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ image: `data:image/png;base64,${imageBase64}` }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
 
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message, stack: e.stack }), { status: 500, headers: { 'Content-Type': 'application/json' } });
