@@ -1,134 +1,465 @@
-import { unzipSync } from './fflate.js';
-
-function buildV4Prompt(prompt) {
-  return {
-    caption: {
-      base_caption: prompt,
-      char_captions: []
-    },
-    use_coords: false,
-    use_order: true
-  };
-}
-
-export async function onRequest(context) {
-  if (context.request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
-  }
-
-  try {
-    const NOVELAI_API_KEY = context.env.NOVELAI_API_KEY;
-    if (!NOVELAI_API_KEY) {
-      throw new Error('服务器未配置 NOVELAI_API_KEY');
-    }
-
-    const data = await context.request.json();
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovelAI Opus Free + TagSearch</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     
-    // ================= 安全防护核心逻辑 =================
-    // 强制限制步数：即使前端传了50，后端也只给28
-    const MAX_FREE_STEPS = 28;
-    const steps = Math.min(parseInt(data.steps) || 28, MAX_FREE_STEPS);
-    
-    // 强制限制分辨率：防止有人修改前端代码传入超大分辨率
-    // Opus 免费限制约为 1048576 像素 (1024*1024)
-    // 这里做一个简单的总量检查
-    const width = parseInt(data.width) || 832;
-    const height = parseInt(data.height) || 1216;
-    if (width * height > 1048576) {
-        throw new Error("分辨率超出 Opus 免费限制 (Max 1024x1024 or equivalent)");
-    }
-    // =================================================
+    <style>
+        /* 桌面端滚动条样式 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        
+        body { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); }
 
-    const prompt = data.prompt || "";
-    const negative_prompt = data.negative_prompt || "";
-    const version = data.version || "v3";
-    const seed = Math.floor(Math.random() * 4294967295);
-
-    let payload = {};
-    
-    if (version === "v4.5") {
-      payload = {
-        input: prompt,
-        model: "nai-diffusion-4-5-full",
-        action: "generate",
-        parameters: {
-          params_version: 3,
-          width: width,
-          height: height,
-          scale: data.scale,
-          sampler: data.sampler,
-          steps: steps, // 使用被限制的安全步数
-          seed: seed,
-          n_samples: 1,
-          v4_prompt: buildV4Prompt(prompt),
-          v4_negative_prompt: buildV4Prompt(negative_prompt),
-          negative_prompt: negative_prompt,
-          ucPreset: 4, 
-          dynamic_thresholding: false,
-          controlnet_strength: 1,
-          add_original_image: true,
-          cfg_rescale: 0,
-          noise_schedule: "exponential",
-          skip_cfg_above_sigma: 58,
-          legacy_v3_extend: false
+        .loader {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            animation: rotation 1s linear infinite;
         }
-      };
-    } else {
-      payload = {
-        input: prompt,
-        model: "nai-diffusion-3",
-        action: "generate",
-        undesiredContent: negative_prompt, 
-        parameters: {
-          width: width,
-          height: height,
-          scale: data.scale,
-          sampler: data.sampler,
-          steps: steps, // 使用被限制的安全步数
-          seed: seed,
-          n_samples: 1,
-          sm: true,
-          sm_dyn: true,
-          qualityToggle: true,
-          ucPreset: 0
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-      };
-    }
 
-    const NAI_URL = 'https://image.novelai.net/ai/generate-image';
-    const response = await fetch(NAI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NOVELAI_API_KEY}` },
-      body: JSON.stringify(payload),
-    });
+        .model-switch-label {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        input[type="radio"]:checked + .model-switch-label {
+            background-color: #1f2937;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return new Response(JSON.stringify({ error: `NovelAI API Error: ${errorText}` }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
-    }
+        /* 侧边栏动画 */
+        .drawer {
+            transition: transform 0.3s ease-in-out;
+        }
+        .drawer-open {
+            transform: translateX(0);
+        }
+        .drawer-closed {
+            transform: translateX(-100%);
+        }
+    </style>
+</head>
+<body class="text-gray-600 min-h-screen md:h-screen flex flex-col md:flex-row font-sans selection:bg-gray-200 md:overflow-hidden">
 
-    const zipBuffer = await response.arrayBuffer();
-    const zipBytes = new Uint8Array(zipBuffer);
-    const decompressedFiles = unzipSync(zipBytes);
-    const imageFileName = Object.keys(decompressedFiles).find(name => name.endsWith('.png'));
-    
-    if (!imageFileName) {
-        throw new Error("解压后未找到 PNG 图片文件");
-    }
-    
-    const imageDataBytes = decompressedFiles[imageFileName];
-    let binary = '';
-    const len = imageDataBytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(imageDataBytes[i]);
-    }
-    const imageBase64 = btoa(binary);
+    <!-- Tag 搜索侧边栏 (Drawer) -->
+    <div id="tagDrawer" class="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-50 drawer drawer-closed flex flex-col border-r border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+            <h2 class="font-bold text-gray-700 flex items-center gap-2">
+                <i data-lucide="book-open" class="w-4 h-4 text-blue-500"></i>
+                Tag 词典
+            </h2>
+            <button onclick="toggleDrawer()" class="p-1 hover:bg-gray-200 rounded transition-colors">
+                <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+            </button>
+        </div>
+        
+        <div class="p-4 border-b border-gray-100">
+            <!-- 搜索框区域：改为 Flex 布局，包含按钮 -->
+            <div class="flex gap-2">
+                <div class="relative flex-1">
+                    <input type="text" id="tagSearchInput" placeholder="搜：blue 或 头发..." class="w-full pl-9 pr-2 py-2 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none transition-all">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+                </div>
+                <button id="tagSearchBtn" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap shadow-sm active:scale-95">
+                    搜索
+                </button>
+            </div>
+            <p class="text-[10px] text-gray-400 mt-2">输入关键词后点击搜索或按回车</p>
+        </div>
 
-    return new Response(JSON.stringify({ image: `data:image/png;base64,${imageBase64}`, steps_used: steps }), {
-      status: 200, headers: { 'Content-Type': 'application/json' },
-    });
+        <div id="tagResults" class="flex-1 overflow-y-auto p-2 space-y-1">
+            <div class="text-center mt-10 text-xs text-gray-400">
+                准备就绪<br>请在上方输入关键词
+            </div>
+        </div>
+    </div>
 
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-  }
-}
+    <!-- 遮罩层 -->
+    <div id="drawerOverlay" onclick="toggleDrawer()" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 hidden transition-opacity"></div>
+
+
+    <!-- 左侧：控制面板 -->
+    <div class="w-full md:w-[400px] bg-white border-r border-gray-200 flex flex-col z-20 shadow-xl relative order-2 md:order-1 md:h-full">
+        
+        <!-- 标题区 -->
+        <div class="p-6 border-b border-gray-100 sticky top-0 bg-white z-30">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <!-- Tag 菜单按钮 -->
+                    <button onclick="toggleDrawer()" class="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors group" title="打开 Tag 搜索">
+                        <i data-lucide="menu" class="w-6 h-6 text-gray-600 group-hover:text-blue-600"></i>
+                    </button>
+                    <div>
+                        <h1 class="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                            Opus Free
+                            <span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">0 Anlas</span>
+                        </h1>
+                    </div>
+                </div>
+                <i data-lucide="shield-check" class="w-5 h-5 text-green-500"></i>
+            </div>
+
+            <!-- 模型选择器 -->
+            <div class="flex bg-gray-100 p-1 rounded-lg">
+                <label class="flex-1 relative">
+                    <input type="radio" name="model_version" value="v3" class="hidden" checked onchange="updateModelUI('v3')">
+                    <div class="model-switch-label text-center py-2 rounded-md text-xs font-semibold text-gray-500 hover:text-gray-700">
+                        NAI V3
+                    </div>
+                </label>
+                <label class="flex-1 relative">
+                    <input type="radio" name="model_version" value="v4.5" class="hidden" onchange="updateModelUI('v4.5')">
+                    <div class="model-switch-label text-center py-2 rounded-md text-xs font-semibold text-gray-500 hover:text-gray-700 flex items-center justify-center gap-1">
+                        NAI V4.5
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- 滚动表单区 -->
+        <div class="flex-none md:flex-1 md:overflow-y-auto p-6 space-y-6 pb-24 md:pb-6">
+            
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex justify-between">
+                    <span>提示词 (Prompt)</span>
+                    <span onclick="toggleDrawer()" class="cursor-pointer text-blue-500 hover:underline">🔍 搜词库</span>
+                </label>
+                <textarea id="prompt" rows="5" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-1 focus:ring-gray-400 focus:border-gray-400 block p-3 resize-none outline-none transition-all placeholder-gray-300" placeholder="1girl, white hair, simple background..."></textarea>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">负向提示词 (Negative)</label>
+                <textarea id="negativePrompt" rows="3" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-1 focus:ring-gray-400 focus:border-gray-400 block p-3 resize-none outline-none transition-all placeholder-gray-300">lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry</textarea>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex justify-between">
+                    <span>画幅大小 (Opus 免费尺寸)</span>
+                    <i data-lucide="lock" class="w-3 h-3 text-gray-300"></i>
+                </label>
+                <div class="relative">
+                    <select id="resolution" class="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md p-3 outline-none focus:border-gray-400 cursor-pointer font-mono">
+                        <option value="832,1216" selected>Portrait (832 x 1216)</option>
+                        <option value="1216,832">Landscape (1216 x 832)</option>
+                        <option value="1024,1024">Square (1024 x 1024)</option>
+                        <option value="832,832">Small Square (832 x 832)</option>
+                        <option value="512,768">Speed Portrait (512 x 768)</option>
+                        <option value="768,512">Speed Landscape (768 x 512)</option>
+                    </select>
+                    <i data-lucide="chevron-down" class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                </div>
+            </div>
+
+            <div class="space-y-4 pt-2">
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <label class="font-medium text-gray-500">步数 (Max 28)</label>
+                        <span id="stepsValue" class="font-mono text-gray-900 font-bold">28</span>
+                    </div>
+                    <input type="range" id="steps" min="1" max="28" value="28" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-800">
+                    <p class="text-[10px] text-gray-400 text-right">已锁定 Opus 免费上限</p>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <label class="font-medium text-gray-500">相关性 (Scale)</label>
+                        <span id="scaleValue" class="font-mono text-gray-900">5.0</span>
+                    </div>
+                    <input type="range" id="scale" min="1" max="20" value="5" step="0.5" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-800">
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">采样器</label>
+                <div class="relative">
+                    <select id="sampler" class="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md p-2.5 outline-none focus:border-gray-400 cursor-pointer">
+                        <option value="k_euler" selected>Euler (标准)</option>
+                        <option value="k_euler_ancestral">Euler Ancestral</option>
+                        <option value="k_dpmpp_2m">DPM++ 2M</option>
+                        <option value="k_dpmpp_2s_ancestral">DPM++ 2S Ancestral</option>
+                        <option value="k_dpmpp_sde">DPM++ SDE</option>
+                        <option value="ddim_v3">DDIM</option>
+                    </select>
+                    <i data-lucide="chevron-down" class="absolute right-3 top-3 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="p-6 border-t border-gray-100 bg-white z-20 fixed bottom-0 left-0 right-0 md:sticky md:bottom-0">
+            <button id="generateBtn" class="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-gray-300 active:scale-[0.98]">
+                <span id="btnIcon"><i data-lucide="sparkles" class="w-4 h-4"></i></span>
+                <span id="btnLoader" class="hidden"><span class="loader"></span></span>
+                <span id="btnText">免费生成 (0 Anlas)</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 右侧：预览区 -->
+    <div class="relative flex flex-col h-[45vh] md:h-full overflow-hidden bg-gray-100/50 order-1 md:order-2 border-b md:border-b-0 border-gray-200 flex-shrink-0">
+        <div class="absolute top-0 left-0 right-0 h-16 flex items-center justify-end px-6 gap-3 z-10 pointer-events-none">
+            <div class="pointer-events-auto flex gap-2">
+                <button onclick="downloadImage()" id="dlBtn" class="p-2 bg-white rounded-md shadow-sm border border-gray-200 text-gray-500 hover:text-gray-900 transition-colors opacity-50 cursor-not-allowed" disabled title="下载图片">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 flex items-center justify-center p-8 overflow-hidden relative">
+            <div class="absolute inset-0 opacity-[0.03]" style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 24px 24px;"></div>
+
+            <div id="placeholder" class="text-center transition-opacity duration-300">
+                <div class="w-16 h-16 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="image" class="w-6 h-6 text-gray-300"></i>
+                </div>
+                <p class="text-gray-400 text-sm font-light">Opus 免费模式就绪</p>
+                <div id="modelBadge" class="mt-2 text-[10px] font-mono text-gray-300 bg-gray-100 px-2 py-1 rounded inline-block">V3 MODE</div>
+            </div>
+
+            <img id="resultImage" class="hidden max-w-full max-h-full object-contain shadow-2xl rounded-lg border border-white transition-all duration-500 scale-95 opacity-0">
+        </div>
+
+        <div class="h-10 bg-white border-t border-gray-200 flex items-center justify-between px-6 text-[10px] text-gray-400 uppercase tracking-wider">
+            <span id="statusText">Ready</span>
+            <span id="metaInfo"></span>
+        </div>
+    </div>
+
+    <!-- 底部垫片 -->
+    <div class="h-24 md:hidden order-3 w-full"></div>
+
+    <script>
+        lucide.createIcons();
+
+        const els = {
+            prompt: document.getElementById('prompt'),
+            negative: document.getElementById('negativePrompt'),
+            resolution: document.getElementById('resolution'),
+            steps: document.getElementById('steps'),
+            scale: document.getElementById('scale'),
+            sampler: document.getElementById('sampler'),
+            btn: document.getElementById('generateBtn'),
+            btnText: document.getElementById('btnText'),
+            btnIcon: document.getElementById('btnIcon'),
+            btnLoader: document.getElementById('btnLoader'),
+            resultImg: document.getElementById('resultImage'),
+            placeholder: document.getElementById('placeholder'),
+            status: document.getElementById('statusText'),
+            dlBtn: document.getElementById('dlBtn'),
+            stepsVal: document.getElementById('stepsValue'),
+            scaleVal: document.getElementById('scaleValue'),
+            modelBadge: document.getElementById('modelBadge'),
+            tagDrawer: document.getElementById('tagDrawer'),
+            drawerOverlay: document.getElementById('drawerOverlay'),
+            tagSearchInput: document.getElementById('tagSearchInput'),
+            tagResults: document.getElementById('tagResults'),
+            tagSearchBtn: document.getElementById('tagSearchBtn') // 新增
+        };
+
+        // --- Tag 搜索功能 ---
+        let tagData = {};
+        let isDrawerOpen = false;
+
+        const backupTagData = {
+            "pink gloves": "粉色手套",
+            "earphones": "耳机",
+            "picture frame": "画框",
+            "blue hair": "蓝发",
+            "blue sky": "蓝天",
+            "1girl": "1个女孩",
+            "solo": "单人",
+            "masterpiece": "杰作"
+        };
+
+        async function loadTags() {
+            try {
+                const response = await fetch('all_tags.txt');
+                if (!response.ok) throw new Error("文件未找到");
+                tagData = await response.json();
+                console.log("Tag 词库加载成功");
+            } catch (error) {
+                console.warn("加载 all_tags.txt 失败，使用内置备份数据", error);
+                tagData = backupTagData;
+            }
+        }
+        loadTags();
+
+        function toggleDrawer() {
+            isDrawerOpen = !isDrawerOpen;
+            if (isDrawerOpen) {
+                els.tagDrawer.classList.remove('drawer-closed');
+                els.tagDrawer.classList.add('drawer-open');
+                els.drawerOverlay.classList.remove('hidden');
+                els.tagSearchInput.focus();
+            } else {
+                els.tagDrawer.classList.remove('drawer-open');
+                els.tagDrawer.classList.add('drawer-closed');
+                els.drawerOverlay.classList.add('hidden');
+            }
+        }
+
+        function addTagToPrompt(tag) {
+            const current = els.prompt.value.trim();
+            if (current && !current.endsWith(',')) {
+                els.prompt.value += ', ' + tag;
+            } else {
+                els.prompt.value += tag;
+            }
+            els.prompt.classList.add('bg-blue-50');
+            setTimeout(() => els.prompt.classList.remove('bg-blue-50'), 200);
+        }
+
+        function renderResults(results) {
+            els.tagResults.innerHTML = '';
+            if (results.length === 0) {
+                els.tagResults.innerHTML = '<div class="text-center mt-10 text-xs text-gray-400">未找到匹配的 Tag</div>';
+                return;
+            }
+            results.forEach(([en, cn]) => {
+                const div = document.createElement('div');
+                div.className = "flex flex-col p-2 hover:bg-gray-100 rounded cursor-pointer group border-b border-gray-50 last:border-0";
+                div.onclick = () => addTagToPrompt(en);
+                div.innerHTML = `
+                    <span class="font-medium text-gray-700 text-sm group-hover:text-blue-600">${en}</span>
+                    <span class="text-xs text-gray-400">${cn}</span>
+                `;
+                els.tagResults.appendChild(div);
+            });
+        }
+
+        // 核心修改：独立的搜索函数，不再由 input 事件触发
+        function performTagSearch() {
+            const query = els.tagSearchInput.value.toLowerCase().trim();
+            if (!query) {
+                els.tagResults.innerHTML = '<div class="text-center mt-10 text-xs text-gray-400">请输入关键词</div>';
+                return;
+            }
+
+            // 在大量数据下可能依然有微小延迟，但因为是点击触发，用户可以接受
+            const results = Object.entries(tagData).filter(([en, cn]) => {
+                return en.toLowerCase().includes(query) || cn.includes(query);
+            });
+            renderResults(results);
+        }
+
+        // 绑定点击事件
+        els.tagSearchBtn.addEventListener('click', performTagSearch);
+        
+        // 绑定回车事件
+        els.tagSearchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                performTagSearch();
+            }
+        });
+
+
+        // --- 原有生成逻辑 (保持不变) ---
+        els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
+        els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
+
+        function updateModelUI(version) {
+            els.modelBadge.textContent = `${version.toUpperCase()} MODE`;
+            if (version === 'v4.5') {
+                els.modelBadge.classList.replace('text-gray-300', 'text-blue-400');
+            } else {
+                els.modelBadge.classList.replace('text-blue-400', 'text-gray-300');
+            }
+        }
+
+        function setLoading(loading) {
+            els.btn.disabled = loading;
+            if (loading) {
+                els.btnText.textContent = "生成中...";
+                els.btnIcon.classList.add('hidden');
+                els.btnLoader.classList.remove('hidden');
+                els.status.textContent = "Processing...";
+                els.resultImg.classList.add('opacity-50', 'blur-sm');
+            } else {
+                els.btnText.textContent = "免费生成 (0 Anlas)";
+                els.btnIcon.classList.remove('hidden');
+                els.btnLoader.classList.add('hidden');
+                els.resultImg.classList.remove('opacity-50', 'blur-sm');
+            }
+        }
+
+        els.btn.addEventListener('click', async () => {
+            const prompt = els.prompt.value.trim();
+            if (!prompt) {
+                els.prompt.focus();
+                return;
+            }
+            const selectedVersion = document.querySelector('input[name="model_version"]:checked').value;
+            const [w, h] = els.resolution.value.split(',').map(Number);
+
+            setLoading(true);
+            const startTime = Date.now();
+
+            try {
+                const payload = {
+                    version: selectedVersion,
+                    prompt: prompt,
+                    negative_prompt: els.negative.value.trim(),
+                    width: w,
+                    height: h,
+                    steps: parseInt(els.steps.value),
+                    scale: parseFloat(els.scale.value),
+                    sampler: els.sampler.value
+                };
+
+                const res = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok || data.error) throw new Error(data.error || `Server Error: ${res.status}`);
+
+                const imgData = data.image;
+                els.resultImg.src = imgData;
+                els.resultImg.onload = () => {
+                    els.placeholder.classList.add('hidden');
+                    els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
+                    els.resultImg.classList.add('scale-100', 'opacity-100');
+                    els.dlBtn.disabled = false;
+                    els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    const time = ((Date.now() - startTime) / 1000).toFixed(1);
+                    els.status.textContent = `Completed in ${time}s (${selectedVersion})`;
+                    els.status.classList.remove('text-red-500');
+                };
+            } catch (err) {
+                console.error(err);
+                els.status.textContent = `Error: ${err.message}`;
+                els.status.classList.add('text-red-500');
+                alert("生成失败: " + err.message);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        function downloadImage() {
+            if (els.resultImg.src && !els.resultImg.classList.contains('hidden')) {
+                const a = document.createElement('a');
+                a.href = els.resultImg.src;
+                a.download = `novelai-free-${Date.now()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+    </script>
+</body>
+</html>
