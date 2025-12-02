@@ -3,477 +3,317 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEURAL CONSTRUCT | 神经构造终端</title>
-    <!-- 引入科技感字体：Rajdhani用于标题，JetBrains Mono用于数据 -->
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
-
+    <title>NovelAI Generator V4.5</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
-        :root {
-            /* --- 核心调色板 --- */
-            --bg-core: #050505;         /* 核心黑 */
-            --bg-panel: rgba(12, 12, 12, 0.9);
-            
-            --line-cyan: #00f3ff;       /* 信号青：输入、数据、冷静 */
-            --line-pink: #ff0055;       /* 警告粉：输出、操作、能量 */
-            --line-dim: #333333;        /* 结构灰：辅助线条 */
-            
-            --text-main: #eeeeee;
-            --text-mute: #666666;
-            
-            --font-head: 'Rajdhani', sans-serif;
-            --font-code: 'JetBrains Mono', monospace;
-        }
-
-        * { box-sizing: border-box; }
+        /* 极简滚动条 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
         body {
-            background-color: var(--bg-core);
-            /* 背景：工程蓝图网格 */
-            background-image: 
-                linear-gradient(var(--line-dim) 1px, transparent 1px),
-                linear-gradient(90deg, var(--line-dim) 1px, transparent 1px);
-            background-size: 40px 40px;
-            font-family: var(--font-code);
-            color: var(--text-main);
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
         }
 
-        /* 背景氛围光晕 */
-        body::before {
-            content: ''; position: fixed; top: -10%; left: -10%; width: 50vw; height: 50vw;
-            background: radial-gradient(circle, rgba(0, 243, 255, 0.08), transparent 60%);
-            z-index: -1; pointer-events: none;
+        .loader {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            animation: rotation 1s linear infinite;
         }
-        body::after {
-            content: ''; position: fixed; bottom: -10%; right: -10%; width: 50vw; height: 50vw;
-            background: radial-gradient(circle, rgba(255, 0, 85, 0.08), transparent 60%);
-            z-index: -1; pointer-events: none;
-        }
-
-        .container {
-            display: flex;
-            flex-wrap: wrap;
-            width: 100%;
-            max-width: 1400px;
-            gap: 30px;
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        /* --- 通用面板：几何切角设计 --- */
-        .panel {
-            background: var(--bg-panel);
-            border: 1px solid var(--line-dim);
-            padding: 30px;
-            position: relative;
-            backdrop-filter: blur(5px);
-            /* 使用 clip-path 切割出硬朗的多边形轮廓 */
-            clip-path: polygon(
-                0 0, 
-                calc(100% - 20px) 0, 
-                100% 20px, 
-                100% 100%, 
-                20px 100%, 
-                0 calc(100% - 20px)
-            );
-        }
-
-        /* 左侧面板：青色主题 */
-        .control-panel { 
-            flex: 1; 
-            min-width: 360px; 
-            border-left: 2px solid var(--line-cyan); 
-        }
-        
-        /* 右侧面板：粉色主题 */
-        .image-panel { 
-            flex: 1.5; 
-            min-width: 360px;
-            min-height: 600px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-right: 2px solid var(--line-pink); 
-            background-image: radial-gradient(#222 1px, transparent 1px);
-            background-size: 20px 20px;
-            position: relative;
-        }
-
-        /* --- 标题排版 --- */
-        h2 {
-            font-family: var(--font-head);
-            font-size: 1.8rem;
-            text-transform: uppercase;
-            margin: 0 0 20px 0;
-            letter-spacing: 2px;
-            border-bottom: 1px dashed var(--line-dim);
-            padding-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-        }
-        h2 span { color: var(--line-cyan); font-size: 0.6em; align-self: center; }
-
-        /* --- 表单控件 --- */
-        .form-group { margin-bottom: 18px; }
-        
-        label {
-            display: block;
-            color: var(--line-cyan);
-            font-size: 0.75rem;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* 输入框：L型边框风格 */
-        textarea, select, input[type="text"] {
-            width: 100%;
-            background: rgba(0,0,0,0.3);
-            border: none;
-            border-left: 1px solid var(--line-dim);
-            border-bottom: 1px solid var(--line-dim);
-            color: var(--text-main);
-            padding: 10px 15px;
-            font-family: var(--font-code);
-            font-size: 0.9rem;
+        /* 模型切换开关样式 */
+        .model-switch-label {
+            cursor: pointer;
             transition: all 0.3s ease;
         }
-
-        textarea:focus, select:focus, input:focus {
-            outline: none;
-            border-color: var(--line-cyan);
-            background: rgba(0, 243, 255, 0.05); /* 聚焦时微弱发光 */
-            box-shadow: inset 4px 0 0 var(--line-cyan);
+        input[type="radio"]:checked + .model-switch-label {
+            background-color: #1f2937; /* gray-800 */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-
-        textarea { resize: vertical; min-height: 80px; }
-
-        /* --- 按钮设计 --- */
-        .template-group { display: flex; gap: 10px; margin-bottom: 10px; }
-        
-        /* 预设按钮：线框风格 */
-        .template-btn {
-            background: transparent;
-            border: 1px solid var(--line-dim);
-            color: var(--text-mute);
-            padding: 8px 12px;
-            font-family: var(--font-code);
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .template-btn:hover {
-            border-color: var(--line-cyan);
-            color: var(--line-cyan);
-            box-shadow: 3px 3px 0 var(--line-cyan); /* 硬阴影 */
-            transform: translate(-1px, -1px);
-        }
-
-        /* 主生成按钮：粉色实块，切角设计 */
-        #generateBtn {
-            width: 100%;
-            margin-top: 20px;
-            padding: 18px;
-            background: var(--line-pink);
-            color: #000;
-            font-weight: 800;
-            font-size: 1.1rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            border: none;
-            cursor: pointer;
-            /* 按钮切角 */
-            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-            transition: all 0.2s;
-        }
-        #generateBtn:hover {
-            background: #ff3377;
-            transform: translate(-2px, -2px);
-            box-shadow: 5px 5px 0 rgba(255, 255, 255, 0.1);
-        }
-        #generateBtn:disabled {
-            background: var(--line-dim);
-            color: var(--text-mute);
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        /* --- 滑块美化：极简线条 --- */
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 2px;
-            background: var(--line-dim);
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 8px; /* 矩形滑块 */
-            background: var(--line-cyan);
-            margin-top: -7px;
-            cursor: pointer;
-            border: none;
-        }
-
-        /* --- 右侧展示区装饰 --- */
-        /* 四角装饰线 (Corner Brackets) - HUD 风格 */
-        .bracket {
-            position: absolute;
-            width: 20px; height: 20px;
-            border: 2px solid var(--line-pink);
-            transition: 0.3s;
-        }
-        .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-        .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
-        .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
-        .br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-        
-        .image-panel:hover .bracket { width: 30px; height: 30px; }
-
-        #resultImage {
-            max-width: 95%;
-            max-height: 85vh;
-            display: none;
-            border: 1px solid var(--line-dim);
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-        }
-
-        /* --- 加载动画：扫描线 --- */
-        .loading-container {
-            display: none;
-            text-align: center;
-            color: var(--line-pink);
-        }
-        .scan-line {
-            width: 200px;
-            height: 2px;
-            background: var(--line-dim);
-            position: relative;
-            overflow: hidden;
-            margin: 0 auto 10px auto;
-        }
-        .scan-line::after {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%;
-            width: 100%; height: 100%;
-            background: var(--line-pink);
-            animation: scan 1.5s infinite linear;
-        }
-        @keyframes scan { 0% { left: -100%; } 100% { left: 100%; } }
-
-        .error-msg {
-            color: var(--line-pink);
-            margin-top: 15px;
-            font-size: 0.8rem;
-            border-left: 2px solid var(--line-pink);
-            padding-left: 10px;
-            display: none;
-            background: rgba(255, 0, 85, 0.05);
-            word-break: break-all;
-        }
-
-        /* 布局辅助 */
-        .row { display: flex; gap: 20px; }
-        .col { flex: 1; }
-        .val-display { float: right; color: var(--line-cyan); font-size: 0.8rem; }
-
     </style>
 </head>
-<body>
+<body class="text-gray-600 min-h-screen md:h-screen flex flex-col md:flex-row font-sans selection:bg-gray-200">
 
-<div class="container">
-    <!-- 左侧：参数控制 -->
-    <div class="panel control-panel">
-        <h2>Construct <span>V.07</span></h2>
+    <!-- 左侧：控制面板 -->
+    <div class="w-full md:w-[400px] bg-white border-r border-gray-200 flex flex-col z-20 shadow-xl relative order-2 md:order-1">
         
-        <div class="form-group">
-            <label>// 快速指令 (PRESETS)</label>
-            <div class="template-group">
-                <button type="button" class="template-btn" onclick="applyTemplate('loli')"># 猫耳娘</button>
-                <button type="button" class="template-btn" onclick="applyTemplate('luffy')"># 路飞</button>
+        <!-- 标题区 -->
+        <div class="p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h1 class="text-lg font-medium text-gray-900 tracking-tight">AI 绘图</h1>
+                    <p class="text-xs text-gray-400 mt-0.5">NovelAI Dual Model</p>
+                </div>
+                <i data-lucide="command" class="w-5 h-5 text-gray-300"></i>
+            </div>
+
+            <!-- 模型选择器 -->
+            <div class="flex bg-gray-100 p-1 rounded-lg">
+                <label class="flex-1 relative">
+                    <input type="radio" name="model_version" value="v3" class="hidden" checked onchange="updateModelUI('v3')">
+                    <div class="model-switch-label text-center py-2 rounded-md text-xs font-semibold text-gray-500 hover:text-gray-700">
+                        Model V3
+                    </div>
+                </label>
+                <label class="flex-1 relative">
+                    <input type="radio" name="model_version" value="v4.5" class="hidden" onchange="updateModelUI('v4.5')">
+                    <div class="model-switch-label text-center py-2 rounded-md text-xs font-semibold text-gray-500 hover:text-gray-700 flex items-center justify-center gap-1">
+                        Model V4.5 <span class="text-[8px] bg-blue-500 text-white px-1 rounded">NEW</span>
+                    </div>
+                </label>
             </div>
         </div>
 
-        <div class="form-group">
-            <label for="prompt">// 正向提示词 (PROMPT)</label>
-            <textarea id="prompt" spellcheck="false">1girl, solo, cute, masterpiece, best quality</textarea>
+        <!-- 滚动表单区 -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">提示词 (Prompt)</label>
+                <textarea id="prompt" rows="5" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-1 focus:ring-gray-400 focus:border-gray-400 block p-3 resize-none outline-none transition-all placeholder-gray-300" placeholder="1girl, white hair, simple background..."></textarea>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">负向提示词 (Negative)</label>
+                <textarea id="negativePrompt" rows="3" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-1 focus:ring-gray-400 focus:border-gray-400 block p-3 resize-none outline-none transition-all placeholder-gray-300">lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry</textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">宽度</label>
+                    <input type="number" id="width" value="832" step="64" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-md text-sm text-center focus:border-gray-400 outline-none transition-colors">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">高度</label>
+                    <input type="number" id="height" value="1216" step="64" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-md text-sm text-center focus:border-gray-400 outline-none transition-colors">
+                </div>
+            </div>
+
+            <div class="space-y-4 pt-2">
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <label class="font-medium text-gray-500">步数 (Steps)</label>
+                        <span id="stepsValue" class="font-mono text-gray-900">28</span>
+                    </div>
+                    <input type="range" id="steps" min="1" max="50" value="28" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-800">
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <label class="font-medium text-gray-500">相关性 (Scale)</label>
+                        <span id="scaleValue" class="font-mono text-gray-900">5.0</span>
+                    </div>
+                    <input type="range" id="scale" min="1" max="20" value="5" step="0.5" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-800">
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">采样器</label>
+                <div class="relative">
+                    <select id="sampler" class="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md p-2.5 outline-none focus:border-gray-400 cursor-pointer">
+                        <option value="k_euler" selected>Euler (推荐)</option>
+                        <option value="k_euler_ancestral">Euler Ancestral</option>
+                        <option value="k_dpmpp_2m">DPM++ 2M</option>
+                        <option value="k_dpmpp_2s_ancestral">DPM++ 2S Ancestral</option>
+                        <option value="k_dpmpp_sde">DPM++ SDE</option>
+                        <option value="ddim_v3">DDIM</option>
+                    </select>
+                    <i data-lucide="chevron-down" class="absolute right-3 top-3 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                </div>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="negative_prompt">// 负向提示词 (NEGATIVE)</label>
-            <textarea id="negative_prompt" style="color: var(--text-mute);">lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry</textarea>
+        <!-- 底部按钮 -->
+        <div class="p-6 border-t border-gray-100 bg-white z-10 sticky bottom-0">
+            <button id="generateBtn" class="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-gray-300 active:scale-[0.98]">
+                <span id="btnIcon"><i data-lucide="sparkles" class="w-4 h-4"></i></span>
+                <span id="btnLoader" class="hidden"><span class="loader"></span></span>
+                <span id="btnText">开始生成</span>
+            </button>
         </div>
-
-        <div class="row">
-            <div class="col form-group">
-                <label>画幅 (RATIO)</label>
-                <select id="orientation">
-                    <option value="portrait" selected>PORTRAIT [832x1216]</option>
-                    <option value="landscape">LANDSCAPE [1216x832]</option>
-                    <option value="square">SQUARE [1024x1024]</option>
-                </select>
-            </div>
-            <div class="col form-group">
-                <label>采样器 (SAMPLER)</label>
-                <select id="sampler">
-                    <option value="k_euler_ancestral" selected>Euler A</option>
-                    <option value="k_dpmpp_2m">DPM++ 2M</option>
-                    <option value="k_dpmpp_sde">DPM++ SDE</option>
-                    <option value="ddim_v3">DDIM V3</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col form-group">
-                <!-- 步数限制：最大 28 -->
-                <label>步数 (MAX 28) <span id="stepsVal" class="val-display">28</span></label>
-                <input type="range" id="steps" min="1" max="28" value="28" oninput="document.getElementById('stepsVal').innerText = this.value">
-            </div>
-            <div class="col form-group">
-                <label>相关性 (CFG) <span id="scaleVal" class="val-display">5.0</span></label>
-                <input type="range" id="scale" min="1.1" max="10.0" step="0.1" value="5.0" oninput="document.getElementById('scaleVal').innerText = this.value">
-            </div>
-        </div>
-
-        <button id="generateBtn" onclick="generateImage()">
-            EXECUTE_RENDER
-        </button>
-        <div id="errorMsg" class="error-msg"></div>
     </div>
 
-    <!-- 右侧：图像输出 -->
-    <div class="panel image-panel">
-        <!-- 装饰角标 -->
-        <div class="bracket tl"></div>
-        <div class="bracket tr"></div>
-        <div class="bracket bl"></div>
-        <div class="bracket br"></div>
-
-        <!-- 占位符 -->
-        <div id="placeholder" style="text-align: center; opacity: 0.5; color: var(--line-dim);">
-            <div style="font-size: 4rem; font-weight: 100;">+</div>
-            <div style="letter-spacing: 4px; font-size: 0.8rem;">AWAITING SIGNAL</div>
+    <!-- 右侧：预览区 -->
+    <div class="flex-1 relative flex flex-col h-[50vh] md:h-full overflow-hidden bg-gray-100/50 order-1 md:order-2 border-b md:border-b-0 border-gray-200">
+        <!-- 顶部工具栏 -->
+        <div class="absolute top-0 left-0 right-0 h-16 flex items-center justify-end px-6 gap-3 z-10 pointer-events-none">
+            <div class="pointer-events-auto flex gap-2">
+                <button onclick="downloadImage()" id="dlBtn" class="p-2 bg-white rounded-md shadow-sm border border-gray-200 text-gray-500 hover:text-gray-900 transition-colors opacity-50 cursor-not-allowed" disabled title="下载图片">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                </button>
+            </div>
         </div>
 
-        <!-- 加载动画 -->
-        <div id="loading" class="loading-container">
-            <div class="scan-line"></div>
-            <div style="font-size: 0.9rem; letter-spacing: 2px;">PROCESSING DATA STREAM...</div>
+        <!-- 画布 -->
+        <div class="flex-1 flex items-center justify-center p-8 overflow-hidden relative">
+            <div class="absolute inset-0 opacity-[0.03]" style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 24px 24px;"></div>
+
+            <div id="placeholder" class="text-center transition-opacity duration-300">
+                <div class="w-16 h-16 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="image" class="w-6 h-6 text-gray-300"></i>
+                </div>
+                <p class="text-gray-400 text-sm font-light">选择模型并开始生成</p>
+                <div id="modelBadge" class="mt-2 text-[10px] font-mono text-gray-300 bg-gray-100 px-2 py-1 rounded inline-block">V3 MODE</div>
+            </div>
+
+            <img id="resultImage" class="hidden max-w-full max-h-full object-contain shadow-2xl rounded-lg border border-white transition-all duration-500 scale-95 opacity-0">
         </div>
 
-        <!-- 结果图片 -->
-        <img id="resultImage" alt="Generated Image">
+        <!-- 状态栏 -->
+        <div class="h-10 bg-white border-t border-gray-200 flex items-center justify-between px-6 text-[10px] text-gray-400 uppercase tracking-wider">
+            <span id="statusText">Ready</span>
+            <span id="metaInfo"></span>
+        </div>
     </div>
-</div>
 
-<script>
-    // --- 1. 预设词数据 (保留原始要求) ---
-    const templates = {
-        loli: {
-            prompt: "1girl, cat ears, cute, white hair, blue eyes, frills, dress, masterpiece, best quality, cinematic lighting, geometric background",
-            orientation: "portrait"
-        },
-        luffy: {
-            prompt: "monkey d. luffy, one piece, male focus, straw hat, red vest, scar under eye, smiling, masterpiece, best quality, intense shadows",
-            orientation: "landscape"
-        }
-    };
+    <script>
+        lucide.createIcons();
 
-    function applyTemplate(key) {
-        const t = templates[key];
-        if (t) {
-            document.getElementById('prompt').value = t.prompt;
-            document.getElementById('orientation').value = t.orientation;
-        }
-    }
-
-    async function generateImage() {
-        const btn = document.getElementById('generateBtn');
-        const img = document.getElementById('resultImage');
-        const loading = document.getElementById('loading');
-        const placeholder = document.getElementById('placeholder');
-        const errorMsg = document.getElementById('errorMsg');
-
-        // --- 2. UI 状态管理 ---
-        btn.disabled = true;
-        btn.innerText = "CONNECTING...";
-        loading.style.display = "block";
-        img.style.display = "none";
-        placeholder.style.display = "none";
-        errorMsg.style.display = "none";
-        errorMsg.innerText = "";
-
-        // --- 3. 逻辑处理 ---
-        
-        // 分辨率映射 (NovelAI V3 推荐)
-        let width, height;
-        const ori = document.getElementById('orientation').value;
-        if (ori === 'portrait') { width = 832; height = 1216; }
-        else if (ori === 'landscape') { width = 1216; height = 832; }
-        else { width = 1024; height = 1024; }
-
-        // 步数限制 (确保不超过 28)
-        let steps = parseInt(document.getElementById('steps').value);
-        if (steps > 28) steps = 28;
-
-        // 构建 Payload，严格对应后端 functions/generate.js
-        const payload = {
-            prompt: document.getElementById('prompt').value,
-            negative_prompt: document.getElementById('negative_prompt').value,
-            width: width,
-            height: height,
-            steps: steps,
-            sampler: document.getElementById('sampler').value,
-            scale: parseFloat(document.getElementById('scale').value)
+        const els = {
+            prompt: document.getElementById('prompt'),
+            negative: document.getElementById('negativePrompt'),
+            width: document.getElementById('width'),
+            height: document.getElementById('height'),
+            steps: document.getElementById('steps'),
+            scale: document.getElementById('scale'),
+            sampler: document.getElementById('sampler'),
+            btn: document.getElementById('generateBtn'),
+            btnText: document.getElementById('btnText'),
+            btnIcon: document.getElementById('btnIcon'),
+            btnLoader: document.getElementById('btnLoader'),
+            resultImg: document.getElementById('resultImage'),
+            placeholder: document.getElementById('placeholder'),
+            status: document.getElementById('statusText'),
+            dlBtn: document.getElementById('dlBtn'),
+            stepsVal: document.getElementById('stepsValue'),
+            scaleVal: document.getElementById('scaleValue'),
+            modelBadge: document.getElementById('modelBadge')
         };
 
-        try {
-            // 发起请求
-            const response = await fetch('/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+        // UI 交互绑定
+        els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
+        els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
 
-            const data = await response.json();
-
-            if (response.ok && data.image) {
-                // 成功：显示图片
-                img.src = data.image;
-                img.onload = () => {
-                    loading.style.display = "none";
-                    img.style.display = "block";
-                    btn.innerText = "EXECUTE_RENDER";
-                    btn.disabled = false;
-                };
+        // 模型切换 UI 反馈
+        function updateModelUI(version) {
+            els.modelBadge.textContent = `${version.toUpperCase()} MODE`;
+            if (version === 'v4.5') {
+                els.modelBadge.classList.replace('text-gray-300', 'text-blue-400');
+                // V4.5 推荐步数通常也是 28，但 Scale 稍微低一点比较好（脚本用了 3.2）
+                // 这里我们暂不强制更改用户的值，只是建议
             } else {
-                // 失败：显示后端返回的错误
-                throw new Error(data.error || "Unknown API Error");
+                els.modelBadge.classList.replace('text-blue-400', 'text-gray-300');
+            }
+        }
+
+        function setLoading(loading) {
+            els.btn.disabled = loading;
+            if (loading) {
+                els.btnText.textContent = "生成中...";
+                els.btnIcon.classList.add('hidden');
+                els.btnLoader.classList.remove('hidden');
+                els.status.textContent = "Processing...";
+                els.resultImg.classList.add('opacity-50', 'blur-sm');
+            } else {
+                els.btnText.textContent = "开始生成";
+                els.btnIcon.classList.remove('hidden');
+                els.btnLoader.classList.add('hidden');
+                els.resultImg.classList.remove('opacity-50', 'blur-sm');
+            }
+        }
+
+        // 生成逻辑
+        els.btn.addEventListener('click', async () => {
+            const prompt = els.prompt.value.trim();
+            if (!prompt) {
+                els.prompt.focus();
+                els.prompt.classList.add('ring-2', 'ring-red-100');
+                setTimeout(() => els.prompt.classList.remove('ring-2', 'ring-red-100'), 1000);
+                return;
             }
 
-        } catch (e) {
-            // 异常处理
-            console.error(e);
-            loading.style.display = "none";
-            placeholder.style.display = "block"; // 恢复占位符
-            errorMsg.style.display = "block";
-            errorMsg.innerText = "SYSTEM FAILURE: " + e.message;
-            
-            btn.innerText = "RETRY";
-            btn.disabled = false;
+            // 获取当前选中的模型
+            const selectedVersion = document.querySelector('input[name="model_version"]:checked').value;
+
+            setLoading(true);
+            const startTime = Date.now();
+
+            try {
+                // 构造请求
+                const payload = {
+                    version: selectedVersion, // 发送版本号
+                    prompt: prompt,
+                    negative_prompt: els.negative.value.trim(),
+                    width: parseInt(els.width.value),
+                    height: parseInt(els.height.value),
+                    steps: parseInt(els.steps.value),
+                    scale: parseFloat(els.scale.value),
+                    sampler: els.sampler.value
+                };
+
+                const res = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || data.error) {
+                    throw new Error(data.error || `Server Error: ${res.status}`);
+                }
+
+                const imgData = data.image;
+
+                els.resultImg.src = imgData;
+                els.resultImg.onload = () => {
+                    els.placeholder.classList.add('hidden');
+                    els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
+                    els.resultImg.classList.add('scale-100', 'opacity-100');
+                    
+                    els.dlBtn.disabled = false;
+                    els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    
+                    const time = ((Date.now() - startTime) / 1000).toFixed(1);
+                    els.status.textContent = `Completed in ${time}s (${selectedVersion})`;
+                    els.status.classList.remove('text-red-500');
+                };
+
+            } catch (err) {
+                console.error(err);
+                els.status.textContent = `Error: ${err.message}`;
+                els.status.classList.add('text-red-500');
+                alert("生成失败: " + err.message);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // 下载功能
+        function downloadImage() {
+            if (els.resultImg.src && !els.resultImg.classList.contains('hidden')) {
+                const a = document.createElement('a');
+                a.href = els.resultImg.src;
+                a.download = `novelai-${Date.now()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
         }
-    }
-</script>
+    </script>
 </body>
 </html>
