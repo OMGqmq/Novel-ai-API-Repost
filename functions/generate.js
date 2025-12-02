@@ -1,81 +1,152 @@
-// functions/generate.js (最终方案 V6: 从本地文件导入)
-
-// 从我们项目内部的 fflate.js 文件导入解压工具
-// 这是一个相对路径，表示“在同一个文件夹下的 fflate.js 文件”
 import { unzipSync } from './fflate.js';
+
+// 辅助函数：构建 V4 格式的 Prompt 结构
+function buildV4Prompt(prompt) {
+  return {
+    caption: {
+      base_caption: prompt,
+      char_captions: []
+    },
+    use_coords: false,
+    use_order: true
+  };
+}
 
 export async function onRequest(context) {
   if (context.request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
+      status: 405, headers: { 'Content-Type': 'application/json' }
     });
   }
 
   try {
     const NOVELAI_API_KEY = context.env.NOVELAI_API_KEY;
     if (!NOVELAI_API_KEY) {
-      return new Response(JSON.stringify({ error: 'NOVELAI_API_KEY not set' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      throw new Error('服务器未配置 NOVELAI_API_KEY');
     }
 
     const data = await context.request.json();
-    const payload = {
-      input: data.prompt,
-      model: 'nai-diffusion-3',
-      action: 'generate',
-      parameters: { /* ...所有参数... */
-        width: data.width, height: data.height, scale: data.scale, sampler: data.sampler,
-        steps: data.steps, n_samples: 1, ucPreset: 0, qualityToggle: true, sm: true,
-        sm_dyn: true, dynamic_thresholding: false, controlnet_strength: 1, legacy: false,
-        add_original_image: false, uncond_scale: 1, cfg_rescale: 0, noise_schedule: 'native',
-        negative_prompt: data.negative_prompt,
-      },
-    };
+    
+    // 获取参数，设置默认值
+    const prompt = data.prompt || "";
+    const negative_prompt = data.negative_prompt || "";
+    const version = data.version || "v3"; // 默认为 v3
+    const seed = Math.floor(Math.random() * 4294967295);
+
+    let payload = {};
+
+    // ================= 核心逻辑：根据版本构造不同的 Payload =================
+    
+    if (version === "v4.5") {
+      // --- V4.5 配置 (参考提供的 auto_nai.py) ---
+      payload = {
+        input: prompt,
+        model: "nai-diffusion-4-5-full", // 使用 V4.5 Full 模型
+        action: "generate",
+        parameters: {
+          params_version: 3,
+          width: data.width,
+          height: data.height,
+          scale: data.scale,
+          sampler: data.sampler,
+          steps: data.steps,
+          seed: seed,
+          n_samples: 1,
+          // V4 特有参数结构
+          v4_prompt: buildV4Prompt(prompt),
+          v4_negative_prompt: buildV4Prompt(negative_prompt),
+          negative_prompt: negative_prompt,
+          
+          // V4.5 特定参数 (来自脚本)
+          ucPreset: 4, 
+          dynamic_thresholding: false,
+          controlnet_strength: 1,
+          add_original_image: true,
+          cfg_rescale: 0,
+          noise_schedule: "exponential", // V4.5 推荐 exponential
+          skip_cfg_above_sigma: 58,      // 脚本中的值
+          legacy_v3_extend: false
+        }
+      };
+    } else {
+      // --- V3 配置 (原有逻辑) ---
+      payload = {
+        input: prompt,
+        model: "nai-diffusion-3",
+        action: "generate",
+        // V3 的负面提示词放在 parameters 外面
+        undesiredContent: negative_prompt, 
+        parameters: {
+          width: data.width,
+          height: data.height,
+          scale: data.scale,
+          sampler: data.sampler,
+          steps: data.steps,
+          seed: seed,
+          n_samples: 1,
+          
+          // V3 特定参数
+          sm: true,
+          sm_dyn: true,
+          qualityToggle: true,
+          ucPreset: 0
+        }
+      };
+    }
+
+    // ================= 发送请求 =================
 
     const NAI_URL = 'https://image.novelai.net/ai/generate-image';
     const response = await fetch(NAI_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${NOVELAI_API_KEY}` },
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${NOVELAI_API_KEY}` 
+      },
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      return new Response(JSON.stringify({ error: `NovelAI API Error: ${errorText}` }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: `NovelAI API Error (${version}): ${errorText}` }), { 
+        status: response.status, headers: { 'Content-Type': 'application/json' } 
+      });
     }
 
+    // ================= 处理 ZIP =================
+    
     const zipBuffer = await response.arrayBuffer();
     const zipBytes = new Uint8Array(zipBuffer);
-
-    // --- 使用 fflate 库解压 ZIP 文件 ---
     const decompressedFiles = unzipSync(zipBytes);
     
-    // 我们从之前的诊断中知道，图片文件名是 'image_0.png'
-    const imageFileName = 'image_0.png';
+    // 查找图片文件 (通常是 image_0.png)
+    const imageFileName = Object.keys(decompressedFiles).find(name => name.endsWith('.png'));
+    
+    if (!imageFileName) {
+        throw new Error("解压后未找到 PNG 图片文件");
+    }
+    
     const imageDataBytes = decompressedFiles[imageFileName];
 
-    if (!imageDataBytes) {
-      const foundFiles = Object.keys(decompressedFiles);
-      return new Response(JSON.stringify({ 
-          error: `解压成功，但在ZIP文件中找不到 '${imageFileName}'。`,
-          details: `找到的文件有: ${foundFiles.join(', ')}`
-      }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-    }
-    // --- 解压成功 ---
-
-    // 将解压后的、纯粹的图片二进制数据转换为 Base64
+    // 转 Base64
     let binary = '';
-    for (let i = 0; i < imageDataBytes.byteLength; i++) {
+    const len = imageDataBytes.byteLength;
+    for (let i = 0; i < len; i++) {
       binary += String.fromCharCode(imageDataBytes[i]);
     }
     const imageBase64 = btoa(binary);
 
-    return new Response(JSON.stringify({ image: `data:image/png;base64,${imageBase64}` }), {
+    return new Response(JSON.stringify({ 
+      image: `data:image/png;base64,${imageBase64}`,
+      model_used: version
+    }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
 
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message, stack: e.stack }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: e.message }), { 
+      status: 500, headers: { 'Content-Type': 'application/json' } 
+    });
   }
-}
+        }
