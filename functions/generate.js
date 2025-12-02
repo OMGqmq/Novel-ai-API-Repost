@@ -1,6 +1,5 @@
 import { unzipSync } from './fflate.js';
 
-// 辅助函数：构建 V4 格式的 Prompt 结构
 function buildV4Prompt(prompt) {
   return {
     caption: {
@@ -14,9 +13,7 @@ function buildV4Prompt(prompt) {
 
 export async function onRequest(context) {
   if (context.request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { 'Content-Type': 'application/json' }
-    });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   }
 
   try {
@@ -27,65 +24,69 @@ export async function onRequest(context) {
 
     const data = await context.request.json();
     
-    // 获取参数，设置默认值
+    // ================= 安全防护核心逻辑 =================
+    // 强制限制步数：即使前端传了50，后端也只给28
+    const MAX_FREE_STEPS = 28;
+    const steps = Math.min(parseInt(data.steps) || 28, MAX_FREE_STEPS);
+    
+    // 强制限制分辨率：防止有人修改前端代码传入超大分辨率
+    // Opus 免费限制约为 1048576 像素 (1024*1024)
+    // 这里做一个简单的总量检查
+    const width = parseInt(data.width) || 832;
+    const height = parseInt(data.height) || 1216;
+    if (width * height > 1048576) {
+        throw new Error("分辨率超出 Opus 免费限制 (Max 1024x1024 or equivalent)");
+    }
+    // =================================================
+
     const prompt = data.prompt || "";
     const negative_prompt = data.negative_prompt || "";
-    const version = data.version || "v3"; // 默认为 v3
+    const version = data.version || "v3";
     const seed = Math.floor(Math.random() * 4294967295);
 
     let payload = {};
-
-    // ================= 核心逻辑：根据版本构造不同的 Payload =================
     
     if (version === "v4.5") {
-      // --- V4.5 配置 (参考提供的 auto_nai.py) ---
       payload = {
         input: prompt,
-        model: "nai-diffusion-4-5-full", // 使用 V4.5 Full 模型
+        model: "nai-diffusion-4-5-full",
         action: "generate",
         parameters: {
           params_version: 3,
-          width: data.width,
-          height: data.height,
+          width: width,
+          height: height,
           scale: data.scale,
           sampler: data.sampler,
-          steps: data.steps,
+          steps: steps, // 使用被限制的安全步数
           seed: seed,
           n_samples: 1,
-          // V4 特有参数结构
           v4_prompt: buildV4Prompt(prompt),
           v4_negative_prompt: buildV4Prompt(negative_prompt),
           negative_prompt: negative_prompt,
-          
-          // V4.5 特定参数 (来自脚本)
           ucPreset: 4, 
           dynamic_thresholding: false,
           controlnet_strength: 1,
           add_original_image: true,
           cfg_rescale: 0,
-          noise_schedule: "exponential", // V4.5 推荐 exponential
-          skip_cfg_above_sigma: 58,      // 脚本中的值
+          noise_schedule: "exponential",
+          skip_cfg_above_sigma: 58,
           legacy_v3_extend: false
         }
       };
     } else {
-      // --- V3 配置 (原有逻辑) ---
       payload = {
         input: prompt,
         model: "nai-diffusion-3",
         action: "generate",
-        // V3 的负面提示词放在 parameters 外面
         undesiredContent: negative_prompt, 
         parameters: {
-          width: data.width,
-          height: data.height,
+          width: width,
+          height: height,
           scale: data.scale,
           sampler: data.sampler,
-          steps: data.steps,
+          steps: steps, // 使用被限制的安全步数
           seed: seed,
           n_samples: 1,
-          
-          // V3 特定参数
           sm: true,
           sm_dyn: true,
           qualityToggle: true,
@@ -94,32 +95,21 @@ export async function onRequest(context) {
       };
     }
 
-    // ================= 发送请求 =================
-
     const NAI_URL = 'https://image.novelai.net/ai/generate-image';
     const response = await fetch(NAI_URL, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${NOVELAI_API_KEY}` 
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NOVELAI_API_KEY}` },
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      return new Response(JSON.stringify({ error: `NovelAI API Error (${version}): ${errorText}` }), { 
-        status: response.status, headers: { 'Content-Type': 'application/json' } 
-      });
+      return new Response(JSON.stringify({ error: `NovelAI API Error: ${errorText}` }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ================= 处理 ZIP =================
-    
     const zipBuffer = await response.arrayBuffer();
     const zipBytes = new Uint8Array(zipBuffer);
     const decompressedFiles = unzipSync(zipBytes);
-    
-    // 查找图片文件 (通常是 image_0.png)
     const imageFileName = Object.keys(decompressedFiles).find(name => name.endsWith('.png'));
     
     if (!imageFileName) {
@@ -127,8 +117,6 @@ export async function onRequest(context) {
     }
     
     const imageDataBytes = decompressedFiles[imageFileName];
-
-    // 转 Base64
     let binary = '';
     const len = imageDataBytes.byteLength;
     for (let i = 0; i < len; i++) {
@@ -136,17 +124,11 @@ export async function onRequest(context) {
     }
     const imageBase64 = btoa(binary);
 
-    return new Response(JSON.stringify({ 
-      image: `data:image/png;base64,${imageBase64}`,
-      model_used: version
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ image: `data:image/png;base64,${imageBase64}`, steps_used: steps }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
     });
 
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { 
-      status: 500, headers: { 'Content-Type': 'application/json' } 
-    });
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
-        }
+}
