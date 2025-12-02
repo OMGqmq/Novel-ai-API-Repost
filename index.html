@@ -8,8 +8,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
-        /* 桌面端滚动条样式 */
-        ::-webkit-scrollbar { width: 4px; }
+        /* 桌面端/横屏端 滚动条样式 */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
         ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
@@ -52,7 +52,15 @@
         }
     </style>
 </head>
-<body class="text-gray-600 min-h-screen md:h-screen flex flex-col md:flex-row font-sans selection:bg-gray-200 md:overflow-hidden">
+
+<!-- 
+    核心布局修改：
+    1. flex-col: 默认竖屏上下布局
+    2. md:flex-row: 桌面端左右布局
+    3. landscape:flex-row: 手机横屏强制左右布局
+    4. md:overflow-hidden / landscape:overflow-hidden: 横屏/桌面模式下，Body 不滚动，内部区域独立滚动
+-->
+<body class="text-gray-600 min-h-screen md:h-screen landscape:h-screen flex flex-col md:flex-row landscape:flex-row font-sans selection:bg-gray-200 md:overflow-hidden landscape:overflow-hidden">
 
     <!-- Tag 搜索侧边栏 (Drawer) -->
     <div id="tagDrawer" class="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-50 drawer drawer-closed flex flex-col border-r border-gray-200">
@@ -67,7 +75,6 @@
         </div>
         
         <div class="p-4 border-b border-gray-100">
-            <!-- 搜索框区域：改为 Flex 布局，包含按钮 -->
             <div class="flex gap-2">
                 <div class="relative flex-1">
                     <input type="text" id="tagSearchInput" placeholder="搜：blue 或 头发..." class="w-full pl-9 pr-2 py-2 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none transition-all">
@@ -92,18 +99,25 @@
 
 
     <!-- 左侧：控制面板 -->
-    <div class="w-full md:w-[400px] bg-white border-r border-gray-200 flex flex-col z-20 shadow-xl relative order-2 md:order-1 md:h-full">
+    <!-- 
+        布局修改：
+        1. w-full: 默认全宽
+        2. md:w-[400px]: 桌面端固定宽度
+        3. landscape:w-[320px]: 手机横屏时稍微窄一点，留更多空间给图片
+        4. md:h-full / landscape:h-full: 横屏/桌面时高度撑满
+        5. order-2 md:order-1 landscape:order-1: 竖屏时在下方，横屏/桌面在左侧
+    -->
+    <div class="w-full md:w-[400px] landscape:w-[320px] bg-white border-r border-gray-200 flex flex-col z-20 shadow-xl relative order-2 md:order-1 landscape:order-1 md:h-full landscape:h-full">
         
         <!-- 标题区 -->
-        <div class="p-6 border-b border-gray-100 sticky top-0 bg-white z-30">
+        <div class="p-4 md:p-6 border-b border-gray-100 sticky top-0 bg-white z-30">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
-                    <!-- Tag 菜单按钮 -->
                     <button onclick="toggleDrawer()" class="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors group" title="打开 Tag 搜索">
                         <i data-lucide="menu" class="w-6 h-6 text-gray-600 group-hover:text-blue-600"></i>
                     </button>
                     <div>
-                        <h1 class="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                        <h1 class="text-base md:text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
                             Opus Free
                             <span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">0 Anlas</span>
                         </h1>
@@ -130,19 +144,20 @@
         </div>
 
         <!-- 滚动表单区 -->
-        <div class="flex-none md:flex-1 md:overflow-y-auto p-6 space-y-6 pb-24 md:pb-6">
+        <!-- landscape:overflow-y-auto: 手机横屏时允许内部滚动 -->
+        <div class="flex-none md:flex-1 landscape:flex-1 md:overflow-y-auto landscape:overflow-y-auto p-4 md:p-6 space-y-5 pb-24 md:pb-6 landscape:pb-6">
             
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex justify-between">
                     <span>提示词 (Prompt)</span>
                     <span onclick="toggleDrawer()" class="cursor-pointer text-blue-500 hover:underline">🔍 搜词库</span>
                 </label>
-                <textarea id="prompt" rows="5" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-1 focus:ring-gray-400 focus:border-gray-400 block p-3 resize-none outline-none transition-all placeholder-gray-300" placeholder="1girl, white hair, simple background..."></textarea>
+                <textarea id="prompt" rows="4" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-1 focus:ring-gray-400 focus:border-gray-400 block p-3 resize-none outline-none transition-all placeholder-gray-300" placeholder="1girl, white hair, simple background..."></textarea>
             </div>
 
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">负向提示词 (Negative)</label>
-                <textarea id="negativePrompt" rows="3" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-1 focus:ring-gray-400 focus:border-gray-400 block p-3 resize-none outline-none transition-all placeholder-gray-300">lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry</textarea>
+                <textarea id="negativePrompt" rows="2" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-1 focus:ring-gray-400 focus:border-gray-400 block p-3 resize-none outline-none transition-all placeholder-gray-300">lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry</textarea>
             </div>
 
             <div class="space-y-2">
@@ -199,8 +214,8 @@
         </div>
 
         <!-- 底部按钮 -->
-        <div class="p-6 border-t border-gray-100 bg-white z-20 fixed bottom-0 left-0 right-0 md:sticky md:bottom-0">
-            <button id="generateBtn" class="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-gray-300 active:scale-[0.98]">
+        <div class="p-4 md:p-6 border-t border-gray-100 bg-white z-20 fixed bottom-0 left-0 right-0 md:sticky landscape:sticky md:bottom-0 landscape:bottom-0">
+            <button id="generateBtn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-gray-300 active:scale-[0.98]">
                 <span id="btnIcon"><i data-lucide="sparkles" class="w-4 h-4"></i></span>
                 <span id="btnLoader" class="hidden"><span class="loader"></span></span>
                 <span id="btnText">免费生成 (0 Anlas)</span>
@@ -209,7 +224,13 @@
     </div>
 
     <!-- 右侧：预览区 -->
-    <div class="relative flex flex-col h-[45vh] md:h-full overflow-hidden bg-gray-100/50 order-1 md:order-2 border-b md:border-b-0 border-gray-200 flex-shrink-0">
+    <!-- 
+        布局修改：
+        1. h-[38vh]: 竖屏模式高度稍微减小，给控制台留空间
+        2. md:h-full / landscape:h-full: 横屏/桌面时高度撑满，解决占位太小问题
+        3. flex-1: 自动占据剩余空间
+    -->
+    <div class="relative flex flex-col h-[38vh] md:h-full landscape:h-full overflow-hidden bg-gray-100/50 order-1 md:order-2 landscape:order-2 border-b md:border-b-0 landscape:border-b-0 landscape:border-l border-gray-200 flex-shrink-0 flex-1">
         <div class="absolute top-0 left-0 right-0 h-16 flex items-center justify-end px-6 gap-3 z-10 pointer-events-none">
             <div class="pointer-events-auto flex gap-2">
                 <button onclick="downloadImage()" id="dlBtn" class="p-2 bg-white rounded-md shadow-sm border border-gray-200 text-gray-500 hover:text-gray-900 transition-colors opacity-50 cursor-not-allowed" disabled title="下载图片">
@@ -218,7 +239,7 @@
             </div>
         </div>
 
-        <div class="flex-1 flex items-center justify-center p-8 overflow-hidden relative">
+        <div class="flex-1 flex items-center justify-center p-4 md:p-8 overflow-hidden relative">
             <div class="absolute inset-0 opacity-[0.03]" style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 24px 24px;"></div>
 
             <div id="placeholder" class="text-center transition-opacity duration-300">
@@ -229,17 +250,18 @@
                 <div id="modelBadge" class="mt-2 text-[10px] font-mono text-gray-300 bg-gray-100 px-2 py-1 rounded inline-block">V3 MODE</div>
             </div>
 
-            <img id="resultImage" class="hidden max-w-full max-h-full object-contain shadow-2xl rounded-lg border border-white transition-all duration-500 scale-95 opacity-0">
+            <!-- 使用 object-contain 确保图片永远完整显示且不撑破容器 -->
+            <img id="resultImage" class="hidden w-full h-full object-contain shadow-2xl rounded-lg border border-white/50 transition-all duration-500 scale-95 opacity-0">
         </div>
 
-        <div class="h-10 bg-white border-t border-gray-200 flex items-center justify-between px-6 text-[10px] text-gray-400 uppercase tracking-wider">
+        <div class="h-8 md:h-10 bg-white border-t border-gray-200 flex items-center justify-between px-4 md:px-6 text-[10px] text-gray-400 uppercase tracking-wider">
             <span id="statusText">Ready</span>
             <span id="metaInfo"></span>
         </div>
     </div>
 
-    <!-- 底部垫片 -->
-    <div class="h-24 md:hidden order-3 w-full"></div>
+    <!-- 底部垫片：仅在竖屏手机下需要 -->
+    <div class="h-24 md:hidden landscape:hidden order-3 w-full"></div>
 
     <script>
         lucide.createIcons();
@@ -266,7 +288,7 @@
             drawerOverlay: document.getElementById('drawerOverlay'),
             tagSearchInput: document.getElementById('tagSearchInput'),
             tagResults: document.getElementById('tagResults'),
-            tagSearchBtn: document.getElementById('tagSearchBtn') // 新增
+            tagSearchBtn: document.getElementById('tagSearchBtn')
         };
 
         // --- Tag 搜索功能 ---
@@ -340,25 +362,19 @@
             });
         }
 
-        // 核心修改：独立的搜索函数，不再由 input 事件触发
         function performTagSearch() {
             const query = els.tagSearchInput.value.toLowerCase().trim();
             if (!query) {
                 els.tagResults.innerHTML = '<div class="text-center mt-10 text-xs text-gray-400">请输入关键词</div>';
                 return;
             }
-
-            // 在大量数据下可能依然有微小延迟，但因为是点击触发，用户可以接受
             const results = Object.entries(tagData).filter(([en, cn]) => {
                 return en.toLowerCase().includes(query) || cn.includes(query);
             });
             renderResults(results);
         }
 
-        // 绑定点击事件
         els.tagSearchBtn.addEventListener('click', performTagSearch);
-        
-        // 绑定回车事件
         els.tagSearchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 performTagSearch();
@@ -366,7 +382,7 @@
         });
 
 
-        // --- 原有生成逻辑 (保持不变) ---
+        // --- 原有生成逻辑 ---
         els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
         els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
 
