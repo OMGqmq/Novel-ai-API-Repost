@@ -8,7 +8,6 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
-        /* 桌面端/横屏端 滚动条样式 */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
@@ -40,7 +39,6 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        /* 侧边栏动画 */
         .drawer {
             transition: transform 0.3s ease-in-out;
         }
@@ -53,16 +51,9 @@
     </style>
 </head>
 
-<!-- 
-    核心布局修改：
-    1. flex-col: 默认竖屏上下布局
-    2. md:flex-row: 桌面端左右布局
-    3. landscape:flex-row: 手机横屏强制左右布局
-    4. md:overflow-hidden / landscape:overflow-hidden: 横屏/桌面模式下，Body 不滚动，内部区域独立滚动
--->
 <body class="text-gray-600 min-h-screen md:h-screen landscape:h-screen flex flex-col md:flex-row landscape:flex-row font-sans selection:bg-gray-200 md:overflow-hidden landscape:overflow-hidden">
 
-    <!-- Tag 搜索侧边栏 (Drawer) -->
+    <!-- Tag 搜索侧边栏 -->
     <div id="tagDrawer" class="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-50 drawer drawer-closed flex flex-col border-r border-gray-200">
         <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
             <h2 class="font-bold text-gray-700 flex items-center gap-2">
@@ -94,19 +85,9 @@
         </div>
     </div>
 
-    <!-- 遮罩层 -->
     <div id="drawerOverlay" onclick="toggleDrawer()" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 hidden transition-opacity"></div>
 
-
     <!-- 左侧：控制面板 -->
-    <!-- 
-        布局修改：
-        1. w-full: 默认全宽
-        2. md:w-[400px]: 桌面端固定宽度
-        3. landscape:w-[320px]: 手机横屏时稍微窄一点，留更多空间给图片
-        4. md:h-full / landscape:h-full: 横屏/桌面时高度撑满
-        5. order-2 md:order-1 landscape:order-1: 竖屏时在下方，横屏/桌面在左侧
-    -->
     <div class="w-full md:w-[400px] landscape:w-[320px] bg-white border-r border-gray-200 flex flex-col z-20 shadow-xl relative order-2 md:order-1 landscape:order-1 md:h-full landscape:h-full">
         
         <!-- 标题区 -->
@@ -123,7 +104,10 @@
                         </h1>
                     </div>
                 </div>
-                <i data-lucide="shield-check" class="w-5 h-5 text-green-500"></i>
+                <!-- 这里的 title 会动态变化，提示用户如何注销 -->
+                <button onclick="enterAdminToken()" id="adminLockBtn" title="点击登录管理员" class="p-1 rounded hover:bg-gray-100 transition-colors">
+                    <i data-lucide="lock" class="w-4 h-4 text-gray-300"></i>
+                </button>
             </div>
 
             <!-- 模型选择器 -->
@@ -144,7 +128,6 @@
         </div>
 
         <!-- 滚动表单区 -->
-        <!-- landscape:overflow-y-auto: 手机横屏时允许内部滚动 -->
         <div class="flex-none md:flex-1 landscape:flex-1 md:overflow-y-auto landscape:overflow-y-auto p-4 md:p-6 space-y-5 pb-24 md:pb-6 landscape:pb-6">
             
             <div class="space-y-2">
@@ -224,12 +207,6 @@
     </div>
 
     <!-- 右侧：预览区 -->
-    <!-- 
-        布局修改：
-        1. h-[38vh]: 竖屏模式高度稍微减小，给控制台留空间
-        2. md:h-full / landscape:h-full: 横屏/桌面时高度撑满，解决占位太小问题
-        3. flex-1: 自动占据剩余空间
-    -->
     <div class="relative flex flex-col h-[38vh] md:h-full landscape:h-full overflow-hidden bg-gray-100/50 order-1 md:order-2 landscape:order-2 border-b md:border-b-0 landscape:border-b-0 landscape:border-l border-gray-200 flex-shrink-0 flex-1">
         <div class="absolute top-0 left-0 right-0 h-16 flex items-center justify-end px-6 gap-3 z-10 pointer-events-none">
             <div class="pointer-events-auto flex gap-2">
@@ -250,7 +227,6 @@
                 <div id="modelBadge" class="mt-2 text-[10px] font-mono text-gray-300 bg-gray-100 px-2 py-1 rounded inline-block">V3 MODE</div>
             </div>
 
-            <!-- 使用 object-contain 确保图片永远完整显示且不撑破容器 -->
             <img id="resultImage" class="hidden w-full h-full object-contain shadow-2xl rounded-lg border border-white/50 transition-all duration-500 scale-95 opacity-0">
         </div>
 
@@ -260,7 +236,6 @@
         </div>
     </div>
 
-    <!-- 底部垫片：仅在竖屏手机下需要 -->
     <div class="h-24 md:hidden landscape:hidden order-3 w-full"></div>
 
     <script>
@@ -288,32 +263,58 @@
             drawerOverlay: document.getElementById('drawerOverlay'),
             tagSearchInput: document.getElementById('tagSearchInput'),
             tagResults: document.getElementById('tagResults'),
-            tagSearchBtn: document.getElementById('tagSearchBtn')
+            tagSearchBtn: document.getElementById('tagSearchBtn'),
+            adminLockBtn: document.getElementById('adminLockBtn')
         };
 
-        // --- Tag 搜索功能 ---
+        // --- 管理员鉴权功能 ---
+        function enterAdminToken() {
+            // 先检查当前是否有 token
+            const currentToken = localStorage.getItem('nai_admin_token');
+            let msg = "请输入管理员密码:";
+            if (currentToken) {
+                msg = "您当前已登录管理员。清空输入并确认可注销。";
+            }
+            
+            const token = prompt(msg);
+            if (token !== null) {
+                if (token.trim() === "") {
+                    localStorage.removeItem('nai_admin_token');
+                    alert("已注销管理员权限，您现在受 20 次限制。");
+                    checkAdminStatus();
+                } else {
+                    localStorage.setItem('nai_admin_token', token.trim());
+                    alert("密码已保存。");
+                    checkAdminStatus();
+                }
+            }
+        }
+
+        function checkAdminStatus() {
+            const token = localStorage.getItem('nai_admin_token');
+            if (token) {
+                els.adminLockBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
+                els.adminLockBtn.title = "管理员已登录 (点击注销)";
+            } else {
+                els.adminLockBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300"></i>';
+                els.adminLockBtn.title = "点击登录管理员";
+            }
+            lucide.createIcons();
+        }
+
+        checkAdminStatus();
+
+        // --- Tag 搜索功能 (保持不变) ---
         let tagData = {};
         let isDrawerOpen = false;
-
-        const backupTagData = {
-            "pink gloves": "粉色手套",
-            "earphones": "耳机",
-            "picture frame": "画框",
-            "blue hair": "蓝发",
-            "blue sky": "蓝天",
-            "1girl": "1个女孩",
-            "solo": "单人",
-            "masterpiece": "杰作"
-        };
+        const backupTagData = { "1girl": "1个女孩", "blue sky": "蓝天" }; // 简略备份
 
         async function loadTags() {
             try {
                 const response = await fetch('all_tags.txt');
                 if (!response.ok) throw new Error("文件未找到");
                 tagData = await response.json();
-                console.log("Tag 词库加载成功");
             } catch (error) {
-                console.warn("加载 all_tags.txt 失败，使用内置备份数据", error);
                 tagData = backupTagData;
             }
         }
@@ -376,13 +377,10 @@
 
         els.tagSearchBtn.addEventListener('click', performTagSearch);
         els.tagSearchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                performTagSearch();
-            }
+            if (e.key === 'Enter') performTagSearch();
         });
 
-
-        // --- 原有生成逻辑 ---
+        // --- 生成逻辑 ---
         els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
         els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
 
@@ -424,6 +422,8 @@
             const startTime = Date.now();
 
             try {
+                const adminToken = localStorage.getItem('nai_admin_token') || "";
+
                 const payload = {
                     version: selectedVersion,
                     prompt: prompt,
@@ -437,7 +437,10 @@
 
                 const res = await fetch('/generate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-admin-token': adminToken 
+                    },
                     body: JSON.stringify(payload)
                 });
 
@@ -452,15 +455,23 @@
                     els.resultImg.classList.add('scale-100', 'opacity-100');
                     els.dlBtn.disabled = false;
                     els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    
                     const time = ((Date.now() - startTime) / 1000).toFixed(1);
-                    els.status.textContent = `Completed in ${time}s (${selectedVersion})`;
+                    // 显示身份
+                    const roleInfo = data.user_role ? ` • ${data.user_role}` : "";
+                    els.status.textContent = `Completed in ${time}s (${selectedVersion})${roleInfo}`;
                     els.status.classList.remove('text-red-500');
                 };
             } catch (err) {
                 console.error(err);
                 els.status.textContent = `Error: ${err.message}`;
                 els.status.classList.add('text-red-500');
-                alert("生成失败: " + err.message);
+                // 如果是 429 错误 (次数超限)，特别提示
+                if (err.message.includes('429') || err.message.includes('额度已用完')) {
+                    alert("⚠️ 提示：今日 20 次免费额度已用完。\n\n如需继续使用，请输入管理员密码。");
+                } else {
+                    alert("生成失败: " + err.message);
+                }
             } finally {
                 setLoading(false);
             }
