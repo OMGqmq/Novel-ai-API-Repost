@@ -17,24 +17,71 @@ export async function onRequest(context) {
   }
 
   try {
-    const NOVELAI_API_KEY = context.env.NOVELAI_API_KEY;
-    if (!NOVELAI_API_KEY) {
-      throw new Error('服务器未配置 NOVELAI_API_KEY');
+    const env = context.env;
+    const NOVELAI_API_KEY = env.NOVELAI_API_KEY;
+    if (!NOVELAI_API_KEY) throw new Error('服务器未配置 NOVELAI_API_KEY');
+
+    // ================== 🛡️ 强化版访问控制 ==================
+    
+    const clientIP = context.request.headers.get('CF-Connecting-IP') || 'unknown';
+    const clientToken = context.request.headers.get('x-admin-token'); 
+    const serverToken = env.ADMIN_TOKEN; 
+    
+    // 检查是否是管理员
+    const isAdmin = serverToken && clientToken === serverToken;
+
+    if (!isAdmin) {
+        const kv = env.NAI_LIMIT;
+        if (!kv) throw new Error("Server KV Error: Database not bound");
+
+        const today = new Date().toISOString().split('T')[0]; // 2023-10-27
+        
+        // --- 1. 检查全站总上限 (防止 VPN 刷爆) ---
+        // 设定全站每天最多允许生成多少张 (例如 200 张)
+        // 这样即使有人换 IP，总量用完后他也跑不了
+        const GLOBAL_MAX_DAILY = 200; 
+        const globalKey = `global:${today}`;
+        
+        let globalCount = await kv.get(globalKey);
+        globalCount = parseInt(globalCount) || 0;
+
+        if (globalCount >= GLOBAL_MAX_DAILY) {
+             return new Response(JSON.stringify({ 
+                error: `本站今日免费次数已耗尽 (${globalCount}/${GLOBAL_MAX_DAILY})。请明天再来，或联系站长。` 
+            }), { status: 429, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        // --- 2. 检查单 IP 上限 (防止单人霸占) ---
+        const MAX_IP_DAILY = 20;
+        const ipKey = `limit:${today}:${clientIP}`;
+
+        let ipCount = await kv.get(ipKey);
+        ipCount = parseInt(ipCount) || 0;
+
+        if (ipCount >= MAX_IP_DAILY) {
+            return new Response(JSON.stringify({ 
+                error: `您今日的免费额度已用完 (${ipCount}/${MAX_IP_DAILY})。请明天再来。` 
+            }), { status: 429, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        // --- 3. 增加计数 (并发下可能不绝对精确，但足够安全) ---
+        // 更新全站计数
+        await kv.put(globalKey, globalCount + 1, { expirationTtl: 86400 });
+        // 更新 IP 计数
+        await kv.put(ipKey, ipCount + 1, { expirationTtl: 86400 });
     }
+    // =======================================================
 
     const data = await context.request.json();
     
-    // ================= 安全防护核心逻辑 =================
-    // 强制限制步数：即使前端传了50，后端也只给28
-    const MAX_FREE_STEPS = 28;
+    // 安全防护
+    const MAX_FREE_STEPS = 28; 
     const steps = Math.min(parseInt(data.steps) || 28, MAX_FREE_STEPS);
-    
     const width = parseInt(data.width) || 832;
     const height = parseInt(data.height) || 1216;
-    if (width * height > 1048576) {
-        throw new Error("分辨率超出 Opus 免费限制 (Max 1024x1024)");
+    if (width * height > 1048576 + 10000) { 
+        throw new Error("分辨率超出 Opus 免费限制");
     }
-    // =================================================
 
     const prompt = data.prompt || "";
     const negative_prompt = data.negative_prompt || "";
@@ -54,7 +101,7 @@ export async function onRequest(context) {
           height: height,
           scale: data.scale,
           sampler: data.sampler,
-          steps: steps, // 使用被限制的安全步数
+          steps: steps,
           seed: seed,
           n_samples: 1,
           v4_prompt: buildV4Prompt(prompt),
@@ -81,7 +128,7 @@ export async function onRequest(context) {
           height: height,
           scale: data.scale,
           sampler: data.sampler,
-          steps: steps, // 使用被限制的安全步数
+          steps: steps,
           seed: seed,
           n_samples: 1,
           sm: true,
@@ -121,7 +168,11 @@ export async function onRequest(context) {
     }
     const imageBase64 = btoa(binary);
 
-    return new Response(JSON.stringify({ image: `data:image/png;base64,${imageBase64}`, steps_used: steps }), {
+    return new Response(JSON.stringify({ 
+        image: `data:image/png;base64,${imageBase64}`, 
+        steps_used: steps,
+        user_role: isAdmin ? "Admin (Unlimited)" : "Guest (Limited)" 
+    }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });
 
