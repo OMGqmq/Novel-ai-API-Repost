@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NovelAI Opus Free + TagSearch</title>
+    <title>NovelAI Opus Free + Presets</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
+        /* 基础样式 */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
@@ -16,71 +17,76 @@
         body { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); }
 
         .loader {
-            width: 16px;
-            height: 16px;
-            border: 2px solid #ffffff;
-            border-bottom-color: transparent;
-            border-radius: 50%;
-            display: inline-block;
-            animation: rotation 1s linear infinite;
+            width: 16px; height: 16px; border: 2px solid #ffffff;
+            border-bottom-color: transparent; border-radius: 50%;
+            display: inline-block; animation: rotation 1s linear infinite;
         }
-        @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .model-switch-label {
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
+        .model-switch-label { cursor: pointer; transition: all 0.3s ease; }
         input[type="radio"]:checked + .model-switch-label {
-            background-color: #1f2937;
-            color: white;
+            background-color: #1f2937; color: white;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        .drawer {
-            transition: transform 0.3s ease-in-out;
-        }
-        .drawer-open {
-            transform: translateX(0);
-        }
-        .drawer-closed {
-            transform: translateX(-100%);
-        }
+        .drawer { transition: transform 0.3s ease-in-out; }
+        .drawer-open { transform: translateX(0); }
+        .drawer-closed { transform: translateX(-100%); }
+
+        .tab-btn.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; background-color: #eff6ff; }
+        .preset-card:hover { transform: translateY(-2px); }
     </style>
 </head>
 
 <body class="text-gray-600 min-h-screen md:h-screen landscape:h-screen flex flex-col md:flex-row landscape:flex-row font-sans selection:bg-gray-200 md:overflow-hidden landscape:overflow-hidden">
 
-    <!-- Tag 搜索侧边栏 -->
-    <div id="tagDrawer" class="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-50 drawer drawer-closed flex flex-col border-r border-gray-200">
-        <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+    <!-- 侧边栏 (Drawer) -->
+    <div id="sideDrawer" class="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-50 drawer drawer-closed flex flex-col border-r border-gray-200">
+        <div class="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
             <h2 class="font-bold text-gray-700 flex items-center gap-2">
-                <i data-lucide="book-open" class="w-4 h-4 text-blue-500"></i>
-                Tag 词典
+                <i data-lucide="library" class="w-4 h-4 text-blue-500"></i>
+                资源库
             </h2>
             <button onclick="toggleDrawer()" class="p-1 hover:bg-gray-200 rounded transition-colors">
                 <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
             </button>
         </div>
+
+        <div class="flex border-b border-gray-200 bg-white">
+            <button onclick="switchTab('search')" id="tab-search" class="tab-btn active flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors flex justify-center items-center gap-2">
+                <i data-lucide="search" class="w-3 h-3"></i> 搜词库
+            </button>
+            <button onclick="switchTab('preset')" id="tab-preset" class="tab-btn flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors flex justify-center items-center gap-2">
+                <i data-lucide="palette" class="w-3 h-3"></i> 风格预设
+            </button>
+        </div>
         
-        <div class="p-4 border-b border-gray-100">
-            <div class="flex gap-2">
-                <div class="relative flex-1">
-                    <input type="text" id="tagSearchInput" placeholder="搜：blue 或 头发..." class="w-full pl-9 pr-2 py-2 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none transition-all">
-                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+        <!-- Tab 1: 搜索 -->
+        <div id="view-search" class="flex flex-col flex-1 overflow-hidden">
+            <div class="p-4 border-b border-gray-100">
+                <div class="flex gap-2">
+                    <div class="relative flex-1">
+                        <input type="text" id="tagSearchInput" placeholder="搜：blue 或 头发..." class="w-full pl-9 pr-2 py-2 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none transition-all">
+                        <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+                    </div>
+                    <button id="tagSearchBtn" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap shadow-sm active:scale-95">
+                        搜索
+                    </button>
                 </div>
-                <button id="tagSearchBtn" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap shadow-sm active:scale-95">
-                    搜索
-                </button>
             </div>
-            <p class="text-[10px] text-gray-400 mt-2">输入关键词后点击搜索或按回车</p>
+            <div id="tagResults" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <div class="text-center mt-10 text-xs text-gray-400">准备就绪</div>
+            </div>
         </div>
 
-        <div id="tagResults" class="flex-1 overflow-y-auto p-2 space-y-1">
-            <div class="text-center mt-10 text-xs text-gray-400">
-                准备就绪<br>请在上方输入关键词
+        <!-- Tab 2: 预设 (文件版) -->
+        <div id="view-preset" class="flex flex-col flex-1 overflow-hidden hidden">
+            <div class="p-3 bg-gray-50 flex gap-2 justify-center border-b border-gray-100">
+                <button onclick="renderPresets('v3')" id="btn-pre-v3" class="px-3 py-1 rounded-full text-xs font-bold bg-gray-800 text-white shadow-md transition-all">V3</button>
+                <button onclick="renderPresets('v4.5')" id="btn-pre-v4" class="px-3 py-1 rounded-full text-xs font-bold bg-white text-gray-500 border border-gray-200 hover:bg-gray-100 transition-all">V4.5</button>
+            </div>
+            <div id="presetGrid" class="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-3 content-start">
+                <!-- 预设卡片将在这里渲染 -->
             </div>
         </div>
     </div>
@@ -89,12 +95,10 @@
 
     <!-- 左侧：控制面板 -->
     <div class="w-full md:w-[400px] landscape:w-[320px] bg-white border-r border-gray-200 flex flex-col z-20 shadow-xl relative order-2 md:order-1 landscape:order-1 md:h-full landscape:h-full">
-        
-        <!-- 标题区 -->
         <div class="p-4 md:p-6 border-b border-gray-100 sticky top-0 bg-white z-30">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
-                    <button onclick="toggleDrawer()" class="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors group" title="打开 Tag 搜索">
+                    <button onclick="toggleDrawer()" class="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors group" title="打开资源库">
                         <i data-lucide="menu" class="w-6 h-6 text-gray-600 group-hover:text-blue-600"></i>
                     </button>
                     <div>
@@ -104,36 +108,28 @@
                         </h1>
                     </div>
                 </div>
-                <!-- 这里的 title 会动态变化，提示用户如何注销 -->
                 <button onclick="enterAdminToken()" id="adminLockBtn" title="点击登录管理员" class="p-1 rounded hover:bg-gray-100 transition-colors">
                     <i data-lucide="lock" class="w-4 h-4 text-gray-300"></i>
                 </button>
             </div>
 
-            <!-- 模型选择器 -->
             <div class="flex bg-gray-100 p-1 rounded-lg">
                 <label class="flex-1 relative">
                     <input type="radio" name="model_version" value="v3" class="hidden" checked onchange="updateModelUI('v3')">
-                    <div class="model-switch-label text-center py-2 rounded-md text-xs font-semibold text-gray-500 hover:text-gray-700">
-                        NAI V3
-                    </div>
+                    <div class="model-switch-label text-center py-2 rounded-md text-xs font-semibold text-gray-500 hover:text-gray-700">NAI V3</div>
                 </label>
                 <label class="flex-1 relative">
                     <input type="radio" name="model_version" value="v4.5" class="hidden" onchange="updateModelUI('v4.5')">
-                    <div class="model-switch-label text-center py-2 rounded-md text-xs font-semibold text-gray-500 hover:text-gray-700 flex items-center justify-center gap-1">
-                        NAI V4.5
-                    </div>
+                    <div class="model-switch-label text-center py-2 rounded-md text-xs font-semibold text-gray-500 hover:text-gray-700 flex items-center justify-center gap-1">NAI V4.5</div>
                 </label>
             </div>
         </div>
 
-        <!-- 滚动表单区 -->
         <div class="flex-none md:flex-1 landscape:flex-1 md:overflow-y-auto landscape:overflow-y-auto p-4 md:p-6 space-y-5 pb-24 md:pb-6 landscape:pb-6">
-            
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex justify-between">
                     <span>提示词 (Prompt)</span>
-                    <span onclick="toggleDrawer()" class="cursor-pointer text-blue-500 hover:underline">🔍 搜词库</span>
+                    <span onclick="openPresets()" class="cursor-pointer text-blue-500 hover:underline">🎨 选风格</span>
                 </label>
                 <textarea id="prompt" rows="4" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-1 focus:ring-gray-400 focus:border-gray-400 block p-3 resize-none outline-none transition-all placeholder-gray-300" placeholder="1girl, white hair, simple background..."></textarea>
             </div>
@@ -170,7 +166,6 @@
                     <input type="range" id="steps" min="1" max="28" value="28" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-800">
                     <p class="text-[10px] text-gray-400 text-right">已锁定 Opus 免费上限</p>
                 </div>
-
                 <div class="space-y-2">
                     <div class="flex justify-between text-xs">
                         <label class="font-medium text-gray-500">相关性 (Scale)</label>
@@ -196,7 +191,6 @@
             </div>
         </div>
 
-        <!-- 底部按钮 -->
         <div class="p-4 md:p-6 border-t border-gray-100 bg-white z-20 fixed bottom-0 left-0 right-0 md:sticky landscape:sticky md:bottom-0 landscape:bottom-0">
             <button id="generateBtn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-gray-300 active:scale-[0.98]">
                 <span id="btnIcon"><i data-lucide="sparkles" class="w-4 h-4"></i></span>
@@ -215,10 +209,8 @@
                 </button>
             </div>
         </div>
-
         <div class="flex-1 flex items-center justify-center p-4 md:p-8 overflow-hidden relative">
             <div class="absolute inset-0 opacity-[0.03]" style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 24px 24px;"></div>
-
             <div id="placeholder" class="text-center transition-opacity duration-300">
                 <div class="w-16 h-16 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center mx-auto mb-4">
                     <i data-lucide="image" class="w-6 h-6 text-gray-300"></i>
@@ -226,21 +218,17 @@
                 <p class="text-gray-400 text-sm font-light">Opus 免费模式就绪</p>
                 <div id="modelBadge" class="mt-2 text-[10px] font-mono text-gray-300 bg-gray-100 px-2 py-1 rounded inline-block">V3 MODE</div>
             </div>
-
             <img id="resultImage" class="hidden w-full h-full object-contain shadow-2xl rounded-lg border border-white/50 transition-all duration-500 scale-95 opacity-0">
         </div>
-
         <div class="h-8 md:h-10 bg-white border-t border-gray-200 flex items-center justify-between px-4 md:px-6 text-[10px] text-gray-400 uppercase tracking-wider">
             <span id="statusText">Ready</span>
             <span id="metaInfo"></span>
         </div>
     </div>
-
     <div class="h-24 md:hidden landscape:hidden order-3 w-full"></div>
 
     <script>
         lucide.createIcons();
-
         const els = {
             prompt: document.getElementById('prompt'),
             negative: document.getElementById('negativePrompt'),
@@ -259,95 +247,197 @@
             stepsVal: document.getElementById('stepsValue'),
             scaleVal: document.getElementById('scaleValue'),
             modelBadge: document.getElementById('modelBadge'),
-            tagDrawer: document.getElementById('tagDrawer'),
+            sideDrawer: document.getElementById('sideDrawer'),
             drawerOverlay: document.getElementById('drawerOverlay'),
             tagSearchInput: document.getElementById('tagSearchInput'),
             tagResults: document.getElementById('tagResults'),
             tagSearchBtn: document.getElementById('tagSearchBtn'),
-            adminLockBtn: document.getElementById('adminLockBtn')
+            adminLockBtn: document.getElementById('adminLockBtn'),
+            viewSearch: document.getElementById('view-search'),
+            viewPreset: document.getElementById('view-preset'),
+            tabSearch: document.getElementById('tab-search'),
+            tabPreset: document.getElementById('tab-preset'),
+            presetGrid: document.getElementById('presetGrid'),
+            btnPreV3: document.getElementById('btn-pre-v3'),
+            btnPreV4: document.getElementById('btn-pre-v4')
         };
 
-        // --- 管理员鉴权功能 ---
+        // ================= 📂 预设文件配置区域 (手动登记) =================
+        // 重要：您需要在这里“告诉”网页，您上传了哪些文件。
+        // id 对应文件名（不带后缀）。例如: { id: 'v3_01', ... } 会加载 presets/v3_01.png 和 presets/v3_01.txt
+        const presetFiles = [
+            // --- V3 模型列表 ---
+            { id: 'v3_01', model: 'v3', name: '厚涂风' },
+            { id: 'v3_02', model: 'v3', name: '日系赛璐珞' },
+            
+            // --- V4.5 模型列表 ---
+            { id: '1_v4', model: 'v4.5', name: '铃兰' },
+            { id: 'v4_02', model: 'v4.5', name: '暗黑幻想' }
+            // 请根据您实际上传的文件名，继续添加...
+        ];
+        // =================================================================
+
+        let currentPresetModel = 'v3';
+
+        function switchTab(tab) {
+            if (tab === 'search') {
+                els.viewSearch.classList.remove('hidden');
+                els.viewPreset.classList.add('hidden');
+                els.tabSearch.classList.add('active');
+                els.tabPreset.classList.remove('active');
+            } else {
+                els.viewSearch.classList.add('hidden');
+                els.viewPreset.classList.remove('hidden');
+                els.tabSearch.classList.remove('active');
+                els.tabPreset.classList.add('active');
+                const currentModel = document.querySelector('input[name="model_version"]:checked').value;
+                renderPresets(currentModel);
+            }
+        }
+
+        function openPresets() {
+            if (!els.sideDrawer.classList.contains('drawer-open')) toggleDrawer();
+            switchTab('preset');
+        }
+
+        function renderPresets(model) {
+            currentPresetModel = model;
+            if (model === 'v3') {
+                els.btnPreV3.className = "px-3 py-1 rounded-full text-xs font-bold bg-gray-800 text-white shadow-md transition-all";
+                els.btnPreV4.className = "px-3 py-1 rounded-full text-xs font-bold bg-white text-gray-500 border border-gray-200 hover:bg-gray-100 transition-all";
+            } else {
+                els.btnPreV3.className = "px-3 py-1 rounded-full text-xs font-bold bg-white text-gray-500 border border-gray-200 hover:bg-gray-100 transition-all";
+                els.btnPreV4.className = "px-3 py-1 rounded-full text-xs font-bold bg-gray-800 text-white shadow-md transition-all";
+            }
+
+            els.presetGrid.innerHTML = '';
+            
+            const filtered = presetFiles.filter(p => p.model === model);
+            
+            if (filtered.length === 0) {
+                els.presetGrid.innerHTML = '<div class="col-span-2 text-center mt-10 text-xs text-gray-400">暂无该模型的预设文件</div>';
+                return;
+            }
+
+            filtered.forEach(p => {
+                const card = document.createElement('div');
+                card.className = "preset-card group cursor-pointer flex flex-col gap-2 transition-transform duration-200";
+                const imgSrc = `presets/${p.id}.png`;
+
+                card.innerHTML = `
+                    <div class="aspect-[2/3] w-full rounded-lg shadow-sm border border-gray-100 relative overflow-hidden group-hover:shadow-md transition-shadow bg-gray-100">
+                        <img src="${imgSrc}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full text-xs text-gray-400\\'>${p.id}.png 缺失</div>'">
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                        <div class="absolute bottom-2 right-2 bg-white/90 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+                        </div>
+                    </div>
+                    <span class="text-xs text-center font-medium text-gray-600 group-hover:text-blue-600">${p.name}</span>
+                `;
+                
+                card.onclick = async () => {
+                    // 1. 切换主界面模型
+                    const mainModelInput = document.querySelector(`input[name="model_version"][value="${model}"]`);
+                    if (!mainModelInput.checked) {
+                        mainModelInput.checked = true;
+                        updateModelUI(model);
+                        mainModelInput.dispatchEvent(new Event('change'));
+                    }
+
+                    // 2. 加载文字
+                    try {
+                        const res = await fetch(`presets/${p.id}.txt`);
+                        if (!res.ok) throw new Error("无法读取提示词文件: " + p.id + ".txt");
+                        const text = await res.text();
+                        
+                        els.prompt.value = text.trim();
+                        
+                        els.prompt.classList.add('bg-green-50');
+                        setTimeout(() => els.prompt.classList.remove('bg-green-50'), 500);
+
+                        if (window.innerWidth < 768) toggleDrawer();
+
+                    } catch (err) {
+                        alert("加载失败: " + err.message);
+                    }
+                };
+                
+                els.presetGrid.appendChild(card);
+            });
+        }
+
+        let isDrawerOpen = false;
+        function toggleDrawer() {
+            isDrawerOpen = !isDrawerOpen;
+            if (isDrawerOpen) {
+                els.sideDrawer.classList.remove('drawer-closed');
+                els.sideDrawer.classList.add('drawer-open');
+                els.drawerOverlay.classList.remove('hidden');
+            } else {
+                els.sideDrawer.classList.remove('drawer-open');
+                els.sideDrawer.classList.add('drawer-closed');
+                els.drawerOverlay.classList.add('hidden');
+            }
+        }
         function enterAdminToken() {
-            // 先检查当前是否有 token
             const currentToken = localStorage.getItem('nai_admin_token');
             let msg = "请输入管理员密码:";
-            if (currentToken) {
-                msg = "您当前已登录管理员。清空输入并确认可注销。";
-            }
-            
+            if (currentToken) msg = "您当前已登录管理员。清空输入并确认可注销。";
             const token = prompt(msg);
             if (token !== null) {
                 if (token.trim() === "") {
                     localStorage.removeItem('nai_admin_token');
-                    alert("已注销管理员权限，您现在受次数限制。");
-                    checkAdminStatus();
+                    alert("已注销管理员权限，您现在受 20 次限制。");
                 } else {
                     localStorage.setItem('nai_admin_token', token.trim());
                     alert("密码已保存。");
-                    checkAdminStatus();
                 }
+                checkAdminStatus();
             }
         }
-
         function checkAdminStatus() {
             const token = localStorage.getItem('nai_admin_token');
             if (token) {
                 els.adminLockBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
-                els.adminLockBtn.title = "管理员已登录 (点击注销)";
+                els.adminLockBtn.title = "管理员已登录";
             } else {
                 els.adminLockBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300"></i>';
                 els.adminLockBtn.title = "点击登录管理员";
             }
             lucide.createIcons();
         }
-
         checkAdminStatus();
 
-        // --- Tag 搜索功能 (保持不变) ---
         let tagData = {};
-        let isDrawerOpen = false;
-        const backupTagData = { "1girl": "1个女孩", "blue sky": "蓝天" }; // 简略备份
-
+        const backupTagData = { "1girl": "1个女孩", "blue sky": "蓝天" };
         async function loadTags() {
             try {
                 const response = await fetch('all_tags.txt');
-                if (!response.ok) throw new Error("文件未找到");
+                if (!response.ok) throw new Error("File not found");
                 tagData = await response.json();
-            } catch (error) {
-                tagData = backupTagData;
-            }
+            } catch (error) { tagData = backupTagData; }
         }
         loadTags();
 
-        function toggleDrawer() {
-            isDrawerOpen = !isDrawerOpen;
-            if (isDrawerOpen) {
-                els.tagDrawer.classList.remove('drawer-closed');
-                els.tagDrawer.classList.add('drawer-open');
-                els.drawerOverlay.classList.remove('hidden');
-                els.tagSearchInput.focus();
-            } else {
-                els.tagDrawer.classList.remove('drawer-open');
-                els.tagDrawer.classList.add('drawer-closed');
-                els.drawerOverlay.classList.add('hidden');
-            }
-        }
-
         function addTagToPrompt(tag) {
             const current = els.prompt.value.trim();
-            if (current && !current.endsWith(',')) {
-                els.prompt.value += ', ' + tag;
-            } else {
-                els.prompt.value += tag;
+            if (current.includes(tag)) {
+                els.prompt.classList.add('bg-blue-50');
+                setTimeout(() => els.prompt.classList.remove('bg-blue-50'), 200);
+                return;
             }
+            if (current && !current.endsWith(',')) els.prompt.value += ', ' + tag;
+            else els.prompt.value += tag;
             els.prompt.classList.add('bg-blue-50');
             setTimeout(() => els.prompt.classList.remove('bg-blue-50'), 200);
         }
 
-        function renderResults(results) {
+        els.tagSearchBtn.addEventListener('click', () => {
+            const query = els.tagSearchInput.value.toLowerCase().trim();
+            if (!query) return;
+            const results = Object.entries(tagData).filter(([en, cn]) => en.toLowerCase().includes(query) || cn.includes(query));
             els.tagResults.innerHTML = '';
-            if (results.length === 0) {
+            if(results.length === 0) {
                 els.tagResults.innerHTML = '<div class="text-center mt-10 text-xs text-gray-400">未找到匹配的 Tag</div>';
                 return;
             }
@@ -355,42 +445,17 @@
                 const div = document.createElement('div');
                 div.className = "flex flex-col p-2 hover:bg-gray-100 rounded cursor-pointer group border-b border-gray-50 last:border-0";
                 div.onclick = () => addTagToPrompt(en);
-                div.innerHTML = `
-                    <span class="font-medium text-gray-700 text-sm group-hover:text-blue-600">${en}</span>
-                    <span class="text-xs text-gray-400">${cn}</span>
-                `;
+                div.innerHTML = `<span class="font-medium text-gray-700 text-sm group-hover:text-blue-600">${en}</span><span class="text-xs text-gray-400">${cn}</span>`;
                 els.tagResults.appendChild(div);
             });
-        }
-
-        function performTagSearch() {
-            const query = els.tagSearchInput.value.toLowerCase().trim();
-            if (!query) {
-                els.tagResults.innerHTML = '<div class="text-center mt-10 text-xs text-gray-400">请输入关键词</div>';
-                return;
-            }
-            const results = Object.entries(tagData).filter(([en, cn]) => {
-                return en.toLowerCase().includes(query) || cn.includes(query);
-            });
-            renderResults(results);
-        }
-
-        els.tagSearchBtn.addEventListener('click', performTagSearch);
-        els.tagSearchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') performTagSearch();
         });
 
-        // --- 生成逻辑 ---
         els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
         els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
-
         function updateModelUI(version) {
             els.modelBadge.textContent = `${version.toUpperCase()} MODE`;
-            if (version === 'v4.5') {
-                els.modelBadge.classList.replace('text-gray-300', 'text-blue-400');
-            } else {
-                els.modelBadge.classList.replace('text-blue-400', 'text-gray-300');
-            }
+            if (version === 'v4.5') els.modelBadge.classList.replace('text-gray-300', 'text-blue-400');
+            else els.modelBadge.classList.replace('text-blue-400', 'text-gray-300');
         }
 
         function setLoading(loading) {
@@ -410,81 +475,54 @@
         }
 
         els.btn.addEventListener('click', async () => {
-            const prompt = els.prompt.value.trim();
-            if (!prompt) {
-                els.prompt.focus();
-                return;
-            }
+            const promptText = els.prompt.value.trim();
+            if (!promptText) { els.prompt.focus(); return; }
             const selectedVersion = document.querySelector('input[name="model_version"]:checked').value;
             const [w, h] = els.resolution.value.split(',').map(Number);
-
+            const adminToken = localStorage.getItem('nai_admin_token') || "";
             setLoading(true);
             const startTime = Date.now();
-
             try {
-                const adminToken = localStorage.getItem('nai_admin_token') || "";
-
                 const payload = {
                     version: selectedVersion,
-                    prompt: prompt,
+                    prompt: promptText,
                     negative_prompt: els.negative.value.trim(),
-                    width: w,
-                    height: h,
+                    width: w, height: h,
                     steps: parseInt(els.steps.value),
                     scale: parseFloat(els.scale.value),
                     sampler: els.sampler.value
                 };
-
                 const res = await fetch('/generate', {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'x-admin-token': adminToken 
-                    },
+                    headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
                     body: JSON.stringify(payload)
                 });
-
                 const data = await res.json();
                 if (!res.ok || data.error) throw new Error(data.error || `Server Error: ${res.status}`);
-
-                const imgData = data.image;
-                els.resultImg.src = imgData;
+                els.resultImg.src = data.image;
                 els.resultImg.onload = () => {
                     els.placeholder.classList.add('hidden');
                     els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
                     els.resultImg.classList.add('scale-100', 'opacity-100');
                     els.dlBtn.disabled = false;
                     els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    
                     const time = ((Date.now() - startTime) / 1000).toFixed(1);
-                    // 显示身份
                     const roleInfo = data.user_role ? ` • ${data.user_role}` : "";
                     els.status.textContent = `Completed in ${time}s (${selectedVersion})${roleInfo}`;
-                    els.status.classList.remove('text-red-500');
                 };
             } catch (err) {
                 console.error(err);
-                els.status.textContent = `Error: ${err.message}`;
-                els.status.classList.add('text-red-500');
-                // 如果是 429 错误 (次数超限)，特别提示
-                if (err.message.includes('429') || err.message.includes('额度已用完')) {
-                    alert("⚠️ 提示：今日免费额度已用完。\n\n如需继续使用，请输入管理员密码。");
-                } else {
-                    alert("生成失败: " + err.message);
-                }
-            } finally {
-                setLoading(false);
-            }
+                if (err.message.includes('429')) alert("⚠️ 提示：今日额度已用完。");
+                else alert("生成失败: " + err.message);
+                els.status.textContent = "Error";
+            } finally { setLoading(false); }
         });
-
         function downloadImage() {
             if (els.resultImg.src && !els.resultImg.classList.contains('hidden')) {
                 const a = document.createElement('a');
                 a.href = els.resultImg.src;
                 a.download = `novelai-free-${Date.now()}.png`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
             }
         }
     </script>
