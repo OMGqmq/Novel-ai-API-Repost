@@ -280,7 +280,7 @@
             if (token !== null) {
                 if (token.trim() === "") {
                     localStorage.removeItem('nai_admin_token');
-                    alert("已注销管理员权限，您现在受 20 次限制。");
+                    alert("已注销管理员权限，您现在受次数限制。");
                     checkAdminStatus();
                 } else {
                     localStorage.setItem('nai_admin_token', token.trim());
@@ -468,7 +468,7 @@
                 els.status.classList.add('text-red-500');
                 // 如果是 429 错误 (次数超限)，特别提示
                 if (err.message.includes('429') || err.message.includes('额度已用完')) {
-                    alert("⚠️ 提示：今日 20 次免费额度已用完。\n\n如需继续使用，请输入管理员密码。");
+                    alert("⚠️ 提示：今日免费额度已用完。\n\n如需继续使用，请输入管理员密码。");
                 } else {
                     alert("生成失败: " + err.message);
                 }
