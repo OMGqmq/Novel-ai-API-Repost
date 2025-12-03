@@ -52,7 +52,7 @@ export async function onRequest(context) {
         }
 
         // --- 2. 检查单 IP 上限 (防止单人霸占) ---
-        const MAX_IP_DAILY = 20;
+        const MAX_IP_DAILY = 5;
         const ipKey = `limit:${today}:${clientIP}`;
 
         let ipCount = await kv.get(ipKey);
