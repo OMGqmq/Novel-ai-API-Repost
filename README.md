@@ -1,4 +1,18 @@
-如何在cloudflare配置你的管理员密码
+如何在cloudflare配置你的novel ai key？
+
+登录novel ai官网，进入账户设置，生成你的key［Get Persistent API Token ］
+
+请确保你订阅了opus级，负责会消耗你的点数（anlas）
+
+登录 Cloudflare Dashboard，进入 Workers & Pages
+
+进入你部署的项目，点击设置，找到添加环境变量
+
+变量名为'NOVELAI_API_KEY'，值为你的key如'pst-*****…'
+
+保存
+
+如何在cloudflare配置你的管理员密码?
 
 登录 Cloudflare Dashboard，进入 Workers & Pages。
 
