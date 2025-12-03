@@ -267,12 +267,12 @@
         // id 对应文件名（不带后缀）。例如: { id: 'v3_01', ... } 会加载 presets/v3_01.png 和 presets/v3_01.txt
         const presetFiles = [
             // --- V3 模型列表 ---
-            { id: 'v3_01', model: 'v3', name: '厚涂风' },
-            { id: 'v3_02', model: 'v3', name: '日系赛璐珞' },
+            { id: '1_v3', model: 'v3', name: '未知' },
+            { id: '2_v3', model: 'v3', name: '未知' },
             
             // --- V4.5 模型列表 ---
-            { id: '1_v4', model: 'v4.5', name: '铃兰' },
-            { id: 'v4_02', model: 'v4.5', name: '暗黑幻想' }
+            { id: '1_v4.5', model: 'v4.5', name: '铃兰' },
+            { id: '2_v4.5', model: 'v4.5', name: '未知' }
             // 请根据您实际上传的文件名，继续添加...
         ];
         // =================================================================
@@ -387,7 +387,7 @@
             if (token !== null) {
                 if (token.trim() === "") {
                     localStorage.removeItem('nai_admin_token');
-                    alert("已注销管理员权限，您现在受 20 次限制。");
+                    alert("已注销管理员权限，您现在受次数限制。");
                 } else {
                     localStorage.setItem('nai_admin_token', token.trim());
                     alert("密码已保存。");
