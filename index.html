@@ -6,38 +6,24 @@
     <title>NovelAI Opus Free + Presets</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    
     <style>
         /* 基础样式 */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
         ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-        
         body { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); }
-
-        .loader {
-            width: 16px; height: 16px; border: 2px solid #ffffff;
-            border-bottom-color: transparent; border-radius: 50%;
-            display: inline-block; animation: rotation 1s linear infinite;
-        }
+        .loader { width: 16px; height: 16px; border: 2px solid #ffffff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
         .model-switch-label { cursor: pointer; transition: all 0.3s ease; }
-        input[type="radio"]:checked + .model-switch-label {
-            background-color: #1f2937; color: white;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
+        input[type="radio"]:checked + .model-switch-label { background-color: #1f2937; color: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .drawer { transition: transform 0.3s ease-in-out; }
         .drawer-open { transform: translateX(0); }
         .drawer-closed { transform: translateX(-100%); }
-
         .tab-btn.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; background-color: #eff6ff; }
         .preset-card:hover { transform: translateY(-2px); }
     </style>
 </head>
-
 <body class="text-gray-600 min-h-screen md:h-screen landscape:h-screen flex flex-col md:flex-row landscape:flex-row font-sans selection:bg-gray-200 md:overflow-hidden landscape:overflow-hidden">
 
     <!-- 侧边栏 (Drawer) -->
@@ -51,7 +37,6 @@
                 <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
             </button>
         </div>
-
         <div class="flex border-b border-gray-200 bg-white">
             <button onclick="switchTab('search')" id="tab-search" class="tab-btn active flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors flex justify-center items-center gap-2">
                 <i data-lucide="search" class="w-3 h-3"></i> 搜词库
@@ -86,31 +71,37 @@
                 <button onclick="renderPresets('v4.5')" id="btn-pre-v4" class="px-3 py-1 rounded-full text-xs font-bold bg-white text-gray-500 border border-gray-200 hover:bg-gray-100 transition-all">V4.5</button>
             </div>
             <div id="presetGrid" class="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-3 content-start">
-                <!-- 预设卡片将在这里渲染 -->
+                <!-- 预设卡片 -->
             </div>
         </div>
     </div>
-
     <div id="drawerOverlay" onclick="toggleDrawer()" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 hidden transition-opacity"></div>
 
     <!-- 左侧：控制面板 -->
     <div class="w-full md:w-[400px] landscape:w-[320px] bg-white border-r border-gray-200 flex flex-col z-20 shadow-xl relative order-2 md:order-1 landscape:order-1 md:h-full landscape:h-full">
         <div class="p-4 md:p-6 border-b border-gray-100 sticky top-0 bg-white z-30">
             <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
                     <button onclick="toggleDrawer()" class="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors group" title="打开资源库">
                         <i data-lucide="menu" class="w-6 h-6 text-gray-600 group-hover:text-blue-600"></i>
                     </button>
                     <div>
-                        <h1 class="text-base md:text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                        <h1 class="text-base md:text-lg font-bold text-gray-900 tracking-tight flex items-center gap-1">
                             Opus Free
                             <span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">0 Anlas</span>
                         </h1>
                     </div>
                 </div>
-                <button onclick="enterAdminToken()" id="adminLockBtn" title="点击登录管理员" class="p-1 rounded hover:bg-gray-100 transition-colors">
-                    <i data-lucide="lock" class="w-4 h-4 text-gray-300"></i>
-                </button>
+                
+                <div class="flex items-center gap-2">
+                    <a href="/mj.html" class="group flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium text-gray-500 bg-gray-50 border border-gray-200 rounded-full hover:bg-white hover:text-gray-900 hover:border-gray-300 hover:shadow-sm transition-all" title="切换到 Midjourney">
+                        <span>MJ版</span>
+                        <i data-lucide="arrow-right" class="w-3 h-3 text-gray-400 group-hover:text-gray-900"></i>
+                    </a>
+                    <button onclick="enterAdminToken()" id="adminLockBtn" title="点击登录管理员" class="p-1.5 rounded hover:bg-gray-100 transition-colors">
+                        <i data-lucide="lock" class="w-4 h-4 text-gray-300"></i>
+                    </button>
+                </div>
             </div>
 
             <div class="flex bg-gray-100 p-1 rounded-lg">
@@ -124,9 +115,7 @@
                 </label>
             </div>
         </div>
-        <a href="/mj.html" class="block w-full text-center py-2 mb-4 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg hover:opacity-90 transition-opacity shadow-md">
-        切换到 Midjourney 版
-        </a>
+
         <div class="flex-none md:flex-1 landscape:flex-1 md:overflow-y-auto landscape:overflow-y-auto p-4 md:p-6 space-y-5 pb-24 md:pb-6 landscape:pb-6">
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex justify-between">
@@ -264,20 +253,12 @@
             btnPreV4: document.getElementById('btn-pre-v4')
         };
 
-        // ================= 📂 预设文件配置区域 (手动登记) =================
-        // 重要：您需要在这里“告诉”网页，您上传了哪些文件。
-        // id 对应文件名（不带后缀）。例如: { id: 'v3_01', ... } 会加载 presets/v3_01.png 和 presets/v3_01.txt
         const presetFiles = [
-            // --- V3 模型列表 ---
-            { id: '1_v3', model: 'v3', name: '未知' },
-            { id: '2_v3', model: 'v3', name: '未知' },
-            
-            // --- V4.5 模型列表 ---
-            { id: '1_v4.5', model: 'v4.5', name: '铃兰' },
-            { id: '2_v4.5', model: 'v4.5', name: '未知' }
-            // 请根据您实际上传的文件名，继续添加...
+            { id: 'v3_01', model: 'v3', name: '厚涂风' },
+            { id: 'v3_02', model: 'v3', name: '日系赛璐珞' },
+            { id: 'v4_01', model: 'v4.5', name: '真实照片' },
+            { id: 'v4_02', model: 'v4.5', name: '暗黑幻想' }
         ];
-        // =================================================================
 
         let currentPresetModel = 'v3';
 
@@ -338,7 +319,6 @@
                 `;
                 
                 card.onclick = async () => {
-                    // 1. 切换主界面模型
                     const mainModelInput = document.querySelector(`input[name="model_version"][value="${model}"]`);
                     if (!mainModelInput.checked) {
                         mainModelInput.checked = true;
@@ -346,19 +326,14 @@
                         mainModelInput.dispatchEvent(new Event('change'));
                     }
 
-                    // 2. 加载文字
                     try {
                         const res = await fetch(`presets/${p.id}.txt`);
                         if (!res.ok) throw new Error("无法读取提示词文件: " + p.id + ".txt");
                         const text = await res.text();
-                        
                         els.prompt.value = text.trim();
-                        
                         els.prompt.classList.add('bg-green-50');
                         setTimeout(() => els.prompt.classList.remove('bg-green-50'), 500);
-
                         if (window.innerWidth < 768) toggleDrawer();
-
                     } catch (err) {
                         alert("加载失败: " + err.message);
                     }
@@ -381,15 +356,17 @@
                 els.drawerOverlay.classList.add('hidden');
             }
         }
+
+        // 修改：使用通用文案
         function enterAdminToken() {
             const currentToken = localStorage.getItem('nai_admin_token');
             let msg = "请输入管理员密码:";
-            if (currentToken) msg = "您当前已登录管理员。清空输入并确认可注销。";
+            if (currentToken) msg = "管理员已登录。清空输入并确认可注销。";
             const token = prompt(msg);
             if (token !== null) {
                 if (token.trim() === "") {
                     localStorage.removeItem('nai_admin_token');
-                    alert("已注销管理员权限，您现在受次数限制。");
+                    alert("已注销管理员权限，您现在受免费额度限制。"); // 修改此处
                 } else {
                     localStorage.setItem('nai_admin_token', token.trim());
                     alert("密码已保存。");
@@ -514,7 +491,7 @@
                 };
             } catch (err) {
                 console.error(err);
-                if (err.message.includes('429')) alert("⚠️ 提示：今日额度已用完。");
+                if (err.message.includes('429')) alert("⚠️ 提示：今日免费额度已用完。"); // 统一提示
                 else alert("生成失败: " + err.message);
                 els.status.textContent = "Error";
             } finally { setLoading(false); }
