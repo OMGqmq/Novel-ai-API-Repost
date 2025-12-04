@@ -9,26 +9,12 @@
     <style>
         /* 深色极客风 */
         body { background-color: #0f172a; color: #e2e8f0; }
-        
-        /* 滚动条 */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
-        
-        .loader {
-            width: 18px; height: 18px;
-            border: 2px solid #fff; border-bottom-color: transparent;
-            border-radius: 50%; display: inline-block;
-            animation: rotation 1s linear infinite;
-        }
+        .loader { width: 18px; height: 18px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* 比例按钮激活态 */
-        .ratio-btn.active {
-            background-color: #6366f1; /* Indigo-500 */
-            border-color: #6366f1;
-            color: white;
-        }
+        .ratio-btn.active { background-color: #6366f1; border-color: #6366f1; color: white; }
     </style>
 </head>
 <body class="min-h-screen md:h-screen flex flex-col md:flex-row font-sans md:overflow-hidden selection:bg-indigo-500 selection:text-white">
@@ -43,9 +29,9 @@
                     Midjourney
                     <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">V7</span>
                 </h1>
-                <p class="text-xs text-slate-400 mt-1">公测中: 每日限量 10 张</p>
+                <!-- 修改：移除具体的数字，改为通用描述 -->
+                <p class="text-xs text-slate-400 mt-1">公测中: 每日限量</p>
             </div>
-            <!-- 返回 NAI 按钮 -->
             <a href="/" class="text-xs px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1 border border-slate-700">
                 <i data-lucide="arrow-left" class="w-3 h-3"></i> 返回 NAI
             </a>
@@ -53,14 +39,11 @@
 
         <!-- 参数设置区 -->
         <div class="flex-1 overflow-y-auto p-5 space-y-6">
-            
-            <!-- 提示词 -->
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">提示词 (Prompt)</label>
                 <textarea id="prompt" rows="6" class="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block p-3 resize-none outline-none transition-all placeholder-slate-600" placeholder="例如: A cute cat sitting on a spaceship, cyberpunk style, cinematic lighting..."></textarea>
             </div>
 
-            <!-- 比例选择 -->
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">画幅比例 (--ar)</label>
                 <div class="grid grid-cols-4 gap-2">
@@ -71,7 +54,6 @@
                 </div>
             </div>
 
-            <!-- 模型选择 (已更新 V7) -->
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">模型版本</label>
                 <div class="relative">
@@ -100,31 +82,24 @@
     <!-- 右侧预览区 -->
     <div class="flex-1 relative flex flex-col h-[45vh] md:h-full bg-slate-950 overflow-hidden order-1 md:order-2">
         <div class="flex-1 flex items-center justify-center p-4 md:p-10 relative">
-            
-            <!-- 空状态 -->
             <div id="placeholder" class="text-center transition-opacity duration-300">
                 <div class="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-800 shadow-xl">
                     <i data-lucide="image" class="w-8 h-8 text-slate-700"></i>
                 </div>
                 <p class="text-slate-500 text-sm">配置参数并点击生成</p>
                 <div class="mt-4 flex justify-center gap-4 text-[10px] text-slate-600">
-                    <span onclick="enterAdminToken()" class="cursor-pointer hover:text-indigo-400">我是管理员</span>
+                    <span onclick="enterAdminToken()" class="cursor-pointer hover:text-indigo-400">管理员登录</span>
                 </div>
             </div>
-            
-            <!-- 结果图片 -->
             <img id="resultImage" class="hidden max-w-full max-h-full object-contain shadow-2xl rounded-lg border border-slate-800">
         </div>
     </div>
 
     <script>
         lucide.createIcons();
-        
-        // 状态变量
         let currentRatio = '1:1';
         let isGenerating = false;
 
-        // 设置比例
         function setRatio(r) {
             currentRatio = r;
             document.querySelectorAll('.ratio-btn').forEach(b => {
@@ -133,12 +108,21 @@
             });
         }
 
-        // 管理员登录 (共享 NAI 的 Key)
+        // 修改：更完善的管理员登录/注销逻辑，使用通用提示语
         function enterAdminToken() {
-            const t = prompt("输入管理员密码 (Admin Token):");
-            if(t) { 
-                localStorage.setItem('nai_admin_token', t.trim()); 
-                alert("密码已保存，您现在拥有无限额度。"); 
+            const currentToken = localStorage.getItem('nai_admin_token');
+            let msg = "请输入管理员密码 (Admin Token):";
+            if (currentToken) msg = "管理员已登录。清空输入框并点击确定即可注销。";
+            
+            const t = prompt(msg);
+            if(t !== null) { 
+                if (t.trim() === "") {
+                    localStorage.removeItem('nai_admin_token');
+                    alert("已注销管理员权限，您现在受免费额度限制。");
+                } else {
+                    localStorage.setItem('nai_admin_token', t.trim()); 
+                    alert("密码已保存。"); 
+                }
             }
         }
 
@@ -173,17 +157,10 @@
 
         els.btn.addEventListener('click', async () => {
             if(isGenerating) return;
-
             const rawPrompt = document.getElementById('prompt').value.trim();
-            if(!rawPrompt) {
-                alert("请输入提示词");
-                document.getElementById('prompt').focus();
-                return;
-            }
+            if(!rawPrompt) { alert("请输入提示词"); document.getElementById('prompt').focus(); return; }
 
             const modelParam = document.getElementById('model').value;
-            // 拼接最终 Prompt
-            // 逻辑: "提示词 --ar 1:1 --v 7"
             const finalPrompt = `${rawPrompt} --ar ${currentRatio} ${modelParam}`;
 
             setLoading(true);
@@ -191,8 +168,6 @@
 
             try {
                 const adminToken = localStorage.getItem('nai_admin_token') || "";
-                
-                // 1. 提交任务 (Imagine)
                 const submitRes = await fetch('/mj', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
@@ -202,29 +177,22 @@
                 const submitData = await submitRes.json();
                 
                 if(!submitRes.ok) {
-                    if(submitRes.status === 429) {
-                        throw new Error("今日额度耗尽 (请联系管理员或明日再试)");
-                    }
-                    if(submitRes.status === 403) {
-                        throw new Error("功能未开放 (系统维护中)");
-                    }
+                    if(submitRes.status === 429) throw new Error("今日免费额度已耗尽");
+                    if(submitRes.status === 403) throw new Error("功能维护中");
                     throw new Error(submitData.error || "提交失败");
                 }
                 
-                // 获取 Task ID
                 const taskId = submitData.result; 
                 if(!taskId) throw new Error("API未返回任务ID");
 
                 setStatus(`任务ID: ${taskId} | 正在绘制...`);
 
-                // 2. 轮询进度 (Fetch)
                 let isFinished = false;
                 let retryCount = 0;
                 const maxRetries = 60; 
 
                 while(!isFinished && retryCount < maxRetries) {
                     await new Promise(r => setTimeout(r, 3000));
-                    
                     const checkRes = await fetch('/mj', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
@@ -232,7 +200,6 @@
                     });
                     
                     if(!checkRes.ok) continue;
-                    
                     const checkData = await checkRes.json();
                     
                     if(checkData.status === 'SUCCESS') {
@@ -251,7 +218,6 @@
                     }
                     retryCount++;
                 }
-
                 if(!isFinished) throw new Error("任务超时，请稍后在后台查看");
 
             } catch (e) {
