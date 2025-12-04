@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* 深色极客风 */
         body { background-color: #0f172a; color: #e2e8f0; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
@@ -21,15 +20,11 @@
 
     <!-- 左侧控制台 -->
     <div class="w-full md:w-[400px] bg-slate-900 border-r border-slate-800 flex flex-col z-20 shadow-2xl h-full order-2 md:order-1 relative">
-        
-        <!-- 顶部导航 -->
         <div class="p-5 border-b border-slate-800 sticky top-0 bg-slate-900 z-10 flex justify-between items-center">
             <div>
                 <h1 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                    Midjourney
-                    <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">V7</span>
+                    Midjourney <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">V7</span>
                 </h1>
-                <!-- 修改：移除具体的数字，改为通用描述 -->
                 <p class="text-xs text-slate-400 mt-1">公测中: 每日限量</p>
             </div>
             <a href="/" class="text-xs px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1 border border-slate-700">
@@ -37,13 +32,11 @@
             </a>
         </div>
 
-        <!-- 参数设置区 -->
         <div class="flex-1 overflow-y-auto p-5 space-y-6">
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">提示词 (Prompt)</label>
-                <textarea id="prompt" rows="6" class="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block p-3 resize-none outline-none transition-all placeholder-slate-600" placeholder="例如: A cute cat sitting on a spaceship, cyberpunk style, cinematic lighting..."></textarea>
+                <textarea id="prompt" rows="6" class="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block p-3 resize-none outline-none transition-all placeholder-slate-600" placeholder="例如: A cute cat..."></textarea>
             </div>
-
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">画幅比例 (--ar)</label>
                 <div class="grid grid-cols-4 gap-2">
@@ -53,27 +46,24 @@
                     <button onclick="setRatio('3:4')" class="ratio-btn p-2 rounded border border-slate-700 bg-slate-800 text-xs text-slate-300 hover:border-slate-600 transition-all">3:4</button>
                 </div>
             </div>
-
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">模型版本</label>
                 <div class="relative">
                     <select id="model" class="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg p-2.5 outline-none focus:border-indigo-500 appearance-none cursor-pointer">
-                        <option value="--v 7">Midjourney V7 (最新)</option>
-                        <option value="--niji 6">Niji V6 (二次元/动漫)</option>
-                        <option value="--v 6.1">Midjourney V6.1 (稳定)</option>
-                        <option value="--v 6.0">Midjourney V6.0 (旧版)</option>
+                        <option value="--v 7">Midjourney V7</option>
+                        <option value="--niji 6">Niji V6</option>
+                        <option value="--v 6.1">Midjourney V6.1</option>
                     </select>
                     <i data-lucide="chevron-down" class="absolute right-3 top-3 w-4 h-4 text-slate-500 pointer-events-none"></i>
                 </div>
             </div>
         </div>
 
-        <!-- 底部按钮 -->
         <div class="p-5 border-t border-slate-800 bg-slate-900 sticky bottom-0 z-20">
             <button id="generateBtn" class="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-indigo-900/20 active:scale-[0.98]">
                 <span id="btnIcon"><i data-lucide="sparkles" class="w-4 h-4"></i></span>
                 <span id="btnLoader" class="hidden"><span class="loader"></span></span>
-                <span id="btnText">生成图片 (消耗额度)</span>
+                <span id="btnText">生成图片</span>
             </button>
             <div id="statusText" class="text-center text-[10px] text-slate-500 mt-2 h-4 font-mono"></div>
         </div>
@@ -108,22 +98,9 @@
             });
         }
 
-        // 修改：更完善的管理员登录/注销逻辑，使用通用提示语
         function enterAdminToken() {
-            const currentToken = localStorage.getItem('nai_admin_token');
-            let msg = "请输入管理员密码 (Admin Token):";
-            if (currentToken) msg = "管理员已登录。清空输入框并点击确定即可注销。";
-            
-            const t = prompt(msg);
-            if(t !== null) { 
-                if (t.trim() === "") {
-                    localStorage.removeItem('nai_admin_token');
-                    alert("已注销管理员权限，您现在受免费额度限制。");
-                } else {
-                    localStorage.setItem('nai_admin_token', t.trim()); 
-                    alert("密码已保存。"); 
-                }
-            }
+            const t = prompt("请输入管理员密码:");
+            if(t) { localStorage.setItem('nai_admin_token', t.trim()); alert("密码已保存"); }
         }
 
         const els = {
@@ -145,85 +122,93 @@
             isGenerating = b;
             els.btn.disabled = b;
             if(b) {
-                els.btnText.textContent = "任务排队中...";
+                els.btnText.textContent = "排队中...";
                 els.btnIcon.classList.add('hidden');
                 els.loader.classList.remove('hidden');
             } else {
-                els.btnText.textContent = "生成图片 (消耗额度)";
+                els.btnText.textContent = "生成图片";
                 els.btnIcon.classList.remove('hidden');
                 els.loader.classList.add('hidden');
             }
         }
 
+        // 核心排错 Fetch 函数
+        async function fetchAPI(action, payload) {
+            const adminToken = localStorage.getItem('nai_admin_token') || "";
+            // 发送请求
+            const res = await fetch('/mj_api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+                body: JSON.stringify({ action, ...payload })
+            });
+
+            // 先获取文本，不要直接 json()
+            const text = await res.text();
+
+            // 尝试解析 JSON
+            try {
+                const json = JSON.parse(text);
+                // 如果 fetch 状态码不是 200-299，抛出后端返回的错误
+                if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+                return json;
+            } catch (e) {
+                // 解析失败（说明返回的不是 JSON，可能是 404 HTML 页或空）
+                console.error("Raw response:", text);
+                if (!res.ok) throw new Error(`请求失败 (${res.status}): ${text.substring(0, 50)}...`);
+                throw new Error("解析响应失败，可能是网络问题或接口地址错误");
+            }
+        }
+
         els.btn.addEventListener('click', async () => {
             if(isGenerating) return;
-            const rawPrompt = document.getElementById('prompt').value.trim();
-            if(!rawPrompt) { alert("请输入提示词"); document.getElementById('prompt').focus(); return; }
+            const prompt = document.getElementById('prompt').value.trim();
+            if(!prompt) return alert("请输入提示词");
 
-            const modelParam = document.getElementById('model').value;
-            const finalPrompt = `${rawPrompt} --ar ${currentRatio} ${modelParam}`;
+            const model = document.getElementById('model').value;
+            const finalPrompt = `${prompt} --ar ${currentRatio} ${model}`;
 
             setLoading(true);
-            setStatus("正在提交任务...");
+            setStatus("提交任务中...");
 
             try {
-                const adminToken = localStorage.getItem('nai_admin_token') || "";
-                const submitRes = await fetch('/mj', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
-                    body: JSON.stringify({ action: 'imagine', prompt: finalPrompt })
-                });
-
-                const submitData = await submitRes.json();
-                
-                if(!submitRes.ok) {
-                    if(submitRes.status === 429) throw new Error("今日免费额度已耗尽");
-                    if(submitRes.status === 403) throw new Error("功能维护中");
-                    throw new Error(submitData.error || "提交失败");
-                }
-                
+                // 1. 提交任务
+                const submitData = await fetchAPI('imagine', { prompt: finalPrompt });
                 const taskId = submitData.result; 
-                if(!taskId) throw new Error("API未返回任务ID");
+                if(!taskId) throw new Error("未获取到 Task ID");
 
-                setStatus(`任务ID: ${taskId} | 正在绘制...`);
+                setStatus(`任务ID: ${taskId} | 绘制中...`);
 
+                // 2. 轮询
                 let isFinished = false;
                 let retryCount = 0;
-                const maxRetries = 60; 
-
-                while(!isFinished && retryCount < maxRetries) {
+                while(!isFinished && retryCount < 60) {
                     await new Promise(r => setTimeout(r, 3000));
-                    const checkRes = await fetch('/mj_api', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
-                        body: JSON.stringify({ action: 'fetch', taskId: taskId })
-                    });
                     
-                    if(!checkRes.ok) continue;
-                    const checkData = await checkRes.json();
-                    
-                    if(checkData.status === 'SUCCESS') {
-                        els.img.src = checkData.imageUrl;
-                        els.img.onload = () => {
-                            els.img.classList.remove('hidden');
-                            els.holder.classList.add('hidden');
-                        };
-                        isFinished = true;
-                        setStatus("绘制完成！");
-                    } else if (checkData.status === 'FAILURE') {
-                        throw new Error(checkData.failReason || "MJ 绘图失败");
-                    } else {
-                        const progress = checkData.progress || '...';
-                        setStatus(`绘制中... ${progress}`);
+                    try {
+                        const checkData = await fetchAPI('fetch', { taskId });
+                        if(checkData.status === 'SUCCESS') {
+                            els.img.src = checkData.imageUrl;
+                            els.img.onload = () => {
+                                els.img.classList.remove('hidden');
+                                els.holder.classList.add('hidden');
+                            };
+                            isFinished = true;
+                            setStatus("完成！");
+                        } else if (checkData.status === 'FAILURE') {
+                            throw new Error(checkData.failReason || "绘制失败");
+                        } else {
+                            setStatus(`绘制中... ${checkData.progress || ''}`);
+                        }
+                    } catch(err) {
+                        console.warn("轮询暂态错误", err);
                     }
                     retryCount++;
                 }
-                if(!isFinished) throw new Error("任务超时，请稍后在后台查看");
+                if(!isFinished) throw new Error("任务超时");
 
             } catch (e) {
-                console.error(e);
-                setStatus(e.message, 'error');
-                alert(e.message);
+                alert("出错啦: " + e.message);
+                setStatus("发生错误", "error");
             } finally {
                 setLoading(false);
             }
