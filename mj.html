@@ -193,7 +193,7 @@
 
                 while(!isFinished && retryCount < maxRetries) {
                     await new Promise(r => setTimeout(r, 3000));
-                    const checkRes = await fetch('/mj', {
+                    const checkRes = await fetch('/mj_api', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
                         body: JSON.stringify({ action: 'fetch', taskId: taskId })
