@@ -2,337 +2,330 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NovelAI Opus Free</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: { bg: '#0f172a', panel: '#1e293b', border: '#334155', text: '#e2e8f0' }
+                    },
+                    height: {
+                        'screen-dvh': '100dvh' // 解决移动端浏览器地址栏遮挡问题
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <style>
-        /* --- 动态背景与基础设定 --- */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
         
+        /* 全局禁用页面级滚动，改为区域滚动 */
         body { 
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(229, 231, 235, 0.5) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(209, 213, 219, 0.5) 0px, transparent 50%),
-                linear-gradient(to bottom right, #f9fafb, #f3f4f6);
+            background-image: radial-gradient(at 0% 0%, rgba(229, 231, 235, 0.5) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(209, 213, 219, 0.5) 0px, transparent 50%), linear-gradient(to bottom right, #f9fafb, #f3f4f6);
             background-size: 100% 100%;
             background-attachment: fixed;
+            overscroll-behavior: none; /* 防止橡皮筋效果 */
+        }
+        
+        html.dark body {
+            background-color: #0f172a;
+            background-image: radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.5) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(15, 23, 42, 0.5) 0px, transparent 50%), linear-gradient(to bottom right, #0f172a, #1e293b);
         }
 
-        body::before {
-            content: "";
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
-            pointer-events: none; z-index: 50;
-        }
+        /* 隐藏滚动条但保留功能 */
+        .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        html.dark .custom-scroll::-webkit-scrollbar-thumb { background: #475569; }
 
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
+        /* 玻璃拟态 */
         .glass-panel {
-            background: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             border-right: 1px solid rgba(229, 231, 235, 0.6);
         }
-
-        /* 侧边栏动画 */
-        .drawer { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .drawer-open { transform: translateX(0); box-shadow: 10px 0 30px -10px rgba(0,0,0,0.05); }
-        .drawer-closed { transform: translateX(-100%); }
-
-        /* 选项卡 */
-        .tab-btn { position: relative; color: #9ca3af; transition: color 0.3s; }
-        .tab-btn.active { color: #1f2937; font-weight: 600; }
-        .tab-btn.active::after { 
-            content: ''; position: absolute; bottom: 0; left: 50%; width: 40%; height: 2px;
-            background: #1f2937; transform: translateX(-50%); 
+        html.dark .glass-panel {
+            background: rgba(30, 41, 59, 0.9);
+            border-right: 1px solid rgba(51, 65, 85, 0.6);
         }
 
-        /* 加载动画 */
+        /* 动画与交互 */
+        .drawer { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .drawer-open { transform: translateX(0); }
+        .drawer-closed { transform: translateX(-100%); }
+        
+        .tab-btn { position: relative; transition: color 0.3s; }
+        .tab-btn.active::after { 
+            content: ''; position: absolute; bottom: 0; left: 50%; width: 40%; height: 2px;
+            background: currentColor; transform: translateX(-50%); 
+        }
+
         .loader {
-            width: 18px; height: 18px; border: 2px solid #fff;
+            width: 18px; height: 18px; border: 2px solid currentColor;
             border-bottom-color: transparent; border-radius: 50%;
             display: inline-block; animation: rotation 0.8s linear infinite;
         }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* 顶部切换开关 (Segmented Control) */
-        .view-toggle {
-            background: rgba(243, 244, 246, 0.8);
-            border: 1px solid rgba(229, 231, 235, 0.8);
-            border-radius: 9999px;
-            padding: 4px;
-            display: flex;
-            position: relative;
-        }
-        .view-toggle button {
-            position: relative;
-            z-index: 2;
-            padding: 4px 16px;
-            font-size: 12px;
-            font-weight: 500;
-            color: #6b7280;
-            transition: color 0.3s;
-            border-radius: 9999px;
-        }
-        .view-toggle button.active { color: #111827; }
-        .view-toggle-bg {
-            position: absolute;
-            top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px);
-            background: white; border-radius: 9999px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1;
-        }
-        /* 状态控制 */
-        .view-toggle[data-state="history"] .view-toggle-bg { transform: translateX(100%); }
-
-        /* 历史网格项 */
-        .gallery-item { 
-            position: relative; overflow: hidden; border-radius: 12px; cursor: pointer; 
-            border: 1px solid #f3f4f6; transition: all 0.2s;
-        }
-        .gallery-item:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.05); border-color: #e5e7eb; }
+        /* 历史记录网格 */
+        .gallery-item { position: relative; overflow: hidden; border-radius: 8px; cursor: pointer; transition: transform 0.2s; }
+        .gallery-item:active { transform: scale(0.98); }
         .gallery-overlay {
-            position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
-            opacity: 0; transition: opacity 0.2s; display: flex; align-items: flex-end; justify-content: space-between; padding: 8px;
+            position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+            opacity: 0; transition: opacity 0.2s; display: flex; align-items: flex-end; justify-content: flex-end; padding: 6px;
         }
         .gallery-item:hover .gallery-overlay { opacity: 1; }
 
-        /* 输入框样式 */
-        .input-group:focus-within { transform: translateY(-1px); }
-        
-        /* 模型开关样式 */
-        .model-switch-label { cursor: pointer; transition: all 0.4s; position: relative; z-index: 1; }
-        input[type="radio"]:checked + .model-switch-label { color: #111827; }
-        .switch-bg {
-            position: absolute; height: calc(100% - 8px); width: calc(50% - 6px);
-            top: 4px; left: 4px; background: white; border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 0;
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .mobile-preview-height { height: 40dvh; } /* 预览区高度 */
+            .mobile-controls-height { height: 60dvh; } /* 控制区高度 */
         }
-        #model-v4:checked ~ .switch-bg { transform: translateX(calc(100% + 4px)); }
     </style>
 </head>
 
-<body class="text-gray-600 min-h-screen md:h-screen landscape:h-screen flex flex-col md:flex-row landscape:flex-row md:overflow-hidden landscape:overflow-hidden">
+<!-- 核心布局：h-screen-dvh + overflow-hidden 锁定全屏 -->
+<body class="text-gray-600 dark:text-gray-300 h-screen-dvh w-screen overflow-hidden flex flex-col md:flex-row transition-colors duration-300">
 
-    <!-- 左侧抽屉：资源库 (搜词/预设) -->
-    <div id="sideDrawer" class="fixed inset-y-0 left-0 w-80 bg-white/95 backdrop-blur-xl z-50 drawer drawer-closed flex flex-col border-r border-gray-100/50">
-        <div class="flex items-center justify-between p-5 border-b border-gray-100">
-            <h2 class="font-semibold text-gray-800 flex items-center gap-2">
-                <i data-lucide="library" class="w-4 h-4 text-gray-400"></i> 资源库
+    <!-- 左侧抽屉：资源库 -->
+    <div id="sideDrawer" class="absolute inset-y-0 left-0 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl z-50 drawer drawer-closed flex flex-col border-r border-gray-100/50 dark:border-gray-700/50 shadow-2xl">
+        <div class="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
+            <h2 class="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <i data-lucide="library" class="w-4 h-4 text-blue-500"></i> 资源库
             </h2>
-            <button onclick="toggleDrawer()" class="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
+            <button onclick="toggleDrawer()" class="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg text-gray-400"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
-        <div class="flex border-b border-gray-100 bg-white/50">
-            <button onclick="switchDrawerTab('search')" id="tab-search" class="tab-btn active flex-1 py-3 text-xs flex justify-center items-center gap-1.5">
+        
+        <div class="flex border-b border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-slate-900/50 shrink-0">
+            <button onclick="switchDrawerTab('search')" id="tab-search" class="tab-btn active flex-1 py-3 text-xs flex justify-center items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
                 <i data-lucide="search" class="w-3 h-3"></i> 搜词
             </button>
-            <button onclick="switchDrawerTab('preset')" id="tab-preset" class="tab-btn flex-1 py-3 text-xs flex justify-center items-center gap-1.5">
+            <button onclick="switchDrawerTab('preset')" id="tab-preset" class="tab-btn flex-1 py-3 text-xs flex justify-center items-center gap-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400">
                 <i data-lucide="grid" class="w-3 h-3"></i> 预设
             </button>
         </div>
-        <!-- 搜索内容 -->
+        
+        <!-- 内容区域：flex-1 overflow-hidden 确保内部滚动 -->
         <div id="view-search" class="flex flex-col flex-1 overflow-hidden">
-            <div class="p-5 border-b border-gray-100">
+            <div class="p-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
                 <div class="flex gap-2 relative group">
                     <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
-                    <input type="text" id="tagSearchInput" placeholder="搜索关键词..." class="w-full pl-9 pr-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-gray-300">
-                    <button id="tagSearchBtn" class="px-4 py-2 bg-gray-900 text-white text-xs font-medium rounded-lg shadow-md active:scale-95">搜索</button>
+                    <input type="text" id="tagSearchInput" placeholder="输入关键词..." class="w-full pl-9 pr-2 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-blue-400 transition-colors">
+                    <button id="tagSearchBtn" class="px-3 py-2 bg-gray-900 dark:bg-slate-700 text-white text-xs font-medium rounded-lg active:scale-95">搜索</button>
                 </div>
             </div>
-            <div id="tagResults" class="flex-1 overflow-y-auto p-2 space-y-1">
-                <div class="text-center mt-12 text-xs text-gray-300">输入关键词开始探索</div>
+            <div id="tagResults" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scroll">
+                <div class="text-center mt-12 text-xs text-gray-300 dark:text-gray-600">输入中文/英文关键词</div>
             </div>
         </div>
-        <!-- 预设内容 -->
+        
         <div id="view-preset" class="flex flex-col flex-1 overflow-hidden hidden">
-            <div class="px-5 py-3 border-b border-gray-100 flex gap-2 justify-center">
-                <button onclick="renderPresets('v3')" id="btn-pre-v3" class="px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all">V3</button>
-                <button onclick="renderPresets('v4.5')" id="btn-pre-v4" class="px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all">V4.5</button>
+            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex gap-2 justify-center shrink-0">
+                <button onclick="renderPresets('v3')" id="btn-pre-v3" class="px-3 py-1 rounded-full text-[10px] font-bold border transition-all">V3</button>
+                <button onclick="renderPresets('v4.5')" id="btn-pre-v4" class="px-3 py-1 rounded-full text-[10px] font-bold border transition-all">V4.5</button>
             </div>
-            <div id="presetGrid" class="flex-1 overflow-y-auto p-4 grid grid-cols-2 gap-4 content-start"></div>
+            <div id="presetGrid" class="flex-1 overflow-y-auto p-4 grid grid-cols-2 gap-3 content-start custom-scroll"></div>
         </div>
     </div>
-    <div id="drawerOverlay" onclick="toggleDrawer()" class="fixed inset-0 bg-gray-900/10 backdrop-blur-[2px] z-40 hidden transition-opacity duration-300"></div>
+    <div id="drawerOverlay" onclick="toggleDrawer()" class="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40 hidden transition-opacity duration-300"></div>
 
-    <!-- 中间：控制面板 -->
-    <div class="w-full md:w-[400px] landscape:w-[360px] glass-panel flex flex-col z-20 shadow-[20px_0_40px_-10px_rgba(0,0,0,0.03)] relative order-2 md:order-1 landscape:order-1 md:h-full landscape:h-full">
-        <!-- 标题 -->
-        <div class="p-6 border-b border-gray-100 sticky top-0 bg-white/80 backdrop-blur-md z-30">
-            <div class="flex items-center justify-between mb-5">
+    <!-- 移动端布局逻辑：
+         1. Flex-col 垂直排列
+         2. Order控制：Preview在Top (order-1)，Controls在Bottom (order-2)
+         3. 桌面端：Flex-row，Controls在Left (order-1)，Preview在Right (order-2)
+    -->
+
+    <!-- 面板 A：控制台 -->
+    <div class="mobile-controls-height md:h-full w-full md:w-[400px] glass-panel flex flex-col z-20 shadow-xl relative order-2 md:order-1 transition-all duration-300">
+        
+        <!-- 头部 (固定) -->
+        <div class="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
+            <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
-                    <button onclick="toggleDrawer()" class="p-2 -ml-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-gray-500">
+                    <button onclick="toggleDrawer()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all text-gray-500">
                         <i data-lucide="menu" class="w-5 h-5"></i>
                     </button>
-                    <h1 class="text-base font-semibold text-gray-800 flex items-center gap-2">
-                        Opus Free <span class="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200">0 ANLAS</span>
+                    <h1 class="text-base font-semibold text-gray-800 dark:text-gray-200">
+                        Opus Free <span class="text-[9px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 ml-1">0 ANLAS</span>
                     </h1>
                 </div>
-                <button onclick="enterAdminToken()" id="adminLockBtn" class="p-1.5 rounded-full hover:bg-gray-100 text-gray-400">
-                    <i data-lucide="lock" class="w-4 h-4"></i>
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="toggleTheme()" class="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400"><i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i></button>
+                    <button onclick="enterAdminToken()" id="adminLockBtn" class="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400"><i data-lucide="lock" class="w-4 h-4"></i></button>
+                </div>
             </div>
             <!-- 模型切换 -->
-            <div class="relative bg-gray-100/80 p-1 rounded-lg flex border border-gray-200/50">
+            <div class="relative bg-gray-100/80 dark:bg-slate-800/80 p-1 rounded-lg flex border border-gray-200/50 dark:border-gray-700/50">
                 <input type="radio" name="model_version" id="model-v3" value="v3" class="hidden" checked onchange="updateModelUI('v3')">
                 <input type="radio" name="model_version" id="model-v4" value="v4.5" class="hidden" onchange="updateModelUI('v4.5')">
-                <div class="switch-bg"></div>
-                <label for="model-v3" class="model-switch-label flex-1 text-center py-2 text-xs font-medium text-gray-500 hover:text-gray-600">NAI V3</label>
-                <label for="model-v4" class="model-switch-label flex-1 text-center py-2 text-xs font-medium text-gray-500 hover:text-gray-600 flex items-center justify-center gap-1">NAI V4.5 <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span></label>
+                <div class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded shadow-sm transition-transform duration-300 z-0"></div>
+                <label for="model-v3" class="flex-1 text-center py-1.5 text-xs font-medium z-10 cursor-pointer text-gray-600 dark:text-gray-300">V3</label>
+                <label for="model-v4" class="flex-1 text-center py-1.5 text-xs font-medium z-10 cursor-pointer text-gray-600 dark:text-gray-300">V4.5</label>
             </div>
         </div>
 
-        <!-- 滚动表单 -->
-        <div class="flex-none md:flex-1 landscape:flex-1 md:overflow-y-auto landscape:overflow-y-auto p-6 space-y-6 pb-28 md:pb-6 landscape:pb-6 custom-scroll">
-            <div class="input-group space-y-2">
-                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex justify-between px-1">
-                    <span>提示词</span>
-                    <span onclick="openPresets()" class="cursor-pointer text-gray-400 hover:text-gray-800 flex items-center gap-1"><i data-lucide="layout-grid" class="w-3 h-3"></i> 预设</span>
-                </label>
-                <textarea id="prompt" rows="4" class="w-full bg-white border border-gray-200 text-gray-800 text-sm rounded-xl focus:border-gray-400 outline-none p-3.5 shadow-sm" placeholder="描述你想象中的画面..."></textarea>
+        <!-- 滚动表单区 (Flex-1 + Overflow-Auto) -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 custom-scroll relative">
+            <div class="space-y-2">
+                <div class="flex justify-between items-center px-1">
+                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">提示词</label>
+                    <button onclick="openPresets()" class="text-[10px] text-blue-500 flex items-center gap-1 hover:underline"><i data-lucide="sparkles" class="w-3 h-3"></i> 风格库</button>
+                </div>
+                <textarea id="prompt" rows="3" class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-sm rounded-xl focus:border-blue-400 outline-none p-3 shadow-sm transition-colors resize-none" placeholder="1girl, white hair..."></textarea>
             </div>
-            <div class="input-group space-y-2">
-                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">负向提示词</label>
-                <textarea id="negativePrompt" rows="2" class="w-full bg-white border border-gray-200 text-gray-800 text-sm rounded-xl focus:border-gray-400 outline-none p-3.5 shadow-sm">lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry</textarea>
+            
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">负向提示词</label>
+                <textarea id="negativePrompt" rows="2" class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-sm rounded-xl focus:border-blue-400 outline-none p-3 shadow-sm resize-none">lowres, bad anatomy, bad hands, text, error, blurry</textarea>
             </div>
-            <div class="input-group space-y-2">
-                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">画幅大小</label>
-                <div class="relative">
-                    <select id="resolution" class="w-full bg-white border border-gray-200 text-gray-800 text-xs font-medium rounded-xl p-3.5 outline-none focus:border-gray-400 cursor-pointer shadow-sm appearance-none">
-                        <option value="832,1216" selected>Portrait (832 x 1216)</option>
-                        <option value="1216,832">Landscape (1216 x 832)</option>
-                        <option value="1024,1024">Square (1024 x 1024)</option>
-                        <option value="832,832">Small Square (832 x 832)</option>
-                        <option value="512,768">Speed Portrait (512 x 768)</option>
-                    </select>
-                    <i data-lucide="chevron-down" class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 pointer-events-none"></i>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 px-1">画幅</label>
+                    <div class="relative">
+                        <select id="resolution" class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-xs rounded-lg p-2.5 outline-none appearance-none">
+                            <option value="832,1216">Portrait</option>
+                            <option value="1216,832">Landscape</option>
+                            <option value="1024,1024">Square</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="absolute right-2 top-3 w-3 h-3 text-gray-400 pointer-events-none"></i>
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 px-1">采样器</label>
+                    <div class="relative">
+                        <select id="sampler" class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-xs rounded-lg p-2.5 outline-none appearance-none">
+                            <option value="k_euler">Euler</option>
+                            <option value="k_euler_ancestral">Euler A</option>
+                            <option value="k_dpmpp_2m">DPM++ 2M</option>
+                            <option value="k_dpmpp_sde">DPM++ SDE</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="absolute right-2 top-3 w-3 h-3 text-gray-400 pointer-events-none"></i>
+                    </div>
                 </div>
             </div>
-            <div class="space-y-5 pt-2 border-t border-gray-100/50">
-                <div class="space-y-3">
-                    <div class="flex justify-between text-xs px-1"><label class="font-medium text-gray-500">步数</label><span id="stepsValue" class="font-mono font-bold bg-gray-100 px-1.5 rounded">28</span></div>
-                    <input type="range" id="steps" min="1" max="28" value="28" class="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-gray-800">
+
+            <div class="pt-2 border-t border-gray-100 dark:border-gray-700/50 space-y-4">
+                <div>
+                    <div class="flex justify-between text-xs px-1 mb-1.5"><span class="text-gray-500">步数</span><span id="stepsValue" class="font-mono font-bold">28</span></div>
+                    <input type="range" id="steps" min="1" max="28" value="28" class="w-full h-1 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-gray-800 dark:accent-gray-400">
                 </div>
-                <div class="space-y-3">
-                    <div class="flex justify-between text-xs px-1"><label class="font-medium text-gray-500">相关性</label><span id="scaleValue" class="font-mono font-bold bg-gray-100 px-1.5 rounded">5.0</span></div>
-                    <input type="range" id="scale" min="1" max="20" value="5" step="0.5" class="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-gray-800">
-                </div>
-            </div>
-            <div class="input-group space-y-2">
-                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">采样器</label>
-                <div class="relative">
-                    <select id="sampler" class="w-full bg-white border border-gray-200 text-gray-800 text-xs font-medium rounded-xl p-3.5 outline-none focus:border-gray-400 cursor-pointer shadow-sm appearance-none">
-                        <option value="k_euler" selected>Euler (标准)</option>
-                        <option value="k_euler_ancestral">Euler Ancestral</option>
-                        <option value="k_dpmpp_2m">DPM++ 2M</option>
-                        <option value="k_dpmpp_2s_ancestral">DPM++ 2S Ancestral</option>
-                        <option value="k_dpmpp_sde">DPM++ SDE</option>
-                        <option value="ddim_v3">DDIM</option>
-                    </select>
-                    <i data-lucide="chevron-down" class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                <div>
+                    <div class="flex justify-between text-xs px-1 mb-1.5"><span class="text-gray-500">相关性</span><span id="scaleValue" class="font-mono font-bold">5.0</span></div>
+                    <input type="range" id="scale" min="1" max="20" value="5" step="0.5" class="w-full h-1 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-gray-800 dark:accent-gray-400">
                 </div>
             </div>
+            
+            <!-- 垫底元素，防止内容被底部按钮遮挡 -->
+            <div class="h-16"></div>
         </div>
 
-        <div class="p-6 border-t border-gray-100 bg-white/80 backdrop-blur-md z-20 fixed bottom-0 left-0 right-0 md:sticky landscape:sticky md:bottom-0 landscape:bottom-0">
-            <button id="generateBtn" class="w-full group flex items-center justify-center gap-2 py-4 px-4 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl transition-all shadow-xl shadow-gray-200 active:scale-[0.99]">
-                <span id="btnIcon"><i data-lucide="sparkles" class="w-4 h-4 text-yellow-300"></i></span>
+        <!-- 底部按钮 (固定在Panel底部) -->
+        <div class="p-4 border-t border-gray-100 dark:border-gray-700 bg-white/90 dark:bg-slate-900/90 backdrop-blur shrink-0 absolute bottom-0 left-0 right-0 z-20">
+            <button id="generateBtn" class="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-gray-900 dark:bg-slate-100 hover:bg-black dark:hover:bg-white text-white dark:text-gray-900 text-sm font-bold rounded-xl transition-all shadow-lg active:scale-[0.98]">
+                <span id="btnIcon"><i data-lucide="sparkles" class="w-4 h-4 text-yellow-400"></i></span>
                 <span id="btnLoader" class="hidden"><span class="loader"></span></span>
                 <span id="btnText">免费生成</span>
             </button>
         </div>
     </div>
 
-    <!-- 右侧：预览与图库 -->
-    <div class="relative flex flex-col h-[38vh] md:h-full landscape:h-full overflow-hidden order-1 md:order-2 landscape:order-2 border-b md:border-b-0 landscape:border-b-0 landscape:border-l border-gray-200 flex-shrink-0 flex-1 bg-white/50">
+    <!-- 面板 B：预览与图库 -->
+    <div class="mobile-preview-height md:h-full flex-1 relative flex flex-col overflow-hidden bg-gray-50/50 dark:bg-slate-900/50 order-1 md:order-2 border-b md:border-b-0 md:border-l border-gray-200 dark:border-gray-700">
         
-        <!-- 顶部工具栏 (切换与下载) -->
-        <div class="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-6 z-20 pointer-events-none">
-            <!-- 左侧：视图切换 -->
-            <div class="pointer-events-auto">
-                <div class="view-toggle" id="viewToggle" data-state="preview">
-                    <div class="view-toggle-bg"></div>
-                    <button onclick="switchRightView('preview')" id="viewBtnPreview" class="active">当前画布</button>
-                    <button onclick="switchRightView('history')" id="viewBtnHistory">历史图库</button>
-                </div>
+        <!-- 顶部工具栏 -->
+        <div class="absolute top-0 left-0 right-0 h-12 md:h-16 flex items-center justify-between px-4 md:px-6 z-20 pointer-events-none">
+            <!-- 视图切换 -->
+            <div class="pointer-events-auto bg-white/90 dark:bg-slate-800/90 backdrop-blur rounded-full p-1 shadow-sm border border-gray-200 dark:border-gray-700 flex">
+                <button onclick="switchRightView('preview')" id="viewBtnPreview" class="px-3 py-1 text-[10px] md:text-xs font-medium rounded-full bg-gray-900 text-white transition-all">画布</button>
+                <button onclick="switchRightView('history')" id="viewBtnHistory" class="px-3 py-1 text-[10px] md:text-xs font-medium rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-all">图库</button>
             </div>
             
-            <!-- 右侧：操作按钮 -->
-            <div class="pointer-events-auto flex gap-2" id="topActionBtns">
-                <button onclick="downloadZip()" id="zipBtn" class="hidden p-2.5 bg-white rounded-xl shadow-sm border border-gray-200 text-gray-500 hover:text-gray-900 transition-all hover:scale-105" title="打包下载 ZIP">
-                    <i data-lucide="archive" class="w-4 h-4"></i>
-                </button>
-                <button onclick="downloadImage()" id="dlBtn" class="p-2.5 bg-white rounded-xl shadow-sm border border-gray-200 text-gray-500 hover:text-gray-900 transition-all opacity-50 cursor-not-allowed hover:scale-105" disabled title="下载当前图片">
-                    <i data-lucide="download" class="w-4 h-4"></i>
-                </button>
+            <!-- 操作按钮 -->
+            <div class="pointer-events-auto flex gap-2">
+                <button onclick="clearAllHistory()" id="clearBtn" class="hidden p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-red-400 hover:text-red-500 transition-all" title="清空"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                <button onclick="downloadZip()" id="zipBtn" class="hidden p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-blue-500 hover:text-blue-600 transition-all" title="打包"><i data-lucide="archive" class="w-4 h-4"></i></button>
+                <button onclick="downloadImage()" id="dlBtn" class="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-all opacity-50 cursor-not-allowed" disabled><i data-lucide="download" class="w-4 h-4"></i></button>
             </div>
         </div>
 
         <!-- 视图 1: 单图预览 -->
-        <div id="previewArea" class="flex-1 flex flex-col items-center justify-center p-6 md:p-12 overflow-hidden relative transition-opacity duration-300">
-            <!-- 装饰网格 -->
-            <div class="absolute inset-0 opacity-[0.02]" style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 32px 32px;"></div>
+        <div id="previewArea" class="flex-1 flex flex-col items-center justify-center p-4 md:p-10 relative">
+            <div class="absolute inset-0 opacity-[0.03]" style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 24px 24px;"></div>
             
-            <div id="placeholder" class="text-center transition-all duration-500">
-                <div class="w-24 h-24 bg-white rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.08)] border border-gray-100 flex items-center justify-center mx-auto mb-6">
-                    <i data-lucide="image" class="w-8 h-8 text-gray-300"></i>
+            <div id="placeholder" class="text-center transition-all duration-300">
+                <div class="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="image" class="w-6 h-6 text-gray-300 dark:text-gray-600"></i>
                 </div>
-                <p class="text-gray-400 text-sm font-light">Opus 算力就绪</p>
-                <div id="modelBadge" class="mt-3 text-[10px] font-mono text-gray-400 bg-gray-100 px-3 py-1 rounded-full inline-block border border-gray-200">V3 MODE</div>
+                <p class="text-xs text-gray-400 dark:text-gray-500">Ready to Generate</p>
             </div>
 
-            <img id="resultImage" class="hidden w-full h-full object-contain shadow-2xl rounded-xl border-4 border-white transition-all duration-700 scale-95 opacity-0 cursor-pointer" onclick="openImageModal(this.src)">
+            <img id="resultImage" class="hidden w-full h-full object-contain shadow-xl rounded-lg transition-all duration-500 scale-95 opacity-0 cursor-pointer">
             
-            <!-- 快捷操作栏 (仅在有图时显示) -->
-            <div id="imageActions" class="absolute bottom-6 flex gap-3 opacity-0 transition-opacity pointer-events-none transform translate-y-4">
-                <button onclick="useCurrentPrompt()" class="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur text-xs font-medium text-gray-700 rounded-full shadow-lg border border-gray-100 hover:bg-white hover:scale-105 transition-all">
-                    <i data-lucide="pen-tool" class="w-3 h-3"></i> 使用此提示词
-                </button>
-                <button onclick="deleteCurrentImage()" class="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur text-xs font-medium text-red-500 rounded-full shadow-lg border border-gray-100 hover:bg-white hover:scale-105 transition-all">
-                    <i data-lucide="trash-2" class="w-3 h-3"></i> 删除
-                </button>
+            <div id="imageActions" class="absolute bottom-4 flex gap-2 opacity-0 transition-opacity pointer-events-none transform translate-y-2">
+                <button onclick="useCurrentPrompt()" class="pointer-events-auto px-3 py-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur text-[10px] font-medium text-gray-700 dark:text-gray-200 rounded-full shadow border border-gray-200 dark:border-gray-700 hover:scale-105 transition-all flex items-center gap-1"><i data-lucide="pen-tool" class="w-3 h-3"></i> 提示词</button>
+                <button onclick="deleteCurrentImage()" class="pointer-events-auto px-3 py-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur text-[10px] font-medium text-red-500 rounded-full shadow border border-gray-200 dark:border-gray-700 hover:scale-105 transition-all flex items-center gap-1"><i data-lucide="trash" class="w-3 h-3"></i> 删除</button>
             </div>
         </div>
 
         <!-- 视图 2: 历史图库 -->
-        <div id="historyArea" class="flex-1 hidden overflow-y-auto p-6 pt-20 custom-scroll bg-gray-50/50">
-            <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start">
-                <!-- JS 渲染 -->
-            </div>
+        <div id="historyArea" class="flex-1 hidden overflow-y-auto p-4 pt-16 custom-scroll bg-gray-50/30 dark:bg-slate-900/30">
+            <div id="galleryGrid" class="grid grid-cols-3 md:grid-cols-4 gap-2 content-start"></div>
             <div id="emptyGallery" class="hidden h-full flex flex-col items-center justify-center text-gray-400">
-                <i data-lucide="ghost" class="w-8 h-8 mb-2 opacity-50"></i>
-                <span class="text-xs">暂无历史记录</span>
+                <i data-lucide="ghost" class="w-6 h-6 mb-2 opacity-50"></i>
+                <span class="text-[10px]">暂无历史</span>
             </div>
         </div>
 
-        <!-- 底部状态栏 -->
-        <div class="h-10 bg-white/50 backdrop-blur-sm border-t border-gray-200/50 flex items-center justify-between px-6 text-[10px] text-gray-400 uppercase tracking-wider font-mono z-20">
+        <!-- 底部状态 (桌面端显示，移动端因为空间紧凑隐藏或简化) -->
+        <div class="h-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between px-4 text-[9px] text-gray-400 dark:text-gray-500 font-mono shrink-0">
             <span id="statusText">System Ready</span>
             <span id="metaInfo"></span>
         </div>
     </div>
-    
-    <div class="h-24 md:hidden landscape:hidden order-3 w-full bg-white"></div>
 
     <script>
         lucide.createIcons();
         
-        // --- 核心变量 ---
-        let currentRightView = 'preview'; // 'preview' or 'history'
-        let currentImageId = null; // 当前预览图片的 ID (数据库ID)
-        let currentImageData = null; // 当前预览图片的完整数据
+        // --- 样式修正：移动端滑块背景 ---
+        const modelRadios = document.querySelectorAll('input[name="model_version"]');
+        const switchBg = document.querySelector('.switch-bg');
+        modelRadios.forEach(r => r.addEventListener('change', (e) => {
+            if (e.target.value === 'v4.5') switchBg.style.transform = 'translateX(100%)';
+            else switchBg.style.transform = 'translateX(0)';
+        }));
 
+        // --- 主题切换 ---
+        function initTheme() {
+            if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else document.documentElement.classList.remove('dark');
+        }
+        initTheme();
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark'); localStorage.setItem('color-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark'); localStorage.setItem('color-theme', 'dark');
+            }
+        }
+
+        // --- 核心逻辑 ---
+        let currentRightView = 'preview';
+        let currentImageId = null;
+        let currentImageData = null;
+
+        // UI 元素绑定
         const els = {
-            // 左侧
             prompt: document.getElementById('prompt'),
             negative: document.getElementById('negativePrompt'),
             resolution: document.getElementById('resolution'),
@@ -344,10 +337,9 @@
             btnIcon: document.getElementById('btnIcon'),
             btnLoader: document.getElementById('btnLoader'),
             adminLockBtn: document.getElementById('adminLockBtn'),
-            
-            // 抽屉
             sideDrawer: document.getElementById('sideDrawer'),
             drawerOverlay: document.getElementById('drawerOverlay'),
+            // ... (搜索/预设部分相同) ...
             tagSearchInput: document.getElementById('tagSearchInput'),
             tagResults: document.getElementById('tagResults'),
             tagSearchBtn: document.getElementById('tagSearchBtn'),
@@ -358,11 +350,9 @@
             presetGrid: document.getElementById('presetGrid'),
             btnPreV3: document.getElementById('btn-pre-v3'),
             btnPreV4: document.getElementById('btn-pre-v4'),
-
             // 右侧
             previewArea: document.getElementById('previewArea'),
             historyArea: document.getElementById('historyArea'),
-            viewToggle: document.getElementById('viewToggle'),
             viewBtnPreview: document.getElementById('viewBtnPreview'),
             viewBtnHistory: document.getElementById('viewBtnHistory'),
             resultImg: document.getElementById('resultImage'),
@@ -370,28 +360,22 @@
             status: document.getElementById('statusText'),
             dlBtn: document.getElementById('dlBtn'),
             zipBtn: document.getElementById('zipBtn'),
+            clearBtn: document.getElementById('clearBtn'),
             galleryGrid: document.getElementById('galleryGrid'),
             emptyGallery: document.getElementById('emptyGallery'),
             imageActions: document.getElementById('imageActions'),
             stepsVal: document.getElementById('stepsValue'),
-            scaleVal: document.getElementById('scaleValue'),
-            modelBadge: document.getElementById('modelBadge')
+            scaleVal: document.getElementById('scaleValue')
         };
 
-        // ================= 📚 数据库 (IndexedDB) =================
+        // --- IndexedDB ---
         const DB_NAME = 'nai_opus_db';
         const STORE_NAME = 'history';
         let db;
-
         const initDB = () => {
-            const request = indexedDB.open(DB_NAME, 1);
-            request.onupgradeneeded = e => {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                }
-            };
-            request.onsuccess = e => { db = e.target.result; loadGallery(); };
+            const r = indexedDB.open(DB_NAME, 1);
+            r.onupgradeneeded = e => { if(!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true }); };
+            r.onsuccess = e => { db = e.target.result; loadGallery(); };
         };
         initDB();
 
@@ -399,35 +383,33 @@
             if (!db) return;
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const item = { image: imgBase64, prompt, model, date: Date.now() };
-            const req = tx.objectStore(STORE_NAME).add(item);
-            req.onsuccess = (e) => {
-                // 保存成功后，更新当前图片ID，以便删除
+            tx.objectStore(STORE_NAME).add(item).onsuccess = (e) => {
                 currentImageId = e.target.result;
                 currentImageData = item;
                 showImageActions(true);
-                loadGallery(); // 刷新图库
+                loadGallery();
             };
         }
 
         function deleteCurrentImage() {
             if (!currentImageId || !db) return;
-            if (!confirm("确定要删除这张图片吗？")) return;
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).delete(currentImageId);
-            tx.oncomplete = () => {
-                resetPreview(); // 清空预览
-                loadGallery();  // 刷新图库
-                alert("已删除");
+            if (!confirm("删除此图片？")) return;
+            db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(currentImageId).onsuccess = () => {
+                resetPreview(); loadGallery();
             };
         }
 
+        window.clearAllHistory = function() {
+            if (!db || !confirm("清空所有历史记录？")) return;
+            db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).clear().onsuccess = () => {
+                loadGallery(); resetPreview();
+            };
+        };
+
         function loadGallery() {
             if (!db) return;
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            const req = tx.objectStore(STORE_NAME).getAll();
-            req.onsuccess = () => {
-                const items = req.result.reverse(); // 最新在前
-                renderGallery(items);
+            db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll().onsuccess = (e) => {
+                renderGallery(e.target.result.reverse());
             };
         }
 
@@ -436,19 +418,17 @@
             if (items.length === 0) {
                 els.emptyGallery.classList.remove('hidden');
                 els.zipBtn.classList.add('hidden');
+                els.clearBtn.classList.add('hidden');
             } else {
                 els.emptyGallery.classList.add('hidden');
-                els.zipBtn.classList.remove('hidden'); // 显示打包按钮
-                
+                if (currentRightView === 'history') {
+                    els.zipBtn.classList.remove('hidden');
+                    els.clearBtn.classList.remove('hidden');
+                }
                 items.forEach(item => {
                     const el = document.createElement('div');
-                    el.className = 'gallery-item aspect-[2/3] bg-gray-100 relative group';
-                    el.innerHTML = `
-                        <img src="${item.image}" class="w-full h-full object-cover">
-                        <div class="gallery-overlay">
-                            <span class="text-[9px] text-white/80 font-mono">${new Date(item.date).toLocaleTimeString()}</span>
-                        </div>
-                    `;
+                    el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 relative group';
+                    el.innerHTML = `<img src="${item.image}" class="w-full h-full object-cover">`;
                     el.onclick = () => loadPreviewFromHistory(item);
                     els.galleryGrid.appendChild(el);
                 });
@@ -456,18 +436,12 @@
         }
 
         function loadPreviewFromHistory(item) {
-            // 切换到预览视图
             switchRightView('preview');
-            // 填充数据
             els.resultImg.src = item.image;
             els.placeholder.classList.add('hidden');
             els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
-            
-            // 启用按钮
             els.dlBtn.disabled = false;
             els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            
-            // 记录当前状态
             currentImageId = item.id;
             currentImageData = item;
             showImageActions(true);
@@ -476,16 +450,8 @@
         function useCurrentPrompt() {
             if (!currentImageData) return;
             els.prompt.value = currentImageData.prompt;
-            // 自动切换模型
-            const model = currentImageData.model || 'v3';
-            const input = document.querySelector(`input[name="model_version"][value="${model}"]`);
-            if (input && !input.checked) {
-                input.checked = true;
-                updateModelUI(model);
-            }
-            // 反馈动画
-            els.prompt.classList.add('bg-blue-50');
-            setTimeout(() => els.prompt.classList.remove('bg-blue-50'), 500);
+            els.prompt.classList.add('bg-blue-50', 'dark:bg-blue-900/30');
+            setTimeout(() => els.prompt.classList.remove('bg-blue-50', 'dark:bg-blue-900/30'), 500);
         }
 
         function resetPreview() {
@@ -496,81 +462,63 @@
             els.dlBtn.classList.add('opacity-50', 'cursor-not-allowed');
             showImageActions(false);
             currentImageId = null;
-            currentImageData = null;
         }
 
         function showImageActions(show) {
-            if (show) {
-                els.imageActions.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
-            } else {
-                els.imageActions.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
-            }
+            if (show) els.imageActions.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-2');
+            else els.imageActions.classList.add('opacity-0', 'pointer-events-none', 'translate-y-2');
         }
 
-        // 打包下载 ZIP
         window.downloadZip = function() {
             if (!db) return;
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            const req = tx.objectStore(STORE_NAME).getAll();
-            
-            req.onsuccess = () => {
-                const items = req.result;
-                if (items.length === 0) return;
-
+            db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll().onsuccess = (e) => {
+                const items = e.target.result;
+                if (!items.length) return;
                 const zip = new JSZip();
                 const folder = zip.folder("novelai_gallery");
-                
-                items.forEach((item, idx) => {
-                    const data = item.image.split(',')[1];
-                    folder.file(`image_${item.date}_${idx}.png`, data, {base64: true});
-                });
-
-                zip.generateAsync({type:"blob"}).then(content => {
+                items.forEach((item, idx) => folder.file(`image_${idx}.png`, item.image.split(',')[1], {base64: true}));
+                zip.generateAsync({type:"blob"}).then(c => {
                     const a = document.createElement("a");
-                    a.href = URL.createObjectURL(content);
-                    a.download = `novelai_gallery_${Date.now()}.zip`;
+                    a.href = URL.createObjectURL(c);
+                    a.download = `history_${Date.now()}.zip`;
                     a.click();
                 });
             };
         };
 
-        // ================= 📺 视图切换 =================
         function switchRightView(view) {
             currentRightView = view;
-            els.viewToggle.dataset.state = view;
+            const activeClass = ['bg-gray-900', 'text-white'];
+            const inactiveClass = ['text-gray-500', 'dark:text-gray-400', 'hover:text-gray-900', 'dark:hover:text-gray-200'];
             
             if (view === 'preview') {
-                els.viewBtnPreview.classList.add('active');
-                els.viewBtnHistory.classList.remove('active');
+                els.viewBtnPreview.className = `px-3 py-1 text-[10px] md:text-xs font-medium rounded-full transition-all ${activeClass.join(' ')}`;
+                els.viewBtnHistory.className = `px-3 py-1 text-[10px] md:text-xs font-medium rounded-full transition-all ${inactiveClass.join(' ')}`;
                 els.previewArea.classList.remove('hidden');
                 els.historyArea.classList.add('hidden');
-                // 按钮状态
                 els.zipBtn.classList.add('hidden');
+                els.clearBtn.classList.add('hidden');
                 els.dlBtn.classList.remove('hidden');
             } else {
-                els.viewBtnPreview.classList.remove('active');
-                els.viewBtnHistory.classList.add('active');
+                els.viewBtnPreview.className = `px-3 py-1 text-[10px] md:text-xs font-medium rounded-full transition-all ${inactiveClass.join(' ')}`;
+                els.viewBtnHistory.className = `px-3 py-1 text-[10px] md:text-xs font-medium rounded-full transition-all ${activeClass.join(' ')}`;
                 els.previewArea.classList.add('hidden');
                 els.historyArea.classList.remove('hidden');
-                loadGallery(); // 每次进入都刷新
-                // 按钮状态
+                loadGallery();
                 els.zipBtn.classList.remove('hidden');
+                els.clearBtn.classList.remove('hidden');
                 els.dlBtn.classList.add('hidden');
             }
         }
 
-        // ================= 🎨 生成逻辑 =================
+        // --- 生成与交互 ---
         els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
         els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
         
         function updateModelUI(version) {
-            if (version === 'v4.5') {
-                els.modelBadge.textContent = "V4.5 MODE";
-                els.modelBadge.className = "mt-3 text-[10px] font-mono text-blue-500 bg-blue-50 px-3 py-1 rounded-full inline-block border border-blue-100";
-            } else {
-                els.modelBadge.textContent = "V3 MODE";
-                els.modelBadge.className = "mt-3 text-[10px] font-mono text-gray-400 bg-gray-100 px-3 py-1 rounded-full inline-block border border-gray-200";
-            }
+            const sw = document.querySelector('.switch-bg');
+            if (version === 'v4.5') sw.style.transform = 'translateX(100%)';
+            else sw.style.transform = 'translateX(0)';
         }
 
         function setLoading(loading) {
@@ -580,10 +528,7 @@
                 els.btnIcon.classList.add('hidden');
                 els.btnLoader.classList.remove('hidden');
                 els.status.textContent = "Processing...";
-                // 模糊旧图
-                if (!els.resultImg.classList.contains('hidden')) {
-                    els.resultImg.classList.add('opacity-50', 'blur-sm');
-                }
+                if (!els.resultImg.classList.contains('hidden')) els.resultImg.classList.add('opacity-50', 'blur-sm');
             } else {
                 els.btnText.textContent = "免费生成";
                 els.btnIcon.classList.remove('hidden');
@@ -599,12 +544,9 @@
             const [w, h] = els.resolution.value.split(',').map(Number);
             const adminToken = localStorage.getItem('nai_admin_token') || "";
             
-            // 强制切回预览视图
             if (currentRightView !== 'preview') switchRightView('preview');
-
             setLoading(true);
             const startTime = Date.now();
-            
             try {
                 const payload = {
                     version: selectedVersion,
@@ -631,18 +573,14 @@
                     els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
                     els.dlBtn.disabled = false;
                     els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    const time = ((Date.now() - startTime) / 1000).toFixed(1);
-                    const roleInfo = data.user_role ? ` • ${data.user_role}` : "";
-                    els.status.textContent = `Completed in ${time}s${roleInfo}`;
+                    els.status.textContent = `Completed in ${((Date.now() - startTime) / 1000).toFixed(1)}s`;
                     setLoading(false);
-                    
-                    // 保存
                     saveToHistory(data.image, promptText, selectedVersion);
                 };
             } catch (err) {
                 console.error(err);
                 setLoading(false);
-                if (err.message.includes('429')) alert("⚠️ 提示：今日额度已用完。");
+                if (err.message.includes('429')) alert("⚠️ 今日额度已用完");
                 else alert("生成失败: " + err.message);
                 els.status.textContent = "Error";
             }
@@ -657,118 +595,78 @@
             }
         }
 
-        // ================= 侧边栏逻辑 (搜词/预设) =================
+        // --- 抽屉逻辑 ---
         function toggleDrawer() {
             els.sideDrawer.classList.toggle('drawer-open');
             els.sideDrawer.classList.toggle('drawer-closed');
             els.drawerOverlay.classList.toggle('hidden');
         }
-        
         function switchDrawerTab(tab) {
             if (tab === 'search') {
-                els.viewSearch.classList.remove('hidden');
-                els.viewPreset.classList.add('hidden');
-                els.tabSearch.classList.add('active');
-                els.tabPreset.classList.remove('active');
+                els.viewSearch.classList.remove('hidden'); els.viewPreset.classList.add('hidden');
+                els.tabSearch.classList.add('active'); els.tabPreset.classList.remove('active');
             } else {
-                els.viewSearch.classList.add('hidden');
-                els.viewPreset.classList.remove('hidden');
-                els.tabSearch.classList.remove('active');
-                els.tabPreset.classList.add('active');
-                const model = document.querySelector('input[name="model_version"]:checked').value;
-                renderPresets(model);
+                els.viewSearch.classList.add('hidden'); els.viewPreset.classList.remove('hidden');
+                els.tabSearch.classList.remove('active'); els.tabPreset.classList.add('active');
+                renderPresets(document.querySelector('input[name="model_version"]:checked').value);
             }
         }
-        
-        function openPresets() {
-            if (!els.sideDrawer.classList.contains('drawer-open')) toggleDrawer();
-            switchDrawerTab('preset');
-        }
+        function openPresets() { if(!els.sideDrawer.classList.contains('drawer-open')) toggleDrawer(); switchDrawerTab('preset'); }
 
-        // 预设配置
-        const presetFiles = [
-            { id: '1_v3', model: 'v3', name: '未知' },
-            { id: '2_v3', model: 'v3', name: '未知' },
-            { id: '1_v4.5', model: 'v4.5', name: '铃兰' },
-            { id: '2_v4.5', model: 'v4.5', name: '未知' }
-        ];
-
-        function renderPresets(model) {
-            const activeClass = "bg-gray-800 text-white border-transparent shadow-md";
-            const inactiveClass = "bg-white text-gray-500 border-gray-200 hover:bg-gray-50";
-            
-            if (model === 'v3') {
-                els.btnPreV3.className = `px-4 py-1.5 rounded-full text-[10px] font-bold transition-all border ${activeClass}`;
-                els.btnPreV4.className = `px-4 py-1.5 rounded-full text-[10px] font-bold transition-all border ${inactiveClass}`;
-            } else {
-                els.btnPreV3.className = `px-4 py-1.5 rounded-full text-[10px] font-bold transition-all border ${inactiveClass}`;
-                els.btnPreV4.className = `px-4 py-1.5 rounded-full text-[10px] font-bold transition-all border ${activeClass}`;
-            }
-
-            els.presetGrid.innerHTML = '';
-            const filtered = presetFiles.filter(p => p.model === model);
-            
-            if (filtered.length === 0) {
-                els.presetGrid.innerHTML = '<div class="col-span-2 text-center text-xs text-gray-400">无预设</div>';
-                return;
-            }
-
-            filtered.forEach(p => {
-                const card = document.createElement('div');
-                card.className = "preset-card group cursor-pointer flex flex-col gap-2";
-                card.innerHTML = `
-                    <div class="aspect-[2/3] w-full rounded-xl bg-gray-50 relative overflow-hidden group-hover:shadow-lg transition-all">
-                        <img src="presets/${p.id}.png" class="w-full h-full object-cover">
-                        <div class="absolute bottom-2 right-2 bg-white/90 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
-                        </div>
-                    </div>
-                    <span class="text-xs text-center text-gray-500 group-hover:text-gray-900">${p.name}</span>
-                `;
-                card.onclick = async () => {
-                    const input = document.querySelector(`input[name="model_version"][value="${model}"]`);
-                    if (!input.checked) { input.checked = true; updateModelUI(model); }
-                    try {
-                        const res = await fetch(`presets/${p.id}.txt`);
-                        if(res.ok) {
-                            els.prompt.value = (await res.text()).trim();
-                            els.prompt.classList.add('bg-blue-50');
-                            setTimeout(()=>els.prompt.classList.remove('bg-blue-50'), 500);
-                            if(window.innerWidth < 768) toggleDrawer();
-                        }
-                    } catch(e){}
-                };
-                els.presetGrid.appendChild(card);
-            });
-        }
-
-        // 管理员逻辑
+        // --- 管理员 ---
         function enterAdminToken() {
-            const currentToken = localStorage.getItem('nai_admin_token');
-            const token = prompt(currentToken ? "清空以注销" : "输入管理员密码");
-            if (token !== null) {
-                if (!token.trim()) localStorage.removeItem('nai_admin_token');
-                else localStorage.setItem('nai_admin_token', token.trim());
+            const cur = localStorage.getItem('nai_admin_token');
+            const t = prompt(cur ? "清空以注销" : "输入管理员密码");
+            if (t !== null) {
+                if (!t.trim()) localStorage.removeItem('nai_admin_token');
+                else localStorage.setItem('nai_admin_token', t.trim());
                 checkAdminStatus();
             }
         }
         function checkAdminStatus() {
-            const token = localStorage.getItem('nai_admin_token');
-            if (token) {
+            const t = localStorage.getItem('nai_admin_token');
+            if (t) {
                 els.adminLockBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
-                els.adminLockBtn.title = "管理员已登录";
             } else {
-                els.adminLockBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300"></i>';
-                els.adminLockBtn.title = "点击登录管理员";
+                els.adminLockBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4"></i>';
             }
             lucide.createIcons();
         }
         checkAdminStatus();
 
-        // 搜词逻辑
+        // --- 资源库逻辑 ---
+        const presetFiles = [
+            { id: '1_v3', model: 'v3', name: '未知' }, { id: '2_v3', model: 'v3', name: '未知' },
+            { id: '1_v4.5', model: 'v4.5', name: '铃兰' }, { id: '2_v4.5', model: 'v4.5', name: '未知' }
+        ];
+        function renderPresets(model) {
+            const active = "bg-gray-900 text-white dark:bg-slate-100 dark:text-gray-900";
+            const inactive = "bg-white text-gray-500 border dark:bg-slate-800 dark:text-gray-400 dark:border-gray-700";
+            if(model==='v3') { els.btnPreV3.className=`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${active}`; els.btnPreV4.className=`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${inactive}`; }
+            else { els.btnPreV3.className=`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${inactive}`; els.btnPreV4.className=`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${active}`; }
+            
+            els.presetGrid.innerHTML = '';
+            const filtered = presetFiles.filter(p => p.model === model);
+            if(filtered.length === 0) { els.presetGrid.innerHTML = '<div class="col-span-2 text-center text-xs text-gray-400">暂无预设</div>'; return; }
+            filtered.forEach(p => {
+                const d = document.createElement('div');
+                d.className = "group cursor-pointer flex flex-col gap-2";
+                d.innerHTML = `<div class="aspect-[2/3] w-full rounded-lg bg-gray-100 dark:bg-slate-700 relative overflow-hidden group-hover:shadow-lg transition-all"><img src="presets/${p.id}.png" class="w-full h-full object-cover"></div><span class="text-xs text-center text-gray-500 dark:text-gray-400">${p.name}</span>`;
+                d.onclick = async () => {
+                    try {
+                        const res = await fetch(`presets/${p.id}.txt`);
+                        if(res.ok) {
+                            els.prompt.value = (await res.text()).trim();
+                            if(window.innerWidth < 768) toggleDrawer();
+                        }
+                    } catch(e){}
+                };
+                els.presetGrid.appendChild(d);
+            });
+        }
+
         let tagData = {};
         fetch('all_tags.txt').then(r=>r.json()).then(d=>tagData=d).catch(()=>{});
-        
         els.tagSearchBtn.onclick = () => {
             const q = els.tagSearchInput.value.toLowerCase().trim();
             if(!q) return;
@@ -776,12 +674,10 @@
             els.tagResults.innerHTML = '';
             res.forEach(([en,cn]) => {
                 const d = document.createElement('div');
-                d.className = "p-3 hover:bg-gray-50 border-b cursor-pointer";
-                d.innerHTML = `<div class="text-sm font-medium">${en}</div><div class="text-xs text-gray-400">${cn}</div>`;
+                d.className = "p-3 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-100 dark:border-gray-800 cursor-pointer";
+                d.innerHTML = `<div class="text-sm font-medium text-gray-800 dark:text-gray-200">${en}</div><div class="text-xs text-gray-400">${cn}</div>`;
                 d.onclick = () => {
                     els.prompt.value += (els.prompt.value ? ', ' : '') + en;
-                    els.prompt.classList.add('bg-blue-50');
-                    setTimeout(()=>els.prompt.classList.remove('bg-blue-50'), 300);
                 };
                 els.tagResults.appendChild(d);
             });
