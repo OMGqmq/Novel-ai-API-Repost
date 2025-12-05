@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NovelAI Opus Pure</title>
+    <title>NovelAI Opus Art</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -14,10 +14,10 @@
                         dark: { bg: '#0f172a', panel: '#1e293b', border: '#334155', text: '#e2e8f0' }
                     },
                     height: { 'screen-dvh': '100dvh' },
-                    transitionProperty: { 'height': 'height, max-height, padding, transform, opacity, background-color' },
+                    transitionProperty: { 'height': 'height, max-height, padding, transform, opacity' },
                     boxShadow: {
-                        'line': '0 0 0 1px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.05)',
-                        'float': '0 15px 30px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0,0,0,0.02)'
+                        'art': '0 10px 40px -10px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02)',
+                        'float': '0 20px 40px -5px rgba(0, 0, 0, 0.15), 0 10px 20px -5px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(255,255,255,0.2) inset'
                     }
                 }
             }
@@ -31,26 +31,27 @@
         
         body { 
             font-family: 'Inter', sans-serif;
-            /* 静态纯净渐变背景 */
-            background: linear-gradient(to bottom, #ffffff, #f3f4f6);
-            color: #374151;
+            background-color: #f8fafc;
+            background-image: radial-gradient(at 0% 0%, rgba(229, 231, 235, 0.5) 0px, transparent 50%), linear-gradient(to bottom right, #f9fafb, #f3f4f6);
+            background-size: 100% 100%;
+            background-attachment: fixed;
             overscroll-behavior: none;
         }
         html.dark body {
-            background: linear-gradient(to bottom, #0f172a, #111827);
-            color: #cbd5e1;
+            background-color: #0f172a;
+            background-image: radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.5) 0px, transparent 50%), linear-gradient(to bottom right, #0f172a, #1e293b);
         }
 
         .custom-scroll::-webkit-scrollbar { width: 0px; background: transparent; }
 
-        /* 轻量化面板：减少模糊半径，保留线条 */
         .glass-panel {
-            background: rgba(255, 255, 255, 0.98);
-            border-right: 1px solid #e5e7eb;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
         }
         html.dark .glass-panel {
-            background: rgba(30, 41, 59, 0.98);
-            border-color: #334155;
+            background: rgba(30, 41, 59, 0.94);
+            border-color: rgba(255, 255, 255, 0.08);
         }
 
         /* 移动端底部抽屉 */
@@ -59,89 +60,63 @@
             bottom: 0; left: 0; right: 0;
             height: 80dvh; 
             z-index: 40;
-            /* 收起位置：只露出顶部标题栏 (约64px) */
             transform: translateY(calc(100% - 64px)); 
-            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
             will-change: transform;
-            border-top: 1px solid #e5e7eb;
-            border-radius: 20px 20px 0 0;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.03);
+            border-top: 1px solid rgba(0,0,0,0.05);
+            border-radius: 24px 24px 0 0;
         }
-        html.dark #mobileControls { border-top-color: #334155; box-shadow: 0 -4px 20px rgba(0,0,0,0.2); }
+        html.dark #mobileControls { border-top-color: rgba(255,255,255,0.1); }
 
-        /* 桌面端复位 */
         @media (min-width: 768px) {
             #mobileControls {
-                position: relative;
-                height: 100%;
-                transform: none !important;
-                z-index: 20;
-                border-radius: 0;
-                border-top: none;
-                box-shadow: none;
+                position: relative; height: 100%; transform: none !important; z-index: 20; border-radius: 0; border-top: none;
             }
         }
 
         #mobileControls.expanded { transform: translateY(0); }
-
-        #mobileBackdrop { transition: opacity 0.3s ease; }
+        #mobileBackdrop { transition: opacity 0.4s ease; }
         #mobileBackdrop.hidden-backdrop { opacity: 0; pointer-events: none; }
 
-        /* 悬浮按钮 (FAB) - 纯色块+阴影，去除复杂渐变 */
+        /* 悬浮按钮 */
         #floatingGenerateBtn {
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
-            background-color: #111827;
-            box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.2);
-            z-index: 50;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            background: linear-gradient(135deg, #1f2937 0%, #000000 100%);
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.1) inset;
+            z-index: 50; 
         }
         html.dark #floatingGenerateBtn {
-            background-color: #f8fafc;
-            box-shadow: 0 8px 16px -4px rgba(255, 255, 255, 0.1);
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            box-shadow: 0 8px 20px -4px rgba(255, 255, 255, 0.15), 0 0 0 1px rgba(0,0,0,0.1) inset;
         }
-        #floatingGenerateBtn:active { transform: scale(0.95); }
+        #floatingGenerateBtn:active { transform: scale(0.9); }
         
-        /* 侧边栏 */
-        .drawer { transition: transform 0.3s ease-out; }
+        .drawer { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .drawer-open { transform: translateX(0); }
         .drawer-closed { transform: translateX(-100%); }
 
-        /* 纯净输入框 */
-        .art-input {
-            transition: border-color 0.2s, background-color 0.2s;
-            background-color: #f9fafb;
-            border: 1px solid #e5e7eb;
-        }
-        .art-input:focus {
-            background-color: #fff;
-            border-color: #9ca3af;
-            outline: none;
-        }
-        html.dark .art-input {
-            background-color: #1e293b;
-            border-color: #334155;
-            color: #e2e8f0;
-        }
-        html.dark .art-input:focus { background-color: #0f172a; border-color: #64748b; }
+        .art-input { transition: all 0.3s; background: rgba(255,255,255,0.6); border: 1px solid #e5e7eb; }
+        .art-input:focus { background: #fff; border-color: #9ca3af; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        html.dark .art-input { background: rgba(30, 41, 59, 0.6); border-color: #334155; color: #e2e8f0; }
+        html.dark .art-input:focus { background: #1e293b; border-color: #64748b; }
 
-        /* 模型开关滑块 */
         .switch-bg {
             position: absolute; height: calc(100% - 8px); width: calc(50% - 4px);
-            top: 4px; left: 4px; background: white; border-radius: 6px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); z-index: 0;
-            border: 1px solid rgba(0,0,0,0.04);
+            top: 4px; left: 4px; background: white; border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 0;
+            border: 1px solid rgba(0,0,0,0.02);
         }
         html.dark .switch-bg { background: #334155; border-color: transparent; }
         #model-v4:checked ~ .switch-bg { transform: translateX(100%); }
         
-        input[type="radio"]:checked + label { color: #111827; font-weight: 600; }
+        input[type="radio"]:checked + label { color: #111827; }
         html.dark input[type="radio"]:checked + label { color: #fff; }
 
-        /* Tab 切换 */
         .view-toggle {
-            background: #f3f4f6; border: 1px solid #e5e7eb;
+            background: rgba(243, 244, 246, 0.8); border: 1px solid rgba(229, 231, 235, 0.8);
             border-radius: 99px; padding: 3px; display: flex; position: relative; width: 140px;
         }
-        html.dark .view-toggle { background: #1e293b; border-color: #334155; }
+        html.dark .view-toggle { background: rgba(30, 41, 59, 0.8); border-color: rgba(51, 65, 85, 0.8); }
         .view-toggle button {
             position: relative; z-index: 2; flex: 1; text-align: center;
             font-size: 11px; font-weight: 600; color: #6b7280; transition: color 0.2s; padding: 4px 0;
@@ -151,8 +126,8 @@
         html.dark .view-toggle button.active { color: #fff; }
         .view-toggle-bg {
             position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px);
-            background: white; border-radius: 99px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); z-index: 1;
+            background: white; border-radius: 99px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1;
         }
         html.dark .view-toggle-bg { background: #475569; }
         .view-toggle[data-state="history"] .view-toggle-bg { transform: translateX(100%); }
@@ -163,13 +138,20 @@
             display: inline-block; animation: rotation 0.8s linear infinite;
         }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* 核心修复：图片过渡优化 */
+        .img-transition {
+            transition-property: opacity, transform;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 500ms;
+        }
     </style>
 </head>
 
 <body class="text-gray-600 dark:text-gray-300 h-screen-dvh w-screen overflow-hidden flex flex-col md:flex-row transition-colors duration-300">
 
     <!-- 侧边栏：资源库 -->
-    <div id="sideDrawer" class="absolute inset-y-0 left-0 w-80 bg-white dark:bg-slate-900 z-50 drawer drawer-closed flex flex-col border-r border-gray-100 dark:border-gray-800 shadow-2xl">
+    <div id="sideDrawer" class="absolute inset-y-0 left-0 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl z-50 drawer drawer-closed flex flex-col border-r border-gray-100 dark:border-gray-800 shadow-2xl">
         <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
             <h2 class="font-medium text-lg text-gray-800 dark:text-gray-100 flex items-center gap-2 tracking-tight">
                 <i data-lucide="library" class="w-5 h-5 text-gray-400"></i> 资源库
@@ -201,7 +183,7 @@
             <div id="presetGrid" class="flex-1 overflow-y-auto p-4 grid grid-cols-2 gap-3 content-start custom-scroll"></div>
         </div>
     </div>
-    <div id="drawerOverlay" onclick="toggleDrawer()" class="fixed inset-0 bg-gray-900/10 backdrop-blur-[1px] z-40 hidden transition-opacity duration-300"></div>
+    <div id="drawerOverlay" onclick="toggleDrawer()" class="fixed inset-0 bg-gray-900/10 backdrop-blur-[2px] z-40 hidden transition-opacity duration-300"></div>
 
     <!-- 主界面：预览与图库 -->
     <div class="absolute inset-0 md:relative md:flex-1 md:order-2 flex flex-col overflow-hidden transition-colors z-0 bg-white/50 dark:bg-slate-900/50">
@@ -224,20 +206,17 @@
         </div>
 
         <!-- 窗口 1: 画布 -->
-        <!-- 底部 padding 留足，防止被 FAB 遮挡 -->
         <div id="previewArea" class="flex-1 w-full h-full flex flex-col items-center justify-center p-4 pt-20 pb-24 md:p-10 relative overflow-hidden">
             <div id="placeholder" class="text-center transition-all duration-500 transform hover:scale-105 cursor-default">
-                <div class="w-20 h-20 bg-white dark:bg-slate-800 rounded-[2rem] shadow-line flex items-center justify-center mx-auto mb-4">
+                <div class="w-20 h-20 bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-900 rounded-[2rem] shadow-art border border-white/60 dark:border-white/5 flex items-center justify-center mx-auto mb-4">
                     <i data-lucide="image" class="w-8 h-8 text-gray-300 dark:text-slate-600"></i>
                 </div>
-                <p class="text-xs font-medium text-gray-400 dark:text-slate-500 tracking-[0.2em] uppercase">Opus Pure</p>
-                <!-- 移动端模型指示 -->
-                <div id="modelBadge" class="md:hidden mt-3 text-[10px] font-bold text-gray-400 dark:text-slate-600 bg-white/50 dark:bg-slate-800/50 px-3 py-1 rounded-full border border-gray-100 dark:border-slate-700">V3</div>
+                <p class="text-xs font-medium text-gray-400 dark:text-slate-500 tracking-[0.2em] uppercase">Opus Art</p>
+                <div id="modelBadge" class="md:hidden mt-3 text-[10px] font-bold text-gray-300 dark:text-slate-600 bg-white/50 dark:bg-slate-800/50 px-3 py-1 rounded-full border border-gray-100 dark:border-slate-700">V3</div>
             </div>
 
             <div class="relative w-full h-full flex items-center justify-center">
-                <!-- .img-transition 用于平滑显示 -->
-                <img id="resultImage" class="hidden max-w-full max-h-full object-contain shadow-2xl rounded-lg transition-opacity duration-500 opacity-0 transform scale-95">
+                <img id="resultImage" class="hidden max-w-full max-h-full object-contain shadow-2xl rounded-lg img-transition opacity-0 transform scale-95">
             </div>
             
             <div id="imageActions" class="absolute bottom-28 md:bottom-8 flex gap-3 opacity-0 transition-all duration-300 pointer-events-none transform translate-y-4 z-10">
@@ -260,18 +239,18 @@
     <div id="mobileBackdrop" class="fixed inset-0 bg-gray-900/10 backdrop-blur-[1px] z-30 hidden md:hidden transition-opacity duration-300 opacity-0 pointer-events-none" onclick="toggleMobileControls(false)"></div>
 
     <!-- 面板 A：控制台 (底部抽屉) -->
-    <div id="mobileControls" class="collapsed md:relative md:h-full md:w-[400px] glass-panel flex flex-col z-40 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.05)] md:shadow-xl md:order-1 md:rounded-none border-t border-white/60 dark:border-slate-700/50">
+    <div id="mobileControls" class="collapsed md:relative md:h-full md:w-[400px] glass-panel flex flex-col z-40 shadow-[0_-10px_60px_-15px_rgba(0,0,0,0.1)] md:shadow-xl md:order-1 md:rounded-none border-t border-white/60 dark:border-slate-700/50">
         
-        <!-- 把手 (点击展开/收起) -->
+        <!-- 把手 -->
         <div class="md:hidden w-full flex flex-col items-center pt-3 pb-2 cursor-pointer touch-none" onclick="toggleMobileControls()">
-            <div class="w-10 h-1 bg-gray-200 dark:bg-slate-600 rounded-full mb-2"></div>
+            <div class="w-10 h-1 bg-gray-300 dark:bg-slate-600 rounded-full mb-2"></div>
             <div class="flex items-center justify-between w-full px-6 text-xs font-medium text-gray-500 dark:text-gray-400">
                 <span class="flex items-center gap-1"><i data-lucide="sliders-horizontal" class="w-3 h-3"></i> 参数控制台</span>
                 <span id="modelStatusMini" class="font-mono text-[10px] bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded">V3</span>
             </div>
         </div>
 
-        <!-- 完整头部 -->
+        <!-- 头部 -->
         <div class="hidden md:block px-6 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
@@ -294,15 +273,14 @@
 
         <!-- 滚动参数区 -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll relative">
-            <!-- 移动端显示的亮暗切换 & 锁 (桌面端隐藏) -->
+            <!-- 移动端头部功能 (亮色切换+管理员) -->
             <div class="md:hidden flex justify-between items-center px-1 pb-2">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">设置</span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">配置</span>
                 <div class="flex gap-2">
                     <button onclick="toggleTheme()" class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i></button>
-                    <button onclick="enterAdminToken()" class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="lock" class="w-4 h-4"></i></button>
+                    <button onclick="enterAdminToken()" id="adminLockBtnMobile" class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="lock" class="w-4 h-4"></i></button>
                 </div>
             </div>
-            
             <!-- 移动端模型切换 -->
             <div class="md:hidden relative bg-gray-100/50 dark:bg-slate-800/50 p-1 rounded-xl flex border border-gray-200/50 dark:border-gray-700/50 mb-4">
                 <div class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0"></div>
@@ -372,8 +350,8 @@
     </div>
 
     <!-- 📱 移动端悬浮生成按钮 (FAB) -->
-    <button id="floatingGenerateBtn" class="md:hidden fixed bottom-6 right-6 w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center z-50 transition-all active:scale-90 border border-white/10 dark:border-white/5 text-white dark:text-gray-900" id="fabBtn">
-        <i data-lucide="sparkles" class="w-7 h-7 text-yellow-300 dark:text-gray-900"></i>
+    <button id="floatingGenerateBtn" class="md:hidden fixed bottom-6 right-6 w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center z-50 transition-all active:scale-90 border border-white/10 dark:border-white/5 text-gray-900 dark:text-gray-900" id="fabBtn">
+        <i data-lucide="sparkles" class="w-7 h-7 text-yellow-300 dark:text-yellow-600"></i>
     </button>
 
     <script>
@@ -404,21 +382,18 @@
         // --- 模型切换逻辑 ---
         function setModel(ver) {
             const inputs = document.querySelectorAll(`input[name="model_version"]`);
-            const containers = document.querySelectorAll('#modelToggleContainer, .md\\:hidden #modelToggleContainer'); // 选择所有切换器容器
+            const containers = document.querySelectorAll('#modelToggleContainer, .md\\:hidden #modelToggleContainer');
 
-            // 更新隐藏 Input
             document.getElementById('modelValue').value = ver;
 
-            // 更新滑块位置
+            // 更新所有滑块位置
             document.querySelectorAll('.switch-bg').forEach(bg => {
                 bg.style.transform = ver === 'v4.5' ? 'translateX(100%)' : 'translateX(0)';
             });
 
-            // 更新 Badge
             const badge = document.getElementById('modelBadge');
             if(badge) badge.innerText = (ver === 'v4.5' ? 'V4.5' : 'V3') + ' MODE';
             
-            // 更新迷你状态
             const mini = document.getElementById('modelStatusMini');
             if(mini) mini.innerText = ver === 'v4.5' ? 'V4.5' : 'V3';
         }
@@ -426,7 +401,6 @@
         // --- 视图切换 ---
         let currentRightView = 'preview';
         const els = {
-            // 集中 DOM
             viewToggle: document.getElementById('viewToggle'),
             viewBtnPreview: document.getElementById('viewBtnPreview'),
             viewBtnHistory: document.getElementById('viewBtnHistory'),
@@ -451,18 +425,19 @@
             galleryGrid: document.getElementById('galleryGrid'),
             emptyGallery: document.getElementById('emptyGallery'),
             adminLockBtn: document.getElementById('adminLockBtn'),
+            adminLockBtnMobile: document.getElementById('adminLockBtnMobile'), // 移动端锁
+            presetGrid: document.getElementById('presetGrid'),
+            btnPreV3: document.getElementById('btn-pre-v3'),
+            btnPreV4: document.getElementById('btn-pre-v4'),
+            tagSearchInput: document.getElementById('tagSearchInput'),
+            tagSearchBtn: document.getElementById('tagSearchBtn'),
+            tagResults: document.getElementById('tagResults'),
             sideDrawer: document.getElementById('sideDrawer'),
             drawerOverlay: document.getElementById('drawerOverlay'),
             tabSearch: document.getElementById('tab-search'),
             tabPreset: document.getElementById('tab-preset'),
             viewSearch: document.getElementById('view-search'),
-            viewPreset: document.getElementById('view-preset'),
-            tagSearchInput: document.getElementById('tagSearchInput'),
-            tagSearchBtn: document.getElementById('tagSearchBtn'),
-            tagResults: document.getElementById('tagResults'),
-            presetGrid: document.getElementById('presetGrid'),
-            btnPreV3: document.getElementById('btn-pre-v3'),
-            btnPreV4: document.getElementById('btn-pre-v4')
+            viewPreset: document.getElementById('view-preset')
         };
 
         function switchRightView(view) {
@@ -528,6 +503,15 @@
         // UI 联动
         els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
         els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
+        
+        // 缓存加载
+        const savedPrompt = localStorage.getItem('nai_prompt');
+        if (savedPrompt) els.prompt.value = savedPrompt;
+        const savedNegative = localStorage.getItem('nai_negative_prompt');
+        if (savedNegative) els.negative.value = savedNegative;
+        
+        els.prompt.addEventListener('input', (e) => localStorage.setItem('nai_prompt', e.target.value));
+        els.negative.addEventListener('input', (e) => localStorage.setItem('nai_negative_prompt', e.target.value));
 
         // --- 生成逻辑 ---
         function setLoading(loading) {
@@ -563,11 +547,7 @@
 
         async function doGenerate() {
             const promptText = els.prompt.value.trim();
-            if (!promptText) { 
-                els.prompt.focus(); 
-                toggleMobileControls(true);
-                return; 
-            }
+            if (!promptText) { els.prompt.focus(); toggleMobileControls(true); return; }
             const selectedVersion = document.getElementById('modelValue').value;
             const [w, h] = els.resolution.value.split(',').map(Number);
             const adminToken = localStorage.getItem('nai_admin_token') || "";
@@ -609,7 +589,7 @@
             } catch (err) {
                 console.error(err);
                 setLoading(false);
-                toggleMobileControls(true); 
+                toggleMobileControls(true);
                 if (err.message.includes('429')) alert("⚠️ 今日额度已用完");
                 else alert("生成失败: " + err.message);
             }
@@ -640,8 +620,7 @@
 
         function saveToHistory(imgBase64, prompt, model) {
             if (!db) return;
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).add({ image: imgBase64, prompt, model, date: Date.now() }).onsuccess = (e) => {
+            db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).add({ image: imgBase64, prompt, model, date: Date.now() }).onsuccess = (e) => {
                 currentImageId = e.target.result;
                 currentImageData = { image: imgBase64, prompt, model };
                 showImageActions(true);
@@ -649,13 +628,13 @@
             };
         }
         function deleteCurrentImage() {
-            if (!currentImageId || !db || !confirm("删除此图？")) return;
+            if (!currentImageId || !db || !confirm("删除此图片？")) return;
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(currentImageId).onsuccess = () => {
                 resetPreview(); loadGallery();
             };
         }
         window.clearAllHistory = function() {
-            if (!db || !confirm("清空历史？")) return;
+            if (!db || !confirm("清空所有历史？")) return;
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).clear().onsuccess = () => {
                 loadGallery(); resetPreview();
             };
@@ -738,7 +717,7 @@
             };
         };
 
-        // --- 预设逻辑 ---
+        // --- 预设 ---
         const presetFiles = [
             { id: '1_v3', model: 'v3', name: '未知' }, { id: '2_v3', model: 'v3', name: '未知' },
             { id: '1_v4.5', model: 'v4.5', name: '铃兰' }, { id: '2_v4.5', model: 'v4.5', name: '未知' }
@@ -772,7 +751,6 @@
             });
         }
 
-        // --- 搜词 ---
         let tagData = {};
         fetch('all_tags.txt').then(r=>r.json()).then(d=>tagData=d).catch(()=>{});
         els.tagSearchBtn.onclick = () => {
@@ -791,7 +769,6 @@
             });
         };
 
-        // --- 主题与管理员 ---
         function initTheme() {
             if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.classList.add('dark');
@@ -816,8 +793,12 @@
         }
         function checkAdminStatus() {
             const t = localStorage.getItem('nai_admin_token');
-            if (t) els.adminLockBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
-            else els.adminLockBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300 dark:text-gray-500"></i>';
+            const setLock = (btn) => {
+                if(t) btn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
+                else btn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300 dark:text-gray-500"></i>';
+            };
+            if(els.adminLockBtn) setLock(els.adminLockBtn);
+            if(els.adminLockBtnMobile) setLock(els.adminLockBtnMobile);
             lucide.createIcons();
         }
         checkAdminStatus();
