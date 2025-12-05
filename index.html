@@ -54,14 +54,21 @@
             border-color: rgba(255, 255, 255, 0.08);
         }
 
-        /* --- 移动端底部抽屉 --- */
+        /* --- 核心修复：图片过渡优化 --- */
+        /* 只过渡 opacity 和 transform，不过渡 filter(blur) */
+        .img-transition {
+            transition-property: opacity, transform;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 500ms;
+        }
+
+        /* 移动端底部抽屉 */
         #mobileControls {
             position: absolute;
             bottom: 0; left: 0; right: 0;
-            height: 80dvh; /* 展开高度 */
+            height: 80dvh; 
             z-index: 40;
-            /* 收起时位移：只保留顶部的把手和标题栏区域 (约 60px) */
-            transform: translateY(calc(100% - 64px)); 
+            transform: translateY(calc(100% - 64px)); /* 收起位置 */
             transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
             will-change: transform;
             border-top: 1px solid rgba(0,0,0,0.05);
@@ -72,28 +79,20 @@
         /* 桌面端复位 */
         @media (min-width: 768px) {
             #mobileControls {
-                position: relative;
-                height: 100%;
-                transform: none !important;
-                z-index: 20;
-                border-radius: 0;
-                border-top: none;
+                position: relative; height: 100%; transform: none !important; z-index: 20; border-radius: 0; border-top: none;
             }
         }
 
-        /* 展开状态 */
         #mobileControls.expanded { transform: translateY(0); }
-
-        /* 遮罩层 */
         #mobileBackdrop { transition: opacity 0.4s ease; }
         #mobileBackdrop.hidden-backdrop { opacity: 0; pointer-events: none; }
 
-        /* 悬浮按钮 (FAB) - 独立且显眼 */
+        /* FAB */
         #floatingGenerateBtn {
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             background: linear-gradient(135deg, #1f2937 0%, #000000 100%);
             box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.1) inset;
-            z-index: 50; /* 最高层级 */
+            z-index: 50; 
         }
         html.dark #floatingGenerateBtn {
             background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
@@ -101,30 +100,15 @@
         }
         #floatingGenerateBtn:active { transform: scale(0.9); }
         
-        /* 侧边栏 */
         .drawer { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .drawer-open { transform: translateX(0); }
         .drawer-closed { transform: translateX(-100%); }
 
-        /* 输入框 */
-        .art-input {
-            transition: all 0.3s;
-            background: rgba(255,255,255,0.6);
-            border: 1px solid #e5e7eb;
-        }
-        .art-input:focus {
-            background: #fff;
-            border-color: #9ca3af;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-        }
-        html.dark .art-input {
-            background: rgba(30, 41, 59, 0.6);
-            border-color: #334155;
-            color: #e2e8f0;
-        }
+        .art-input { transition: all 0.3s; background: rgba(255,255,255,0.6); border: 1px solid #e5e7eb; }
+        .art-input:focus { background: #fff; border-color: #9ca3af; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        html.dark .art-input { background: rgba(30, 41, 59, 0.6); border-color: #334155; color: #e2e8f0; }
         html.dark .art-input:focus { background: #1e293b; border-color: #64748b; }
 
-        /* 模型开关滑块 */
         .switch-bg {
             position: absolute; height: calc(100% - 8px); width: calc(50% - 4px);
             top: 4px; left: 4px; background: white; border-radius: 8px;
@@ -132,14 +116,11 @@
             border: 1px solid rgba(0,0,0,0.02);
         }
         html.dark .switch-bg { background: #334155; border-color: transparent; }
-        /* 利用 CSS 兄弟选择器控制滑块位置 */
         #model-v4:checked ~ .switch-bg { transform: translateX(100%); }
         
-        /* 标签选中态 */
         input[type="radio"]:checked + label { color: #111827; }
         html.dark input[type="radio"]:checked + label { color: #fff; }
 
-        /* Tab 切换 */
         .view-toggle {
             background: rgba(243, 244, 246, 0.8); border: 1px solid rgba(229, 231, 235, 0.8);
             border-radius: 99px; padding: 3px; display: flex; position: relative; width: 140px;
@@ -150,6 +131,7 @@
             font-size: 11px; font-weight: 600; color: #6b7280; transition: color 0.2s; padding: 4px 0;
         }
         .view-toggle button.active { color: #111827; }
+        html.dark .view-toggle button { color: #94a3b8; }
         html.dark .view-toggle button.active { color: #fff; }
         .view-toggle-bg {
             position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px);
@@ -159,7 +141,6 @@
         html.dark .view-toggle-bg { background: #475569; }
         .view-toggle[data-state="history"] .view-toggle-bg { transform: translateX(100%); }
 
-        /* Loader */
         .loader {
             width: 20px; height: 20px; border: 2px solid currentColor;
             border-bottom-color: transparent; border-radius: 50%;
@@ -185,7 +166,6 @@
             <button onclick="switchDrawerTab('preset')" id="tab-preset" class="flex-1 py-2 text-xs font-medium rounded-lg transition-all border border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">预设</button>
         </div>
         
-        <!-- 搜索 -->
         <div id="view-search" class="flex flex-col flex-1 overflow-hidden">
             <div class="p-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
                 <div class="flex gap-2 relative group">
@@ -196,7 +176,6 @@
             <div id="tagResults" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scroll"><div class="text-center mt-20 text-xs text-gray-400 font-light tracking-wide">输入中文/英文关键词开始探索</div></div>
         </div>
         
-        <!-- 预设 -->
         <div id="view-preset" class="flex flex-col flex-1 overflow-hidden hidden">
             <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex gap-2 justify-center shrink-0">
                 <button onclick="renderPresets('v3')" id="btn-pre-v3" class="px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all">V3</button>
@@ -207,7 +186,7 @@
     </div>
     <div id="drawerOverlay" onclick="toggleDrawer()" class="fixed inset-0 bg-gray-900/10 backdrop-blur-[2px] z-40 hidden transition-opacity duration-300"></div>
 
-    <!-- 主界面：预览与图库 -->
+    <!-- 主界面 -->
     <div class="absolute inset-0 md:relative md:flex-1 md:order-2 flex flex-col overflow-hidden transition-colors z-0 bg-white/50 dark:bg-slate-900/50">
         
         <!-- 顶部工具栏 -->
@@ -227,29 +206,29 @@
             </div>
         </div>
 
-        <!-- 窗口 1: 画布 -->
-        <div id="previewArea" class="flex-1 w-full h-full flex flex-col items-center justify-center p-4 pt-20 pb-24 md:pb-10 relative overflow-hidden">
+        <!-- 画布窗口 -->
+        <div id="previewArea" class="flex-1 w-full h-full flex flex-col items-center justify-center p-4 pt-20 pb-28 md:p-10 relative overflow-hidden">
             <div id="placeholder" class="text-center transition-all duration-500 transform hover:scale-105 cursor-default">
                 <div class="w-20 h-20 bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-900 rounded-[2rem] shadow-art border border-white/60 dark:border-white/5 flex items-center justify-center mx-auto mb-4">
                     <i data-lucide="image" class="w-8 h-8 text-gray-300 dark:text-slate-600"></i>
                 </div>
                 <p class="text-xs font-medium text-gray-400 dark:text-slate-500 tracking-[0.2em] uppercase">Opus Art</p>
-                <!-- 移动端模型指示 -->
                 <div id="modelBadge" class="md:hidden mt-3 text-[10px] font-bold text-gray-300 dark:text-slate-600 bg-white/50 dark:bg-slate-800/50 px-3 py-1 rounded-full border border-gray-100 dark:border-slate-700">V3</div>
             </div>
 
             <div class="relative w-full h-full flex items-center justify-center">
-                <img id="resultImage" class="hidden max-w-full max-h-full object-contain shadow-2xl rounded-lg transition-all duration-700 opacity-0 transform scale-95">
+                <!-- 这里的 class 换成了 .img-transition，不过渡 filter -->
+                <img id="resultImage" class="hidden max-w-full max-h-full object-contain shadow-2xl rounded-lg img-transition opacity-0 transform scale-95">
             </div>
             
-            <div id="imageActions" class="absolute bottom-24 md:bottom-8 flex gap-3 opacity-0 transition-all duration-300 pointer-events-none transform translate-y-4 z-10">
+            <div id="imageActions" class="absolute bottom-28 md:bottom-8 flex gap-3 opacity-0 transition-all duration-300 pointer-events-none transform translate-y-4 z-10">
                 <button onclick="useCurrentPrompt()" class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i data-lucide="pen-tool" class="w-3 h-3"></i> 提示词</button>
                 <button onclick="deleteCurrentImage()" class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-red-500 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i data-lucide="trash" class="w-3 h-3"></i> 删除</button>
             </div>
         </div>
 
-        <!-- 窗口 2: 历史 -->
-        <div id="historyArea" class="flex-1 hidden w-full h-full overflow-y-auto p-4 pt-20 pb-24 md:pb-10 custom-scroll">
+        <!-- 历史窗口 -->
+        <div id="historyArea" class="flex-1 hidden w-full h-full overflow-y-auto p-4 pt-20 pb-32 md:pb-10 custom-scroll">
             <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 content-start"></div>
             <div id="emptyGallery" class="hidden h-full flex flex-col items-center justify-center text-gray-300 dark:text-slate-600">
                 <i data-lucide="ghost" class="w-10 h-10 mb-3 opacity-50"></i>
@@ -258,44 +237,61 @@
         </div>
     </div>
 
-    <!-- 移动端遮罩层 -->
     <div id="mobileBackdrop" class="fixed inset-0 bg-gray-900/20 backdrop-blur-sm z-30 hidden md:hidden transition-opacity duration-300 opacity-0 pointer-events-none" onclick="toggleMobileControls(false)"></div>
 
-    <!-- 面板 A：控制台 (底部抽屉) -->
-    <!-- 重要：收起时只露出顶部 64px (title + handle) -->
-    <div id="mobileControls" class="collapsed md:relative md:h-full md:w-[400px] glass-panel flex flex-col z-40 shadow-[0_-10px_60px_-15px_rgba(0,0,0,0.1)] md:shadow-xl md:order-1 md:rounded-none border-t border-white/60 dark:border-slate-700/50">
+    <!-- 控制台 (底部抽屉) -->
+    <div id="mobileControls" class="collapsed md:relative md:h-full md:w-[400px] glass-panel flex flex-col z-40 shadow-[0_-10px_60px_-15px_rgba(0,0,0,0.1)] md:shadow-xl md:order-1 rounded-t-[2rem] md:rounded-none border-t border-white/60 dark:border-slate-700/50">
         
-        <!-- 移动端把手 + 标题栏 -->
-        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0 flex items-center justify-between cursor-pointer md:cursor-auto" onclick="toggleMobileControls()">
-            <div class="flex items-center gap-3">
-                <button onclick="event.stopPropagation(); toggleDrawer()" class="p-2 -ml-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-full transition-all text-gray-400 hover:text-gray-800"><i data-lucide="menu" class="w-5 h-5"></i></button>
-                <div class="flex flex-col">
-                    <h1 class="text-base font-bold text-gray-800 dark:text-gray-100 tracking-tight leading-none">控制台</h1>
-                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium md:hidden mt-0.5">点击展开设置</span>
-                </div>
-            </div>
-            
-            <div class="flex gap-2">
-                <!-- 主题切换 (找回来了!) -->
-                <button onclick="event.stopPropagation(); toggleTheme()" class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"><i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i></button>
-                <!-- 管理员锁 -->
-                <button onclick="event.stopPropagation(); enterAdminToken()" id="adminLockBtn" class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"><i data-lucide="lock" class="w-4 h-4"></i></button>
+        <!-- 把手 (点击展开/收起) -->
+        <div class="md:hidden w-full flex flex-col items-center pt-3 pb-2 cursor-pointer touch-none" onclick="toggleMobileControls()">
+            <div class="w-10 h-1 bg-gray-300 dark:bg-slate-600 rounded-full mb-2"></div>
+            <div class="flex items-center justify-between w-full px-6 text-xs font-medium text-gray-500 dark:text-gray-400">
+                <span class="flex items-center gap-1"><i data-lucide="sliders-horizontal" class="w-3 h-3"></i> 参数控制台</span>
+                <span id="modelStatusMini" class="font-mono text-[10px] bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded">V3</span>
             </div>
         </div>
 
-        <!-- 模型切换 -->
-        <div class="px-6 pt-4 shrink-0">
-            <div class="relative bg-gray-100/50 dark:bg-slate-800/50 p-1 rounded-xl flex border border-gray-200/50 dark:border-gray-700/50">
+        <!-- 头部 -->
+        <div class="hidden md:block px-6 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleDrawer()" class="p-2 -ml-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl transition-all text-gray-400 hover:text-gray-800"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                    <h1 class="text-base font-bold text-gray-800 dark:text-gray-100 tracking-tight">Opus Art</h1>
+                </div>
+                <div class="flex gap-2">
+                    <!-- 亮暗色切换 (找回) -->
+                    <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"><i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i></button>
+                    <button onclick="enterAdminToken()" id="adminLockBtn" class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"><i data-lucide="lock" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+            <!-- 模型切换 -->
+            <div class="relative bg-gray-100/50 dark:bg-slate-800/50 p-1 rounded-xl flex border border-gray-200/50 dark:border-gray-700/50" id="modelToggleContainer" data-model="v3">
+                <div class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0"></div>
                 <input type="radio" name="model_version" id="model-v3" value="v3" class="hidden" checked>
                 <input type="radio" name="model_version" id="model-v4" value="v4.5" class="hidden">
-                <div class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0"></div>
                 <label for="model-v3" class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative transition-colors">NAI V3</label>
                 <label for="model-v4" class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative flex items-center justify-center gap-1 transition-colors">V4.5 <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span></label>
+                <input type="hidden" id="modelValue" value="v3">
             </div>
         </div>
 
         <!-- 滚动参数区 -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll relative">
+            <!-- 移动端显示的亮暗切换 (桌面端隐藏) -->
+            <div class="md:hidden flex justify-between items-center px-1 pb-4 border-b border-gray-100 dark:border-gray-800">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">显示设置</span>
+                <div class="flex gap-3">
+                     <button onclick="toggleTheme()" class="p-2 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500 transition-colors"><i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i></button>
+                     <button onclick="enterAdminToken()" class="p-2 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500 transition-colors"><i data-lucide="lock" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+            <!-- 移动端模型切换 -->
+            <div class="md:hidden relative bg-gray-100/50 dark:bg-slate-800/50 p-1 rounded-xl flex border border-gray-200/50 dark:border-gray-700/50">
+                <div class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0"></div>
+                <label for="model-v3" class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative transition-colors">NAI V3</label>
+                <label for="model-v4" class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative flex items-center justify-center gap-1 transition-colors">V4.5 <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span></label>
+            </div>
+
             <div class="space-y-2">
                 <div class="flex justify-between items-center px-1">
                     <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">正向提示词</label>
@@ -365,7 +361,7 @@
     <script>
         lucide.createIcons();
         
-        // --- 移动端抽屉控制 (修复动画瞬移) ---
+        // --- 移动端抽屉逻辑 ---
         const mobileControls = document.getElementById('mobileControls');
         const mobileBackdrop = document.getElementById('mobileBackdrop');
         let isControlsExpanded = false;
@@ -387,45 +383,47 @@
             }
         }
 
-        // --- 模型切换逻辑 (原生Radio修复) ---
+        // --- 模型切换逻辑 (原生 Radio 监听) ---
         const modelRadios = document.querySelectorAll('input[name="model_version"]');
-        const switchBg = document.querySelector('.switch-bg');
+        const switchBg = document.querySelectorAll('.switch-bg');
         
-        // 监听 Radio 变化
         modelRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
                 updateModelUI(e.target.value);
             });
         });
         
-        // 统一更新 UI
         function updateModelUI(version) {
-            // 滑块位置
-            if (version === 'v4.5') switchBg.style.transform = 'translateX(100%)';
-            else switchBg.style.transform = 'translateX(0)';
+            // 更新所有滑块位置
+            switchBg.forEach(bg => {
+                if (version === 'v4.5') bg.style.transform = 'translateX(100%)';
+                else bg.style.transform = 'translateX(0)';
+            });
             
-            // 迷你状态
+            // 更新迷你状态和 Badge
             const mini = document.getElementById('modelStatusMini');
             if(mini) mini.innerText = version === 'v4.5' ? 'V4.5' : 'V3';
             
-            // 预览区Badge
             const badge = document.getElementById('modelBadge');
             if(badge) badge.innerText = version === 'v4.5' ? 'V4.5 MODE' : 'V3 MODE';
+            
+            // 同步隐藏 Input 的值
+            document.getElementById('modelValue').value = version;
         }
 
-        // 外部调用 (预设点击时)
         function setModel(ver) {
-            const radio = document.querySelector(`input[name="model_version"][value="${ver}"]`);
-            if (radio && !radio.checked) {
-                radio.checked = true;
-                radio.dispatchEvent(new Event('change')); // 手动触发 change 事件
-            }
+            // 找到所有对应 value 的 radio 并选中
+            const radios = document.querySelectorAll(`input[name="model_version"][value="${ver}"]`);
+            radios.forEach(r => {
+                r.checked = true;
+                r.dispatchEvent(new Event('change'));
+            });
         }
 
         // --- 视图切换 ---
         let currentRightView = 'preview';
         const els = {
-            // ... (集中管理所有 DOM)
+            // ... 集中 DOM (保持不变)
             viewToggle: document.getElementById('viewToggle'),
             viewBtnPreview: document.getElementById('viewBtnPreview'),
             viewBtnHistory: document.getElementById('viewBtnHistory'),
@@ -466,25 +464,31 @@
 
         function switchRightView(view) {
             currentRightView = view;
-            
-            // 胶囊滑块动画
             const toggleBg = els.viewToggle.querySelector('.view-toggle-bg');
             if(view === 'history') toggleBg.style.transform = 'translateX(100%)';
             else toggleBg.style.transform = 'translateX(0)';
             
             if (view === 'preview') {
-                els.viewBtnPreview.classList.add('active'); els.viewBtnHistory.classList.remove('active');
-                els.previewArea.classList.remove('hidden'); els.historyArea.classList.add('hidden');
-                els.zipBtn.classList.add('hidden'); els.clearBtn.classList.add('hidden'); els.dlBtn.classList.remove('hidden');
+                els.viewBtnPreview.classList.add('active');
+                els.viewBtnHistory.classList.remove('active');
+                els.previewArea.classList.remove('hidden');
+                els.historyArea.classList.add('hidden');
+                els.zipBtn.classList.add('hidden');
+                els.clearBtn.classList.add('hidden');
+                els.dlBtn.classList.remove('hidden');
             } else {
-                els.viewBtnPreview.classList.remove('active'); els.viewBtnHistory.classList.add('active');
-                els.previewArea.classList.add('hidden'); els.historyArea.classList.remove('hidden');
+                els.viewBtnPreview.classList.remove('active');
+                els.viewBtnHistory.classList.add('active');
+                els.previewArea.classList.add('hidden');
+                els.historyArea.classList.remove('hidden');
                 loadGallery();
-                els.zipBtn.classList.remove('hidden'); els.clearBtn.classList.remove('hidden'); els.dlBtn.classList.add('hidden');
+                els.zipBtn.classList.remove('hidden');
+                els.clearBtn.classList.remove('hidden');
+                els.dlBtn.classList.add('hidden');
             }
         }
 
-        // --- 侧边栏 (修复样式切换) ---
+        // --- 侧边栏 ---
         function toggleDrawer() {
             els.sideDrawer.classList.toggle('drawer-open');
             els.sideDrawer.classList.toggle('drawer-closed');
@@ -492,7 +496,6 @@
         }
 
         function switchDrawerTab(tab) {
-            // 激活与非激活样式类
             const activeClass = "active flex-1 py-2 text-xs font-medium rounded-lg transition-all border shadow-sm text-gray-900 bg-white border-gray-200 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-200";
             const inactiveClass = "flex-1 py-2 text-xs font-medium rounded-lg transition-all border border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white";
 
@@ -506,9 +509,7 @@
                 els.tabPreset.className = activeClass;
                 els.viewSearch.classList.add('hidden');
                 els.viewPreset.classList.remove('hidden');
-                // 加载预设
-                const currentModel = document.querySelector('input[name="model_version"]:checked').value;
-                renderPresets(currentModel);
+                renderPresets(document.getElementById('modelValue').value);
             }
         }
 
@@ -517,12 +518,17 @@
             switchDrawerTab('preset');
         }
 
-        // --- 生成逻辑 (修复按钮状态) ---
+        // --- 核心变量 ---
+        let currentImageId = null;
+        let currentImageData = null;
+
+        // UI 联动
         els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
         els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
 
+        // --- 生成逻辑 ---
         function setLoading(loading) {
-            // 桌面按钮
+            // 桌面
             els.deskBtn.disabled = loading;
             if (loading) {
                 els.deskBtn.querySelector('#deskBtnIcon').classList.add('hidden');
@@ -534,15 +540,15 @@
                 els.deskBtn.querySelector('#deskBtnText').textContent = "免费生成";
             }
 
-            // 悬浮按钮
+            // 悬浮
             els.floatBtn.disabled = loading;
             if (loading) {
-                els.floatBtn.innerHTML = '<span class="loader border-white dark:border-gray-900"></span>';
-                els.floatBtn.classList.add('scale-90', 'loading');
+                els.floatBtn.innerHTML = '<span class="loader border-gray-800 dark:border-white"></span>';
+                els.floatBtn.classList.add('scale-90');
             } else {
-                els.floatBtn.innerHTML = '<i data-lucide="sparkles" class="w-6 h-6 text-yellow-400"></i>';
-                els.floatBtn.classList.remove('scale-90', 'loading');
-                lucide.createIcons(); // 重绘图标
+                els.floatBtn.innerHTML = '<i data-lucide="sparkles" class="w-7 h-7 text-yellow-400"></i>';
+                els.floatBtn.classList.remove('scale-90');
+                lucide.createIcons();
             }
             
             if (loading && !els.resultImg.classList.contains('hidden')) {
@@ -554,17 +560,13 @@
 
         async function doGenerate() {
             const promptText = els.prompt.value.trim();
-            if (!promptText) { 
-                els.prompt.focus(); 
-                toggleMobileControls(true);
-                return; 
-            }
-            const selectedVersion = document.querySelector('input[name="model_version"]:checked').value;
+            if (!promptText) { els.prompt.focus(); toggleMobileControls(true); return; }
+            const selectedVersion = document.getElementById('modelValue').value;
             const [w, h] = els.resolution.value.split(',').map(Number);
             const adminToken = localStorage.getItem('nai_admin_token') || "";
             
             if (currentRightView !== 'preview') switchRightView('preview');
-            toggleMobileControls(false); // 生成时自动收起
+            toggleMobileControls(false); 
 
             setLoading(true);
             
@@ -600,7 +602,7 @@
             } catch (err) {
                 console.error(err);
                 setLoading(false);
-                toggleMobileControls(true); // 出错展开
+                toggleMobileControls(true);
                 if (err.message.includes('429')) alert("⚠️ 今日额度已用完");
                 else alert("生成失败: " + err.message);
             }
@@ -618,19 +620,16 @@
             }
         }
 
-        // --- 数据库与历史 ---
-        let db;
+        // --- IndexedDB ---
         const DB_NAME = 'nai_opus_db';
         const STORE_NAME = 'history';
+        let db;
         const initDB = () => {
             const r = indexedDB.open(DB_NAME, 1);
             r.onupgradeneeded = e => { if(!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true }); };
             r.onsuccess = e => { db = e.target.result; loadGallery(); };
         };
         initDB();
-        
-        let currentImageId = null;
-        let currentImageData = null;
 
         function saveToHistory(imgBase64, prompt, model) {
             if (!db) return;
@@ -642,13 +641,13 @@
             };
         }
         function deleteCurrentImage() {
-            if (!currentImageId || !db || !confirm("删除此图？")) return;
+            if (!currentImageId || !db || !confirm("删除此图片？")) return;
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(currentImageId).onsuccess = () => {
                 resetPreview(); loadGallery();
             };
         }
         window.clearAllHistory = function() {
-            if (!db || !confirm("清空历史？")) return;
+            if (!db || !confirm("清空所有历史？")) return;
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).clear().onsuccess = () => {
                 loadGallery(); resetPreview();
             };
@@ -695,8 +694,7 @@
         function useCurrentPrompt() {
             if (!currentImageData) return;
             els.prompt.value = currentImageData.prompt;
-            const model = currentImageData.model || 'v3';
-            setModel(model); 
+            setModel(currentImageData.model || 'v3'); 
             els.prompt.classList.add('bg-blue-50', 'dark:bg-blue-900/30');
             setTimeout(() => els.prompt.classList.remove('bg-blue-50', 'dark:bg-blue-900/30'), 500);
             toggleMobileControls(true);
@@ -732,7 +730,7 @@
             };
         };
 
-        // --- 预设逻辑 ---
+        // --- 预设与搜词 ---
         const presetFiles = [
             { id: '1_v3', model: 'v3', name: '未知' }, { id: '2_v3', model: 'v3', name: '未知' },
             { id: '1_v4.5', model: 'v4.5', name: '铃兰' }, { id: '2_v4.5', model: 'v4.5', name: '未知' }
@@ -766,7 +764,6 @@
             });
         }
 
-        // --- 搜词逻辑 ---
         let tagData = {};
         fetch('all_tags.txt').then(r=>r.json()).then(d=>tagData=d).catch(()=>{});
         els.tagSearchBtn.onclick = () => {
@@ -785,7 +782,21 @@
             });
         };
 
-        // --- 管理员 ---
+        // --- 主题与管理员 ---
+        function initTheme() {
+            if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else document.documentElement.classList.remove('dark');
+        }
+        initTheme();
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark'); localStorage.setItem('color-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark'); localStorage.setItem('color-theme', 'dark');
+            }
+        }
+
         function enterAdminToken() {
             const cur = localStorage.getItem('nai_admin_token');
             const t = prompt(cur ? "清空以注销" : "输入管理员密码");
@@ -802,21 +813,6 @@
             lucide.createIcons();
         }
         checkAdminStatus();
-        
-        // --- 主题 ---
-        function initTheme() {
-            if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-            } else document.documentElement.classList.remove('dark');
-        }
-        initTheme();
-        function toggleTheme() {
-            if (document.documentElement.classList.contains('dark')) {
-                document.documentElement.classList.remove('dark'); localStorage.setItem('color-theme', 'light');
-            } else {
-                document.documentElement.classList.add('dark'); localStorage.setItem('color-theme', 'dark');
-            }
-        }
     </script>
 </body>
 </html>
