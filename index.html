@@ -14,7 +14,7 @@
                         dark: { bg: '#0f172a', panel: '#1e293b', border: '#334155', text: '#e2e8f0' }
                     },
                     height: {
-                        'screen-dvh': '100dvh' // 解决移动端浏览器地址栏遮挡问题
+                        'screen-dvh': '100dvh'
                     }
                 }
             }
@@ -26,14 +26,13 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
         
-        /* 全局禁用页面级滚动，改为区域滚动 */
         body { 
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
             background-image: radial-gradient(at 0% 0%, rgba(229, 231, 235, 0.5) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(209, 213, 219, 0.5) 0px, transparent 50%), linear-gradient(to bottom right, #f9fafb, #f3f4f6);
             background-size: 100% 100%;
             background-attachment: fixed;
-            overscroll-behavior: none; /* 防止橡皮筋效果 */
+            overscroll-behavior: none;
         }
         
         html.dark body {
@@ -47,18 +46,16 @@
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         html.dark .custom-scroll::-webkit-scrollbar-thumb { background: #475569; }
 
-        /* 玻璃拟态 */
         .glass-panel {
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             border-right: 1px solid rgba(229, 231, 235, 0.6);
         }
         html.dark .glass-panel {
-            background: rgba(30, 41, 59, 0.9);
+            background: rgba(30, 41, 59, 0.95);
             border-right: 1px solid rgba(51, 65, 85, 0.6);
         }
 
-        /* 动画与交互 */
         .drawer { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .drawer-open { transform: translateX(0); }
         .drawer-closed { transform: translateX(-100%); }
@@ -76,27 +73,49 @@
         }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* 历史记录网格 */
-        .gallery-item { position: relative; overflow: hidden; border-radius: 8px; cursor: pointer; transition: transform 0.2s; }
-        .gallery-item:active { transform: scale(0.98); }
-        .gallery-overlay {
-            position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
-            opacity: 0; transition: opacity 0.2s; display: flex; align-items: flex-end; justify-content: flex-end; padding: 6px;
+        .view-toggle {
+            background: rgba(243, 244, 246, 0.8);
+            border: 1px solid rgba(229, 231, 235, 0.8);
+            border-radius: 8px; padding: 2px; display: flex; position: relative;
         }
-        .gallery-item:hover .gallery-overlay { opacity: 1; }
+        html.dark .view-toggle { background: rgba(15, 23, 42, 0.8); border-color: rgba(51, 65, 85, 0.8); }
 
-        /* 移动端优化 */
-        @media (max-width: 768px) {
-            .mobile-preview-height { height: 40dvh; } /* 预览区高度 */
-            .mobile-controls-height { height: 60dvh; } /* 控制区高度 */
+        .view-toggle button {
+            position: relative; z-index: 2; padding: 4px 12px; font-size: 11px; font-weight: 600;
+            color: #6b7280; transition: color 0.2s; border-radius: 6px; flex: 1; text-align: center;
         }
+        html.dark .view-toggle button { color: #94a3b8; }
+        .view-toggle button.active { color: #111827; }
+        html.dark .view-toggle button.active { color: #f1f5f9; }
+
+        .view-toggle-bg {
+            position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc(50% - 2px);
+            background: white; border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1;
+        }
+        html.dark .view-toggle-bg { background: #334155; }
+        .view-toggle[data-state="history"] .view-toggle-bg { transform: translateX(100%); }
+
+        /* 移动端高度分配 */
+        @media (max-width: 768px) {
+            .mobile-preview-height { height: 40%; flex-shrink: 0; }
+            .mobile-controls-height { height: 60%; flex-shrink: 0; }
+        }
+        
+        .switch-bg {
+            position: absolute; height: calc(100% - 8px); width: calc(50% - 6px);
+            top: 4px; left: 4px; background: white; border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 0;
+        }
+        html.dark .switch-bg { background: #334155; }
+        #model-v4:checked ~ .switch-bg { transform: translateX(calc(100% + 4px)); }
     </style>
 </head>
 
-<!-- 核心布局：h-screen-dvh + overflow-hidden 锁定全屏 -->
 <body class="text-gray-600 dark:text-gray-300 h-screen-dvh w-screen overflow-hidden flex flex-col md:flex-row transition-colors duration-300">
 
-    <!-- 左侧抽屉：资源库 -->
+    <!-- 左侧抽屉：资源库 (保持不变) -->
     <div id="sideDrawer" class="absolute inset-y-0 left-0 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl z-50 drawer drawer-closed flex flex-col border-r border-gray-100/50 dark:border-gray-700/50 shadow-2xl">
         <div class="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
             <h2 class="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
@@ -104,30 +123,19 @@
             </h2>
             <button onclick="toggleDrawer()" class="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg text-gray-400"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
-        
         <div class="flex border-b border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-slate-900/50 shrink-0">
-            <button onclick="switchDrawerTab('search')" id="tab-search" class="tab-btn active flex-1 py-3 text-xs flex justify-center items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
-                <i data-lucide="search" class="w-3 h-3"></i> 搜词
-            </button>
-            <button onclick="switchDrawerTab('preset')" id="tab-preset" class="tab-btn flex-1 py-3 text-xs flex justify-center items-center gap-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400">
-                <i data-lucide="grid" class="w-3 h-3"></i> 预设
-            </button>
+            <button onclick="switchDrawerTab('search')" id="tab-search" class="tab-btn active flex-1 py-3 text-xs flex justify-center items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium"><i data-lucide="search" class="w-3 h-3"></i> 搜词</button>
+            <button onclick="switchDrawerTab('preset')" id="tab-preset" class="tab-btn flex-1 py-3 text-xs flex justify-center items-center gap-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400"><i data-lucide="grid" class="w-3 h-3"></i> 预设</button>
         </div>
-        
-        <!-- 内容区域：flex-1 overflow-hidden 确保内部滚动 -->
         <div id="view-search" class="flex flex-col flex-1 overflow-hidden">
             <div class="p-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
                 <div class="flex gap-2 relative group">
-                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
-                    <input type="text" id="tagSearchInput" placeholder="输入关键词..." class="w-full pl-9 pr-2 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-blue-400 transition-colors">
+                    <input type="text" id="tagSearchInput" placeholder="输入关键词..." class="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-blue-400 transition-colors">
                     <button id="tagSearchBtn" class="px-3 py-2 bg-gray-900 dark:bg-slate-700 text-white text-xs font-medium rounded-lg active:scale-95">搜索</button>
                 </div>
             </div>
-            <div id="tagResults" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scroll">
-                <div class="text-center mt-12 text-xs text-gray-300 dark:text-gray-600">输入中文/英文关键词</div>
-            </div>
+            <div id="tagResults" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scroll"><div class="text-center mt-12 text-xs text-gray-300 dark:text-gray-600">输入中文/英文关键词</div></div>
         </div>
-        
         <div id="view-preset" class="flex flex-col flex-1 overflow-hidden hidden">
             <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex gap-2 justify-center shrink-0">
                 <button onclick="renderPresets('v3')" id="btn-pre-v3" class="px-3 py-1 rounded-full text-[10px] font-bold border transition-all">V3</button>
@@ -138,27 +146,73 @@
     </div>
     <div id="drawerOverlay" onclick="toggleDrawer()" class="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40 hidden transition-opacity duration-300"></div>
 
-    <!-- 移动端布局逻辑：
-         1. Flex-col 垂直排列
-         2. Order控制：Preview在Top (order-1)，Controls在Bottom (order-2)
-         3. 桌面端：Flex-row，Controls在Left (order-1)，Preview在Right (order-2)
-    -->
-
-    <!-- 面板 A：控制台 -->
-    <div class="mobile-controls-height md:h-full w-full md:w-[400px] glass-panel flex flex-col z-20 shadow-xl relative order-2 md:order-1 transition-all duration-300">
+    <!-- 顶部/右侧面板：预览与图库 (移动端在上方，桌面端在右侧) -->
+    <!-- Order 1: 在移动端排第一 -->
+    <div class="mobile-preview-height md:h-full flex-1 relative flex flex-col overflow-hidden bg-gray-50/50 dark:bg-slate-900/50 order-1 md:order-2 border-b md:border-b-0 md:border-l border-gray-200 dark:border-gray-700">
         
-        <!-- 头部 (固定) -->
-        <div class="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3">
-                    <button onclick="toggleDrawer()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all text-gray-500">
-                        <i data-lucide="menu" class="w-5 h-5"></i>
-                    </button>
-                    <h1 class="text-base font-semibold text-gray-800 dark:text-gray-200">
-                        Opus Free <span class="text-[9px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 ml-1">0 ANLAS</span>
-                    </h1>
+        <!-- 顶部极简工具栏 -->
+        <div class="absolute top-0 left-0 right-0 h-10 md:h-12 flex items-center justify-between px-3 md:px-6 z-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-b border-gray-100/50 dark:border-gray-700/50">
+            <!-- 视图切换 -->
+            <div class="view-toggle" id="viewToggle" data-state="preview">
+                <div class="view-toggle-bg"></div>
+                <button onclick="switchRightView('preview')" id="viewBtnPreview" class="active">画布</button>
+                <button onclick="switchRightView('history')" id="viewBtnHistory">历史</button>
+            </div>
+            
+            <!-- 顶部操作 -->
+            <div class="flex gap-2">
+                <button onclick="clearAllHistory()" id="clearBtn" class="hidden p-1.5 rounded text-red-400 hover:bg-red-50 dark:hover:bg-slate-800 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                <button onclick="downloadZip()" id="zipBtn" class="hidden p-1.5 rounded text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all"><i data-lucide="archive" class="w-4 h-4"></i></button>
+                <button onclick="downloadImage()" id="dlBtn" class="p-1.5 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all opacity-50 cursor-not-allowed" disabled><i data-lucide="download" class="w-4 h-4"></i></button>
+            </div>
+        </div>
+
+        <!-- 窗口 1: 画布 (绝对居中，自适应) -->
+        <div id="previewArea" class="flex-1 w-full h-full flex flex-col items-center justify-center p-4 pt-12 md:p-10 relative overflow-hidden">
+            <!-- 占位符 -->
+            <div id="placeholder" class="text-center transition-all duration-300">
+                <div class="w-12 h-12 md:w-16 md:h-16 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-center mx-auto mb-2 md:mb-3">
+                    <i data-lucide="image" class="w-5 h-5 md:w-6 md:h-6 text-gray-300 dark:text-gray-600"></i>
                 </div>
-                <div class="flex gap-2">
+                <p class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500">Opus Free</p>
+            </div>
+
+            <!-- 图片容器：关键 CSS 确保图片永远完整显示 -->
+            <div class="relative w-full h-full flex items-center justify-center">
+                <img id="resultImage" class="hidden max-w-full max-h-full object-contain shadow-lg rounded-lg transition-all duration-500 opacity-0">
+            </div>
+            
+            <!-- 悬浮操作栏 -->
+            <div id="imageActions" class="absolute bottom-4 flex gap-2 opacity-0 transition-opacity pointer-events-none transform translate-y-2 z-10">
+                <button onclick="useCurrentPrompt()" class="pointer-events-auto px-3 py-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur text-[10px] font-medium text-gray-700 dark:text-gray-200 rounded-full shadow border border-gray-200 dark:border-gray-700 hover:scale-105 transition-all flex items-center gap-1"><i data-lucide="pen-tool" class="w-3 h-3"></i> 提示词</button>
+                <button onclick="deleteCurrentImage()" class="pointer-events-auto px-3 py-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur text-[10px] font-medium text-red-500 rounded-full shadow border border-gray-200 dark:border-gray-700 hover:scale-105 transition-all flex items-center gap-1"><i data-lucide="trash" class="w-3 h-3"></i> 删除</button>
+            </div>
+        </div>
+
+        <!-- 窗口 2: 历史图库 (独立滚动) -->
+        <div id="historyArea" class="flex-1 hidden w-full h-full overflow-y-auto p-4 pt-12 custom-scroll bg-gray-50/30 dark:bg-slate-900/30">
+            <div id="galleryGrid" class="grid grid-cols-3 md:grid-cols-4 gap-2 content-start pb-10"></div>
+            <div id="emptyGallery" class="hidden h-full flex flex-col items-center justify-center text-gray-400">
+                <i data-lucide="ghost" class="w-6 h-6 mb-2 opacity-50"></i>
+                <span class="text-[10px]">暂无历史</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部/左侧面板：控制台 (移动端在下方，桌面端在左侧) -->
+    <!-- Order 2: 在移动端排第二 -->
+    <div class="mobile-controls-height md:h-full w-full md:w-[400px] landscape:w-[360px] glass-panel flex flex-col z-20 shadow-xl relative order-2 md:order-1 landscape:order-1">
+        
+        <!-- 头部 (紧凑型) -->
+        <div class="px-4 py-3 md:p-5 border-b border-gray-100 dark:border-gray-700 shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleDrawer()" class="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg text-gray-500">
+                        <i data-lucide="menu" class="w-4 h-4"></i>
+                    </button>
+                    <h1 class="text-sm font-semibold text-gray-800 dark:text-gray-200">控制台</h1>
+                </div>
+                <div class="flex gap-1">
                     <button onclick="toggleTheme()" class="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400"><i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i></button>
                     <button onclick="enterAdminToken()" id="adminLockBtn" class="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400"><i data-lucide="lock" class="w-4 h-4"></i></button>
                 </div>
@@ -168,24 +222,24 @@
                 <input type="radio" name="model_version" id="model-v3" value="v3" class="hidden" checked onchange="updateModelUI('v3')">
                 <input type="radio" name="model_version" id="model-v4" value="v4.5" class="hidden" onchange="updateModelUI('v4.5')">
                 <div class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded shadow-sm transition-transform duration-300 z-0"></div>
-                <label for="model-v3" class="flex-1 text-center py-1.5 text-xs font-medium z-10 cursor-pointer text-gray-600 dark:text-gray-300">V3</label>
-                <label for="model-v4" class="flex-1 text-center py-1.5 text-xs font-medium z-10 cursor-pointer text-gray-600 dark:text-gray-300">V4.5</label>
+                <label for="model-v3" class="flex-1 text-center py-1 text-xs font-medium z-10 cursor-pointer text-gray-600 dark:text-gray-300 relative">V3</label>
+                <label for="model-v4" class="flex-1 text-center py-1 text-xs font-medium z-10 cursor-pointer text-gray-600 dark:text-gray-300 relative flex items-center justify-center gap-1">V4.5 <span class="w-1 h-1 rounded-full bg-blue-500"></span></label>
             </div>
         </div>
 
-        <!-- 滚动表单区 (Flex-1 + Overflow-Auto) -->
-        <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 custom-scroll relative">
-            <div class="space-y-2">
+        <!-- 滚动表单区 (Flex-1) -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scroll relative">
+            <div class="space-y-1.5">
                 <div class="flex justify-between items-center px-1">
                     <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">提示词</label>
-                    <button onclick="openPresets()" class="text-[10px] text-blue-500 flex items-center gap-1 hover:underline"><i data-lucide="sparkles" class="w-3 h-3"></i> 风格库</button>
+                    <button onclick="openPresets()" class="text-[10px] text-blue-500 flex items-center gap-1 hover:underline"><i data-lucide="sparkles" class="w-3 h-3"></i> 风格</button>
                 </div>
-                <textarea id="prompt" rows="3" class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-sm rounded-xl focus:border-blue-400 outline-none p-3 shadow-sm transition-colors resize-none" placeholder="1girl, white hair..."></textarea>
+                <textarea id="prompt" rows="3" class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-sm rounded-lg focus:border-blue-400 outline-none p-3 shadow-sm transition-colors resize-none" placeholder="描述你想象中的画面..."></textarea>
             </div>
             
-            <div class="space-y-2">
-                <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">负向提示词</label>
-                <textarea id="negativePrompt" rows="2" class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-sm rounded-xl focus:border-blue-400 outline-none p-3 shadow-sm resize-none">lowres, bad anatomy, bad hands, text, error, blurry</textarea>
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">负向</label>
+                <textarea id="negativePrompt" rows="1" class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-xs rounded-lg focus:border-blue-400 outline-none p-3 shadow-sm resize-none">lowres, bad anatomy, bad hands, text, error</textarea>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
@@ -201,95 +255,41 @@
                     </div>
                 </div>
                 <div class="space-y-1">
-                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 px-1">采样器</label>
+                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 px-1">采样</label>
                     <div class="relative">
                         <select id="sampler" class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-xs rounded-lg p-2.5 outline-none appearance-none">
                             <option value="k_euler">Euler</option>
                             <option value="k_euler_ancestral">Euler A</option>
                             <option value="k_dpmpp_2m">DPM++ 2M</option>
-                            <option value="k_dpmpp_sde">DPM++ SDE</option>
+                            <option value="k_dpmpp_sde">SDE</option>
                         </select>
                         <i data-lucide="chevron-down" class="absolute right-2 top-3 w-3 h-3 text-gray-400 pointer-events-none"></i>
                     </div>
                 </div>
             </div>
 
-            <div class="pt-2 border-t border-gray-100 dark:border-gray-700/50 space-y-4">
+            <div class="pt-2 border-t border-gray-100 dark:border-gray-700/50 space-y-3">
                 <div>
-                    <div class="flex justify-between text-xs px-1 mb-1.5"><span class="text-gray-500">步数</span><span id="stepsValue" class="font-mono font-bold">28</span></div>
+                    <div class="flex justify-between text-xs px-1 mb-1"><span class="text-gray-500">步数</span><span id="stepsValue" class="font-mono font-bold">28</span></div>
                     <input type="range" id="steps" min="1" max="28" value="28" class="w-full h-1 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-gray-800 dark:accent-gray-400">
                 </div>
                 <div>
-                    <div class="flex justify-between text-xs px-1 mb-1.5"><span class="text-gray-500">相关性</span><span id="scaleValue" class="font-mono font-bold">5.0</span></div>
+                    <div class="flex justify-between text-xs px-1 mb-1"><span class="text-gray-500">相关性</span><span id="scaleValue" class="font-mono font-bold">5.0</span></div>
                     <input type="range" id="scale" min="1" max="20" value="5" step="0.5" class="w-full h-1 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-gray-800 dark:accent-gray-400">
                 </div>
             </div>
             
-            <!-- 垫底元素，防止内容被底部按钮遮挡 -->
+            <!-- 垫底元素，防止被底部按钮遮挡 -->
             <div class="h-16"></div>
         </div>
 
         <!-- 底部按钮 (固定在Panel底部) -->
-        <div class="p-4 border-t border-gray-100 dark:border-gray-700 bg-white/90 dark:bg-slate-900/90 backdrop-blur shrink-0 absolute bottom-0 left-0 right-0 z-20">
+        <div class="p-4 border-t border-gray-100 dark:border-gray-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur shrink-0 absolute bottom-0 left-0 right-0 z-20">
             <button id="generateBtn" class="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-gray-900 dark:bg-slate-100 hover:bg-black dark:hover:bg-white text-white dark:text-gray-900 text-sm font-bold rounded-xl transition-all shadow-lg active:scale-[0.98]">
                 <span id="btnIcon"><i data-lucide="sparkles" class="w-4 h-4 text-yellow-400"></i></span>
                 <span id="btnLoader" class="hidden"><span class="loader"></span></span>
                 <span id="btnText">免费生成</span>
             </button>
-        </div>
-    </div>
-
-    <!-- 面板 B：预览与图库 -->
-    <div class="mobile-preview-height md:h-full flex-1 relative flex flex-col overflow-hidden bg-gray-50/50 dark:bg-slate-900/50 order-1 md:order-2 border-b md:border-b-0 md:border-l border-gray-200 dark:border-gray-700">
-        
-        <!-- 顶部工具栏 -->
-        <div class="absolute top-0 left-0 right-0 h-12 md:h-16 flex items-center justify-between px-4 md:px-6 z-20 pointer-events-none">
-            <!-- 视图切换 -->
-            <div class="pointer-events-auto bg-white/90 dark:bg-slate-800/90 backdrop-blur rounded-full p-1 shadow-sm border border-gray-200 dark:border-gray-700 flex">
-                <button onclick="switchRightView('preview')" id="viewBtnPreview" class="px-3 py-1 text-[10px] md:text-xs font-medium rounded-full bg-gray-900 text-white transition-all">画布</button>
-                <button onclick="switchRightView('history')" id="viewBtnHistory" class="px-3 py-1 text-[10px] md:text-xs font-medium rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-all">图库</button>
-            </div>
-            
-            <!-- 操作按钮 -->
-            <div class="pointer-events-auto flex gap-2">
-                <button onclick="clearAllHistory()" id="clearBtn" class="hidden p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-red-400 hover:text-red-500 transition-all" title="清空"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                <button onclick="downloadZip()" id="zipBtn" class="hidden p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-blue-500 hover:text-blue-600 transition-all" title="打包"><i data-lucide="archive" class="w-4 h-4"></i></button>
-                <button onclick="downloadImage()" id="dlBtn" class="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-all opacity-50 cursor-not-allowed" disabled><i data-lucide="download" class="w-4 h-4"></i></button>
-            </div>
-        </div>
-
-        <!-- 视图 1: 单图预览 -->
-        <div id="previewArea" class="flex-1 flex flex-col items-center justify-center p-4 md:p-10 relative">
-            <div class="absolute inset-0 opacity-[0.03]" style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 24px 24px;"></div>
-            
-            <div id="placeholder" class="text-center transition-all duration-300">
-                <div class="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-center mx-auto mb-3">
-                    <i data-lucide="image" class="w-6 h-6 text-gray-300 dark:text-gray-600"></i>
-                </div>
-                <p class="text-xs text-gray-400 dark:text-gray-500">Ready to Generate</p>
-            </div>
-
-            <img id="resultImage" class="hidden w-full h-full object-contain shadow-xl rounded-lg transition-all duration-500 scale-95 opacity-0 cursor-pointer">
-            
-            <div id="imageActions" class="absolute bottom-4 flex gap-2 opacity-0 transition-opacity pointer-events-none transform translate-y-2">
-                <button onclick="useCurrentPrompt()" class="pointer-events-auto px-3 py-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur text-[10px] font-medium text-gray-700 dark:text-gray-200 rounded-full shadow border border-gray-200 dark:border-gray-700 hover:scale-105 transition-all flex items-center gap-1"><i data-lucide="pen-tool" class="w-3 h-3"></i> 提示词</button>
-                <button onclick="deleteCurrentImage()" class="pointer-events-auto px-3 py-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur text-[10px] font-medium text-red-500 rounded-full shadow border border-gray-200 dark:border-gray-700 hover:scale-105 transition-all flex items-center gap-1"><i data-lucide="trash" class="w-3 h-3"></i> 删除</button>
-            </div>
-        </div>
-
-        <!-- 视图 2: 历史图库 -->
-        <div id="historyArea" class="flex-1 hidden overflow-y-auto p-4 pt-16 custom-scroll bg-gray-50/30 dark:bg-slate-900/30">
-            <div id="galleryGrid" class="grid grid-cols-3 md:grid-cols-4 gap-2 content-start"></div>
-            <div id="emptyGallery" class="hidden h-full flex flex-col items-center justify-center text-gray-400">
-                <i data-lucide="ghost" class="w-6 h-6 mb-2 opacity-50"></i>
-                <span class="text-[10px]">暂无历史</span>
-            </div>
-        </div>
-
-        <!-- 底部状态 (桌面端显示，移动端因为空间紧凑隐藏或简化) -->
-        <div class="h-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between px-4 text-[9px] text-gray-400 dark:text-gray-500 font-mono shrink-0">
-            <span id="statusText">System Ready</span>
-            <span id="metaInfo"></span>
         </div>
     </div>
 
@@ -319,12 +319,11 @@
             }
         }
 
-        // --- 核心逻辑 ---
+        // --- 核心变量 ---
         let currentRightView = 'preview';
         let currentImageId = null;
         let currentImageData = null;
 
-        // UI 元素绑定
         const els = {
             prompt: document.getElementById('prompt'),
             negative: document.getElementById('negativePrompt'),
@@ -339,7 +338,6 @@
             adminLockBtn: document.getElementById('adminLockBtn'),
             sideDrawer: document.getElementById('sideDrawer'),
             drawerOverlay: document.getElementById('drawerOverlay'),
-            // ... (搜索/预设部分相同) ...
             tagSearchInput: document.getElementById('tagSearchInput'),
             tagResults: document.getElementById('tagResults'),
             tagSearchBtn: document.getElementById('tagSearchBtn'),
@@ -350,14 +348,13 @@
             presetGrid: document.getElementById('presetGrid'),
             btnPreV3: document.getElementById('btn-pre-v3'),
             btnPreV4: document.getElementById('btn-pre-v4'),
-            // 右侧
             previewArea: document.getElementById('previewArea'),
             historyArea: document.getElementById('historyArea'),
+            viewToggle: document.getElementById('viewToggle'),
             viewBtnPreview: document.getElementById('viewBtnPreview'),
             viewBtnHistory: document.getElementById('viewBtnHistory'),
             resultImg: document.getElementById('resultImage'),
             placeholder: document.getElementById('placeholder'),
-            status: document.getElementById('statusText'),
             dlBtn: document.getElementById('dlBtn'),
             zipBtn: document.getElementById('zipBtn'),
             clearBtn: document.getElementById('clearBtn'),
@@ -382,10 +379,9 @@
         function saveToHistory(imgBase64, prompt, model) {
             if (!db) return;
             const tx = db.transaction(STORE_NAME, 'readwrite');
-            const item = { image: imgBase64, prompt, model, date: Date.now() };
-            tx.objectStore(STORE_NAME).add(item).onsuccess = (e) => {
+            tx.objectStore(STORE_NAME).add({ image: imgBase64, prompt, model, date: Date.now() }).onsuccess = (e) => {
                 currentImageId = e.target.result;
-                currentImageData = item;
+                currentImageData = { image: imgBase64, prompt, model };
                 showImageActions(true);
                 loadGallery();
             };
@@ -400,7 +396,7 @@
         }
 
         window.clearAllHistory = function() {
-            if (!db || !confirm("清空所有历史记录？")) return;
+            if (!db || !confirm("清空所有历史？")) return;
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).clear().onsuccess = () => {
                 loadGallery(); resetPreview();
             };
@@ -427,7 +423,7 @@
                 }
                 items.forEach(item => {
                     const el = document.createElement('div');
-                    el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 relative group';
+                    el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer';
                     el.innerHTML = `<img src="${item.image}" class="w-full h-full object-cover">`;
                     el.onclick = () => loadPreviewFromHistory(item);
                     els.galleryGrid.appendChild(el);
@@ -488,26 +484,16 @@
 
         function switchRightView(view) {
             currentRightView = view;
-            const activeClass = ['bg-gray-900', 'text-white'];
-            const inactiveClass = ['text-gray-500', 'dark:text-gray-400', 'hover:text-gray-900', 'dark:hover:text-gray-200'];
-            
+            els.viewToggle.dataset.state = view;
             if (view === 'preview') {
-                els.viewBtnPreview.className = `px-3 py-1 text-[10px] md:text-xs font-medium rounded-full transition-all ${activeClass.join(' ')}`;
-                els.viewBtnHistory.className = `px-3 py-1 text-[10px] md:text-xs font-medium rounded-full transition-all ${inactiveClass.join(' ')}`;
-                els.previewArea.classList.remove('hidden');
-                els.historyArea.classList.add('hidden');
-                els.zipBtn.classList.add('hidden');
-                els.clearBtn.classList.add('hidden');
-                els.dlBtn.classList.remove('hidden');
+                els.viewBtnPreview.classList.add('active'); els.viewBtnHistory.classList.remove('active');
+                els.previewArea.classList.remove('hidden'); els.historyArea.classList.add('hidden');
+                els.zipBtn.classList.add('hidden'); els.clearBtn.classList.add('hidden'); els.dlBtn.classList.remove('hidden');
             } else {
-                els.viewBtnPreview.className = `px-3 py-1 text-[10px] md:text-xs font-medium rounded-full transition-all ${inactiveClass.join(' ')}`;
-                els.viewBtnHistory.className = `px-3 py-1 text-[10px] md:text-xs font-medium rounded-full transition-all ${activeClass.join(' ')}`;
-                els.previewArea.classList.add('hidden');
-                els.historyArea.classList.remove('hidden');
+                els.viewBtnPreview.classList.remove('active'); els.viewBtnHistory.classList.add('active');
+                els.previewArea.classList.add('hidden'); els.historyArea.classList.remove('hidden');
                 loadGallery();
-                els.zipBtn.classList.remove('hidden');
-                els.clearBtn.classList.remove('hidden');
-                els.dlBtn.classList.add('hidden');
+                els.zipBtn.classList.remove('hidden'); els.clearBtn.classList.remove('hidden'); els.dlBtn.classList.add('hidden');
             }
         }
 
@@ -527,7 +513,6 @@
                 els.btnText.textContent = "生成中...";
                 els.btnIcon.classList.add('hidden');
                 els.btnLoader.classList.remove('hidden');
-                els.status.textContent = "Processing...";
                 if (!els.resultImg.classList.contains('hidden')) els.resultImg.classList.add('opacity-50', 'blur-sm');
             } else {
                 els.btnText.textContent = "免费生成";
@@ -573,7 +558,6 @@
                     els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
                     els.dlBtn.disabled = false;
                     els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    els.status.textContent = `Completed in ${((Date.now() - startTime) / 1000).toFixed(1)}s`;
                     setLoading(false);
                     saveToHistory(data.image, promptText, selectedVersion);
                 };
@@ -582,7 +566,6 @@
                 setLoading(false);
                 if (err.message.includes('429')) alert("⚠️ 今日额度已用完");
                 else alert("生成失败: " + err.message);
-                els.status.textContent = "Error";
             }
         });
 
@@ -613,7 +596,6 @@
         }
         function openPresets() { if(!els.sideDrawer.classList.contains('drawer-open')) toggleDrawer(); switchDrawerTab('preset'); }
 
-        // --- 管理员 ---
         function enterAdminToken() {
             const cur = localStorage.getItem('nai_admin_token');
             const t = prompt(cur ? "清空以注销" : "输入管理员密码");
@@ -625,16 +607,32 @@
         }
         function checkAdminStatus() {
             const t = localStorage.getItem('nai_admin_token');
-            if (t) {
-                els.adminLockBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
-            } else {
-                els.adminLockBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4"></i>';
-            }
+            if (t) els.adminLockBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
+            else els.adminLockBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300 dark:text-gray-500"></i>';
             lucide.createIcons();
         }
         checkAdminStatus();
 
         // --- 资源库逻辑 ---
+        let tagData = {};
+        fetch('all_tags.txt').then(r=>r.json()).then(d=>tagData=d).catch(()=>{});
+        
+        els.tagSearchBtn.onclick = () => {
+            const q = els.tagSearchInput.value.toLowerCase().trim();
+            if(!q) return;
+            const res = Object.entries(tagData).filter(([e,c])=>e.includes(q)||c.includes(q));
+            els.tagResults.innerHTML = '';
+            res.forEach(([en,cn]) => {
+                const d = document.createElement('div');
+                d.className = "p-3 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-100 dark:border-gray-800 cursor-pointer";
+                d.innerHTML = `<div class="text-sm font-medium text-gray-800 dark:text-gray-200">${en}</div><div class="text-xs text-gray-400 dark:text-gray-500">${cn}</div>`;
+                d.onclick = () => {
+                    els.prompt.value += (els.prompt.value ? ', ' : '') + en;
+                };
+                els.tagResults.appendChild(d);
+            });
+        };
+
         const presetFiles = [
             { id: '1_v3', model: 'v3', name: '未知' }, { id: '2_v3', model: 'v3', name: '未知' },
             { id: '1_v4.5', model: 'v4.5', name: '铃兰' }, { id: '2_v4.5', model: 'v4.5', name: '未知' }
@@ -664,24 +662,6 @@
                 els.presetGrid.appendChild(d);
             });
         }
-
-        let tagData = {};
-        fetch('all_tags.txt').then(r=>r.json()).then(d=>tagData=d).catch(()=>{});
-        els.tagSearchBtn.onclick = () => {
-            const q = els.tagSearchInput.value.toLowerCase().trim();
-            if(!q) return;
-            const res = Object.entries(tagData).filter(([e,c])=>e.includes(q)||c.includes(q));
-            els.tagResults.innerHTML = '';
-            res.forEach(([en,cn]) => {
-                const d = document.createElement('div');
-                d.className = "p-3 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-100 dark:border-gray-800 cursor-pointer";
-                d.innerHTML = `<div class="text-sm font-medium text-gray-800 dark:text-gray-200">${en}</div><div class="text-xs text-gray-400">${cn}</div>`;
-                d.onclick = () => {
-                    els.prompt.value += (els.prompt.value ? ', ' : '') + en;
-                };
-                els.tagResults.appendChild(d);
-            });
-        };
     </script>
 </body>
 </html>
