@@ -145,6 +145,11 @@
             transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
             transition-duration: 500ms;
         }
+
+        /* 管理员面板动画 */
+        #adminControls { transition: all 0.3s; overflow: hidden; }
+        #adminControls.hidden { max-height: 0; opacity: 0; margin: 0; padding: 0; }
+        #adminControls:not(.hidden) { max-height: 200px; opacity: 1; }
     </style>
 </head>
 
@@ -273,7 +278,7 @@
 
         <!-- 滚动参数区 -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll relative">
-            <!-- 移动端头部功能 (亮色切换+管理员) -->
+            <!-- 移动端头部功能 -->
             <div class="md:hidden flex justify-between items-center px-1 pb-2">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">配置</span>
                 <div class="flex gap-2">
@@ -281,6 +286,7 @@
                     <button onclick="enterAdminToken()" id="adminLockBtnMobile" class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="lock" class="w-4 h-4"></i></button>
                 </div>
             </div>
+            
             <!-- 移动端模型切换 -->
             <div class="md:hidden relative bg-gray-100/50 dark:bg-slate-800/50 p-1 rounded-xl flex border border-gray-200/50 dark:border-gray-700/50 mb-4">
                 <div class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0"></div>
@@ -324,6 +330,23 @@
                         </select>
                         <i data-lucide="chevron-down" class="absolute right-3 top-3.5 w-3 h-3 text-gray-400 pointer-events-none"></i>
                     </div>
+                </div>
+            </div>
+            
+            <!-- 管理员专用面板 (默认隐藏) -->
+            <div id="adminControls" class="hidden pt-4 border-t border-gray-100 dark:border-gray-800 space-y-4">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="zap" class="w-3 h-3 text-yellow-500"></i>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">管理员增强功能</span>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="flex justify-between text-xs px-1">
+                        <span class="text-gray-500">批量生成数量</span>
+                        <span id="batchValue" class="font-mono font-bold text-gray-900 dark:text-gray-100">1</span>
+                    </div>
+                    <input type="range" id="batchCount" min="1" max="40" value="1" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600">
+                    <p class="text-[10px] text-gray-400">设置为 1 为单张生成，>1 为自动循环生成模式。</p>
                 </div>
             </div>
 
@@ -381,9 +404,6 @@
 
         // --- 模型切换逻辑 ---
         function setModel(ver) {
-            const inputs = document.querySelectorAll(`input[name="model_version"]`);
-            const containers = document.querySelectorAll('#modelToggleContainer, .md\\:hidden #modelToggleContainer');
-
             document.getElementById('modelValue').value = ver;
 
             // 更新所有滑块位置
@@ -425,7 +445,7 @@
             galleryGrid: document.getElementById('galleryGrid'),
             emptyGallery: document.getElementById('emptyGallery'),
             adminLockBtn: document.getElementById('adminLockBtn'),
-            adminLockBtnMobile: document.getElementById('adminLockBtnMobile'), // 移动端锁
+            adminLockBtnMobile: document.getElementById('adminLockBtnMobile'),
             presetGrid: document.getElementById('presetGrid'),
             btnPreV3: document.getElementById('btn-pre-v3'),
             btnPreV4: document.getElementById('btn-pre-v4'),
@@ -437,7 +457,11 @@
             tabSearch: document.getElementById('tab-search'),
             tabPreset: document.getElementById('tab-preset'),
             viewSearch: document.getElementById('view-search'),
-            viewPreset: document.getElementById('view-preset')
+            viewPreset: document.getElementById('view-preset'),
+            // 批量生成
+            adminControls: document.getElementById('adminControls'),
+            batchCount: document.getElementById('batchCount'),
+            batchValue: document.getElementById('batchValue')
         };
 
         function switchRightView(view) {
@@ -504,6 +528,11 @@
         els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
         els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
         
+        // 批量生成滑块
+        els.batchCount.addEventListener('input', e => {
+            els.batchValue.textContent = e.target.value;
+        });
+
         // 缓存加载
         const savedPrompt = localStorage.getItem('nai_prompt');
         if (savedPrompt) els.prompt.value = savedPrompt;
@@ -514,13 +543,13 @@
         els.negative.addEventListener('input', (e) => localStorage.setItem('nai_negative_prompt', e.target.value));
 
         // --- 生成逻辑 ---
-        function setLoading(loading) {
+        function setLoading(loading, text = "生成中...") {
             // 桌面
             els.deskBtn.disabled = loading;
             if (loading) {
                 els.deskBtn.querySelector('#deskBtnIcon').classList.add('hidden');
                 els.deskBtn.querySelector('.loader').classList.remove('hidden');
-                els.deskBtn.querySelector('#deskBtnText').textContent = "生成中...";
+                els.deskBtn.querySelector('#deskBtnText').textContent = text;
             } else {
                 els.deskBtn.querySelector('#deskBtnIcon').classList.remove('hidden');
                 els.deskBtn.querySelector('.loader').classList.add('hidden');
@@ -530,7 +559,7 @@
             // 悬浮
             els.floatBtn.disabled = loading;
             if (loading) {
-                els.floatBtn.innerHTML = '<span class="loader border-white dark:border-gray-900"></span>';
+                els.floatBtn.innerHTML = '<span class="loader border-gray-800 dark:border-white"></span>';
                 els.floatBtn.classList.add('scale-90');
             } else {
                 els.floatBtn.innerHTML = '<i data-lucide="sparkles" class="w-7 h-7 text-yellow-400 dark:text-gray-900"></i>';
@@ -547,52 +576,75 @@
 
         async function doGenerate() {
             const promptText = els.prompt.value.trim();
-            if (!promptText) { els.prompt.focus(); toggleMobileControls(true); return; }
+            if (!promptText) { 
+                els.prompt.focus(); 
+                toggleMobileControls(true);
+                return; 
+            }
             const selectedVersion = document.getElementById('modelValue').value;
             const [w, h] = els.resolution.value.split(',').map(Number);
             const adminToken = localStorage.getItem('nai_admin_token') || "";
+            const isAdmin = !!adminToken;
             
+            // 批量检测
+            let batchTotal = 1;
+            if (isAdmin && els.batchCount) {
+                batchTotal = parseInt(els.batchCount.value) || 1;
+            }
+
             if (currentRightView !== 'preview') switchRightView('preview');
             toggleMobileControls(false); 
 
-            setLoading(true);
-            
-            try {
-                const payload = {
-                    version: selectedVersion,
-                    prompt: promptText,
-                    negative_prompt: els.negative.value.trim(),
-                    width: w, height: h,
-                    steps: parseInt(els.steps.value),
-                    scale: parseFloat(els.scale.value),
-                    sampler: els.sampler.value
-                };
-                const res = await fetch('/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (!res.ok || data.error) throw new Error(data.error || `Server Error: ${res.status}`);
-                
-                const tempImg = new Image();
-                tempImg.src = data.image;
-                tempImg.onload = () => {
-                    els.resultImg.src = data.image;
-                    els.placeholder.classList.add('hidden');
-                    els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
-                    els.dlBtn.disabled = false;
-                    els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            // 循环执行
+            for (let i = 0; i < batchTotal; i++) {
+                // 如果是批量，更新状态文字
+                const statusText = batchTotal > 1 ? `生成中 (${i+1}/${batchTotal})` : "生成中...";
+                setLoading(true, statusText);
+
+                try {
+                    const payload = {
+                        version: selectedVersion,
+                        prompt: promptText,
+                        negative_prompt: els.negative.value.trim(),
+                        width: w, height: h,
+                        steps: parseInt(els.steps.value),
+                        scale: parseFloat(els.scale.value),
+                        sampler: els.sampler.value
+                    };
+                    const res = await fetch('/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) throw new Error(data.error || `Server Error: ${res.status}`);
+                    
+                    const tempImg = new Image();
+                    tempImg.src = data.image;
+                    
+                    // 等待图片加载完成再继续下一次循环（简单串行）
+                    await new Promise(resolve => {
+                        tempImg.onload = () => {
+                            els.resultImg.src = data.image;
+                            els.placeholder.classList.add('hidden');
+                            els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
+                            els.dlBtn.disabled = false;
+                            els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                            saveToHistory(data.image, promptText, selectedVersion);
+                            resolve();
+                        };
+                    });
+
+                } catch (err) {
+                    console.error(err);
                     setLoading(false);
-                    saveToHistory(data.image, promptText, selectedVersion);
-                };
-            } catch (err) {
-                console.error(err);
-                setLoading(false);
-                toggleMobileControls(true);
-                if (err.message.includes('429')) alert("⚠️ 今日额度已用完");
-                else alert("生成失败: " + err.message);
+                    toggleMobileControls(true); 
+                    if (err.message.includes('429')) alert("⚠️ 今日额度已用完");
+                    else alert("生成失败: " + err.message);
+                    break; // 出错停止循环
+                }
             }
+            setLoading(false);
         }
 
         els.deskBtn.addEventListener('click', doGenerate);
@@ -717,7 +769,7 @@
             };
         };
 
-        // --- 预设 ---
+        // --- 预设与搜词 ---
         const presetFiles = [
             { id: '1_v3', model: 'v3', name: '未知' }, { id: '2_v3', model: 'v3', name: '未知' },
             { id: '1_v4.5', model: 'v4.5', name: '铃兰' }, { id: '2_v4.5', model: 'v4.5', name: '未知' }
@@ -769,6 +821,7 @@
             });
         };
 
+        // --- 主题与管理员 ---
         function initTheme() {
             if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.classList.add('dark');
@@ -794,8 +847,13 @@
         function checkAdminStatus() {
             const t = localStorage.getItem('nai_admin_token');
             const setLock = (btn) => {
-                if(t) btn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
-                else btn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300 dark:text-gray-500"></i>';
+                if(t) {
+                    btn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
+                    els.adminControls.classList.remove('hidden');
+                } else {
+                    btn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300 dark:text-gray-500"></i>';
+                    els.adminControls.classList.add('hidden');
+                }
             };
             if(els.adminLockBtn) setLock(els.adminLockBtn);
             if(els.adminLockBtnMobile) setLock(els.adminLockBtnMobile);
