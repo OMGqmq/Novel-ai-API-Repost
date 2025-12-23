@@ -1,5 +1,6 @@
-import { unzipSync } from './fflate.js';
+// functions/generate.js
 
+// 辅助函数：构建 V4 Prompt
 function buildV4Prompt(prompt) {
   return {
     caption: {
@@ -12,84 +13,116 @@ function buildV4Prompt(prompt) {
 }
 
 export async function onRequest(context) {
+  // 只允许 POST 请求
   if (context.request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
+      status: 405, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   }
 
   try {
     const env = context.env;
+    
+    // 1. 检查 API Key
     const NOVELAI_API_KEY = env.NOVELAI_API_KEY;
-    if (!NOVELAI_API_KEY) throw new Error('服务器未配置 NOVELAI_API_KEY');
-
-    // ================== 🛡️ 强化版访问控制 ==================
-    
-    const clientIP = context.request.headers.get('CF-Connecting-IP') || 'unknown';
-    const clientToken = context.request.headers.get('x-admin-token'); 
-    const serverToken = env.ADMIN_TOKEN; 
-    
-    // 检查是否是管理员
-    const isAdmin = serverToken && clientToken === serverToken;
-
-    if (!isAdmin) {
-        const kv = env.NAI_LIMIT;
-        if (!kv) throw new Error("Server KV Error: Database not bound");
-
-        const today = new Date().toISOString().split('T')[0]; // 2023-10-27
-        
-        // --- 1. 检查全站总上限 (防止 VPN 刷爆) ---
-        // 设定全站每天最多允许生成多少张 (例如 200 张)
-        // 这样即使有人换 IP，总量用完后他也跑不了
-        const GLOBAL_MAX_DAILY = 200; 
-        const globalKey = `global:${today}`;
-        
-        let globalCount = await kv.get(globalKey);
-        globalCount = parseInt(globalCount) || 0;
-
-        if (globalCount >= GLOBAL_MAX_DAILY) {
-             return new Response(JSON.stringify({ 
-                error: `本站今日免费次数已耗尽 (${globalCount}/${GLOBAL_MAX_DAILY})。请明天再来，或联系站长。` 
-            }), { status: 429, headers: { 'Content-Type': 'application/json' } });
-        }
-
-        // --- 2. 检查单 IP 上限 (防止单人霸占) ---
-        const MAX_IP_DAILY = 5;
-        const ipKey = `limit:${today}:${clientIP}`;
-
-        let ipCount = await kv.get(ipKey);
-        ipCount = parseInt(ipCount) || 0;
-
-        if (ipCount >= MAX_IP_DAILY) {
-            return new Response(JSON.stringify({ 
-                error: `您今日的免费额度已用完 (${ipCount}/${MAX_IP_DAILY})。请明天再来。` 
-            }), { status: 429, headers: { 'Content-Type': 'application/json' } });
-        }
-
-        // --- 3. 增加计数 (并发下可能不绝对精确，但足够安全) ---
-        // 更新全站计数
-        await kv.put(globalKey, globalCount + 1, { expirationTtl: 86400 });
-        // 更新 IP 计数
-        await kv.put(ipKey, ipCount + 1, { expirationTtl: 86400 });
+    if (!NOVELAI_API_KEY) {
+        throw new Error('服务器未配置 NOVELAI_API_KEY');
     }
-    // =======================================================
+
+    // 2. 检查 KV 数据库
+    const kv = env.NAI_LIMIT;
+    if (!kv) {
+        console.warn("KV 数据库未绑定 (NAI_LIMIT)，限流功能将失效");
+    }
+
+    // ================== 🛡️ 鉴权逻辑 (管理员 + 卡密 + 免费限制) ==================
+    const adminTokenHeader = context.request.headers.get('x-admin-token');
+    const userKeyHeader = context.request.headers.get('x-user-key');
+    const clientIP = context.request.headers.get('CF-Connecting-IP') || 'unknown';
+
+    // 去除可能存在的空格
+    const adminToken = adminTokenHeader ? adminTokenHeader.trim() : "";
+    const userKey = userKeyHeader ? userKeyHeader.trim() : "";
+    const serverAdminToken = env.ADMIN_TOKEN ? env.ADMIN_TOKEN.trim() : "";
+
+    let isVip = false; // 是否拥有特权（管理员或有余额的卡密用户）
+    let remainingCredits = -1; // 剩余点数 (-1代表无限)
+    let userRole = "Free"; // 返回给前端显示的角色
+
+    // A. 管理员 (最高权限)
+    if (serverAdminToken && adminToken === serverAdminToken) {
+        isVip = true;
+        userRole = "Admin";
+    } 
+    // B. 卡密用户 (VIP)
+    else if (userKey && kv) {
+        // 在 KV 中查找这个卡密，Key 的格式建议为 "card:卡密"
+        // 这样可以避免和其他配置项冲突
+        const creditsStr = await kv.get(`card:${userKey}`);
+        
+        if (creditsStr === null) {
+            // 卡密不存在
+            return new Response(JSON.stringify({ error: "无效的卡密，请检查输入或联系卖家。" }), { status: 403, headers: {'Content-Type': 'application/json'} });
+        }
+        
+        remainingCredits = parseInt(creditsStr);
+        
+        if (isNaN(remainingCredits) || remainingCredits <= 0) {
+            return new Response(JSON.stringify({ error: "您的卡密余额已耗尽，请购买新卡密。" }), { status: 402, headers: {'Content-Type': 'application/json'} });
+        }
+        
+        isVip = true;
+        // 预扣费后的余额显示给前端（实际扣费在生成成功后）
+        userRole = `VIP (余:${remainingCredits - 1})`;
+    }
+    // C. 免费用户 (限流)
+    else if (kv) {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // 全站总限 (防止被刷爆)
+        const globalKey = `global:${today}`;
+        const globalCount = parseInt(await kv.get(globalKey) || "0");
+        if (globalCount >= 200) {
+             return new Response(JSON.stringify({ error: "今日全站免费算力已耗尽，请使用卡密或明天再来。" }), { status: 429, headers: {'Content-Type': 'application/json'} });
+        }
+
+        // 单IP限 (防止单人滥用)
+        const ipKey = `limit:${today}:${clientIP}`;
+        const ipCount = parseInt(await kv.get(ipKey) || "0");
+        if (ipCount >= 5) { // 限制为 5 张
+            return new Response(JSON.stringify({ error: "今日免费额度已用完 (5/5)。购买卡密可解锁更多次数。" }), { status: 429, headers: {'Content-Type': 'application/json'} });
+        }
+
+        // 记录免费用户的计数 (异步写入，不阻塞)
+        context.waitUntil(Promise.all([
+            kv.put(globalKey, globalCount + 1, { expirationTtl: 86400 }),
+            kv.put(ipKey, ipCount + 1, { expirationTtl: 86400 })
+        ]));
+    }
+    // ===========================================================================
 
     const data = await context.request.json();
     
-    // 安全防护
-    const MAX_FREE_STEPS = 28; 
-    const steps = Math.min(parseInt(data.steps) || 28, MAX_FREE_STEPS);
+    // 安全防护：步数和分辨率限制
+    // 即便是 VIP，为了防止封号，也建议限制单次生成的规格
+    const MAX_STEPS = 28; 
+    const steps = Math.min(parseInt(data.steps) || 28, MAX_STEPS);
     const width = parseInt(data.width) || 832;
     const height = parseInt(data.height) || 1216;
-    if (width * height > 1048576 + 10000) { 
-        throw new Error("分辨率超出 Opus 免费限制");
+    
+    // 简单的像素总量检查
+    if (width * height > 1048576 + 50000) {
+         throw new Error("分辨率超出 Opus 免费限制");
     }
 
+    // 构建请求体
     const prompt = data.prompt || "";
     const negative_prompt = data.negative_prompt || "";
     const version = data.version || "v3";
     const seed = Math.floor(Math.random() * 4294967295);
 
     let payload = {};
-    
     if (version === "v4.5") {
       payload = {
         input: prompt,
@@ -97,24 +130,13 @@ export async function onRequest(context) {
         action: "generate",
         parameters: {
           params_version: 3,
-          width: width,
-          height: height,
-          scale: data.scale,
-          sampler: data.sampler,
-          steps: steps,
-          seed: seed,
+          width: width, height: height, scale: data.scale, sampler: data.sampler, steps: steps, seed: seed,
           n_samples: 1,
           v4_prompt: buildV4Prompt(prompt),
           v4_negative_prompt: buildV4Prompt(negative_prompt),
           negative_prompt: negative_prompt,
-          ucPreset: 4, 
-          dynamic_thresholding: false,
-          controlnet_strength: 1,
-          add_original_image: true,
-          cfg_rescale: 0,
-          noise_schedule: "exponential",
-          skip_cfg_above_sigma: 58,
-          legacy_v3_extend: false
+          ucPreset: 4, dynamic_thresholding: false, controlnet_strength: 1, add_original_image: true,
+          cfg_rescale: 0, noise_schedule: "exponential", skip_cfg_above_sigma: 58, legacy_v3_extend: false
         }
       };
     } else {
@@ -124,59 +146,61 @@ export async function onRequest(context) {
         action: "generate",
         undesiredContent: negative_prompt, 
         parameters: {
-          width: width,
-          height: height,
-          scale: data.scale,
-          sampler: data.sampler,
-          steps: steps,
-          seed: seed,
-          n_samples: 1,
-          sm: true,
-          sm_dyn: true,
-          qualityToggle: true,
-          ucPreset: 0
+          width: width, height: height, scale: data.scale, sampler: data.sampler, steps: steps, seed: seed,
+          n_samples: 1, sm: true, sm_dyn: true, qualityToggle: true, ucPreset: 0
         }
       };
     }
 
+    // 请求 NovelAI
     const NAI_URL = 'https://image.novelai.net/ai/generate-image';
     const response = await fetch(NAI_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NOVELAI_API_KEY}` },
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${NOVELAI_API_KEY}` 
+      },
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      return new Response(JSON.stringify({ error: `NovelAI API Error: ${errorText}` }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
+      // 如果 NAI 返回 402 Payment Required，说明你的账号余额不足
+      if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "服务器 Anlas 余额不足，请联系管理员。" }), { status: 500, headers: {'Content-Type': 'application/json'} });
+      }
+      return new Response(JSON.stringify({ error: `NovelAI API Error: ${errorText}` }), { status: response.status, headers: {'Content-Type': 'application/json'} });
     }
 
-    const zipBuffer = await response.arrayBuffer();
-    const zipBytes = new Uint8Array(zipBuffer);
-    const decompressedFiles = unzipSync(zipBytes);
-    const imageFileName = Object.keys(decompressedFiles).find(name => name.endsWith('.png'));
-    
-    if (!imageFileName) {
-        throw new Error("解压后未找到 PNG 图片文件");
+    // ================= 💰 扣费逻辑 (成功出图后才扣) =================
+    // 只有当用户是卡密用户 (userKey存在) 且不是管理员 (isVip为true但adminToken不对) 时扣费
+    // 但上面的逻辑里，如果是管理员，userKey 会被忽略。
+    // 这里重新判断：只有当 remainingCredits > 0 时才扣费。
+    if (userKey && kv && remainingCredits > 0 && !(serverAdminToken && adminToken === serverAdminToken)) {
+        // 扣除 1 点
+        const newBalance = remainingCredits - 1;
+        // 异步更新数据库，不阻塞图片返回
+        context.waitUntil(kv.put(`card:${userKey}`, newBalance.toString()));
     }
-    
-    const imageDataBytes = decompressedFiles[imageFileName];
-    let binary = '';
-    const len = imageDataBytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(imageDataBytes[i]);
-    }
-    const imageBase64 = btoa(binary);
+    // ==============================================================
 
-    return new Response(JSON.stringify({ 
-        image: `data:image/png;base64,${imageBase64}`, 
-        steps_used: steps,
-        user_role: isAdmin ? "Admin (Unlimited)" : "Guest (Limited)" 
-    }), {
-      status: 200, headers: { 'Content-Type': 'application/json' },
+    // 透传 ZIP 数据流 (这是最稳定、最省 CPU 的方式)
+    // 我们把用户身份信息放在 Header 里传给前端，让前端知道剩余次数
+    const newHeaders = new Headers(response.headers);
+    newHeaders.set('Content-Type', 'application/zip'); // 强制标记为 ZIP
+    newHeaders.set('X-User-Role', userRole);           // 告诉前端用户身份和余额
+
+    return new Response(response.body, {
+      status: 200,
+      headers: newHeaders
     });
 
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: e.message }), { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
+
+
