@@ -188,7 +188,7 @@ export async function onRequest(context) {
     // 我们把用户身份信息放在 Header 里传给前端，让前端知道剩余次数
     const newHeaders = new Headers(response.headers);
     newHeaders.set('Content-Type', 'application/zip'); // 强制标记为 ZIP
-    newHeaders.set('X-User-Role', userRole);           // 告诉前端用户身份和余额
+    newHeaders.set('X-User-Role', encodeURIComponent(userRole));           // 告诉前端用户身份和余额
 
     return new Response(response.body, {
       status: 200,
