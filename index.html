@@ -625,9 +625,10 @@
                     if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
 
                     // 获取并显示剩余点数 (从后端 Header 中读取)
-                    const userRole = res.headers.get("X-User-Role");
-                    if (userRole) updateCreditDisplay(userRole);
-
+                    const rawRole = res.headers.get("X-User-Role");
+                    if (rawRole) {
+                      const userRole = decodeURIComponent(rawRole);updateCreditDisplay(userRole);
+                    }
                     const blob = await res.blob();
                     const zip = await JSZip.loadAsync(blob);
                     let imgFile = null;
