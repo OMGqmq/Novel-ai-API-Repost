@@ -11,7 +11,8 @@
             theme: {
                 extend: {
                     colors: {
-                        dark: { bg: '#0f172a', panel: '#1e293b', border: '#334155', text: '#e2e8f0' }
+                        dark: { bg: '#0f172a', panel: '#1e293b', border: '#334155', text: '#e2e8f0' },
+                        gold: { 400: '#fbbf24', 500: '#f59e0b' } /* VIP 金色 */
                     },
                     height: { 'screen-dvh': '100dvh' },
                     transitionProperty: { 'height': 'height, max-height, padding, transform, opacity' },
@@ -54,7 +55,6 @@
             border-color: rgba(255, 255, 255, 0.08);
         }
 
-        /* 移动端底部抽屉 */
         #mobileControls {
             position: absolute;
             bottom: 0; left: 0; right: 0;
@@ -78,7 +78,6 @@
         #mobileBackdrop { transition: opacity 0.4s ease; }
         #mobileBackdrop.hidden-backdrop { opacity: 0; pointer-events: none; }
 
-        /* 悬浮按钮 */
         #floatingGenerateBtn {
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             background: linear-gradient(135deg, #1f2937 0%, #000000 100%);
@@ -139,14 +138,12 @@
         }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* 核心修复：图片过渡优化 */
         .img-transition {
             transition-property: opacity, transform;
             transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
             transition-duration: 500ms;
         }
 
-        /* 管理员面板动画 */
         #adminControls { transition: all 0.3s; overflow: hidden; }
         #adminControls.hidden { max-height: 0; opacity: 0; margin: 0; padding: 0; }
         #adminControls:not(.hidden) { max-height: 200px; opacity: 1; }
@@ -155,7 +152,6 @@
 
 <body class="text-gray-600 dark:text-gray-300 h-screen-dvh w-screen overflow-hidden flex flex-col md:flex-row transition-colors duration-300">
 
-    <!-- 侧边栏：资源库 -->
     <div id="sideDrawer" class="absolute inset-y-0 left-0 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl z-50 drawer drawer-closed flex flex-col border-r border-gray-100 dark:border-gray-800 shadow-2xl">
         <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
             <h2 class="font-medium text-lg text-gray-800 dark:text-gray-100 flex items-center gap-2 tracking-tight">
@@ -167,8 +163,6 @@
             <button onclick="switchDrawerTab('search')" id="tab-search" class="flex-1 py-2 text-xs font-medium rounded-lg transition-all border shadow-sm text-gray-900 bg-white border-gray-200 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-200">搜词</button>
             <button onclick="switchDrawerTab('preset')" id="tab-preset" class="flex-1 py-2 text-xs font-medium rounded-lg transition-all border border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">预设</button>
         </div>
-        
-        <!-- 搜索 -->
         <div id="view-search" class="flex flex-col flex-1 overflow-hidden">
             <div class="p-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
                 <div class="flex gap-2 relative group">
@@ -178,8 +172,6 @@
             </div>
             <div id="tagResults" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scroll"><div class="text-center mt-20 text-xs text-gray-400 font-light tracking-wide">输入中文/英文关键词开始探索</div></div>
         </div>
-        
-        <!-- 预设 -->
         <div id="view-preset" class="flex flex-col flex-1 overflow-hidden hidden">
             <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex gap-2 justify-center shrink-0">
                 <button onclick="renderPresets('v3')" id="btn-pre-v3" class="px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all">V3</button>
@@ -190,10 +182,7 @@
     </div>
     <div id="drawerOverlay" onclick="toggleDrawer()" class="fixed inset-0 bg-gray-900/10 backdrop-blur-[2px] z-40 hidden transition-opacity duration-300"></div>
 
-    <!-- 主界面：预览与图库 -->
     <div class="absolute inset-0 md:relative md:flex-1 md:order-2 flex flex-col overflow-hidden transition-colors z-0 bg-white/50 dark:bg-slate-900/50">
-        
-        <!-- 顶部工具栏 -->
         <div class="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-4 md:px-8 z-20 pointer-events-none">
             <div class="pointer-events-auto shadow-sm rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur p-0.5 border border-gray-100 dark:border-gray-700/50">
                 <div class="view-toggle" id="viewToggle" data-state="preview">
@@ -202,7 +191,6 @@
                     <button onclick="switchRightView('history')" id="viewBtnHistory">图库</button>
                 </div>
             </div>
-            
             <div class="pointer-events-auto flex gap-2">
                 <button onclick="clearAllHistory()" id="clearBtn" class="hidden p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 shadow-sm transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 <button onclick="downloadZip()" id="zipBtn" class="hidden p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 shadow-sm transition-all"><i data-lucide="archive" class="w-4 h-4"></i></button>
@@ -210,7 +198,6 @@
             </div>
         </div>
 
-        <!-- 窗口 1: 画布 -->
         <div id="previewArea" class="flex-1 w-full h-full flex flex-col items-center justify-center p-4 pt-20 pb-24 md:p-10 relative overflow-hidden">
             <div id="placeholder" class="text-center transition-all duration-500 transform hover:scale-105 cursor-default">
                 <div class="w-20 h-20 bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-900 rounded-[2rem] shadow-art border border-white/60 dark:border-white/5 flex items-center justify-center mx-auto mb-4">
@@ -219,18 +206,15 @@
                 <p class="text-xs font-medium text-gray-400 dark:text-slate-500 tracking-[0.2em] uppercase">Opus Art</p>
                 <div id="modelBadge" class="md:hidden mt-3 text-[10px] font-bold text-gray-300 dark:text-slate-600 bg-white/50 dark:bg-slate-800/50 px-3 py-1 rounded-full border border-gray-100 dark:border-slate-700">V3</div>
             </div>
-
             <div class="relative w-full h-full flex items-center justify-center">
                 <img id="resultImage" class="hidden max-w-full max-h-full object-contain shadow-2xl rounded-lg img-transition opacity-0 transform scale-95">
             </div>
-            
             <div id="imageActions" class="absolute bottom-28 md:bottom-8 flex gap-3 opacity-0 transition-all duration-300 pointer-events-none transform translate-y-4 z-10">
                 <button onclick="useCurrentPrompt()" class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i data-lucide="pen-tool" class="w-3 h-3"></i> 提示词</button>
                 <button onclick="deleteCurrentImage()" class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-red-500 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i data-lucide="trash" class="w-3 h-3"></i> 删除</button>
             </div>
         </div>
 
-        <!-- 窗口 2: 历史 -->
         <div id="historyArea" class="flex-1 hidden w-full h-full overflow-y-auto p-4 pt-20 pb-32 md:pb-10 custom-scroll">
             <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 content-start"></div>
             <div id="emptyGallery" class="hidden h-full flex flex-col items-center justify-center text-gray-300 dark:text-slate-600">
@@ -240,34 +224,33 @@
         </div>
     </div>
 
-    <!-- 移动端遮罩层 -->
     <div id="mobileBackdrop" class="fixed inset-0 bg-gray-900/10 backdrop-blur-[1px] z-30 hidden md:hidden transition-opacity duration-300 opacity-0 pointer-events-none" onclick="toggleMobileControls(false)"></div>
 
-    <!-- 面板 A：控制台 (底部抽屉) -->
     <div id="mobileControls" class="collapsed md:relative md:h-full md:w-[400px] glass-panel flex flex-col z-40 shadow-[0_-10px_60px_-15px_rgba(0,0,0,0.1)] md:shadow-xl md:order-1 md:rounded-none border-t border-white/60 dark:border-slate-700/50">
         
-        <!-- 把手 -->
         <div class="md:hidden w-full flex flex-col items-center pt-3 pb-2 cursor-pointer touch-none" onclick="toggleMobileControls()">
             <div class="w-10 h-1 bg-gray-300 dark:bg-slate-600 rounded-full mb-2"></div>
             <div class="flex items-center justify-between w-full px-6 text-xs font-medium text-gray-500 dark:text-gray-400">
                 <span class="flex items-center gap-1"><i data-lucide="sliders-horizontal" class="w-3 h-3"></i> 参数控制台</span>
-                <span id="modelStatusMini" class="font-mono text-[10px] bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded">V3</span>
+                <span id="creditDisplayMobile" class="font-mono text-[10px] bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded border border-yellow-200 dark:border-yellow-800 hidden">VIP: --</span>
             </div>
         </div>
 
-        <!-- 头部 -->
         <div class="hidden md:block px-6 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
                     <button onclick="toggleDrawer()" class="p-2 -ml-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl transition-all text-gray-400 hover:text-gray-800"><i data-lucide="menu" class="w-5 h-5"></i></button>
-                    <h1 class="text-base font-bold text-gray-800 dark:text-gray-100 tracking-tight">Opus Art</h1>
+                    <div class="flex flex-col">
+                        <h1 class="text-base font-bold text-gray-800 dark:text-gray-100 tracking-tight">Opus Art</h1>
+                        <span id="creditDisplayDesktop" class="text-[10px] font-mono text-yellow-600 dark:text-yellow-400 hidden">VIP: --</span>
+                    </div>
                 </div>
                 <div class="flex gap-2">
                     <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"><i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i></button>
+                    <button onclick="enterUserKey()" id="keyBtn" class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors" title="兑换/输入卡密"><i data-lucide="key" class="w-4 h-4"></i></button>
                     <button onclick="enterAdminToken()" id="adminLockBtn" class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"><i data-lucide="lock" class="w-4 h-4"></i></button>
                 </div>
             </div>
-            <!-- 模型切换 -->
             <div class="relative bg-gray-100/50 dark:bg-slate-800/50 p-1 rounded-xl flex border border-gray-200/50 dark:border-gray-700/50" id="modelToggleContainer" data-model="v3">
                 <div class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0"></div>
                 <button onclick="setModel('v3')" class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative transition-colors">NAI V3</button>
@@ -276,18 +259,16 @@
             </div>
         </div>
 
-        <!-- 滚动参数区 -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll relative">
-            <!-- 移动端头部功能 -->
             <div class="md:hidden flex justify-between items-center px-1 pb-2">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">配置</span>
                 <div class="flex gap-2">
                     <button onclick="toggleTheme()" class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i></button>
+                    <button onclick="enterUserKey()" id="keyBtnMobile" class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="key" class="w-4 h-4"></i></button>
                     <button onclick="enterAdminToken()" id="adminLockBtnMobile" class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="lock" class="w-4 h-4"></i></button>
                 </div>
             </div>
             
-            <!-- 移动端模型切换 -->
             <div class="md:hidden relative bg-gray-100/50 dark:bg-slate-800/50 p-1 rounded-xl flex border border-gray-200/50 dark:border-gray-700/50 mb-4">
                 <div class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0"></div>
                 <button onclick="setModel('v3')" class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative transition-colors">NAI V3</button>
@@ -333,13 +314,11 @@
                 </div>
             </div>
             
-            <!-- 管理员专用面板 (默认隐藏) -->
             <div id="adminControls" class="hidden pt-4 border-t border-gray-100 dark:border-gray-800 space-y-4">
                 <div class="flex items-center gap-2">
                     <i data-lucide="zap" class="w-3 h-3 text-yellow-500"></i>
                     <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">管理员增强功能</span>
                 </div>
-                
                 <div class="space-y-3">
                     <div class="flex justify-between text-xs px-1">
                         <span class="text-gray-500">批量生成数量</span>
@@ -362,7 +341,6 @@
             </div>
         </div>
         
-        <!-- 桌面端底部按钮 (移动端隐藏) -->
         <div class="hidden md:block p-6 border-t border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur z-20">
             <button id="desktopGenerateBtn" class="w-full group flex items-center justify-center gap-2 py-4 px-4 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-100 text-white dark:text-gray-900 text-sm font-bold rounded-2xl transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.98]">
                 <span id="deskBtnIcon"><i data-lucide="sparkles" class="w-4 h-4 text-yellow-300 dark:text-yellow-600"></i></span>
@@ -372,7 +350,6 @@
         </div>
     </div>
 
-    <!-- 📱 移动端悬浮生成按钮 (FAB) -->
     <button id="floatingGenerateBtn" class="md:hidden fixed bottom-6 right-6 w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center z-50 transition-all active:scale-90 border border-white/10 dark:border-white/5 text-gray-900 dark:text-gray-900" id="fabBtn">
         <i data-lucide="sparkles" class="w-7 h-7 text-yellow-300 dark:text-yellow-600"></i>
     </button>
@@ -405,15 +382,11 @@
         // --- 模型切换逻辑 ---
         function setModel(ver) {
             document.getElementById('modelValue').value = ver;
-
-            // 更新所有滑块位置
             document.querySelectorAll('.switch-bg').forEach(bg => {
                 bg.style.transform = ver === 'v4.5' ? 'translateX(100%)' : 'translateX(0)';
             });
-
             const badge = document.getElementById('modelBadge');
             if(badge) badge.innerText = (ver === 'v4.5' ? 'V4.5' : 'V3') + ' MODE';
-            
             const mini = document.getElementById('modelStatusMini');
             if(mini) mini.innerText = ver === 'v4.5' ? 'V4.5' : 'V3';
         }
@@ -446,6 +419,11 @@
             emptyGallery: document.getElementById('emptyGallery'),
             adminLockBtn: document.getElementById('adminLockBtn'),
             adminLockBtnMobile: document.getElementById('adminLockBtnMobile'),
+            adminControls: document.getElementById('adminControls'),
+            batchCount: document.getElementById('batchCount'),
+            batchValue: document.getElementById('batchValue'),
+            keyBtn: document.getElementById('keyBtn'),
+            keyBtnMobile: document.getElementById('keyBtnMobile'),
             presetGrid: document.getElementById('presetGrid'),
             btnPreV3: document.getElementById('btn-pre-v3'),
             btnPreV4: document.getElementById('btn-pre-v4'),
@@ -458,10 +436,8 @@
             tabPreset: document.getElementById('tab-preset'),
             viewSearch: document.getElementById('view-search'),
             viewPreset: document.getElementById('view-preset'),
-            // 批量生成
-            adminControls: document.getElementById('adminControls'),
-            batchCount: document.getElementById('batchCount'),
-            batchValue: document.getElementById('batchValue')
+            creditDisplayMobile: document.getElementById('creditDisplayMobile'),
+            creditDisplayDesktop: document.getElementById('creditDisplayDesktop')
         };
 
         function switchRightView(view) {
@@ -528,10 +504,12 @@
         els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
         els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
         
-        // 批量生成滑块
-        els.batchCount.addEventListener('input', e => {
-            els.batchValue.textContent = e.target.value;
-        });
+        // 批量滑块
+        if(els.batchCount) {
+            els.batchCount.addEventListener('input', e => {
+                els.batchValue.textContent = e.target.value;
+            });
+        }
 
         // 缓存加载
         const savedPrompt = localStorage.getItem('nai_prompt');
@@ -543,7 +521,7 @@
         els.negative.addEventListener('input', (e) => localStorage.setItem('nai_negative_prompt', e.target.value));
 
         // --- 生成逻辑 ---
-        function setLoading(loading, text = "生成中...") {
+        function setLoading(loading, text="生成中...") {
             // 桌面
             els.deskBtn.disabled = loading;
             if (loading) {
@@ -574,30 +552,46 @@
             }
         }
 
+        // 更新余额显示
+        function updateCreditDisplay(roleStr) {
+            // roleStr 格式可能为 "VIP (余:499)" 或 "Admin (Unlimited)" 或 "Guest (Limited)"
+            if (!roleStr) return;
+            
+            // 提取关键信息
+            const text = roleStr.replace(" (Limited)", "").replace(" (Unlimited)", ""); 
+            
+            const mobileEl = document.getElementById('creditDisplayMobile');
+            const desktopEl = document.getElementById('creditDisplayDesktop');
+            
+            if (mobileEl) {
+                mobileEl.textContent = text;
+                mobileEl.classList.remove('hidden');
+            }
+            if (desktopEl) {
+                desktopEl.textContent = text;
+                desktopEl.classList.remove('hidden');
+            }
+        }
+
         async function doGenerate() {
             const promptText = els.prompt.value.trim();
-            if (!promptText) { 
-                els.prompt.focus(); 
-                toggleMobileControls(true);
-                return; 
-            }
+            if (!promptText) { els.prompt.focus(); toggleMobileControls(true); return; }
+            
             const selectedVersion = document.getElementById('modelValue').value;
             const [w, h] = els.resolution.value.split(',').map(Number);
             const adminToken = localStorage.getItem('nai_admin_token') || "";
+            const userKey = localStorage.getItem('nai_user_key') || "";
             const isAdmin = !!adminToken;
             
-            // 批量检测
             let batchTotal = 1;
             if (isAdmin && els.batchCount) {
                 batchTotal = parseInt(els.batchCount.value) || 1;
             }
-
+            
             if (currentRightView !== 'preview') switchRightView('preview');
             toggleMobileControls(false); 
 
-            // 循环执行
             for (let i = 0; i < batchTotal; i++) {
-                // 如果是批量，更新状态文字
                 const statusText = batchTotal > 1 ? `生成中 (${i+1}/${batchTotal})` : "生成中...";
                 setLoading(true, statusText);
 
@@ -611,26 +605,56 @@
                         scale: parseFloat(els.scale.value),
                         sampler: els.sampler.value
                     };
+                    
                     const res = await fetch('/generate', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'x-admin-token': adminToken,
+                            'x-user-key': userKey 
+                        },
                         body: JSON.stringify(payload)
                     });
-                    const data = await res.json();
-                    if (!res.ok || data.error) throw new Error(data.error || `Server Error: ${res.status}`);
+
+                    // 错误处理
+                    const contentType = res.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        const errData = await res.json();
+                        throw new Error(errData.error || `Server Error: ${res.status}`);
+                    }
+                    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+
+                    // 获取并显示剩余点数 (从后端 Header 中读取)
+                    const userRole = res.headers.get("X-User-Role");
+                    if (userRole) updateCreditDisplay(userRole);
+
+                    const blob = await res.blob();
+                    const zip = await JSZip.loadAsync(blob);
+                    let imgFile = null;
+                    zip.forEach((relativePath, file) => {
+                        if (relativePath.endsWith('.png')) imgFile = file;
+                    });
+                    
+                    if (!imgFile) throw new Error("ZIP 中未找到图片");
+                    
+                    const imgBlob = await imgFile.async("blob");
+                    const imgUrl = URL.createObjectURL(imgBlob);
                     
                     const tempImg = new Image();
-                    tempImg.src = data.image;
-                    
-                    // 等待图片加载完成再继续下一次循环（简单串行）
+                    tempImg.src = imgUrl;
                     await new Promise(resolve => {
                         tempImg.onload = () => {
-                            els.resultImg.src = data.image;
+                            els.resultImg.src = imgUrl;
                             els.placeholder.classList.add('hidden');
                             els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
                             els.dlBtn.disabled = false;
                             els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                            saveToHistory(data.image, promptText, selectedVersion);
+                            // 转Base64存历史
+                            const reader = new FileReader();
+                            reader.readAsDataURL(imgBlob);
+                            reader.onloadend = () => {
+                                 saveToHistory(reader.result, promptText, selectedVersion);
+                            }
                             resolve();
                         };
                     });
@@ -638,10 +662,11 @@
                 } catch (err) {
                     console.error(err);
                     setLoading(false);
-                    toggleMobileControls(true); 
-                    if (err.message.includes('429')) alert("⚠️ 今日额度已用完");
+                    toggleMobileControls(true);
+                    if (err.message.includes('429')) alert("⚠️ 额度已耗尽");
+                    else if (err.message.includes('402')) alert("余额不足，请充值");
                     else alert("生成失败: " + err.message);
-                    break; // 出错停止循环
+                    break;
                 }
             }
             setLoading(false);
@@ -670,11 +695,11 @@
         };
         initDB();
 
-        function saveToHistory(imgBase64, prompt, model) {
+        function saveToHistory(imgData, prompt, model) {
             if (!db) return;
-            db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).add({ image: imgBase64, prompt, model, date: Date.now() }).onsuccess = (e) => {
+            db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).add({ image: imgData, prompt, model, date: Date.now() }).onsuccess = (e) => {
                 currentImageId = e.target.result;
-                currentImageData = { image: imgBase64, prompt, model };
+                currentImageData = { image: imgData, prompt, model };
                 showImageActions(true);
                 loadGallery();
             };
@@ -821,7 +846,7 @@
             });
         };
 
-        // --- 主题与管理员 ---
+        // --- 主题/鉴权 ---
         function initTheme() {
             if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.classList.add('dark');
@@ -844,9 +869,18 @@
                 checkAdminStatus();
             }
         }
+        function enterUserKey() {
+            const cur = localStorage.getItem('nai_user_key');
+            const t = prompt(cur ? "清空以注销卡密" : "请输入您的 VIP 卡密 (例: vip_12345)");
+            if (t !== null) {
+                if (!t.trim()) localStorage.removeItem('nai_user_key');
+                else localStorage.setItem('nai_user_key', t.trim());
+                // 这里其实可以不alert，而是静默保存
+            }
+        }
         function checkAdminStatus() {
             const t = localStorage.getItem('nai_admin_token');
-            const setLock = (btn) => {
+            const updateLock = (btn) => {
                 if(t) {
                     btn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
                     els.adminControls.classList.remove('hidden');
@@ -855,8 +889,8 @@
                     els.adminControls.classList.add('hidden');
                 }
             };
-            if(els.adminLockBtn) setLock(els.adminLockBtn);
-            if(els.adminLockBtnMobile) setLock(els.adminLockBtnMobile);
+            if(els.adminLockBtn) updateLock(els.adminLockBtn);
+            if(els.adminLockBtnMobile) updateLock(els.adminLockBtnMobile);
             lucide.createIcons();
         }
         checkAdminStatus();
