@@ -665,7 +665,7 @@
                     setLoading(false);
                     toggleMobileControls(true);
                     if (err.message.includes('429')) alert("⚠️ 并发生成，请稍候重试");
-                    else if (err.message.includes('402')) alert("后端账号已封禁");
+                    else if (err.message.includes('403')) alert("后端账号已封禁");
                     else alert("生成失败: " + err.message);
                     break;
                 }
