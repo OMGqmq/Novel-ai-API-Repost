@@ -127,7 +127,7 @@ export async function onRequest(context) {
       payload = {
         input: prompt,
         model: "nai-diffusion-4-5-full",
-        action: "generate",
+        action: data.image ? "img2img" : "generate",
         parameters: {
           params_version: 3,
           width: width, height: height, scale: data.scale, sampler: data.sampler, steps: steps, seed: seed,
@@ -143,13 +143,20 @@ export async function onRequest(context) {
       payload = {
         input: prompt,
         model: "nai-diffusion-3",
-        action: "generate",
+        action: data.image ? "img2img" : "generate",
         undesiredContent: negative_prompt, 
         parameters: {
           width: width, height: height, scale: data.scale, sampler: data.sampler, steps: steps, seed: seed,
           n_samples: 1, sm: true, sm_dyn: true, qualityToggle: true, ucPreset: 0
         }
       };
+    }
+
+    if (data.image) {
+      payload.parameters.image = data.image;
+      payload.parameters.strength = parseFloat(data.strength) || 0.5;
+      payload.parameters.noise = parseFloat(data.noise) || 0;
+      payload.parameters.extra_noise_seed = seed;
     }
 
     // 请求 NovelAI
