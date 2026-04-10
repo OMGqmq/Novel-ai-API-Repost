@@ -1163,7 +1163,6 @@
         };
 
         // --- 展示图库 (Showcase) ---
-        const SHOWCASE_CDN = 'https://images.omgqmq.xyz/images/nai_images';
         let showcaseData = [];
         let currentGalleryTab = 'showcase';
         fetch('gallery_index.json').then(r => r.json()).then(d => {
@@ -1212,7 +1211,7 @@
                 const img = document.createElement('img');
                 img.className = 'w-full h-full object-cover';
                 img.loading = 'lazy';
-                img.src = `${SHOWCASE_CDN}/${item.id}.png`;
+                img.src = `images/${item.id}.png`;
                 img.alt = '';
                 el.appendChild(img);
                 el.onclick = () => loadPreviewFromShowcase(item);
@@ -1222,7 +1221,7 @@
 
         function loadPreviewFromShowcase(item) {
             switchRightView('preview');
-            els.resultImg.src = `${SHOWCASE_CDN}/${item.id}.png`;
+            els.resultImg.src = `images/${item.id}.png`;
             els.placeholder.classList.add('hidden');
             els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
             els.dlBtn.disabled = false;
