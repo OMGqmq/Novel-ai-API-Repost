@@ -1163,9 +1163,17 @@
         };
 
         // --- 展示图库 (Showcase) ---
+        const SHOWCASE_CDN = 'https://images.omgqmq.xyz';
         let showcaseData = [];
         let currentGalleryTab = 'showcase';
-        fetch('gallery_index.json').then(r => r.json()).then(d => { showcaseData = d; renderShowcase(); }).catch(() => { });
+        fetch('gallery_index.json').then(r => r.json()).then(d => {
+            showcaseData = d;
+            // 数据就绪后，若当前在展示 tab 且 grid 为空则立即渲染
+            const grid = document.getElementById('showcaseGrid');
+            if (currentGalleryTab === 'showcase' && grid && grid.children.length === 0) {
+                renderShowcase();
+            }
+        }).catch(() => { });
 
         function switchGalleryTab(tab) {
             currentGalleryTab = tab;
@@ -1182,6 +1190,7 @@
                 els.emptyGallery.classList.add('hidden');
                 els.zipBtn.classList.add('hidden');
                 els.clearBtn.classList.add('hidden');
+                if (showcaseGrid.children.length === 0) renderShowcase();
             } else {
                 tabShowcase.className = inactiveClass;
                 tabHistory.className = activeClass;
@@ -1203,7 +1212,7 @@
                 const img = document.createElement('img');
                 img.className = 'w-full h-full object-cover';
                 img.loading = 'lazy';
-                img.src = `images/${item.id}.png`;
+                img.src = `${SHOWCASE_CDN}/${item.id}.png`;
                 img.alt = '';
                 el.appendChild(img);
                 el.onclick = () => loadPreviewFromShowcase(item);
@@ -1213,7 +1222,7 @@
 
         function loadPreviewFromShowcase(item) {
             switchRightView('preview');
-            els.resultImg.src = `images/${item.id}.png`;
+            els.resultImg.src = `${SHOWCASE_CDN}/${item.id}.png`;
             els.placeholder.classList.add('hidden');
             els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
             els.dlBtn.disabled = false;
