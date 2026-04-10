@@ -1,0 +1,81 @@
+{
+  "Description": "-1::sweat::,-2::flat_color::, -1::artist collaboration::, 0.8::feipin_zhanshi(year 2025)::, 1.2::sincos(year 2025)::,shikisokuzeku76,, 1girl, bespectacled, black ribbon, black shoes, blonde hair, blue cardigan, braid, brown-framed eyewear, cardigan, closed mouth, collared shirt, expressionless, full body, glasses, grey skirt, hair ribbon, loafers, long sleeves, looking at viewer, loose socks, low twin braids, miniskirt, pleated skirt, ribbed cardigan, ribbon, shadow, shirt, shoes, simple background, skirt, socks, solo, squatting, twin braids, white background, white socks, yellow eyes",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.3715663701295853e-05",
+  "Comment": {
+    "prompt": "-1::sweat::,-2::flat_color::, -1::artist collaboration::, 0.8::feipin_zhanshi(year 2025)::, 1.2::sincos(year 2025)::,shikisokuzeku76,, 1girl, bespectacled, black ribbon, black shoes, blonde hair, blue cardigan, braid, brown-framed eyewear, cardigan, closed mouth, collared shirt, expressionless, full body, glasses, grey skirt, hair ribbon, loafers, long sleeves, looking at viewer, loose socks, low twin braids, miniskirt, pleated skirt, ribbed cardigan, ribbon, shadow, shirt, shoes, simple background, skirt, socks, solo, squatting, twin braids, white background, white socks, yellow eyes",
+    "steps": 28,
+    "height": 1152,
+    "width": 896,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 822046543,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "-1::sweat::,-2::flat_color::, -1::artist collaboration::, 0.8::feipin_zhanshi(year 2025)::, 1.2::sincos(year 2025)::,shikisokuzeku76,, 1girl, bespectacled, black ribbon, black shoes, blonde hair, blue cardigan, braid, brown-framed eyewear, cardigan, closed mouth, collared shirt, expressionless, full body, glasses, grey skirt, hair ribbon, loafers, long sleeves, looking at viewer, loose socks, low twin braids, miniskirt, pleated skirt, ribbed cardigan, ribbon, shadow, shirt, shoes, simple background, skirt, socks, solo, squatting, twin braids, white background, white socks, yellow eyes",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "nsfw, lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, multiple views, very displeasing, too many watermarks, negative space, blank page, blurry, lowres, error, low quality, worst quality, bad quality, scan artifacts, very displeasing, chromatic aberration, logo, too many watermarks, white blank page, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, signature, watermark, username, extra arms, halftone background, halftone, film grain,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "nsfw, lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, multiple views, very displeasing, too many watermarks, negative space, blank page, blurry, lowres, error, low quality, worst quality, bad quality, scan artifacts, very displeasing, chromatic aberration, logo, too many watermarks, white blank page, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, signature, watermark, username, extra arms, halftone background, halftone, film grain,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "wJYAo3jer+J+D1PBm/9OmmZtw00JswW02OAMrGzbzDANOtMxRhYt+0XzjjK+RqWvEypsPfKG0kN6CVvhS7i6Bw=="
+  },
+  "Style": "-1::sweat::,-2::flat_color::, -1::artist collaboration::, 0.8::feipin_zhanshi(year 2025)::, 1.2::sincos(year 2025)::,shikisokuzeku76,"
+}

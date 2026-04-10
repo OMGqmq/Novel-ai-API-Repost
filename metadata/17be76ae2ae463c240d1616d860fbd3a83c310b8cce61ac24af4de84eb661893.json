@@ -1,0 +1,81 @@
+{
+  "Description": "nsfw,1.4::yasojima_nejiro::,onedoo,teddypocky,dishwasher1910,ciloranko,huade xiami,year 2024,, 1girl, aqua eyes, aqua hair, aqua nails, aqua necktie, bare shoulders, belt, black boots, black skirt, black sleeves, black thighhighs, boots, closed mouth, detached sleeves, fingernails, grey shirt, hair ornament, heart, heart hair ornament, high heel boots, high heels, holding, holding own hair, long hair, looking at viewer, midriff peek, miniskirt, nail polish, necktie, number tattoo, one eye closed, open mouth, piano print, pleated skirt, ringed eyes, shirt, shoulder tattoo, skirt, sleeveless, sleeveless shirt, sleeves past wrists, solo, stomach, striped clothes, striped shirt, tattoo, thighhighs, twintails, vertical-striped clothes, vertical-striped shirt, very long hair, zipper footwear",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.689473330974579e-05",
+  "Comment": {
+    "prompt": "nsfw,1.4::yasojima_nejiro::,onedoo,teddypocky,dishwasher1910,ciloranko,huade xiami,year 2024,, 1girl, aqua eyes, aqua hair, aqua nails, aqua necktie, bare shoulders, belt, black boots, black skirt, black sleeves, black thighhighs, boots, closed mouth, detached sleeves, fingernails, grey shirt, hair ornament, heart, heart hair ornament, high heel boots, high heels, holding, holding own hair, long hair, looking at viewer, midriff peek, miniskirt, nail polish, necktie, number tattoo, one eye closed, open mouth, piano print, pleated skirt, ringed eyes, shirt, shoulder tattoo, skirt, sleeveless, sleeveless shirt, sleeves past wrists, solo, stomach, striped clothes, striped shirt, tattoo, thighhighs, twintails, vertical-striped clothes, vertical-striped shirt, very long hair, zipper footwear",
+    "steps": 28,
+    "height": 1152,
+    "width": 896,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 401024465,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "nsfw,1.4::yasojima_nejiro::,onedoo,teddypocky,dishwasher1910,ciloranko,huade xiami,year 2024,, 1girl, aqua eyes, aqua hair, aqua nails, aqua necktie, bare shoulders, belt, black boots, black skirt, black sleeves, black thighhighs, boots, closed mouth, detached sleeves, fingernails, grey shirt, hair ornament, heart, heart hair ornament, high heel boots, high heels, holding, holding own hair, long hair, looking at viewer, midriff peek, miniskirt, nail polish, necktie, number tattoo, one eye closed, open mouth, piano print, pleated skirt, ringed eyes, shirt, shoulder tattoo, skirt, sleeveless, sleeveless shirt, sleeves past wrists, solo, stomach, striped clothes, striped shirt, tattoo, thighhighs, twintails, vertical-striped clothes, vertical-striped shirt, very long hair, zipper footwear",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, {{{extra digits}}},anatomical nonsense,bad feet,bad hands,poorly drawn,worst quality,low quality,normal quality,{{weibo_username}},weibo, mismatched pupils, weibo logo,weibo watermark, artist name,bad anatomy,unclear face,bad hands,extra fingers,bad feet,wrong foot,wrong hand,bad leg,bad feetfingers,bad proportions,too many hands,too many fingers, error, missing fingers,extra digit, fewer digits, cropped, worst quality, low quality, normal quality,{{{{{animal, dool,chibi}}}}}, {{Many legs}},{{three legs}},{Many arms},{three arms},mutated hands,poorly drawn hands,strange fingers,bad feet,extra toes,extra digit,fewer digits,extra limbs,malformed limbs,long neck,cross-eyed,poorly drawn face,mutation,deformed,ugly,duplicate,morbid,mutilated,unfinished,chromatic aberration, error",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, {{{extra digits}}},anatomical nonsense,bad feet,bad hands,poorly drawn,worst quality,low quality,normal quality,{{weibo_username}},weibo, mismatched pupils, weibo logo,weibo watermark, artist name,bad anatomy,unclear face,bad hands,extra fingers,bad feet,wrong foot,wrong hand,bad leg,bad feetfingers,bad proportions,too many hands,too many fingers, error, missing fingers,extra digit, fewer digits, cropped, worst quality, low quality, normal quality,{{{{{animal, dool,chibi}}}}}, {{Many legs}},{{three legs}},{Many arms},{three arms},mutated hands,poorly drawn hands,strange fingers,bad feet,extra toes,extra digit,fewer digits,extra limbs,malformed limbs,long neck,cross-eyed,poorly drawn face,mutation,deformed,ugly,duplicate,morbid,mutilated,unfinished,chromatic aberration, error",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "7vRbBedZZegxs53fuWSylvaJ2L1WPnHD/QXiGS8XuM+XqDv3W93otaMv13mEtLdrV8AKigz+XtFcq6++ywFeBQ=="
+  },
+  "Style": "nsfw,1.4::yasojima_nejiro::,onedoo,teddypocky,dishwasher1910,ciloranko,huade xiami,year 2024,"
+}

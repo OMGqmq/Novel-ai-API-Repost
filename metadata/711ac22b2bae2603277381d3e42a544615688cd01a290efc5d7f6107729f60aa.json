@@ -1,0 +1,81 @@
+{
+  "Description": "3::artist:yunsang,azur lane,official art::,[[meion,xiujia yihuizi]],0.4::samart,dishwasher1910,as109,kuse (0201)::,{impasto},year 2025,-1.5::artist collaboration,mingyin meion (vtuber),nostrils,::,-2::copyright notice,comic,watermark,skin color difference,different skin color,colored skin,pov,pov hands,ship turret,rigging,::,{{perfect hands,perfect fingers,detailed hands,shiny skin}},, 2::pale skin::, 1girl, arched back, armpit crease, arms under breasts, artist name, bare arms, bare shoulders, blue bra, blue panties, blush, bra, breasts, cleavage, closed mouth, collarbone, crossed arms, foot out of frame, from above, hair between eyes, indoors, large breasts, light particles, looking at viewer, looking up, navel, on bed, page number, panties, pink eyes, shiny skin, short hair, solo, stuffed animal, stuffed penguin, stuffed toy, sweatdrop, underwear, underwear only, upturned eyes, white hair",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.058696165680885e-05",
+  "Comment": {
+    "prompt": "3::artist:yunsang,azur lane,official art::,[[meion,xiujia yihuizi]],0.4::samart,dishwasher1910,as109,kuse (0201)::,{impasto},year 2025,-1.5::artist collaboration,mingyin meion (vtuber),nostrils,::,-2::copyright notice,comic,watermark,skin color difference,different skin color,colored skin,pov,pov hands,ship turret,rigging,::,{{perfect hands,perfect fingers,detailed hands,shiny skin}},, 2::pale skin::, 1girl, arched back, armpit crease, arms under breasts, artist name, bare arms, bare shoulders, blue bra, blue panties, blush, bra, breasts, cleavage, closed mouth, collarbone, crossed arms, foot out of frame, from above, hair between eyes, indoors, large breasts, light particles, looking at viewer, looking up, navel, on bed, page number, panties, pink eyes, shiny skin, short hair, solo, stuffed animal, stuffed penguin, stuffed toy, sweatdrop, underwear, underwear only, upturned eyes, white hair",
+    "steps": 28,
+    "height": 832,
+    "width": 1216,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 682229487,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "3::artist:yunsang,azur lane,official art::,[[meion,xiujia yihuizi]],0.4::samart,dishwasher1910,as109,kuse (0201)::,{impasto},year 2025,-1.5::artist collaboration,mingyin meion (vtuber),nostrils,::,-2::copyright notice,comic,watermark,skin color difference,different skin color,colored skin,pov,pov hands,ship turret,rigging,::,{{perfect hands,perfect fingers,detailed hands,shiny skin}},, 2::pale skin::, 1girl, arched back, armpit crease, arms under breasts, artist name, bare arms, bare shoulders, blue bra, blue panties, blush, bra, breasts, cleavage, closed mouth, collarbone, crossed arms, foot out of frame, from above, hair between eyes, indoors, large breasts, light particles, looking at viewer, looking up, navel, on bed, page number, panties, pink eyes, shiny skin, short hair, solo, stuffed animal, stuffed penguin, stuffed toy, sweatdrop, underwear, underwear only, upturned eyes, white hair",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "{{ai-generated,ai-assisted}},anime screencap,, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, {monochrome},nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality,bad hands,bad feet, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, ponytail,{{multiple_girls,chibi,watermark,signature}},monochrome,{{censored,mosaic_censoring}},lowres,{bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "{{ai-generated,ai-assisted}},anime screencap,, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, {monochrome},nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality,bad hands,bad feet, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, ponytail,{{multiple_girls,chibi,watermark,signature}},monochrome,{{censored,mosaic_censoring}},lowres,{bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "fHygAiKyZ/nbQTJ3gSPk86XaLGMStsNW1RUNCOL/3RgzExGrL/zI7PY0FdDYVf5l74948Eapu0DKnTmar8FZDg=="
+  },
+  "Style": "3::artist:yunsang,azur lane,official art::,[[meion,xiujia yihuizi]],0.4::samart,dishwasher1910,as109,kuse (0201)::,{impasto},year 2025,-1.5::artist collaboration,mingyin meion (vtuber),nostrils,::,-2::copyright notice,comic,watermark,skin color difference,different skin color,colored skin,pov,pov hands,ship turret,rigging,::,{{perfect hands,perfect fingers,detailed hands,shiny skin}},, 2::pale skin::"
+}

@@ -1,0 +1,81 @@
+{
+  "Description": "1.2::arato_asato, 0.6::eonsang ::, 1.2::freng ::, , 0.9::artist:ahemaru ::, 1::artist:channel (caststation) ::，，0.6::ratatatat74,::,terasu_mc,2::mo_(kireinamo):: ,2.5::ie (raarami)::, , netorare, year 2025, year 2024,-3::simple illustration ::, -6.0::artist collaboration ::,, 1girl, black skirt, black thighhighs, blue eyes, blue hair, blue nails, earphones, flower, long hair, nail polish, necktie, one eye closed, simple background, skirt, solo, standing, thighhighs, twintails, white background, white flower",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.979906275868416e-05",
+  "Comment": {
+    "prompt": "1.2::arato_asato, 0.6::eonsang ::, 1.2::freng ::, , 0.9::artist:ahemaru ::, 1::artist:channel (caststation) ::，，0.6::ratatatat74,::,terasu_mc,2::mo_(kireinamo):: ,2.5::ie (raarami)::, , netorare, year 2025, year 2024,-3::simple illustration ::, -6.0::artist collaboration ::,, 1girl, black skirt, black thighhighs, blue eyes, blue hair, blue nails, earphones, flower, long hair, nail polish, necktie, one eye closed, simple background, skirt, solo, standing, thighhighs, twintails, white background, white flower",
+    "steps": 28,
+    "height": 960,
+    "width": 1088,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 629328041,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "1.2::arato_asato, 0.6::eonsang ::, 1.2::freng ::, , 0.9::artist:ahemaru ::, 1::artist:channel (caststation) ::，，0.6::ratatatat74,::,terasu_mc,2::mo_(kireinamo):: ,2.5::ie (raarami)::, , netorare, year 2025, year 2024,-3::simple illustration ::, -6.0::artist collaboration ::,, 1girl, black skirt, black thighhighs, blue eyes, blue hair, blue nails, earphones, flower, long hair, nail polish, necktie, one eye closed, simple background, skirt, solo, standing, thighhighs, twintails, white background, white flower",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": ",lowres,bad anatomy,bad hands, text, error, missing fingers,extra digit, fewer digits, cropped, worstquality, low quality, normal quality,jpegartifacts,signature, watermark, username,blurry,bad feet,cropped,poorly drawn hands,poorly drawn face,mutation,deformed,worst quality,low quality,normal quality,jpeg artifacts,signature,watermark,extra fingers,fewer digits,extra limbs,extra arms,extra legs,malformed limbs,fused fingers,too many fingers,long neck,cross-eyed,mutated hands,polar lowres,bad body,bad proportions,gross proportions,text,error,missing fingers,missing arms,missing legs,extra digit,garter straps",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": ",lowres,bad anatomy,bad hands, text, error, missing fingers,extra digit, fewer digits, cropped, worstquality, low quality, normal quality,jpegartifacts,signature, watermark, username,blurry,bad feet,cropped,poorly drawn hands,poorly drawn face,mutation,deformed,worst quality,low quality,normal quality,jpeg artifacts,signature,watermark,extra fingers,fewer digits,extra limbs,extra arms,extra legs,malformed limbs,fused fingers,too many fingers,long neck,cross-eyed,mutated hands,polar lowres,bad body,bad proportions,gross proportions,text,error,missing fingers,missing arms,missing legs,extra digit,garter straps",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "meDXkppMnZFfuTmul94KjHL2ndqylJTqomslIc/oNkzZ3G4GDpo+rWj5775fCtm5AaOf4Ybx8OgkpllQtOZGBQ=="
+  },
+  "Style": "1.2::arato_asato, 0.6::eonsang ::, 1.2::freng ::, , 0.9::artist:ahemaru ::, 1::artist:channel (caststation) ::，，0.6::ratatatat74,::,terasu_mc,2::mo_(kireinamo):: ,2.5::ie (raarami)::, , netorare, year 2025, year 2024,-3::simple illustration ::, -6.0::artist collaboration ::,"
+}

@@ -1,0 +1,81 @@
+{
+  "Description": "artist:rella 0.6::artist:nineo:: 1.4::artist:starshadowmagician:: -2::artist collaboration::,, 1girl, ahoge, black jacket, black necktie, black shoes, black skirt, bolt action, cheytac m200, closed mouth, collared shirt, full body, grey hair, gun, hair between eyes, holding, holding gun, holding weapon, jacket, long hair, long sleeves, looking at viewer, necktie, purple eyes, rifle, shirt, shoes, sitting, skirt, sniper rifle, solo, weapon, white shirt",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.805609256029129e-05",
+  "Comment": {
+    "prompt": "artist:rella 0.6::artist:nineo:: 1.4::artist:starshadowmagician:: -2::artist collaboration::,, 1girl, ahoge, black jacket, black necktie, black shoes, black skirt, bolt action, cheytac m200, closed mouth, collared shirt, full body, grey hair, gun, hair between eyes, holding, holding gun, holding weapon, jacket, long hair, long sleeves, looking at viewer, necktie, purple eyes, rifle, shirt, shoes, sitting, skirt, sniper rifle, solo, weapon, white shirt",
+    "steps": 28,
+    "height": 896,
+    "width": 1152,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 591843452,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "artist:rella 0.6::artist:nineo:: 1.4::artist:starshadowmagician:: -2::artist collaboration::,, 1girl, ahoge, black jacket, black necktie, black shoes, black skirt, bolt action, cheytac m200, closed mouth, collared shirt, full body, grey hair, gun, hair between eyes, holding, holding gun, holding weapon, jacket, long hair, long sleeves, looking at viewer, necktie, purple eyes, rifle, shirt, shoes, sitting, skirt, sniper rifle, solo, weapon, white shirt",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, 3::text,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, 3::text,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "yckjAKXx2J44ZiNjnYzazWvAVd4PPl11uqduPO67vUBhZ/WFHIRzInTrBRegX+Fntpx9foT06l5R+leXyEC8AA=="
+  },
+  "Style": "artist:rella 0.6::artist:nineo:: 1.4::artist:starshadowmagician:: -2::artist collaboration::,"
+}

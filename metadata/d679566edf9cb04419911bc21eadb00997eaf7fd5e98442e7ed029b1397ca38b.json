@@ -1,0 +1,81 @@
+{
+  "Description": "1.8::artist:suujiniku::,2.3::artist:nineo::,1.8::artist:gujianshaonu::,1.4::artist:yyb::,0.8::artist:tansuan_(ensj3875)::,0.8::artist:iumu::,:0.8::artist:binggong_asylum::,0.8::artist:kincora::,0.9::artist:ashima_(roro046)::,1.1::artist:izuru_(timbermetal)::,1.7::artist:liduke::,0.8::artist:kaneni ::, 0.7::artist:nagu::,1.5::esukee::,1.25::artist:kumatangent::,1.3::artist:omone_hokoma_agm::,0.8::artist:makoron117117 ::,0.9::artist:nekodayo22 ::,1.6::artist:lal!role::,1::artist:yuyumu::,1.2::artist:novelance::,year_2025,year_2024,, bed, blue eyes, breasts, from above, sleepy",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.050919622182846e-05",
+  "Comment": {
+    "prompt": "1.8::artist:suujiniku::,2.3::artist:nineo::,1.8::artist:gujianshaonu::,1.4::artist:yyb::,0.8::artist:tansuan_(ensj3875)::,0.8::artist:iumu::,:0.8::artist:binggong_asylum::,0.8::artist:kincora::,0.9::artist:ashima_(roro046)::,1.1::artist:izuru_(timbermetal)::,1.7::artist:liduke::,0.8::artist:kaneni ::, 0.7::artist:nagu::,1.5::esukee::,1.25::artist:kumatangent::,1.3::artist:omone_hokoma_agm::,0.8::artist:makoron117117 ::,0.9::artist:nekodayo22 ::,1.6::artist:lal!role::,1::artist:yuyumu::,1.2::artist:novelance::,year_2025,year_2024,, bed, blue eyes, breasts, from above, sleepy",
+    "steps": 28,
+    "height": 832,
+    "width": 1216,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 189493165,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "1.8::artist:suujiniku::,2.3::artist:nineo::,1.8::artist:gujianshaonu::,1.4::artist:yyb::,0.8::artist:tansuan_(ensj3875)::,0.8::artist:iumu::,:0.8::artist:binggong_asylum::,0.8::artist:kincora::,0.9::artist:ashima_(roro046)::,1.1::artist:izuru_(timbermetal)::,1.7::artist:liduke::,0.8::artist:kaneni ::, 0.7::artist:nagu::,1.5::esukee::,1.25::artist:kumatangent::,1.3::artist:omone_hokoma_agm::,0.8::artist:makoron117117 ::,0.9::artist:nekodayo22 ::,1.6::artist:lal!role::,1::artist:yuyumu::,1.2::artist:novelance::,year_2025,year_2024,, bed, blue eyes, breasts, from above, sleepy",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, blurry, lowres, upscaled, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, negative space, blank page, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, film grain, scan artifacts, very displeasing, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, missing fingers, cropped, bad feet, 1.4::bad anatomy::, 1.4::bad hands::, old, early, blurry, 1.4::bad proportions::, lowres, bad, error, fewer, extra arms, extra legs, missing arms, missing legs, worst quality, jpeg artifacts, bad quality, distortion, watermark, displeasing, chromatic aberration, signature, 1.4::extra digits::, artistic error, username, scan, interlocked fingers, abstract, monochrome, text, 1.2::multiple views::, bad perspective, disconnected limbs, doll, chibi, chibi only, 1.2::upside-down::, 1.2::stuffed toy::, zoom layer, weapon, 2::holding weapon::,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, blurry, lowres, upscaled, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, negative space, blank page, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, film grain, scan artifacts, very displeasing, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, missing fingers, cropped, bad feet, 1.4::bad anatomy::, 1.4::bad hands::, old, early, blurry, 1.4::bad proportions::, lowres, bad, error, fewer, extra arms, extra legs, missing arms, missing legs, worst quality, jpeg artifacts, bad quality, distortion, watermark, displeasing, chromatic aberration, signature, 1.4::extra digits::, artistic error, username, scan, interlocked fingers, abstract, monochrome, text, 1.2::multiple views::, bad perspective, disconnected limbs, doll, chibi, chibi only, 1.2::upside-down::, 1.2::stuffed toy::, zoom layer, weapon, 2::holding weapon::,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "dBNXJl2zsdi7Ti2/3FbO9MAxDDcsBm94uX7p9RFtmLyOB7JdUcH0lsZ7mxj/bNoqA72TL7mxkodJ3Mu/6KyCBA=="
+  },
+  "Style": "1.8::artist:suujiniku::,2.3::artist:nineo::,1.8::artist:gujianshaonu::,1.4::artist:yyb::,0.8::artist:tansuan_(ensj3875)::,0.8::artist:iumu::,:0.8::artist:binggong_asylum::,0.8::artist:kincora::,0.9::artist:ashima_(roro046)::,1.1::artist:izuru_(timbermetal)::,1.7::artist:liduke::,0.8::artist:kaneni ::, 0.7::artist:nagu::,1.5::esukee::,1.25::artist:kumatangent::,1.3::artist:omone_hokoma_agm::,0.8::artist:makoron117117 ::,0.9::artist:nekodayo22 ::,1.6::artist:lal!role::,1::artist:yuyumu::,1.2::artist:novelance::,year_2025,year_2024,"
+}

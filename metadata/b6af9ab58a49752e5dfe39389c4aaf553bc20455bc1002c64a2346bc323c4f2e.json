@@ -1,0 +1,81 @@
+{
+  "Description": "collaboration,realistic face::, 1.3::artist:mingon,artist:Grande,artist:been::,artist:meion,artist:ningen_mame,1.4::artist:azuuru::,artist:misyune,artist:kedama milk,1.3::artist:torino aqua,artist:fuzichoco,artist:mana,artist:mogO-721,artist:ametoyuki,artist:atdan,artist:chen_bin,artist:orange maru(YD)::,artist:niro,artist:hito,artist:hiten,artist:g.river,,0.5::artist:wlop,plump:: year 2025,, 1boy, 1girl, air jordan 1, animal ear hairband, animal ears, bare shoulders, black hairband, blush, border, bra, breasts, brown hair, brown tail, cat ear hairband, cat ears, cat tail, changing clothes, changing room, collar, covering breasts, covering privates, detached collar, dutch angle, embarrassed, fake animal ears, fangs, from behind, full-length mirror, hairband, kittysuit, leotard, looking at viewer, mirror, mole, mole on breast, mole under eye, multiple animal ears, nike (company), nontraditional playboy bunny, open mouth, pink bra, pov, pov hands, red border, red eyes, red leotard, red shoes, reflection, shoes, short hair, small breasts, sneakers, socks, strapless, strapless leotard, surprised, tail, underwear, unworn bra, unworn shoes, unworn socks, walk-in, wardrobe malfunction, white collar, white socks, wing collar",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.398993819952011e-05",
+  "Comment": {
+    "prompt": "collaboration,realistic face::, 1.3::artist:mingon,artist:Grande,artist:been::,artist:meion,artist:ningen_mame,1.4::artist:azuuru::,artist:misyune,artist:kedama milk,1.3::artist:torino aqua,artist:fuzichoco,artist:mana,artist:mogO-721,artist:ametoyuki,artist:atdan,artist:chen_bin,artist:orange maru(YD)::,artist:niro,artist:hito,artist:hiten,artist:g.river,,0.5::artist:wlop,plump:: year 2025,, 1boy, 1girl, air jordan 1, animal ear hairband, animal ears, bare shoulders, black hairband, blush, border, bra, breasts, brown hair, brown tail, cat ear hairband, cat ears, cat tail, changing clothes, changing room, collar, covering breasts, covering privates, detached collar, dutch angle, embarrassed, fake animal ears, fangs, from behind, full-length mirror, hairband, kittysuit, leotard, looking at viewer, mirror, mole, mole on breast, mole under eye, multiple animal ears, nike (company), nontraditional playboy bunny, open mouth, pink bra, pov, pov hands, red border, red eyes, red leotard, red shoes, reflection, shoes, short hair, small breasts, sneakers, socks, strapless, strapless leotard, surprised, tail, underwear, unworn bra, unworn shoes, unworn socks, walk-in, wardrobe malfunction, white collar, white socks, wing collar",
+    "steps": 28,
+    "height": 1152,
+    "width": 896,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 624731968,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "collaboration,realistic face::, 1.3::artist:mingon,artist:Grande,artist:been::,artist:meion,artist:ningen_mame,1.4::artist:azuuru::,artist:misyune,artist:kedama milk,1.3::artist:torino aqua,artist:fuzichoco,artist:mana,artist:mogO-721,artist:ametoyuki,artist:atdan,artist:chen_bin,artist:orange maru(YD)::,artist:niro,artist:hito,artist:hiten,artist:g.river,,0.5::artist:wlop,plump:: year 2025,, 1boy, 1girl, air jordan 1, animal ear hairband, animal ears, bare shoulders, black hairband, blush, border, bra, breasts, brown hair, brown tail, cat ear hairband, cat ears, cat tail, changing clothes, changing room, collar, covering breasts, covering privates, detached collar, dutch angle, embarrassed, fake animal ears, fangs, from behind, full-length mirror, hairband, kittysuit, leotard, looking at viewer, mirror, mole, mole on breast, mole under eye, multiple animal ears, nike (company), nontraditional playboy bunny, open mouth, pink bra, pov, pov hands, red border, red eyes, red leotard, red shoes, reflection, shoes, short hair, small breasts, sneakers, socks, strapless, strapless leotard, surprised, tail, underwear, unworn bra, unworn shoes, unworn socks, walk-in, wardrobe malfunction, white collar, white socks, wing collar",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "ai-generated,ai-assisted,anime screencap,nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, {monochrome},nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality,bad hands,bad feet, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, ponytail,{{multiple_girls,chibi,watermark,signature}},monochrome,{{censored,mosaic_censoring}},lowres,{bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "ai-generated,ai-assisted,anime screencap,nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, {monochrome},nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality,bad hands,bad feet, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, ponytail,{{multiple_girls,chibi,watermark,signature}},monochrome,{{censored,mosaic_censoring}},lowres,{bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "/nHYrbwoZBxk0BkKnhe4ZfLo8+/Gag/LT3J5FUhCVoQqdhhUYqEAPEsYpiLiCqImWbJjSGBmETnUGUjmRMa3Cw=="
+  },
+  "Style": "collaboration,realistic face::, 1.3::artist:mingon,artist:Grande,artist:been::,artist:meion,artist:ningen_mame,1.4::artist:azuuru::,artist:misyune,artist:kedama milk,1.3::artist:torino aqua,artist:fuzichoco,artist:mana,artist:mogO-721,artist:ametoyuki,artist:atdan,artist:chen_bin,artist:orange maru(YD)::,artist:niro,artist:hito,artist:hiten,artist:g.river,,0.5::artist:wlop,plump:: year 2025,"
+}

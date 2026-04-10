@@ -1,0 +1,81 @@
+{
+  "Description": "3::official art::,1.5::artbook::,1.35::animation,animedia::,sakuga,v-ray,top rated,1.7::perfect anatomy::,abundant details,3::incredibly absurdres,best quality,highres::,1.4::3D render,4k wallpaper,game cg,Illustration::,Kyoto Animation,newest,(@dino \\(dinoartforame\\):1.0),@xzxhg,,highres,, 1girl, arm warmers, bandaid, bandaid hair ornament, black choker, black skirt, choker, fence, fur-trimmed skirt, fur trim, green eyes, green hair, green nails, hair ornament, leg warmers, looking at viewer, multicolored nails, multiple hair clips, necktie, open mouth, pink arm warmers, pink leg warmers, pink nails, ponytail, red necktie, shirt, simple background, skirt, solo, standing, striped arm warmers, striped leg warmers, triangle hair ornament, v, white background, white shirt",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.221670001745224e-05",
+  "Comment": {
+    "prompt": "3::official art::,1.5::artbook::,1.35::animation,animedia::,sakuga,v-ray,top rated,1.7::perfect anatomy::,abundant details,3::incredibly absurdres,best quality,highres::,1.4::3D render,4k wallpaper,game cg,Illustration::,Kyoto Animation,newest,(@dino \\(dinoartforame\\):1.0),@xzxhg,,highres,, 1girl, arm warmers, bandaid, bandaid hair ornament, black choker, black skirt, choker, fence, fur-trimmed skirt, fur trim, green eyes, green hair, green nails, hair ornament, leg warmers, looking at viewer, multicolored nails, multiple hair clips, necktie, open mouth, pink arm warmers, pink leg warmers, pink nails, ponytail, red necktie, shirt, simple background, skirt, solo, standing, striped arm warmers, striped leg warmers, triangle hair ornament, v, white background, white shirt",
+    "steps": 28,
+    "height": 1216,
+    "width": 832,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 930074086,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "3::official art::,1.5::artbook::,1.35::animation,animedia::,sakuga,v-ray,top rated,1.7::perfect anatomy::,abundant details,3::incredibly absurdres,best quality,highres::,1.4::3D render,4k wallpaper,game cg,Illustration::,Kyoto Animation,newest,(@dino \\(dinoartforame\\):1.0),@xzxhg,,highres,, 1girl, arm warmers, bandaid, bandaid hair ornament, black choker, black skirt, choker, fence, fur-trimmed skirt, fur trim, green eyes, green hair, green nails, hair ornament, leg warmers, looking at viewer, multicolored nails, multiple hair clips, necktie, open mouth, pink arm warmers, pink leg warmers, pink nails, ponytail, red necktie, shirt, simple background, skirt, solo, standing, striped arm warmers, striped leg warmers, triangle hair ornament, v, white background, white shirt",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "ai-generate, 1.5::lowres, low definition, low quality, worst quality, normal quality, low contrast, extra, missing, poor, fewer, poor quality::, 1.2::noise, grainy, jpeg artifacts, artistic error::, cropped, old school,unnatural, bad blending, bad photoshop, out of frame, border, frame, letterbox, bad composition, messy background, simple background, chaotic scene, grid, screentone, scan artifacts, moire pattern, dithering, chromatic aberration, glitch, artifacts, gradient mask, sticker, cutout, collage, photomontage, composite, floating, split view, multiple panels, flat color, flat shading, 1.3::bad anatomy, deformed, grotesque, mutilated, duplicate, cloned face, Imperfect eyes, unclear eyes, cross-eyed, abnormal structure, clipping, fused, penetrating, displeasing::, 1.5::bad hands, wrong hand, bad feet, wrong foot, bad proportions, extra limbs, missing limbs, fused limbs, too many fingers, missing fingers, fused fingers, digit fusion, unclear fingers,inaccurate limb, floating limbs, missing fingers::, 4::text, signature, watermark, user name, logo, copyright name::, bad lighting, harsh lighting, light shadow, rim lighting, overexposed, sunburst, bloom, error shadow, bloom, lens flare, faded, bright lights, blown-out highlights, excessive lighting, 2::upscaled, blurry::, 1.5::bestiality, yaoi, futa, futanari, tranny, penis on female, ambiguous genitalia, female have penises, female have testicles, female with penis, female presenting penis, female with male genitals, enlarged clitoris, hermaphrodite, androgynous body::",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "ai-generate, 1.5::lowres, low definition, low quality, worst quality, normal quality, low contrast, extra, missing, poor, fewer, poor quality::, 1.2::noise, grainy, jpeg artifacts, artistic error::, cropped, old school,unnatural, bad blending, bad photoshop, out of frame, border, frame, letterbox, bad composition, messy background, simple background, chaotic scene, grid, screentone, scan artifacts, moire pattern, dithering, chromatic aberration, glitch, artifacts, gradient mask, sticker, cutout, collage, photomontage, composite, floating, split view, multiple panels, flat color, flat shading, 1.3::bad anatomy, deformed, grotesque, mutilated, duplicate, cloned face, Imperfect eyes, unclear eyes, cross-eyed, abnormal structure, clipping, fused, penetrating, displeasing::, 1.5::bad hands, wrong hand, bad feet, wrong foot, bad proportions, extra limbs, missing limbs, fused limbs, too many fingers, missing fingers, fused fingers, digit fusion, unclear fingers,inaccurate limb, floating limbs, missing fingers::, 4::text, signature, watermark, user name, logo, copyright name::, bad lighting, harsh lighting, light shadow, rim lighting, overexposed, sunburst, bloom, error shadow, bloom, lens flare, faded, bright lights, blown-out highlights, excessive lighting, 2::upscaled, blurry::, 1.5::bestiality, yaoi, futa, futanari, tranny, penis on female, ambiguous genitalia, female have penises, female have testicles, female with penis, female presenting penis, female with male genitals, enlarged clitoris, hermaphrodite, androgynous body::",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "56L7r5yJTVCYpowJHgeiSEv8uTC+LNgKYjtuSVXgmyzWsIrp52KiIDb4FXm90ZseBAz5FB5Fllod2EqvvzW1Ag=="
+  },
+  "Style": "3::official art::,1.5::artbook::,1.35::animation,animedia::,sakuga,v-ray,top rated,1.7::perfect anatomy::,abundant details,3::incredibly absurdres,best quality,highres::,1.4::3D render,4k wallpaper,game cg,Illustration::,Kyoto Animation,newest,(@dino \\(dinoartforame\\):1.0),@xzxhg,,highres,"
+}

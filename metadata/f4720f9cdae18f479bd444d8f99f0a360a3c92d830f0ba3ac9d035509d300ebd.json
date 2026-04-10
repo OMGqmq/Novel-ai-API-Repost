@@ -1,0 +1,81 @@
+{
+  "Description": "{1.75::yu_lei}, {1.55::kyariko}, {1.25::dishwasher1910}, {1.2::misaka_12003-gou, lexaiduer, kakumayu}, {1.15::rebun}, {1.1::kim_hyungtae, qiandaiyiyu, polki}, {1.0::ulrich_(tagaragakuin), wlop, xe_(execut3r), piyopoyo, RioAkag, hisasi, pyon_Kti}, {0.9::fei(maidoll)}, {0.55::aoisakura(seak5545)}, 1girl, ahoge, animal ear headphones, animal ears, bag, black shoes, blue eyes, blue hair, blush, breasts, brown thighhighs, cat ear headphones, cat ears, cleavage, collar, cowboy shot, double-parted bangs, dress, fake animal ears, grey dress, headphones, large breasts, long hair, looking at viewer, parted lips, pink background, removing shoes, shoes, shoulder bag, side slit, smile, solo, standing, standing on one leg, thighhighs, virtual youtuber, white background, white bag, white collar",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.119511529803276e-05",
+  "Comment": {
+    "prompt": "{1.75::yu_lei}, {1.55::kyariko}, {1.25::dishwasher1910}, {1.2::misaka_12003-gou, lexaiduer, kakumayu}, {1.15::rebun}, {1.1::kim_hyungtae, qiandaiyiyu, polki}, {1.0::ulrich_(tagaragakuin), wlop, xe_(execut3r), piyopoyo, RioAkag, hisasi, pyon_Kti}, {0.9::fei(maidoll)}, {0.55::aoisakura(seak5545)}, 1girl, ahoge, animal ear headphones, animal ears, bag, black shoes, blue eyes, blue hair, blush, breasts, brown thighhighs, cat ear headphones, cat ears, cleavage, collar, cowboy shot, double-parted bangs, dress, fake animal ears, grey dress, headphones, large breasts, long hair, looking at viewer, parted lips, pink background, removing shoes, shoes, shoulder bag, side slit, smile, solo, standing, standing on one leg, thighhighs, virtual youtuber, white background, white bag, white collar",
+    "steps": 28,
+    "height": 1216,
+    "width": 832,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 765945653,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "{1.75::yu_lei}, {1.55::kyariko}, {1.25::dishwasher1910}, {1.2::misaka_12003-gou, lexaiduer, kakumayu}, {1.15::rebun}, {1.1::kim_hyungtae, qiandaiyiyu, polki}, {1.0::ulrich_(tagaragakuin), wlop, xe_(execut3r), piyopoyo, RioAkag, hisasi, pyon_Kti}, {0.9::fei(maidoll)}, {0.55::aoisakura(seak5545)}, 1girl, ahoge, animal ear headphones, animal ears, bag, black shoes, blue eyes, blue hair, blush, breasts, brown thighhighs, cat ear headphones, cat ears, cleavage, collar, cowboy shot, double-parted bangs, dress, fake animal ears, grey dress, headphones, large breasts, long hair, looking at viewer, parted lips, pink background, removing shoes, shoes, shoulder bag, side slit, smile, solo, standing, standing on one leg, thighhighs, virtual youtuber, white background, white bag, white collar",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy, blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, multiple views, too many watermarks, {{worst quality, bad quality}}, bad pupils, bad glabella, {{{{bad hands}}}}, {{{bad eyes}}}, {{{{{displeasing, very displeasing}}}}}, {{{{{bad anatomy, bad hands, missing finger, bad face, duplicate, mutation, deformed, disfigured, extra arms, extra legs, long neck, bad feet, bad proportions, missing}}}}}, {{{undetailed eyes}}}, bb (baalbuddy), bkub, gaoo (frpjx283), milkpanda, nameo (judgemasterkou), yuno385, pubic hair, fat, old, mature female, variant set, large variant set,simple illustration, downscaled, 2koma, multiple view, artist collaboration",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy, blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, multiple views, too many watermarks, {{worst quality, bad quality}}, bad pupils, bad glabella, {{{{bad hands}}}}, {{{bad eyes}}}, {{{{{displeasing, very displeasing}}}}}, {{{{{bad anatomy, bad hands, missing finger, bad face, duplicate, mutation, deformed, disfigured, extra arms, extra legs, long neck, bad feet, bad proportions, missing}}}}}, {{{undetailed eyes}}}, bb (baalbuddy), bkub, gaoo (frpjx283), milkpanda, nameo (judgemasterkou), yuno385, pubic hair, fat, old, mature female, variant set, large variant set,simple illustration, downscaled, 2koma, multiple view, artist collaboration",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "B80JZkU5+VaveGQsmSCe5TzBzzyb1kFYCxqTzrTg3EWbmqT+5so5DGVtFrUgvmDHqdzZYwemn7Mx6slcl8Q4Bw=="
+  },
+  "Style": "{1.75::yu_lei}, {1.55::kyariko}, {1.25::dishwasher1910}, {1.2::misaka_12003-gou, lexaiduer, kakumayu}, {1.15::rebun}, {1.1::kim_hyungtae, qiandaiyiyu, polki}, {1.0::ulrich_(tagaragakuin), wlop, xe_(execut3r), piyopoyo, RioAkag, hisasi, pyon_Kti}, {0.9::fei(maidoll)}, {0.55::aoisakura(seak5545)}"
+}

@@ -1,0 +1,81 @@
+{
+  "Description": "{artist:fagun_yibei},artist:berryverrine,artist:saaal653,artist:mihifu,artist:reddizen,artist:tabi_(tabisumika),artist:naga_u,no_lineart,, adoptive parent and adoptive child, bare shoulders, closed eyes, closed mouth, earrings, hair ornament, hand on another's shoulder, jewelry, long hair, mole, mole on shoulder, mother and daughter, pink hair, smile, solo focus, triangle earrings",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.6474706828594208e-05",
+  "Comment": {
+    "prompt": "{artist:fagun_yibei},artist:berryverrine,artist:saaal653,artist:mihifu,artist:reddizen,artist:tabi_(tabisumika),artist:naga_u,no_lineart,, adoptive parent and adoptive child, bare shoulders, closed eyes, closed mouth, earrings, hair ornament, hand on another's shoulder, jewelry, long hair, mole, mole on shoulder, mother and daughter, pink hair, smile, solo focus, triangle earrings",
+    "steps": 28,
+    "height": 896,
+    "width": 1152,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 752987163,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "{artist:fagun_yibei},artist:berryverrine,artist:saaal653,artist:mihifu,artist:reddizen,artist:tabi_(tabisumika),artist:naga_u,no_lineart,, adoptive parent and adoptive child, bare shoulders, closed eyes, closed mouth, earrings, hair ornament, hand on another's shoulder, jewelry, long hair, mole, mole on shoulder, mother and daughter, pink hair, smile, solo focus, triangle earrings",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "(worst quality, low quality:1.4), (bad anatomy), (inaccurate limb:1.2), extra digit, fewer digits, (poorly drawn face), (mutation, deformed:1.3), (disfigured:1.2), ugly, blurry, (bad eyes), (extra limbs), (fused fingers), (unclear eyes:1.2), bad-artist, bad_prompt_version2",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "(worst quality, low quality:1.4), (bad anatomy), (inaccurate limb:1.2), extra digit, fewer digits, (poorly drawn face), (mutation, deformed:1.3), (disfigured:1.2), ugly, blurry, (bad eyes), (extra limbs), (fused fingers), (unclear eyes:1.2), bad-artist, bad_prompt_version2",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "wAJjWxwg3YS2D1eOS9BCWpIgULTHi0fWQp0ZMj915RJIIqRN3qhB0MAiJaxCirvK67938/xqVzW4vYqsMm+MBw=="
+  },
+  "Style": "{artist:fagun_yibei},artist:berryverrine,artist:saaal653,artist:mihifu,artist:reddizen,artist:tabi_(tabisumika),artist:naga_u,no_lineart,"
+}

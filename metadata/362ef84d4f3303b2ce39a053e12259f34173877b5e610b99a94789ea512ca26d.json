@@ -1,0 +1,81 @@
+{
+  "Description": "hinomori shizuku,project sekai, redrop,1.4::nijihashi sora::,1.4::azuuru::, year 2025,flat color,, 1girl, black dress, black gloves, breasts, dress, frills, gloves, grey hair, hair between eyes, juliet sleeves, large breasts, long hair, long sleeves, looking at viewer, low-tied long hair, maid, maid headdress, partially fingerless gloves, puffy sleeves, red eyes, simple background, sketch, solo, very long hair, white background",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "4.139728844165802e-05",
+  "Comment": {
+    "prompt": "hinomori shizuku,project sekai, redrop,1.4::nijihashi sora::,1.4::azuuru::, year 2025,flat color,, 1girl, black dress, black gloves, breasts, dress, frills, gloves, grey hair, hair between eyes, juliet sleeves, large breasts, long hair, long sleeves, looking at viewer, low-tied long hair, maid, maid headdress, partially fingerless gloves, puffy sleeves, red eyes, simple background, sketch, solo, very long hair, white background",
+    "steps": 28,
+    "height": 896,
+    "width": 1152,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 107287385,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "hinomori shizuku,project sekai, redrop,1.4::nijihashi sora::,1.4::azuuru::, year 2025,flat color,, 1girl, black dress, black gloves, breasts, dress, frills, gloves, grey hair, hair between eyes, juliet sleeves, large breasts, long hair, long sleeves, looking at viewer, low-tied long hair, maid, maid headdress, partially fingerless gloves, puffy sleeves, red eyes, simple background, sketch, solo, very long hair, white background",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "{{{adult}}},{{{{bad anatomy}}}},{bad feet},bad hands,{{{bad proportions}}},{blurry},cloned face,cropped,{{{deformed}}},{{{disfigured}}},error,{{{extra arms}}},{extra digit},{{{extra legs}}},extra limbs,{{extra limbs}},{fewer digits},{{{fused fingers}}},gross proportions,ink eyes,ink hair,jpeg artifacts,{{{{long neck}}}},low quality,{malformed limbs},{{missing arms}},{missing fingers},{{missing legs}},{{{more than 2 nipples}}},mutated hands,{{{mutation}}},normal quality,out of frame,owres,{{poorly drawn face}},{{poorly drawn hands}},reen eyes,signature,text,{{too many fingers}},{{{ugly}}},username,uta,watermark,worst quality,{{{more than 2 legs}}},{{{furry girl}}},",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "{{{adult}}},{{{{bad anatomy}}}},{bad feet},bad hands,{{{bad proportions}}},{blurry},cloned face,cropped,{{{deformed}}},{{{disfigured}}},error,{{{extra arms}}},{extra digit},{{{extra legs}}},extra limbs,{{extra limbs}},{fewer digits},{{{fused fingers}}},gross proportions,ink eyes,ink hair,jpeg artifacts,{{{{long neck}}}},low quality,{malformed limbs},{{missing arms}},{missing fingers},{{missing legs}},{{{more than 2 nipples}}},mutated hands,{{{mutation}}},normal quality,out of frame,owres,{{poorly drawn face}},{{poorly drawn hands}},reen eyes,signature,text,{{too many fingers}},{{{ugly}}},username,uta,watermark,worst quality,{{{more than 2 legs}}},{{{furry girl}}},",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "zJYuhcVNIfgRLnU8Y7eLfDPbxyZcObN+rg5ZEbuZMsDAuJxP9U5NKbVGoh9wqIt7HfmkukJ4rWN1iLD729i2Bw=="
+  },
+  "Style": "hinomori shizuku,project sekai, redrop,1.4::nijihashi sora::,1.4::azuuru::, year 2025,flat color,"
+}

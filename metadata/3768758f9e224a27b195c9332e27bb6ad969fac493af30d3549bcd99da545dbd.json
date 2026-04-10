@@ -1,0 +1,81 @@
+{
+  "Description": "artist:yoneyama mai,artist:soejima shigenori,{{artist:creamyghost}},{{{artist:saijou yurika}}},[happoubi_jin],year 2024,year 2025,-1::ai-generated,ai-assisted,unfinished::,, ..., 2girls, 2koma, back tattoo, bare shoulders, black border, black bow, black bowtie, black choker, black gloves, black hat, black rabbit (animal), blush, border, bow, bowtie, braid, breasts, brown hair, brown sash, choker, clenched hands, closed mouth, comic, detached sleeves, dress, facial mark, gloves, grabbing another's arm, grey hair, hat, heart, heart facial mark, multiple girls, open mouth, pink eyes, pink sleeves, rabbit, red dress, red eyes, red ribbon, ribbon, rope belt, saliva, sidelocks, small breasts, smile, spread legs, sweat, tattoo, tears, tongue, twintails, upper body, white rabbit (animal), yuri",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.5792978703975677e-05",
+  "Comment": {
+    "prompt": "artist:yoneyama mai,artist:soejima shigenori,{{artist:creamyghost}},{{{artist:saijou yurika}}},[happoubi_jin],year 2024,year 2025,-1::ai-generated,ai-assisted,unfinished::,, ..., 2girls, 2koma, back tattoo, bare shoulders, black border, black bow, black bowtie, black choker, black gloves, black hat, black rabbit (animal), blush, border, bow, bowtie, braid, breasts, brown hair, brown sash, choker, clenched hands, closed mouth, comic, detached sleeves, dress, facial mark, gloves, grabbing another's arm, grey hair, hat, heart, heart facial mark, multiple girls, open mouth, pink eyes, pink sleeves, rabbit, red dress, red eyes, red ribbon, ribbon, rope belt, saliva, sidelocks, small breasts, smile, spread legs, sweat, tattoo, tears, tongue, twintails, upper body, white rabbit (animal), yuri",
+    "steps": 28,
+    "height": 1152,
+    "width": 896,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 532905725,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "artist:yoneyama mai,artist:soejima shigenori,{{artist:creamyghost}},{{{artist:saijou yurika}}},[happoubi_jin],year 2024,year 2025,-1::ai-generated,ai-assisted,unfinished::,, ..., 2girls, 2koma, back tattoo, bare shoulders, black border, black bow, black bowtie, black choker, black gloves, black hat, black rabbit (animal), blush, border, bow, bowtie, braid, breasts, brown hair, brown sash, choker, clenched hands, closed mouth, comic, detached sleeves, dress, facial mark, gloves, grabbing another's arm, grey hair, hat, heart, heart facial mark, multiple girls, open mouth, pink eyes, pink sleeves, rabbit, red dress, red eyes, red ribbon, ribbon, rope belt, saliva, sidelocks, small breasts, smile, spread legs, sweat, tattoo, tears, tongue, twintails, upper body, white rabbit (animal), yuri",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "year 2010,year 2011,year 2012,year 2013,year 2014,year 2015,year 2016,year 2017,year 2018,lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality,{{{watermark}}}, unfinished, displeasing, chromatic aberration,{{{signature}}}, extra digits, artistic error, username, scan, [abstract],bad hands,bad foot,bad feet,bad toes,bad toe,pubic hair,monster,empty eyes,speech bubble,doll,messy hair,giant,wrong toes,phantom,patreon signature,purple shadow,mosaic censoring,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "year 2010,year 2011,year 2012,year 2013,year 2014,year 2015,year 2016,year 2017,year 2018,lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality,{{{watermark}}}, unfinished, displeasing, chromatic aberration,{{{signature}}}, extra digits, artistic error, username, scan, [abstract],bad hands,bad foot,bad feet,bad toes,bad toe,pubic hair,monster,empty eyes,speech bubble,doll,messy hair,giant,wrong toes,phantom,patreon signature,purple shadow,mosaic censoring,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "LI8KmJ+kOD8btOkf98AtMkZjiyGZ68+7POFJNqlPy+11toUsQP1BOProw3ryyaHd6gwWhjpMIoS1x2kw8z8VCQ=="
+  },
+  "Style": "artist:yoneyama mai,artist:soejima shigenori,{{artist:creamyghost}},{{{artist:saijou yurika}}},[happoubi_jin],year 2024,year 2025,-1::ai-generated,ai-assisted,unfinished::,"
+}

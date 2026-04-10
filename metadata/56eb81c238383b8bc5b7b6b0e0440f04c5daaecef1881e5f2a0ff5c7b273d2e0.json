@@ -1,0 +1,81 @@
+{
+  "Description": "collaboration,realistic face::, 1.3::artist:mingon,artist:Grande,artist:been::,artist:meion,artist:ningen_mame,1.4::artist:azuuru::,artist:misyune,artist:kedama milk,1.3::artist:torino aqua,artist:fuzichoco,artist:mana,artist:mogO-721,artist:ametoyuki,artist:atdan,artist:chen_bin,artist:orange maru(YD)::,artist:niro,artist:hito,artist:hiten,artist:g.river,,0.5::artist:wlop,plump:: year 2025, realistic,, !, 1girl, :o, aqua hair, black dress, blush, closed eyes, dress, facing viewer, from above, full body, long hair, open mouth, shirt, sleeveless, sleeveless shirt, socks, spoken exclamation mark",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.86162830889225e-05",
+  "Comment": {
+    "prompt": "collaboration,realistic face::, 1.3::artist:mingon,artist:Grande,artist:been::,artist:meion,artist:ningen_mame,1.4::artist:azuuru::,artist:misyune,artist:kedama milk,1.3::artist:torino aqua,artist:fuzichoco,artist:mana,artist:mogO-721,artist:ametoyuki,artist:atdan,artist:chen_bin,artist:orange maru(YD)::,artist:niro,artist:hito,artist:hiten,artist:g.river,,0.5::artist:wlop,plump:: year 2025, realistic,, !, 1girl, :o, aqua hair, black dress, blush, closed eyes, dress, facing viewer, from above, full body, long hair, open mouth, shirt, sleeveless, sleeveless shirt, socks, spoken exclamation mark",
+    "steps": 28,
+    "height": 832,
+    "width": 1216,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 492244164,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "collaboration,realistic face::, 1.3::artist:mingon,artist:Grande,artist:been::,artist:meion,artist:ningen_mame,1.4::artist:azuuru::,artist:misyune,artist:kedama milk,1.3::artist:torino aqua,artist:fuzichoco,artist:mana,artist:mogO-721,artist:ametoyuki,artist:atdan,artist:chen_bin,artist:orange maru(YD)::,artist:niro,artist:hito,artist:hiten,artist:g.river,,0.5::artist:wlop,plump:: year 2025, realistic,, !, 1girl, :o, aqua hair, black dress, blush, closed eyes, dress, facing viewer, from above, full body, long hair, open mouth, shirt, sleeveless, sleeveless shirt, socks, spoken exclamation mark",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "gracilis, lipstick, lips, muscles, outlines, aged up, old, long neck, long body,big head,rib,nose, tooth, rouge, lipstick, eyeshadow, middle age,adult,mother,mature female, milf, muscles, skinny, outlines,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "gracilis, lipstick, lips, muscles, outlines, aged up, old, long neck, long body,big head,rib,nose, tooth, rouge, lipstick, eyeshadow, middle age,adult,mother,mature female, milf, muscles, skinny, outlines,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "19M8SM4vggfnIA38pwKZleZmLAfSPwYzsAueN3ITpK3TC8wl2OnktrBTTs6NpLcCLnYEGo4nj2GDYRogVA3BAw=="
+  },
+  "Style": "collaboration,realistic face::, 1.3::artist:mingon,artist:Grande,artist:been::,artist:meion,artist:ningen_mame,1.4::artist:azuuru::,artist:misyune,artist:kedama milk,1.3::artist:torino aqua,artist:fuzichoco,artist:mana,artist:mogO-721,artist:ametoyuki,artist:atdan,artist:chen_bin,artist:orange maru(YD)::,artist:niro,artist:hito,artist:hiten,artist:g.river,,0.5::artist:wlop,plump:: year 2025, realistic,"
+}

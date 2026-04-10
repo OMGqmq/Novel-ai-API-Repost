@@ -1,0 +1,81 @@
+{
+  "Description": "{{,artist:sofra,artist:kani_biimu,artist:avogado6,}}artist:beni_shake,artist:kedama_milk,artist:tianliang_duohe_fangdongye,, 1girl, @ @, animal ears, bag, blunt bangs, blurry, blurry background, blush, box, breasts, brown coat, brown hat, cardboard box, coat, green hair, hair bobbles, hair ornament, halo, hat, jewelry, large breasts, long sleeves, looking at viewer, low twintails, necklace, open clothes, open coat, open mouth, platform truck, red sweater, shadow, sleeves past wrists, solo, sweat, sweater, turtleneck, turtleneck sweater, twintails",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.5880057364702225e-05",
+  "Comment": {
+    "prompt": "{{,artist:sofra,artist:kani_biimu,artist:avogado6,}}artist:beni_shake,artist:kedama_milk,artist:tianliang_duohe_fangdongye,, 1girl, @ @, animal ears, bag, blunt bangs, blurry, blurry background, blush, box, breasts, brown coat, brown hat, cardboard box, coat, green hair, hair bobbles, hair ornament, halo, hat, jewelry, large breasts, long sleeves, looking at viewer, low twintails, necklace, open clothes, open coat, open mouth, platform truck, red sweater, shadow, sleeves past wrists, solo, sweat, sweater, turtleneck, turtleneck sweater, twintails",
+    "steps": 28,
+    "height": 896,
+    "width": 1152,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 204422485,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "{{,artist:sofra,artist:kani_biimu,artist:avogado6,}}artist:beni_shake,artist:kedama_milk,artist:tianliang_duohe_fangdongye,, 1girl, @ @, animal ears, bag, blunt bangs, blurry, blurry background, blush, box, breasts, brown coat, brown hat, cardboard box, coat, green hair, hair bobbles, hair ornament, halo, hat, jewelry, large breasts, long sleeves, looking at viewer, low twintails, necklace, open clothes, open coat, open mouth, platform truck, red sweater, shadow, sleeves past wrists, solo, sweat, sweater, turtleneck, turtleneck sweater, twintails",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "background，, low resolution,Very low resolution,Low image quality,Very poor picture quality,Poor quality detail picture,Vague details,Mosaic pictures,Problems in drawing,Overfitting,Bad painting,Bad painting details,Low quality painting details,Normal quality,, Abnormal human proportion,Abnormal chest circumference ratio,Abnormal palm ratio,Abnormal finger ratio,Abnormal feet scale,There is a problem with the proportion of shoes,Abnormal finger length ratio,Abnormal arm proportion,Abnormal thigh proportion,Abnormal hand proportion,Abnormal body proportion,Abnormal shoes proportion,, Impossible composition,Impossible human structure,Impossible hand,Impossible finger,Impossible feet,Impossible shoes,Impossible posture,Impossible fist gesture,Impossible finger bending posture,Impossible body movements,Impossible degree of f",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "background，, low resolution,Very low resolution,Low image quality,Very poor picture quality,Poor quality detail picture,Vague details,Mosaic pictures,Problems in drawing,Overfitting,Bad painting,Bad painting details,Low quality painting details,Normal quality,, Abnormal human proportion,Abnormal chest circumference ratio,Abnormal palm ratio,Abnormal finger ratio,Abnormal feet scale,There is a problem with the proportion of shoes,Abnormal finger length ratio,Abnormal arm proportion,Abnormal thigh proportion,Abnormal hand proportion,Abnormal body proportion,Abnormal shoes proportion,, Impossible composition,Impossible human structure,Impossible hand,Impossible finger,Impossible feet,Impossible shoes,Impossible posture,Impossible fist gesture,Impossible finger bending posture,Impossible body movements,Impossible degree of f",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "t19NAD+2ld9WzfX1Ih7yb4DU7wYHo0rmyfrG/Y+PzmNMDmx9Z0BTeL03/m9jJbwrMsscvndDiBDsPJj/9v6CBw=="
+  },
+  "Style": "{{,artist:sofra,artist:kani_biimu,artist:avogado6,}}artist:beni_shake,artist:kedama_milk,artist:tianliang_duohe_fangdongye,"
+}

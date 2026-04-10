@@ -1,0 +1,81 @@
+{
+  "Description": "1.8::artist:ojay_tkymmery::,0.9::artist:nekometaru::,0.5::artist:gomzi::,0.5::artist:kedama_milk::,0.8::artist:inubouzaki_(i_nu1515)::,0.8::artist:dsmile::,,-2::artist collaboration::,, 1girl, ?, alternate costume, black gloves, blue eyes, blue hair, blue scarf, blush, clothes grab, cloud, ear blush, gloves, holding, holding snowball, light rays, looking at viewer, neckwear grab, outdoors, pov, scarf, scarf grab, short hair, snow, snow on head, snowball, snowman, spoken question mark, squiggle, virtual youtuber",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.6623252779245377e-05",
+  "Comment": {
+    "prompt": "1.8::artist:ojay_tkymmery::,0.9::artist:nekometaru::,0.5::artist:gomzi::,0.5::artist:kedama_milk::,0.8::artist:inubouzaki_(i_nu1515)::,0.8::artist:dsmile::,,-2::artist collaboration::,, 1girl, ?, alternate costume, black gloves, blue eyes, blue hair, blue scarf, blush, clothes grab, cloud, ear blush, gloves, holding, holding snowball, light rays, looking at viewer, neckwear grab, outdoors, pov, scarf, scarf grab, short hair, snow, snow on head, snowball, snowman, spoken question mark, squiggle, virtual youtuber",
+    "steps": 28,
+    "height": 1216,
+    "width": 832,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 372156029,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "1.8::artist:ojay_tkymmery::,0.9::artist:nekometaru::,0.5::artist:gomzi::,0.5::artist:kedama_milk::,0.8::artist:inubouzaki_(i_nu1515)::,0.8::artist:dsmile::,,-2::artist collaboration::,, 1girl, ?, alternate costume, black gloves, blue eyes, blue hair, blue scarf, blush, clothes grab, cloud, ear blush, gloves, holding, holding snowball, light rays, looking at viewer, neckwear grab, outdoors, pov, scarf, scarf grab, short hair, snow, snow on head, snowball, snowman, spoken question mark, squiggle, virtual youtuber",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "1.15:: very displeasing, worst quality, bad quality, 1.05:: displeasing, lowres, error, :: scan artifacts, jpeg artifacts, gigantic breasts, normal quality, multiple boys, male focus, everyone, 6+girls, grayscale, signature, logo, deformed, @_@, pov, chibi, toy, doll, looking at viewer, footjob, penis,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "1.15:: very displeasing, worst quality, bad quality, 1.05:: displeasing, lowres, error, :: scan artifacts, jpeg artifacts, gigantic breasts, normal quality, multiple boys, male focus, everyone, 6+girls, grayscale, signature, logo, deformed, @_@, pov, chibi, toy, doll, looking at viewer, footjob, penis,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "vbZMA1uzVK29CbtaHiUfaxK2FoDxMbU7bkMTDQReMw1Rcqn/LkOStNthzzLo1PK6D4i9DEP1wLdKOWvfr/zNBg=="
+  },
+  "Style": "1.8::artist:ojay_tkymmery::,0.9::artist:nekometaru::,0.5::artist:gomzi::,0.5::artist:kedama_milk::,0.8::artist:inubouzaki_(i_nu1515)::,0.8::artist:dsmile::,,-2::artist collaboration::,"
+}

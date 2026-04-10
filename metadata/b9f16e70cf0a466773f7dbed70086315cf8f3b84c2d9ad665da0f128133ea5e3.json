@@ -1,0 +1,81 @@
+{
+  "Description": "{olumetric lighting}, soft shadows, Hair details, Skin details, 8K texture, Pupil details, 0.5::artist:maabo_harusame::, 1.2::artist:hyuk_(yeayeo)::, 0.9::artist:cocoballking::, 0.5::artist:naxius_noxy::, 0.6::artist:john_kafka::, artist:naxius_noxy, 1.1::artist:fkey::, artist:AZZ0422, 0.6::artist:keibleh::,, 1girl, arm under breasts, bare shoulders, bikini, black bikini, black horns, blush, breasts, breasts apart, closed mouth, grey background, grey hair, hand up, horns, large breasts, long hair, long sidelocks, looking at viewer, micro bikini, pointy ears, red eyes, sidelocks, simple background, solo, sweat, swimsuit, upper body, very long hair",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.99038365483284e-05",
+  "Comment": {
+    "prompt": "{olumetric lighting}, soft shadows, Hair details, Skin details, 8K texture, Pupil details, 0.5::artist:maabo_harusame::, 1.2::artist:hyuk_(yeayeo)::, 0.9::artist:cocoballking::, 0.5::artist:naxius_noxy::, 0.6::artist:john_kafka::, artist:naxius_noxy, 1.1::artist:fkey::, artist:AZZ0422, 0.6::artist:keibleh::,, 1girl, arm under breasts, bare shoulders, bikini, black bikini, black horns, blush, breasts, breasts apart, closed mouth, grey background, grey hair, hand up, horns, large breasts, long hair, long sidelocks, looking at viewer, micro bikini, pointy ears, red eyes, sidelocks, simple background, solo, sweat, swimsuit, upper body, very long hair",
+    "steps": 28,
+    "height": 832,
+    "width": 1216,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 210425133,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "{olumetric lighting}, soft shadows, Hair details, Skin details, 8K texture, Pupil details, 0.5::artist:maabo_harusame::, 1.2::artist:hyuk_(yeayeo)::, 0.9::artist:cocoballking::, 0.5::artist:naxius_noxy::, 0.6::artist:john_kafka::, artist:naxius_noxy, 1.1::artist:fkey::, artist:AZZ0422, 0.6::artist:keibleh::,, 1girl, arm under breasts, bare shoulders, bikini, black bikini, black horns, blush, breasts, breasts apart, closed mouth, grey background, grey hair, hand up, horns, large breasts, long hair, long sidelocks, looking at viewer, micro bikini, pointy ears, red eyes, sidelocks, simple background, solo, sweat, swimsuit, upper body, very long hair",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, normal quality, bad quality, low quality, worst quality, lowres, displeasing, very displeasing,bad, 2::artist collaboration,chibi::,bad anatomy, bad hands, text, error, missing, missing finger, extra, extra digits, fewer, fewer digits, cropped, JPEG artifacts, signature, watermark, username, blurry, artist name, bad face, fat, duplicate, mutation, deformed, disfigured, extra arms, extra legs, long neck, bad feet, bad proportions, extra, fewer, unfinished, blush,chromatic aberration, scan, scan artifacts, lips",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, normal quality, bad quality, low quality, worst quality, lowres, displeasing, very displeasing,bad, 2::artist collaboration,chibi::,bad anatomy, bad hands, text, error, missing, missing finger, extra, extra digits, fewer, fewer digits, cropped, JPEG artifacts, signature, watermark, username, blurry, artist name, bad face, fat, duplicate, mutation, deformed, disfigured, extra arms, extra legs, long neck, bad feet, bad proportions, extra, fewer, unfinished, blush,chromatic aberration, scan, scan artifacts, lips",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "Poqyl2lFmQ09Z1h6H01ThpjJ9TyzijPD2awHyenA/8pBZXHAUIa58WNZAv1xsFwifmoiHcKvtjG88jSJF52qBg=="
+  },
+  "Style": "{olumetric lighting}, soft shadows, Hair details, Skin details, 8K texture, Pupil details, 0.5::artist:maabo_harusame::, 1.2::artist:hyuk_(yeayeo)::, 0.9::artist:cocoballking::, 0.5::artist:naxius_noxy::, 0.6::artist:john_kafka::, artist:naxius_noxy, 1.1::artist:fkey::, artist:AZZ0422, 0.6::artist:keibleh::,"
+}

@@ -1,0 +1,81 @@
+{
+  "Description": "-2::artist_collaboration::,hizuki_yayoi,jyt,quasarcake,torino_aquq,noyu_(noyu23386566),konya_karasue,santa_matsuri,hiten_(hitenkei),tatekawa_mako,Tsuchikure,rurudo,chen_bin,konya_karasue,yashiro_hachi,ikataruto,shenhai_(2556146833),year_2024,, 1girl, black hair, black jacket, black nails, blonde hair, breasts, earrings, jacket, jewelry, lightning bolt earrings, lightning bolt print, lightning bolt symbol, long sleeves, multicolored hair, necklace, open clothes, open jacket, open mouth, see-through cleavage, see-through clothes, skirt, solo, streaked hair, sunglasses, teeth, upper teeth only, virtual youtuber, white background, yellow skirt",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.087334334850311e-05",
+  "Comment": {
+    "prompt": "-2::artist_collaboration::,hizuki_yayoi,jyt,quasarcake,torino_aquq,noyu_(noyu23386566),konya_karasue,santa_matsuri,hiten_(hitenkei),tatekawa_mako,Tsuchikure,rurudo,chen_bin,konya_karasue,yashiro_hachi,ikataruto,shenhai_(2556146833),year_2024,, 1girl, black hair, black jacket, black nails, blonde hair, breasts, earrings, jacket, jewelry, lightning bolt earrings, lightning bolt print, lightning bolt symbol, long sleeves, multicolored hair, necklace, open clothes, open jacket, open mouth, see-through cleavage, see-through clothes, skirt, solo, streaked hair, sunglasses, teeth, upper teeth only, virtual youtuber, white background, yellow skirt",
+    "steps": 28,
+    "height": 896,
+    "width": 1152,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 595315514,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "-2::artist_collaboration::,hizuki_yayoi,jyt,quasarcake,torino_aquq,noyu_(noyu23386566),konya_karasue,santa_matsuri,hiten_(hitenkei),tatekawa_mako,Tsuchikure,rurudo,chen_bin,konya_karasue,yashiro_hachi,ikataruto,shenhai_(2556146833),year_2024,, 1girl, black hair, black jacket, black nails, blonde hair, breasts, earrings, jacket, jewelry, lightning bolt earrings, lightning bolt print, lightning bolt symbol, long sleeves, multicolored hair, necklace, open clothes, open jacket, open mouth, see-through cleavage, see-through clothes, skirt, solo, streaked hair, sunglasses, teeth, upper teeth only, virtual youtuber, white background, yellow skirt",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality,{{jpeg artifacts}}, {{signature}}, {{watermark}}, {{username}}, blurry, bad feet, {{username}}, {bad}, fewer, extra, unfinished,displeasing, chromatic aberration, {{signature}}, extra digits, artistic error, scan, [abstract],logo,{big belly},NSFW,{{{simple_background}}},chibi,doll,company name,copyright name,2::simple_background::,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality,{{jpeg artifacts}}, {{signature}}, {{watermark}}, {{username}}, blurry, bad feet, {{username}}, {bad}, fewer, extra, unfinished,displeasing, chromatic aberration, {{signature}}, extra digits, artistic error, scan, [abstract],logo,{big belly},NSFW,{{{simple_background}}},chibi,doll,company name,copyright name,2::simple_background::,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "Xb8G3HJRCex2YVftEnoHJRuuoDWmpF4EpnMmv8sBJ1D3H+4f+YlxjG9OyUMRuGsCZdTGAn1Uwr9dPD2U6KUoAQ=="
+  },
+  "Style": "-2::artist_collaboration::,hizuki_yayoi,jyt,quasarcake,torino_aquq,noyu_(noyu23386566),konya_karasue,santa_matsuri,hiten_(hitenkei),tatekawa_mako,Tsuchikure,rurudo,chen_bin,konya_karasue,yashiro_hachi,ikataruto,shenhai_(2556146833),year_2024,"
+}

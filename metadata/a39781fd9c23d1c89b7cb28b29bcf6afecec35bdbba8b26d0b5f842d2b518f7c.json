@@ -1,0 +1,81 @@
+{
+  "Description": "artist:icwine, artist:ATDAN, artist:houkisei, artist:kabu_usagi, arist:rurudo, artist:fukuro_daizi, artist:harris_hero, artist:nokishita_kumoemon, artist:karutamo,, 3girls, animal ears, blonde hair, blue kimono, brown eyes, chibi, closed mouth, crescent, crescent hair ornament, fox ears, fox girl, green eyes, hair ornament, hair rings, japanese clothes, jellyfish, kimono, long hair, looking at viewer, mini person, multiple girls, off shoulder, open mouth, purple eyes, purple hair, rabbit ears, rabbit girl, red kimono, short hair, twintails",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.5372952222824097e-05",
+  "Comment": {
+    "prompt": "artist:icwine, artist:ATDAN, artist:houkisei, artist:kabu_usagi, arist:rurudo, artist:fukuro_daizi, artist:harris_hero, artist:nokishita_kumoemon, artist:karutamo,, 3girls, animal ears, blonde hair, blue kimono, brown eyes, chibi, closed mouth, crescent, crescent hair ornament, fox ears, fox girl, green eyes, hair ornament, hair rings, japanese clothes, jellyfish, kimono, long hair, looking at viewer, mini person, multiple girls, off shoulder, open mouth, purple eyes, purple hair, rabbit ears, rabbit girl, red kimono, short hair, twintails",
+    "steps": 28,
+    "height": 960,
+    "width": 1088,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 144227458,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "artist:icwine, artist:ATDAN, artist:houkisei, artist:kabu_usagi, arist:rurudo, artist:fukuro_daizi, artist:harris_hero, artist:nokishita_kumoemon, artist:karutamo,, 3girls, animal ears, blonde hair, blue kimono, brown eyes, chibi, closed mouth, crescent, crescent hair ornament, fox ears, fox girl, green eyes, hair ornament, hair rings, japanese clothes, jellyfish, kimono, long hair, looking at viewer, mini person, multiple girls, off shoulder, open mouth, purple eyes, purple hair, rabbit ears, rabbit girl, red kimono, short hair, twintails",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "1.15:: very displeasing, worst quality, bad quality, 1.05:: displeasing, lowres, error, :: scan artifacts, jpeg artifacts, gigantic breasts, normal quality, multiple boys, male focus, everyone, 6+girls, grayscale, signature, logo, deformed, @_@, pov, chibi, toy, doll, penis,bound feet,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "1.15:: very displeasing, worst quality, bad quality, 1.05:: displeasing, lowres, error, :: scan artifacts, jpeg artifacts, gigantic breasts, normal quality, multiple boys, male focus, everyone, 6+girls, grayscale, signature, logo, deformed, @_@, pov, chibi, toy, doll, penis,bound feet,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "XjqLAl2S8QFSC8rLM0+VhJGnZzUJ1hz8WN/GtxLpsxcHb+CIhJGZN9S6bjpvk0ix7wlDu58GRCE9sGGmR3qVCw=="
+  },
+  "Style": "artist:icwine, artist:ATDAN, artist:houkisei, artist:kabu_usagi, arist:rurudo, artist:fukuro_daizi, artist:harris_hero, artist:nokishita_kumoemon, artist:karutamo,"
+}

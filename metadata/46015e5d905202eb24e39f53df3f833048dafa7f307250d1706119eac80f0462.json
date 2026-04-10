@@ -1,0 +1,81 @@
+{
+  "Description": "best quality,very aesthetic,absurdres,Masterpieces,1boy,1girl,{artist:gearous},artist:ruoganzhao,artist:maosen,artist:chi_lai_chun,artist:xie_youqing,cinematic angle,[artist:rella],, 1girl, blue eyes, blush, cone hair bun, earrings, grey hair, hair bun, jewelry, long hair, red scarf, scarf, smile, sweater, virtual youtuber, winter clothes",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.123283386230469e-05",
+  "Comment": {
+    "prompt": "best quality,very aesthetic,absurdres,Masterpieces,1boy,1girl,{artist:gearous},artist:ruoganzhao,artist:maosen,artist:chi_lai_chun,artist:xie_youqing,cinematic angle,[artist:rella],, 1girl, blue eyes, blush, cone hair bun, earrings, grey hair, hair bun, jewelry, long hair, red scarf, scarf, smile, sweater, virtual youtuber, winter clothes",
+    "steps": 28,
+    "height": 1152,
+    "width": 896,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 357583134,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "best quality,very aesthetic,absurdres,Masterpieces,1boy,1girl,{artist:gearous},artist:ruoganzhao,artist:maosen,artist:chi_lai_chun,artist:xie_youqing,cinematic angle,[artist:rella],, 1girl, blue eyes, blush, cone hair bun, earrings, grey hair, hair bun, jewelry, long hair, red scarf, scarf, smile, sweater, virtual youtuber, winter clothes",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, ，scar,scar on face,lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, ，scar,scar on face,lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "AJPZAg7YTJkckMVfFScCpUGb6mi6EJr2EkyBDWUWs5JmOg5kGMI/rJnewA7e9KNTFoEnzZ+7RoUtQSUI4KNiCw=="
+  },
+  "Style": "best quality,very aesthetic,absurdres,Masterpieces,1boy,1girl,{artist:gearous},artist:ruoganzhao,artist:maosen,artist:chi_lai_chun,artist:xie_youqing,cinematic angle,[artist:rella],"
+}

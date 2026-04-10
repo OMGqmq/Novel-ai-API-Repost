@@ -1,0 +1,81 @@
+{
+  "Description": "20.8::The true color of human skin::,2.5::pale skin::,,toddler,kastoddle，merrytail，1.2::artist:jumonji::,0.6::artist:egami::,0.8::artist:mochirong::,1.4::artist:jima::,1.4::artist:songchuan li::,1.4::artist:fkey::,，，{{{{3d,realistic}}}},year 2024,-2::artist collaboration ::,,-2::halo::，4::wuthering waves game cg::, lazyprocrastinator, ru_zhai, ucupumar, dab_neko, dkclaude3d, aoiro_xiaolan, ukai_saki, 3::3D, blender_(medium)::, 1.2::realistic, photorealistic::, octane render, masterpiece, best quality, amazing quality, absurdres, very aesthetic, highres, year 2024, year 2025, perfect rendering, realistic rendering, 2.5::high-definition details, 8k resolution, ultra-detailed::, detailed textures, intricate details, figure, skindentation, 2::facial features with three-dimensional sense, delicate skin texture, natural skin glow::, 1.8::velvety skin without veins, clean skin surface::, 1.3::matte skin, ultra-detailed, high detailed skin::, detailed skin, glossy skin, 1.9::exquisite clothing texture, fabric details::, fine fabric emphasis, 1.85::photo_(medium)::, soft lighting, rim lighting, dramatic lighting, studio lighting, perfect composition, professional photography, cinematic effect, lifelike presentation, no lineart, -2::greasy skin::,, realistic,4k,{textless version, The image is highly intricate finished drawn,Only the character's face is in anime style, but their body is in realistic style}, 1.35::A highly finished photo-style artwork that has lively color, graphic texture, realistic skin surface, and lifelike flesh with little obliques::, 1.63::photorealistic::, 1.63::photo(medium)::,1.25::vibrant and saturated colors, bright lighting that does not compromise the overall atmosphere::, 20::best quality, absurdres, detailed, -5.1::artist collaboration::, -5::flat_color::,-2::multiple views, multiple pov::,-3::The pig::, 1girl, black gloves, black horns, blue eyes, blush, breasts, closed mouth, clothes pull, convenient censoring, dragon girl, dragon horns, from below, gloves, hair intakes, horns, indoors, jacket, large breasts, long hair, looking at viewer, multicolored hair, navel, no panties, pants, pants pull, pink hair, pink jacket, robot, smile, solo, stomach, streaked hair, sweat, thick eyebrows, twintails, white pants",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.7291476726531982e-05",
+  "Comment": {
+    "prompt": "20.8::The true color of human skin::,2.5::pale skin::,,toddler,kastoddle，merrytail，1.2::artist:jumonji::,0.6::artist:egami::,0.8::artist:mochirong::,1.4::artist:jima::,1.4::artist:songchuan li::,1.4::artist:fkey::,，，{{{{3d,realistic}}}},year 2024,-2::artist collaboration ::,,-2::halo::，4::wuthering waves game cg::, lazyprocrastinator, ru_zhai, ucupumar, dab_neko, dkclaude3d, aoiro_xiaolan, ukai_saki, 3::3D, blender_(medium)::, 1.2::realistic, photorealistic::, octane render, masterpiece, best quality, amazing quality, absurdres, very aesthetic, highres, year 2024, year 2025, perfect rendering, realistic rendering, 2.5::high-definition details, 8k resolution, ultra-detailed::, detailed textures, intricate details, figure, skindentation, 2::facial features with three-dimensional sense, delicate skin texture, natural skin glow::, 1.8::velvety skin without veins, clean skin surface::, 1.3::matte skin, ultra-detailed, high detailed skin::, detailed skin, glossy skin, 1.9::exquisite clothing texture, fabric details::, fine fabric emphasis, 1.85::photo_(medium)::, soft lighting, rim lighting, dramatic lighting, studio lighting, perfect composition, professional photography, cinematic effect, lifelike presentation, no lineart, -2::greasy skin::,, realistic,4k,{textless version, The image is highly intricate finished drawn,Only the character's face is in anime style, but their body is in realistic style}, 1.35::A highly finished photo-style artwork that has lively color, graphic texture, realistic skin surface, and lifelike flesh with little obliques::, 1.63::photorealistic::, 1.63::photo(medium)::,1.25::vibrant and saturated colors, bright lighting that does not compromise the overall atmosphere::, 20::best quality, absurdres, detailed, -5.1::artist collaboration::, -5::flat_color::,-2::multiple views, multiple pov::,-3::The pig::, 1girl, black gloves, black horns, blue eyes, blush, breasts, closed mouth, clothes pull, convenient censoring, dragon girl, dragon horns, from below, gloves, hair intakes, horns, indoors, jacket, large breasts, long hair, looking at viewer, multicolored hair, navel, no panties, pants, pants pull, pink hair, pink jacket, robot, smile, solo, stomach, streaked hair, sweat, thick eyebrows, twintails, white pants",
+    "steps": 28,
+    "height": 1216,
+    "width": 832,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 629688195,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "20.8::The true color of human skin::,2.5::pale skin::,,toddler,kastoddle，merrytail，1.2::artist:jumonji::,0.6::artist:egami::,0.8::artist:mochirong::,1.4::artist:jima::,1.4::artist:songchuan li::,1.4::artist:fkey::,，，{{{{3d,realistic}}}},year 2024,-2::artist collaboration ::,,-2::halo::，4::wuthering waves game cg::, lazyprocrastinator, ru_zhai, ucupumar, dab_neko, dkclaude3d, aoiro_xiaolan, ukai_saki, 3::3D, blender_(medium)::, 1.2::realistic, photorealistic::, octane render, masterpiece, best quality, amazing quality, absurdres, very aesthetic, highres, year 2024, year 2025, perfect rendering, realistic rendering, 2.5::high-definition details, 8k resolution, ultra-detailed::, detailed textures, intricate details, figure, skindentation, 2::facial features with three-dimensional sense, delicate skin texture, natural skin glow::, 1.8::velvety skin without veins, clean skin surface::, 1.3::matte skin, ultra-detailed, high detailed skin::, detailed skin, glossy skin, 1.9::exquisite clothing texture, fabric details::, fine fabric emphasis, 1.85::photo_(medium)::, soft lighting, rim lighting, dramatic lighting, studio lighting, perfect composition, professional photography, cinematic effect, lifelike presentation, no lineart, -2::greasy skin::,, realistic,4k,{textless version, The image is highly intricate finished drawn,Only the character's face is in anime style, but their body is in realistic style}, 1.35::A highly finished photo-style artwork that has lively color, graphic texture, realistic skin surface, and lifelike flesh with little obliques::, 1.63::photorealistic::, 1.63::photo(medium)::,1.25::vibrant and saturated colors, bright lighting that does not compromise the overall atmosphere::, 20::best quality, absurdres, detailed, -5.1::artist collaboration::, -5::flat_color::,-2::multiple views, multiple pov::,-3::The pig::, 1girl, black gloves, black horns, blue eyes, blush, breasts, closed mouth, clothes pull, convenient censoring, dragon girl, dragon horns, from below, gloves, hair intakes, horns, indoors, jacket, large breasts, long hair, looking at viewer, multicolored hair, navel, no panties, pants, pants pull, pink hair, pink jacket, robot, smile, solo, stomach, streaked hair, sweat, thick eyebrows, twintails, white pants",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "bad anatomy, bad hands, fewer digits, extra digit, missing arms，,lowres, bad hands, missing arms， fewer digits, extra digit，{bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality,{{{watermark}}}, unfinished, displeasing, chromatic aberration,{{{signature}}}, extra digits, artistic error, username, scan, [abstract],bad hands,bad foot,bad feet,bad toes,bad toe,pubic hair,chibi,monster,empty eyes,speech bubble,doll,messy hair,giant,wrong toes,phantom,patreon signature,purple shadow,mosaic censoring,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "bad anatomy, bad hands, fewer digits, extra digit, missing arms，,lowres, bad hands, missing arms， fewer digits, extra digit，{bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality,{{{watermark}}}, unfinished, displeasing, chromatic aberration,{{{signature}}}, extra digits, artistic error, username, scan, [abstract],bad hands,bad foot,bad feet,bad toes,bad toe,pubic hair,chibi,monster,empty eyes,speech bubble,doll,messy hair,giant,wrong toes,phantom,patreon signature,purple shadow,mosaic censoring,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "w4G0+gxgO5KkC6l8P/sd2WANlarPY7CKTooIQii0c5Aa+GT4VtpI9jZ6a9AbQvfnmPlxdjffLgMpIMjDRwQeDg=="
+  },
+  "Style": "20.8::The true color of human skin::,2.5::pale skin::,,toddler,kastoddle，merrytail，1.2::artist:jumonji::,0.6::artist:egami::,0.8::artist:mochirong::,1.4::artist:jima::,1.4::artist:songchuan li::,1.4::artist:fkey::,，，{{{{3d,realistic}}}},year 2024,-2::artist collaboration ::,,-2::halo::，4::wuthering waves game cg::, lazyprocrastinator, ru_zhai, ucupumar, dab_neko, dkclaude3d, aoiro_xiaolan, ukai_saki, 3::3D, blender_(medium)::, 1.2::realistic, photorealistic::, octane render, masterpiece, best quality, amazing quality, absurdres, very aesthetic, highres, year 2024, year 2025, perfect rendering, realistic rendering, 2.5::high-definition details, 8k resolution, ultra-detailed::, detailed textures, intricate details, figure, skindentation, 2::facial features with three-dimensional sense, delicate skin texture, natural skin glow::, 1.8::velvety skin without veins, clean skin surface::, 1.3::matte skin, ultra-detailed, high detailed skin::, detailed skin, glossy skin, 1.9::exquisite clothing texture, fabric details::, fine fabric emphasis, 1.85::photo_(medium)::, soft lighting, rim lighting, dramatic lighting, studio lighting, perfect composition, professional photography, cinematic effect, lifelike presentation, no lineart, -2::greasy skin::,\nrealistic,4k,{textless version, The image is highly intricate finished drawn,Only the character's face is in anime style, but their body is in realistic style}, 1.35::A highly finished photo-style artwork that has lively color, graphic texture, realistic skin surface, and lifelike flesh with little obliques::, 1.63::photorealistic::, 1.63::photo(medium)::,1.25::vibrant and saturated colors, bright lighting that does not compromise the overall atmosphere::, 20::best quality, absurdres, detailed, -5.1::artist collaboration::, -5::flat_color::,-2::multiple views, multiple pov::,-3::The pig::"
+}

@@ -1,0 +1,81 @@
+{
+  "Description": "artist:oda non,artist:hews,artist:yunsang,artist:yd (orange maru),::,1.2::,artist:fkey,artist:liduke,artist:ratatatat74,artist:dishwasher1910,artist:kase daiki,artist:wanke,::,-5::artist collaboration::,, black serafuku, breasts, cellphone, large breasts, long hair, neckerchief, phone, pleated skirt, ponytail, purple background, sailor collar, school swimsuit, school uniform, serafuku, skirt, smartphone, swimsuit, swimsuit under clothes",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.617722541093826e-05",
+  "Comment": {
+    "prompt": "artist:oda non,artist:hews,artist:yunsang,artist:yd (orange maru),::,1.2::,artist:fkey,artist:liduke,artist:ratatatat74,artist:dishwasher1910,artist:kase daiki,artist:wanke,::,-5::artist collaboration::,, black serafuku, breasts, cellphone, large breasts, long hair, neckerchief, phone, pleated skirt, ponytail, purple background, sailor collar, school swimsuit, school uniform, serafuku, skirt, smartphone, swimsuit, swimsuit under clothes",
+    "steps": 28,
+    "height": 896,
+    "width": 1152,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 838872556,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "artist:oda non,artist:hews,artist:yunsang,artist:yd (orange maru),::,1.2::,artist:fkey,artist:liduke,artist:ratatatat74,artist:dishwasher1910,artist:kase daiki,artist:wanke,::,-5::artist collaboration::,, black serafuku, breasts, cellphone, large breasts, long hair, neckerchief, phone, pleated skirt, ponytail, purple background, sailor collar, school swimsuit, school uniform, serafuku, skirt, smartphone, swimsuit, swimsuit under clothes",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "3::,bee,fat,very white skin,aged up,old,thick lips, photo (object), ,food,::,{{{,chibi inset}}},lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract],lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], nsfw, lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract],",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "3::,bee,fat,very white skin,aged up,old,thick lips, photo (object), ,food,::,{{{,chibi inset}}},lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract],lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], nsfw, lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract],",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "WHgfU+GJJSkAdvpKSP5o64KrWB3KfoC3SGxtiD0jp5cIChGtpQ15u7QpoMC/zXf5gBl3J398j/IR7zzskNkvDg=="
+  },
+  "Style": "artist:oda non,artist:hews,artist:yunsang,artist:yd (orange maru),::,1.2::,artist:fkey,artist:liduke,artist:ratatatat74,artist:dishwasher1910,artist:kase daiki,artist:wanke,::,-5::artist collaboration::,"
+}

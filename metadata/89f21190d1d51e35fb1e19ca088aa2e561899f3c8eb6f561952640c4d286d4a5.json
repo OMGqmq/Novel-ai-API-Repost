@@ -1,0 +1,81 @@
+{
+  "Description": "artist:0.9::{ratatatat74}::,0.5::{artist:dishwasher1910}::,0.8::dino_(dinoartforame),liduke ::,, year 2025,, 1boy, 1girl, alternate costume, black halo, blush, breast press, breasts, cleavage, closed mouth, collarbone, halo, japanese clothes, kimono, kimono partially removed, large breasts, long hair, long sleeves, looking at viewer, mechanical halo, pov, purple eyes, purple hair, simple background, single bare shoulder, striped clothes, striped kimono, sweat, two side up, upper body, vertical-striped clothes, vertical-striped kimono, white background, yukata",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.5621149688959122e-05",
+  "Comment": {
+    "prompt": "artist:0.9::{ratatatat74}::,0.5::{artist:dishwasher1910}::,0.8::dino_(dinoartforame),liduke ::,, year 2025,, 1boy, 1girl, alternate costume, black halo, blush, breast press, breasts, cleavage, closed mouth, collarbone, halo, japanese clothes, kimono, kimono partially removed, large breasts, long hair, long sleeves, looking at viewer, mechanical halo, pov, purple eyes, purple hair, simple background, single bare shoulder, striped clothes, striped kimono, sweat, two side up, upper body, vertical-striped clothes, vertical-striped kimono, white background, yukata",
+    "steps": 28,
+    "height": 832,
+    "width": 1216,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 822091602,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "artist:0.9::{ratatatat74}::,0.5::{artist:dishwasher1910}::,0.8::dino_(dinoartforame),liduke ::,, year 2025,, 1boy, 1girl, alternate costume, black halo, blush, breast press, breasts, cleavage, closed mouth, collarbone, halo, japanese clothes, kimono, kimono partially removed, large breasts, long hair, long sleeves, looking at viewer, mechanical halo, pov, purple eyes, purple hair, simple background, single bare shoulder, striped clothes, striped kimono, sweat, two side up, upper body, vertical-striped clothes, vertical-striped kimono, white background, yukata",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "{{{{bad anatomy}}}},{bad feet},bad hands,{{{bad proportions}}},{blurry},cloned face,cropped,{{{deformed}}},{{{disfigured}}},error,{{{extra arms}}},{extra digit},{{{extra legs}}},extra limbs,{{extra limbs}},{fewer digits},{{{fused fingers}}},gross proportions,ink eyes,ink hair,jpeg artifacts,{{{{long neck}}}},low quality,{malformed limbs},{{missing arms}},{missing fingers},{{missing legs}},{{{more than 2 nipples}}},mutated hands,{{{mutation}}},normal quality,owres,{{poorly drawn face}},{{poorly drawn hands}},reen eyes,signature,{{too many fingers}},{{{ugly}}},username,uta,watermark,worst quality,{{{more than 2 legs}}},{{Extra toes}},pointed nails,lace gloves,on tiptoes,frame,{{{fingerless_gloves}}},{{glove seams}},",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "{{{{bad anatomy}}}},{bad feet},bad hands,{{{bad proportions}}},{blurry},cloned face,cropped,{{{deformed}}},{{{disfigured}}},error,{{{extra arms}}},{extra digit},{{{extra legs}}},extra limbs,{{extra limbs}},{fewer digits},{{{fused fingers}}},gross proportions,ink eyes,ink hair,jpeg artifacts,{{{{long neck}}}},low quality,{malformed limbs},{{missing arms}},{missing fingers},{{missing legs}},{{{more than 2 nipples}}},mutated hands,{{{mutation}}},normal quality,owres,{{poorly drawn face}},{{poorly drawn hands}},reen eyes,signature,{{too many fingers}},{{{ugly}}},username,uta,watermark,worst quality,{{{more than 2 legs}}},{{Extra toes}},pointed nails,lace gloves,on tiptoes,frame,{{{fingerless_gloves}}},{{glove seams}},",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "/yzQDUcjHoD1Vyro0xh0dvKmyFseUf9w0awh4SSu0vmujkuB3s9D4N5UE7yDRr4797AfhNNp+2Pyg/INU6SMCw=="
+  },
+  "Style": "artist:0.9::{ratatatat74}::,0.5::{artist:dishwasher1910}::,0.8::dino_(dinoartforame),liduke ::, \nyear 2025,"
+}

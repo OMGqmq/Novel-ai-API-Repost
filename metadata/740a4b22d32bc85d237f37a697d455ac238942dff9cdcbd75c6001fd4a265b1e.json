@@ -1,0 +1,81 @@
+{
+  "Description": "artist:ke-ta,onineko,ningen_mame, artist:akizero1510,artist:wanke,best quality, amazing quality, very aesthetic, absurdres, {masterpiece},{high detailed},, 1girl, armpit crease, artist name, bare arms, blue bow, blush, bow, bow bra, bow panties, bra, breasts, camisole, cleavage, cowboy shot, embarrassed, garter belt, grey hair, hair between eyes, hair ornament, hairpin, indoors, lace-trimmed bra, lace-trimmed panties, lace-trimmed thighhighs, lace trim, light particles, long hair, looking at viewer, medium breasts, mirror, navel, page number, panties, parted lips, purple eyes, reflection, shiny skin, sidelocks, solo, standing, stomach, sweatdrop, thighhighs, two side up, underwear, undressing, white bra, white camisole, white garter belt, white panties, white thighhighs, x hair ornament",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.3900065571069717e-05",
+  "Comment": {
+    "prompt": "artist:ke-ta,onineko,ningen_mame, artist:akizero1510,artist:wanke,best quality, amazing quality, very aesthetic, absurdres, {masterpiece},{high detailed},, 1girl, armpit crease, artist name, bare arms, blue bow, blush, bow, bow bra, bow panties, bra, breasts, camisole, cleavage, cowboy shot, embarrassed, garter belt, grey hair, hair between eyes, hair ornament, hairpin, indoors, lace-trimmed bra, lace-trimmed panties, lace-trimmed thighhighs, lace trim, light particles, long hair, looking at viewer, medium breasts, mirror, navel, page number, panties, parted lips, purple eyes, reflection, shiny skin, sidelocks, solo, standing, stomach, sweatdrop, thighhighs, two side up, underwear, undressing, white bra, white camisole, white garter belt, white panties, white thighhighs, x hair ornament",
+    "steps": 28,
+    "height": 896,
+    "width": 1152,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 988318095,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "artist:ke-ta,onineko,ningen_mame, artist:akizero1510,artist:wanke,best quality, amazing quality, very aesthetic, absurdres, {masterpiece},{high detailed},, 1girl, armpit crease, artist name, bare arms, blue bow, blush, bow, bow bra, bow panties, bra, breasts, camisole, cleavage, cowboy shot, embarrassed, garter belt, grey hair, hair between eyes, hair ornament, hairpin, indoors, lace-trimmed bra, lace-trimmed panties, lace-trimmed thighhighs, lace trim, light particles, long hair, looking at viewer, medium breasts, mirror, navel, page number, panties, parted lips, purple eyes, reflection, shiny skin, sidelocks, solo, standing, stomach, sweatdrop, thighhighs, two side up, underwear, undressing, white bra, white camisole, white garter belt, white panties, white thighhighs, x hair ornament",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "bad hands,bad fingers,extra fingers,loss fingers,signature, Navel,bad anatomy, blurry, disembodied limb, Two navel eyes, worst quality, Hand with excessive fingers,Foot with excessive toes,Hand with surplus fingers,Hand with greyscale，deficient fingers,Abnormal anatomy,Poorly formed hands,Deformed hands and fingers,Additional limbs,Excessive limbs,Abnormal finger interlocking duplicate, cropped, text, jpeg, artifacts, signature, watermark, username, blurry, artist name, trademark, title, muscular, sd character, multiple view, Reference sheet, long body, malformed limbs, multiple breasts, cloned face, malformed, mutated, bad anatomy, disfigured, bad proportions, duplicate, bad feet, artist name, extra limbs, ugly, fused anus, text font ui, missing, bad foot quality, twisted toes, asymmetric toes, abnormal toe shapes, misplaced toes, missing toes, extra toes, oversized/small toes, misaligned ankles, mismatched foot sizes, scars or blemishes, nipple-like toes, swollen or deformed toes, overlapping toes, excess toenail, incorrect toe count, uneven toe count, unnatural foot proportions.",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "bad hands,bad fingers,extra fingers,loss fingers,signature, Navel,bad anatomy, blurry, disembodied limb, Two navel eyes, worst quality, Hand with excessive fingers,Foot with excessive toes,Hand with surplus fingers,Hand with greyscale，deficient fingers,Abnormal anatomy,Poorly formed hands,Deformed hands and fingers,Additional limbs,Excessive limbs,Abnormal finger interlocking duplicate, cropped, text, jpeg, artifacts, signature, watermark, username, blurry, artist name, trademark, title, muscular, sd character, multiple view, Reference sheet, long body, malformed limbs, multiple breasts, cloned face, malformed, mutated, bad anatomy, disfigured, bad proportions, duplicate, bad feet, artist name, extra limbs, ugly, fused anus, text font ui, missing, bad foot quality, twisted toes, asymmetric toes, abnormal toe shapes, misplaced toes, missing toes, extra toes, oversized/small toes, misaligned ankles, mismatched foot sizes, scars or blemishes, nipple-like toes, swollen or deformed toes, overlapping toes, excess toenail, incorrect toe count, uneven toe count, unnatural foot proportions.",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "CSJp7zJjgUznQxuVgZqDBKSfOV+YwjxhLr4qcJc+nTdcAMJ7UPj83VdrPOKaU1enDMbCHtU6Mh57hyppWcH0Bw=="
+  },
+  "Style": "artist:ke-ta,onineko,ningen_mame, artist:akizero1510,artist:wanke,best quality, amazing quality, very aesthetic, absurdres, {masterpiece},{high detailed},"
+}

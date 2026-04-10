@@ -393,7 +393,18 @@
 
         <div id="historyArea"
             class="flex-1 hidden w-full h-full overflow-y-auto p-4 pt-20 pb-32 md:pb-10 custom-scroll">
-            <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 content-start"></div>
+            <div class="flex items-center justify-center mb-4">
+                <div class="inline-flex bg-gray-100/80 dark:bg-slate-800/80 rounded-full p-1 border border-gray-200/60 dark:border-gray-700/50"
+                    id="galleryTabToggle">
+                    <button onclick="switchGalleryTab('showcase')" id="tabShowcase"
+                        class="px-4 py-1.5 text-[11px] font-semibold rounded-full transition-all bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm">展示</button>
+                    <button onclick="switchGalleryTab('history')" id="tabHistory"
+                        class="px-4 py-1.5 text-[11px] font-semibold rounded-full transition-all text-gray-500 dark:text-gray-400">历史</button>
+                </div>
+            </div>
+            <div id="showcaseGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 content-start"></div>
+            <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 content-start hidden">
+            </div>
             <div id="emptyGallery"
                 class="hidden h-full flex flex-col items-center justify-center text-gray-300 dark:text-slate-600">
                 <i data-lucide="ghost" class="w-10 h-10 mb-3 opacity-50"></i>
@@ -439,6 +450,9 @@
                         class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"><i
                             data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun"
                             class="w-4 h-4 hidden dark:block"></i></button>
+                    <button onclick="enterCustomApiKey()" id="apiBtn"
+                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"
+                        title="自定义 API Key"><i data-lucide="globe" class="w-4 h-4"></i></button>
                     <button onclick="enterUserKey()" id="keyBtn"
                         class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"
                         title="兑换/输入卡密"><i data-lucide="key" class="w-4 h-4"></i></button>
@@ -470,6 +484,9 @@
                         class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="moon"
                             class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun"
                             class="w-4 h-4 hidden dark:block"></i></button>
+                    <button onclick="enterCustomApiKey()" id="apiBtnMobile"
+                        class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="globe"
+                            class="w-4 h-4"></i></button>
                     <button onclick="enterUserKey()" id="keyBtnMobile"
                         class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="key"
                             class="w-4 h-4"></i></button>
@@ -633,6 +650,37 @@
         <i data-lucide="sparkles" class="w-7 h-7 text-yellow-300 dark:text-yellow-600"></i>
     </button>
 
+    <!-- 自定义 API Key 弹窗 -->
+    <div id="apiKeyModal" class="fixed inset-0 z-[100] hidden items-center justify-center" style="display:none">
+        <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onclick="closeApiKeyModal()"></div>
+        <div
+            class="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 w-[90%] max-w-md p-6 space-y-5">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    <i data-lucide="globe" class="w-4 h-4 text-blue-500"></i> 自定义 NovelAI API Key
+                </h3>
+                <button onclick="closeApiKeyModal()"
+                    class="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">输入你的 NovelAI API
+                Token（pst-开头），验证成功后将用你的账号生成图片，并解锁批量生成等管理员功能。</p>
+            <div>
+                <input type="password" id="apiKeyInput" placeholder="pst-xxxxxxxxxxxxxxxx..."
+                    class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono">
+            </div>
+            <div id="apiKeyStatus" class="hidden text-xs px-1"></div>
+            <div class="flex gap-3">
+                <button onclick="clearCustomApiKey()" id="apiKeyClearBtn"
+                    class="hidden flex-1 py-3 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">清除
+                    Key</button>
+                <button onclick="verifyCustomApiKey()" id="apiKeyVerifyBtn"
+                    class="flex-1 py-3 text-xs font-bold rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">验证并激活</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         lucide.createIcons();
 
@@ -738,10 +786,8 @@
                 els.viewBtnHistory.classList.add('active');
                 els.previewArea.classList.add('hidden');
                 els.historyArea.classList.remove('hidden');
-                loadGallery();
-                els.zipBtn.classList.remove('hidden');
-                els.clearBtn.classList.remove('hidden');
                 els.dlBtn.classList.add('hidden');
+                switchGalleryTab(currentGalleryTab);
             }
         }
 
@@ -889,7 +935,8 @@
             const [w, h] = els.resolution.value.split(',').map(Number);
             const adminToken = localStorage.getItem('nai_admin_token') || "";
             const userKey = localStorage.getItem('nai_user_key') || "";
-            const isAdmin = !!adminToken;
+            const customApiKey = localStorage.getItem('nai_custom_api_key') || "";
+            const isAdmin = !!adminToken || !!customApiKey;
 
             let batchTotal = 1;
             if (isAdmin && els.batchCount) {
@@ -925,7 +972,8 @@
                         headers: {
                             'Content-Type': 'application/json',
                             'x-admin-token': adminToken,
-                            'x-user-key': userKey
+                            'x-user-key': userKey,
+                            'x-custom-api-key': customApiKey
                         },
                         body: JSON.stringify(payload)
                     });
@@ -1020,6 +1068,7 @@
             };
         }
         function deleteCurrentImage() {
+            if (currentImageData && currentImageData.isShowcase) return;
             if (!currentImageId || !db || !confirm("删除此图片？")) return;
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(currentImageId).onsuccess = () => {
                 resetPreview(); loadGallery();
@@ -1034,7 +1083,11 @@
         function loadGallery() {
             if (!db) return;
             db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll().onsuccess = (e) => {
-                renderGallery(e.target.result.reverse());
+                const items = e.target.result.reverse();
+                renderGallery(items);
+                if (currentGalleryTab === 'history' && items.length === 0) {
+                    els.emptyGallery.classList.remove('hidden');
+                }
             };
         }
         function renderGallery(items) {
@@ -1108,6 +1161,68 @@
                 });
             };
         };
+
+        // --- 展示图库 (Showcase) ---
+        let showcaseData = [];
+        let currentGalleryTab = 'showcase';
+        fetch('gallery_index.json').then(r => r.json()).then(d => { showcaseData = d; renderShowcase(); }).catch(() => { });
+
+        function switchGalleryTab(tab) {
+            currentGalleryTab = tab;
+            const tabShowcase = document.getElementById('tabShowcase');
+            const tabHistory = document.getElementById('tabHistory');
+            const showcaseGrid = document.getElementById('showcaseGrid');
+            const activeClass = 'px-4 py-1.5 text-[11px] font-semibold rounded-full transition-all bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm';
+            const inactiveClass = 'px-4 py-1.5 text-[11px] font-semibold rounded-full transition-all text-gray-500 dark:text-gray-400';
+            if (tab === 'showcase') {
+                tabShowcase.className = activeClass;
+                tabHistory.className = inactiveClass;
+                showcaseGrid.classList.remove('hidden');
+                els.galleryGrid.classList.add('hidden');
+                els.emptyGallery.classList.add('hidden');
+                els.zipBtn.classList.add('hidden');
+                els.clearBtn.classList.add('hidden');
+            } else {
+                tabShowcase.className = inactiveClass;
+                tabHistory.className = activeClass;
+                showcaseGrid.classList.add('hidden');
+                els.galleryGrid.classList.remove('hidden');
+                els.zipBtn.classList.remove('hidden');
+                els.clearBtn.classList.remove('hidden');
+                loadGallery();
+            }
+        }
+
+        function renderShowcase() {
+            const grid = document.getElementById('showcaseGrid');
+            if (!grid || showcaseData.length === 0) return;
+            grid.innerHTML = '';
+            showcaseData.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:shadow-md transition-shadow';
+                const img = document.createElement('img');
+                img.className = 'w-full h-full object-cover';
+                img.loading = 'lazy';
+                img.src = `images/${item.id}.png`;
+                img.alt = '';
+                el.appendChild(img);
+                el.onclick = () => loadPreviewFromShowcase(item);
+                grid.appendChild(el);
+            });
+        }
+
+        function loadPreviewFromShowcase(item) {
+            switchRightView('preview');
+            els.resultImg.src = `images/${item.id}.png`;
+            els.placeholder.classList.add('hidden');
+            els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
+            els.dlBtn.disabled = false;
+            els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            currentImageId = null;
+            currentImageData = { prompt: item.prompt, model: item.model, isShowcase: true };
+            showImageActions(true);
+            toggleMobileControls(false);
+        }
 
         // --- 预设与搜词 ---
         const presetFiles = [
@@ -1195,8 +1310,10 @@
         }
         function checkAdminStatus() {
             const t = localStorage.getItem('nai_admin_token');
+            const customKey = localStorage.getItem('nai_custom_api_key');
+            const isAdmin = !!t || !!customKey;
             const updateLock = (btn) => {
-                if (t) {
+                if (isAdmin) {
                     btn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
                     els.adminControls.classList.remove('hidden');
                 } else {
@@ -1206,9 +1323,102 @@
             };
             if (els.adminLockBtn) updateLock(els.adminLockBtn);
             if (els.adminLockBtnMobile) updateLock(els.adminLockBtnMobile);
+
+            // 更新 API 按钮状态
+            const updateApiBtn = (btn) => {
+                if (customKey) {
+                    btn.innerHTML = '<i data-lucide="globe" class="w-4 h-4 text-green-500"></i>';
+                } else {
+                    btn.innerHTML = '<i data-lucide="globe" class="w-4 h-4"></i>';
+                }
+            };
+            const apiBtn = document.getElementById('apiBtn');
+            const apiBtnMobile = document.getElementById('apiBtnMobile');
+            if (apiBtn) updateApiBtn(apiBtn);
+            if (apiBtnMobile) updateApiBtn(apiBtnMobile);
+
             lucide.createIcons();
         }
         checkAdminStatus();
+
+        // --- 自定义 API Key ---
+        function enterCustomApiKey() {
+            const modal = document.getElementById('apiKeyModal');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            const cur = localStorage.getItem('nai_custom_api_key');
+            const input = document.getElementById('apiKeyInput');
+            const clearBtn = document.getElementById('apiKeyClearBtn');
+            const statusEl = document.getElementById('apiKeyStatus');
+            statusEl.classList.add('hidden');
+            if (cur) {
+                input.value = cur;
+                clearBtn.classList.remove('hidden');
+            } else {
+                input.value = '';
+                clearBtn.classList.add('hidden');
+            }
+            lucide.createIcons();
+        }
+
+        function closeApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+
+        async function verifyCustomApiKey() {
+            const input = document.getElementById('apiKeyInput');
+            const statusEl = document.getElementById('apiKeyStatus');
+            const verifyBtn = document.getElementById('apiKeyVerifyBtn');
+            const key = input.value.trim();
+
+            if (!key) {
+                statusEl.innerHTML = '<span class="text-red-500">✗ 请输入 API Key</span>';
+                statusEl.classList.remove('hidden');
+                return;
+            }
+
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = '验证中...';
+            statusEl.innerHTML = '<span class="text-gray-400">⭮ 正在连接 NovelAI 验证...</span>';
+            statusEl.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/verify-key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKey: key })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.valid) {
+                    localStorage.setItem('nai_custom_api_key', key);
+                    statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功！订阅: <b>${data.tierName}</b>。已激活管理员模式。</span>`;
+                    document.getElementById('apiKeyClearBtn').classList.remove('hidden');
+                    checkAdminStatus();
+                    setTimeout(() => closeApiKeyModal(), 1500);
+                } else {
+                    statusEl.innerHTML = `<span class="text-red-500">✗ ${data.error || '验证失败'}</span>`;
+                }
+            } catch (e) {
+                statusEl.innerHTML = `<span class="text-red-500">✗ 网络错误: ${e.message}</span>`;
+            } finally {
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = '验证并激活';
+            }
+        }
+
+        function clearCustomApiKey() {
+            localStorage.removeItem('nai_custom_api_key');
+            document.getElementById('apiKeyInput').value = '';
+            document.getElementById('apiKeyClearBtn').classList.add('hidden');
+            const statusEl = document.getElementById('apiKeyStatus');
+            statusEl.innerHTML = '<span class="text-gray-500">✔ 已清除自定义 Key</span>';
+            statusEl.classList.remove('hidden');
+            checkAdminStatus();
+        }
     </script>
 </body>
 

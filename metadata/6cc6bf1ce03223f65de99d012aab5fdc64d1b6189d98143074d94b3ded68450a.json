@@ -1,0 +1,81 @@
+{
+  "Description": "2.5::artist:yoneyama_mai,artist:ke-ta,::,2::artist:onyhakase ::,2::artist:huhv.::,2::artist:ohisashiburi::,1.2::artist:reia_76 ::,artist:shion_(mirudakemann),1.1::artist:nashidrop ::,0.8::artist:potg_(piotegu) ::,0.8::artist:ogipote00 ::,1.5::artist:quasarcake ::,-2::upscaled, blurry::,-2::blurry::,-3::artist:collaboration::,-2::chibi::, location,in sunflower field, falling petals, distant trees, sunset sky,, 1girl, alternate costume, armpit focus, armpits, arms up, bird, black nightgown, blue hair, blunt bangs, breasts, curtains, hair down, looking at viewer, nightgown, open mouth, presenting armpit, see-through clothes, short hair, single off shoulder, sleepwear, small breasts, solo, waking up, window, yellow eyes",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.4905970096588135e-05",
+  "Comment": {
+    "prompt": "2.5::artist:yoneyama_mai,artist:ke-ta,::,2::artist:onyhakase ::,2::artist:huhv.::,2::artist:ohisashiburi::,1.2::artist:reia_76 ::,artist:shion_(mirudakemann),1.1::artist:nashidrop ::,0.8::artist:potg_(piotegu) ::,0.8::artist:ogipote00 ::,1.5::artist:quasarcake ::,-2::upscaled, blurry::,-2::blurry::,-3::artist:collaboration::,-2::chibi::, location,in sunflower field, falling petals, distant trees, sunset sky,, 1girl, alternate costume, armpit focus, armpits, arms up, bird, black nightgown, blue hair, blunt bangs, breasts, curtains, hair down, looking at viewer, nightgown, open mouth, presenting armpit, see-through clothes, short hair, single off shoulder, sleepwear, small breasts, solo, waking up, window, yellow eyes",
+    "steps": 28,
+    "height": 960,
+    "width": 1088,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 922939407,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "2.5::artist:yoneyama_mai,artist:ke-ta,::,2::artist:onyhakase ::,2::artist:huhv.::,2::artist:ohisashiburi::,1.2::artist:reia_76 ::,artist:shion_(mirudakemann),1.1::artist:nashidrop ::,0.8::artist:potg_(piotegu) ::,0.8::artist:ogipote00 ::,1.5::artist:quasarcake ::,-2::upscaled, blurry::,-2::blurry::,-3::artist:collaboration::,-2::chibi::, location,in sunflower field, falling petals, distant trees, sunset sky,, 1girl, alternate costume, armpit focus, armpits, arms up, bird, black nightgown, blue hair, blunt bangs, breasts, curtains, hair down, looking at viewer, nightgown, open mouth, presenting armpit, see-through clothes, short hair, single off shoulder, sleepwear, small breasts, solo, waking up, window, yellow eyes",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, gun,logo,chibi,lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, gun,logo,chibi,lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "hmoYssJiJoW0+zHOZhoDF39N6rgxyXsKEK5dcC6MFTnGJnbKqoqGGEWdy3+FJlUu+xSQf8zvcoAjxgbal6SaAw=="
+  },
+  "Style": "2.5::artist:yoneyama_mai,artist:ke-ta,::,2::artist:onyhakase ::,2::artist:huhv.::,2::artist:ohisashiburi::,1.2::artist:reia_76 ::,artist:shion_(mirudakemann),1.1::artist:nashidrop ::,0.8::artist:potg_(piotegu) ::,0.8::artist:ogipote00 ::,1.5::artist:quasarcake ::,-2::upscaled, blurry::,-2::blurry::,-3::artist:collaboration::,-2::chibi::\n\n\nlocation,in sunflower field, falling petals, distant trees, sunset sky,"
+}

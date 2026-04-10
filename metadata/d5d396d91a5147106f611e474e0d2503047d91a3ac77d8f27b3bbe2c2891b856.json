@@ -1,0 +1,81 @@
+{
+  "Description": "1.5::aria (ariacue)::,free_style_(yohan1754) ,artist:leviathan_(hikinito0902) ,nagiha kuten,yabacha,, 1girl, :t, alternate costume, angry, blue eyes, blue scarf, blush, breath, brown hair, coat, cold, from side, fur-trimmed coat, fur trim, hair flaps, hair ornament, hair ribbon, hairclip, index finger raised, long hair, looking at viewer, night, outdoors, pointing, pointing at viewer, pout, red ribbon, ribbon, scarf, sidelocks, solo, star (symbol), star hair ornament, v-shaped eyebrows, virtual youtuber, white coat, winter clothes",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.3898202925920486e-05",
+  "Comment": {
+    "prompt": "1.5::aria (ariacue)::,free_style_(yohan1754) ,artist:leviathan_(hikinito0902) ,nagiha kuten,yabacha,, 1girl, :t, alternate costume, angry, blue eyes, blue scarf, blush, breath, brown hair, coat, cold, from side, fur-trimmed coat, fur trim, hair flaps, hair ornament, hair ribbon, hairclip, index finger raised, long hair, looking at viewer, night, outdoors, pointing, pointing at viewer, pout, red ribbon, ribbon, scarf, sidelocks, solo, star (symbol), star hair ornament, v-shaped eyebrows, virtual youtuber, white coat, winter clothes",
+    "steps": 28,
+    "height": 1088,
+    "width": 960,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 663184127,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "1.5::aria (ariacue)::,free_style_(yohan1754) ,artist:leviathan_(hikinito0902) ,nagiha kuten,yabacha,, 1girl, :t, alternate costume, angry, blue eyes, blue scarf, blush, breath, brown hair, coat, cold, from side, fur-trimmed coat, fur trim, hair flaps, hair ornament, hair ribbon, hairclip, index finger raised, long hair, looking at viewer, night, outdoors, pointing, pointing at viewer, pout, red ribbon, ribbon, scarf, sidelocks, solo, star (symbol), star hair ornament, v-shaped eyebrows, virtual youtuber, white coat, winter clothes",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "5::ugly, ugly face, bad face, poorly drawn face, bad ugly skin, strong muscles, english ::,ugly muscles, large muscle, abstract, deformed hands, deformed feet, distorted body, unnatural body, asymmetrical limbs, floating limbs, disconnected limbs, blood vessel, western face,western animation, nsfw, lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, 1.1::lowres, bad quality, worst quality, blurry, noisy, jpeg artifacts::,watermark, text, signature, logo, username, scan, multiple views, elf ear, 0.2:: glossy skin, plastic skin, vinyl skin::,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "5::ugly, ugly face, bad face, poorly drawn face, bad ugly skin, strong muscles, english ::,ugly muscles, large muscle, abstract, deformed hands, deformed feet, distorted body, unnatural body, asymmetrical limbs, floating limbs, disconnected limbs, blood vessel, western face,western animation, nsfw, lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, 1.1::lowres, bad quality, worst quality, blurry, noisy, jpeg artifacts::,watermark, text, signature, logo, username, scan, multiple views, elf ear, 0.2:: glossy skin, plastic skin, vinyl skin::,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "AEdYl9bnbxyWf/+/Zy8gssjqZ0/4strQb/oK+S9YjUZPNxfVvUgKxFMS1SZXtF78e5HpD90gGtcAEYM9mE9KDg=="
+  },
+  "Style": "1.5::aria (ariacue)::,free_style_(yohan1754) ,artist:leviathan_(hikinito0902) ,nagiha kuten,yabacha,"
+}

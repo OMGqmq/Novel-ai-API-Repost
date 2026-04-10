@@ -1,0 +1,81 @@
+{
+  "Description": "{artist:miv4t},{{artist:konya karasue}},artist:rella,[[[artist:quasarcake]]],artist:fajyobore,[[[[[artist:skyrick9413]]]]],, 1girl, aged down, black bow, black bowtie, bow, bowtie, closed mouth, dress, furrowed brow, green eyes, grey background, hairband, layered sleeves, long hair, long sleeves, looking at viewer, orange hair, rain, short over long sleeves, short sleeves, solo, traditional bowtie, two side up, white dress, white hairband",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.9474031180143356e-05",
+  "Comment": {
+    "prompt": "{artist:miv4t},{{artist:konya karasue}},artist:rella,[[[artist:quasarcake]]],artist:fajyobore,[[[[[artist:skyrick9413]]]]],, 1girl, aged down, black bow, black bowtie, bow, bowtie, closed mouth, dress, furrowed brow, green eyes, grey background, hairband, layered sleeves, long hair, long sleeves, looking at viewer, orange hair, rain, short over long sleeves, short sleeves, solo, traditional bowtie, two side up, white dress, white hairband",
+    "steps": 28,
+    "height": 1152,
+    "width": 896,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 298905792,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "{artist:miv4t},{{artist:konya karasue}},artist:rella,[[[artist:quasarcake]]],artist:fajyobore,[[[[[artist:skyrick9413]]]]],, 1girl, aged down, black bow, black bowtie, bow, bowtie, closed mouth, dress, furrowed brow, green eyes, grey background, hairband, layered sleeves, long hair, long sleeves, looking at viewer, orange hair, rain, short over long sleeves, short sleeves, solo, traditional bowtie, two side up, white dress, white hairband",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, 3::text,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, 3::text,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "M5XSVUkdY3pXbzUPrgWag4RkqQO4SA0YJNXf252PX4r8Xw1via6NEB/DSa+mguxwoEdvveRfb9Y7+Y5eury0Bg=="
+  },
+  "Style": "{artist:miv4t},{{artist:konya karasue}},artist:rella,[[[artist:quasarcake]]],artist:fajyobore,[[[[[artist:skyrick9413]]]]],"
+}

@@ -1,0 +1,81 @@
+{
+  "Description": "artist:ru_zhai,artist:binggong_asylum,[artist:ningen_mame],artist:ciloranko,[artist:sho_(sho_lwlw)],[[artist:as109]], wlop,year_2023,-3::artist collaboration::,, 1girl, between breasts, breasts, cleavage, copyright logo, dragon girl, dragon horns, dragon tail, drill hair, hair between eyes, hair intakes, horns, impossible clothes, impossible leotard, large breasts, leotard, logo, long hair, long sidelocks, multicolored hair, necktie, necktie between breasts, open mouth, pink hair, pink leotard, pink necktie, pointy ears, sidelocks, sitting, solo, streaked hair, tail, thighhighs, tongue, tongue out, twin drills, wariza, white thighhighs, yellow background",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.532087430357933e-05",
+  "Comment": {
+    "prompt": "artist:ru_zhai,artist:binggong_asylum,[artist:ningen_mame],artist:ciloranko,[artist:sho_(sho_lwlw)],[[artist:as109]], wlop,year_2023,-3::artist collaboration::,, 1girl, between breasts, breasts, cleavage, copyright logo, dragon girl, dragon horns, dragon tail, drill hair, hair between eyes, hair intakes, horns, impossible clothes, impossible leotard, large breasts, leotard, logo, long hair, long sidelocks, multicolored hair, necktie, necktie between breasts, open mouth, pink hair, pink leotard, pink necktie, pointy ears, sidelocks, sitting, solo, streaked hair, tail, thighhighs, tongue, tongue out, twin drills, wariza, white thighhighs, yellow background",
+    "steps": 28,
+    "height": 1216,
+    "width": 832,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 403326871,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "artist:ru_zhai,artist:binggong_asylum,[artist:ningen_mame],artist:ciloranko,[artist:sho_(sho_lwlw)],[[artist:as109]], wlop,year_2023,-3::artist collaboration::,, 1girl, between breasts, breasts, cleavage, copyright logo, dragon girl, dragon horns, dragon tail, drill hair, hair between eyes, hair intakes, horns, impossible clothes, impossible leotard, large breasts, leotard, logo, long hair, long sidelocks, multicolored hair, necktie, necktie between breasts, open mouth, pink hair, pink leotard, pink necktie, pointy ears, sidelocks, sitting, solo, streaked hair, tail, thighhighs, tongue, tongue out, twin drills, wariza, white thighhighs, yellow background",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, {{worst quality, low quality}}, {{fuze}}, {{grayscale}},error,missing fingers, missing arms,missing legs, extra digit, extra fingers,fewer digits,extra limbs,extra arms,extra legs,malformed limbs,fused fingers,too many fingers,long neck,cross-eyed,mutated hands, cropped,poorly drawn hands,poorly drawn face,mutation,deformed,worst quality,low quality, normal quality, blurry,ugly,duplicate,morbid,mutilated,out of frame, body out of frame,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, {{worst quality, low quality}}, {{fuze}}, {{grayscale}},error,missing fingers, missing arms,missing legs, extra digit, extra fingers,fewer digits,extra limbs,extra arms,extra legs,malformed limbs,fused fingers,too many fingers,long neck,cross-eyed,mutated hands, cropped,poorly drawn hands,poorly drawn face,mutation,deformed,worst quality,low quality, normal quality, blurry,ugly,duplicate,morbid,mutilated,out of frame, body out of frame,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "AsydKpvOvHTLSdKQFloTJDvHp4SQt9f9zy62iyZbCeRLObF00UASbDYHFAlqU/tb/gglH+DM0XCqZw0GFDb+AQ=="
+  },
+  "Style": "artist:ru_zhai,artist:binggong_asylum,[artist:ningen_mame],artist:ciloranko,[artist:sho_(sho_lwlw)],[[artist:as109]], wlop,year_2023,-3::artist collaboration::,"
+}

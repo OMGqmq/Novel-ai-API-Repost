@@ -1,0 +1,81 @@
+{
+  "Description": "{{,artist:sofra,artist:kani_biimu,artist:avogado6,}}artist:beni_shake,artist:kedama_milk,artist:tianliang_duohe_fangdongye,ultra-detailed,amazing quality, very aesthetic, amazing, high detail, extremely detailed 8k wallpaper,, 1girl, alternate costume, black dress, blue eyes, bow (music), breasts, dress, hair ornament, holding, holding bow (music), holding instrument, holding violin, instrument, large breasts, long hair, pink hair, playing violin, simple background, solo, two-tone dress, very long hair, violin, white background, white dress",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.091711550951004e-05",
+  "Comment": {
+    "prompt": "{{,artist:sofra,artist:kani_biimu,artist:avogado6,}}artist:beni_shake,artist:kedama_milk,artist:tianliang_duohe_fangdongye,ultra-detailed,amazing quality, very aesthetic, amazing, high detail, extremely detailed 8k wallpaper,, 1girl, alternate costume, black dress, blue eyes, bow (music), breasts, dress, hair ornament, holding, holding bow (music), holding instrument, holding violin, instrument, large breasts, long hair, pink hair, playing violin, simple background, solo, two-tone dress, very long hair, violin, white background, white dress",
+    "steps": 28,
+    "height": 1088,
+    "width": 960,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 358058568,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "{{,artist:sofra,artist:kani_biimu,artist:avogado6,}}artist:beni_shake,artist:kedama_milk,artist:tianliang_duohe_fangdongye,ultra-detailed,amazing quality, very aesthetic, amazing, high detail, extremely detailed 8k wallpaper,, 1girl, alternate costume, black dress, blue eyes, bow (music), breasts, dress, hair ornament, holding, holding bow (music), holding instrument, holding violin, instrument, large breasts, long hair, pink hair, playing violin, simple background, solo, two-tone dress, very long hair, violin, white background, white dress",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "background，, [画质质量:0],low resolution,Very low resolution,Low image quality,Very poor picture quality,Poor quality detail picture,Vague details,Mosaic pictures,Problems in drawing,Overfitting,Bad painting,Bad painting details,Low quality painting details,Normal quality,, [比例:0],Abnormal human proportion,Abnormal chest circumference ratio,Abnormal palm ratio,Abnormal finger ratio,Abnormal feet scale,There is a problem with the proportion of shoes,Abnormal finger length ratio,Abnormal arm proportion,Abnormal thigh proportion,Abnormal hand proportion,Abnormal body proportion,Abnormal shoes proportion,, [不可能的:0],Impossible composition,Impossible human structure,Impossible hand,Impossible finger,Impossible feet,Impossible shoes,Impossible posture,Impossible fist gesture,Impossible finger bending posture,Impossible body movements,Impossible degree of f",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "background，, [画质质量:0],low resolution,Very low resolution,Low image quality,Very poor picture quality,Poor quality detail picture,Vague details,Mosaic pictures,Problems in drawing,Overfitting,Bad painting,Bad painting details,Low quality painting details,Normal quality,, [比例:0],Abnormal human proportion,Abnormal chest circumference ratio,Abnormal palm ratio,Abnormal finger ratio,Abnormal feet scale,There is a problem with the proportion of shoes,Abnormal finger length ratio,Abnormal arm proportion,Abnormal thigh proportion,Abnormal hand proportion,Abnormal body proportion,Abnormal shoes proportion,, [不可能的:0],Impossible composition,Impossible human structure,Impossible hand,Impossible finger,Impossible feet,Impossible shoes,Impossible posture,Impossible fist gesture,Impossible finger bending posture,Impossible body movements,Impossible degree of f",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "AzDCJ/KLIoKRyIVhWlpsc3ElwOQbSrA/QD1M6PMpmAraMI7ImRup++BlGFApEoxrB8/br0BqOJ06Oqc7TCOUCQ=="
+  },
+  "Style": "{{,artist:sofra,artist:kani_biimu,artist:avogado6,}}artist:beni_shake,artist:kedama_milk,artist:tianliang_duohe_fangdongye,ultra-detailed,amazing quality, very aesthetic, amazing, high detail, extremely detailed 8k wallpaper,"
+}

@@ -1,0 +1,81 @@
+{
+  "Description": "5::,masterpiece,nsfw,3d,game cg,blender (medium), ,detailed skin,realistic,photorealistic,photo (medium),::,1.3::,artist:liduke,artist:yunsang,artist:hyulla,artist:nixeuartist:fei (maidoll),artist:kim hyung tae,artist:rororo,artist:tsuki no i-min,artist:rhasta,artist:wu ganlan cai,artist:omone hokoma agm,artist:mana (remana),artist:dk.senie,artist:jtveemo,artist:nyantcha,artiat:wlop,artist:bee (deadflow),artist:kuzuvine,artist:wanke,::,0.9::,artist:dishwasher1910,artist:yd (orange maru),artist:siu (siu0207),artist:sakimichan ,artist:yomu (sgt epper), ,artist:laserflip, ,artist:kinhasu,artist:kase daiki,artist:jeneral,::,-2::artist collaboration::,2:: best quality, amazing quality, very aesthetic, highres, incredibly absurdres,year 2025,year 2024,::,-4::bald,balding,ugly,multiple views::,2::no text,highres,best quality,very aesthetic,absurdres,::,, 1girl, black skirt, breasts, closed mouth, collarbone, collared shirt, colored tips, computer keyboard, crossed legs, glasses, green hair, hair ornament, id card, monitor, multicolored hair, office lady, panties, pantyhose, pink nails, pink panties, plant, shell, shell hair ornament, shirt, sitting, skirt, smile, solo, symbol-shaped pupils, underwear, white shirt",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.8391368687152863e-05",
+  "Comment": {
+    "prompt": "5::,masterpiece,nsfw,3d,game cg,blender (medium), ,detailed skin,realistic,photorealistic,photo (medium),::,1.3::,artist:liduke,artist:yunsang,artist:hyulla,artist:nixeuartist:fei (maidoll),artist:kim hyung tae,artist:rororo,artist:tsuki no i-min,artist:rhasta,artist:wu ganlan cai,artist:omone hokoma agm,artist:mana (remana),artist:dk.senie,artist:jtveemo,artist:nyantcha,artiat:wlop,artist:bee (deadflow),artist:kuzuvine,artist:wanke,::,0.9::,artist:dishwasher1910,artist:yd (orange maru),artist:siu (siu0207),artist:sakimichan ,artist:yomu (sgt epper), ,artist:laserflip, ,artist:kinhasu,artist:kase daiki,artist:jeneral,::,-2::artist collaboration::,2:: best quality, amazing quality, very aesthetic, highres, incredibly absurdres,year 2025,year 2024,::,-4::bald,balding,ugly,multiple views::,2::no text,highres,best quality,very aesthetic,absurdres,::,, 1girl, black skirt, breasts, closed mouth, collarbone, collared shirt, colored tips, computer keyboard, crossed legs, glasses, green hair, hair ornament, id card, monitor, multicolored hair, office lady, panties, pantyhose, pink nails, pink panties, plant, shell, shell hair ornament, shirt, sitting, skirt, smile, solo, symbol-shaped pupils, underwear, white shirt",
+    "steps": 28,
+    "height": 896,
+    "width": 1152,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 413449530,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "5::,masterpiece,nsfw,3d,game cg,blender (medium), ,detailed skin,realistic,photorealistic,photo (medium),::,1.3::,artist:liduke,artist:yunsang,artist:hyulla,artist:nixeuartist:fei (maidoll),artist:kim hyung tae,artist:rororo,artist:tsuki no i-min,artist:rhasta,artist:wu ganlan cai,artist:omone hokoma agm,artist:mana (remana),artist:dk.senie,artist:jtveemo,artist:nyantcha,artiat:wlop,artist:bee (deadflow),artist:kuzuvine,artist:wanke,::,0.9::,artist:dishwasher1910,artist:yd (orange maru),artist:siu (siu0207),artist:sakimichan ,artist:yomu (sgt epper), ,artist:laserflip, ,artist:kinhasu,artist:kase daiki,artist:jeneral,::,-2::artist collaboration::,2:: best quality, amazing quality, very aesthetic, highres, incredibly absurdres,year 2025,year 2024,::,-4::bald,balding,ugly,multiple views::,2::no text,highres,best quality,very aesthetic,absurdres,::,, 1girl, black skirt, breasts, closed mouth, collarbone, collared shirt, colored tips, computer keyboard, crossed legs, glasses, green hair, hair ornament, id card, monitor, multicolored hair, office lady, panties, pantyhose, pink nails, pink panties, plant, shell, shell hair ornament, shirt, sitting, skirt, smile, solo, symbol-shaped pupils, underwear, white shirt",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "3::,bee,fat,very white skin,aged up,old,thick lips, photo (object), ,food,::,{{{,chibi inset}}},lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract],lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], nsfw, lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract],",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "3::,bee,fat,very white skin,aged up,old,thick lips, photo (object), ,food,::,{{{,chibi inset}}},lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract],lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], nsfw, lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract],",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "ws3n6QSLpQBz5zeuf7csCrHYDuum1iNwS7tflFGgJ8iApRKOqO9VFbsWmXinTMR84EpQodVVNAcN9sM5pkQSCA=="
+  },
+  "Style": "5::,masterpiece,nsfw,3d,game cg,blender (medium), ,detailed skin,realistic,photorealistic,photo (medium),::,1.3::,artist:liduke,artist:yunsang,artist:hyulla,artist:nixeuartist:fei (maidoll),artist:kim hyung tae,artist:rororo,artist:tsuki no i-min,artist:rhasta,artist:wu ganlan cai,artist:omone hokoma agm,artist:mana (remana),artist:dk.senie,artist:jtveemo,artist:nyantcha,artiat:wlop,artist:bee (deadflow),artist:kuzuvine,artist:wanke,::,0.9::,artist:dishwasher1910,artist:yd (orange maru),artist:siu (siu0207),artist:sakimichan ,artist:yomu (sgt epper), ,artist:laserflip, ,artist:kinhasu,artist:kase daiki,artist:jeneral,::,-2::artist collaboration::,2:: best quality, amazing quality, very aesthetic, highres, incredibly absurdres,year 2025,year 2024,::,-4::bald,balding,ugly,multiple views::,2::no text,highres,best quality,very aesthetic,absurdres,::,"
+}

@@ -1,0 +1,81 @@
+{
+  "Description": "0.9::ask(askzy)::,0.7::wanke::,0.9::ciloranko::,1.1::freng::,1.1::iumu::,0.6::mignon::,0.9::pottsness::,0.9::shigure_s::,1.1::omone hokoma agm::,0.9::chyoel::,1.5::healthyman::,1.1::haku89 ::,liduke,0.6::karyln::,fymrie,year 2025,, 1girl, alternate costume, black choker, black hair, black necktie, breasts, character name, choker, closed mouth, collared shirt, colored inner hair, earrings, hair ribbon, jewelry, looking at viewer, medium breasts, multicolored hair, necktie, portrait, ribbon, shirt, smile, solo, straight-on, triangle earrings, white shirt, yellow eyes, yellow ribbon",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.836110070347786e-05",
+  "Comment": {
+    "prompt": "0.9::ask(askzy)::,0.7::wanke::,0.9::ciloranko::,1.1::freng::,1.1::iumu::,0.6::mignon::,0.9::pottsness::,0.9::shigure_s::,1.1::omone hokoma agm::,0.9::chyoel::,1.5::healthyman::,1.1::haku89 ::,liduke,0.6::karyln::,fymrie,year 2025,, 1girl, alternate costume, black choker, black hair, black necktie, breasts, character name, choker, closed mouth, collared shirt, colored inner hair, earrings, hair ribbon, jewelry, looking at viewer, medium breasts, multicolored hair, necktie, portrait, ribbon, shirt, smile, solo, straight-on, triangle earrings, white shirt, yellow eyes, yellow ribbon",
+    "steps": 28,
+    "height": 1152,
+    "width": 896,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 977413929,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "0.9::ask(askzy)::,0.7::wanke::,0.9::ciloranko::,1.1::freng::,1.1::iumu::,0.6::mignon::,0.9::pottsness::,0.9::shigure_s::,1.1::omone hokoma agm::,0.9::chyoel::,1.5::healthyman::,1.1::haku89 ::,liduke,0.6::karyln::,fymrie,year 2025,, 1girl, alternate costume, black choker, black hair, black necktie, breasts, character name, choker, closed mouth, collared shirt, colored inner hair, earrings, hair ribbon, jewelry, looking at viewer, medium breasts, multicolored hair, necktie, portrait, ribbon, shirt, smile, solo, straight-on, triangle earrings, white shirt, yellow eyes, yellow ribbon",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "lowres,error,film grain,scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, logo, dated, signature,multiple views,gigantic breasts,multiple peoplep,toys,character doll,stuffed toys,normal quality, signature,watermark, username,bad feet,doll,minigirl,black border,white border,no human,medal,ribbon,monochrome,year 2015,year 2016,year 2017,year 2018,black man,black male,,artist collaboration,backlight,comic, @_@,extra arms,bad feet, large breasts,2::nsfw::,nude",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "lowres,error,film grain,scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, logo, dated, signature,multiple views,gigantic breasts,multiple peoplep,toys,character doll,stuffed toys,normal quality, signature,watermark, username,bad feet,doll,minigirl,black border,white border,no human,medal,ribbon,monochrome,year 2015,year 2016,year 2017,year 2018,black man,black male,,artist collaboration,backlight,comic, @_@,extra arms,bad feet, large breasts,2::nsfw::,nude",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "QEOZuECpsGTIXsFEU5HAzKHPV3wNU1fPkj9gsNZBE9oCKZT2+JLXBcgq4x7EPcf2YLBHRkZTjbiR1HLoH5ZXDw=="
+  },
+  "Style": "0.9::ask(askzy)::,0.7::wanke::,0.9::ciloranko::,1.1::freng::,1.1::iumu::,0.6::mignon::,0.9::pottsness::,0.9::shigure_s::,1.1::omone hokoma agm::,0.9::chyoel::,1.5::healthyman::,1.1::haku89 ::,liduke,0.6::karyln::,fymrie,year 2025,"
+}

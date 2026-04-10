@@ -1,0 +1,81 @@
+{
+  "Description": "2::artist:kat (bu-kunn)::, 1.2::artist:sumiyao (amam)::,0.7::artist:mignon::, 0.4::artist:mikozin ::, 1.1::artist:mannack::, 1.2::artist:ie_(raarami)::,1.8::artist:healthyman::, year 2025, year 2024,-3::artist collaboration::,,(dagashiya), iuui, [[healthyman]], [momisan], [[[[as109]]]],{{{artist:ask_(askzy)}}}, [[artist:Mankai_Kaika]],, 1girl, bikini, bikini pull, black bikini, blonde hair, breasts, brown hair, cleavage, closed mouth, clothes lift, clothes pull, colored inner hair, cowboy shot, day, flower, hair flower, hair ornament, hand up, large breasts, lifting own clothes, long hair, looking to the side, multicolored hair, navel, no pants, orange eyes, outdoors, pulling own clothes, shirt, shirt lift, short sleeves, side-tie bikini bottom, skindentation, smile, solo, stomach, streaked hair, swimsuit, thigh gap, thighs, two-tone hair, very long hair, wet, white shirt",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.5392044335603714e-05",
+  "Comment": {
+    "prompt": "2::artist:kat (bu-kunn)::, 1.2::artist:sumiyao (amam)::,0.7::artist:mignon::, 0.4::artist:mikozin ::, 1.1::artist:mannack::, 1.2::artist:ie_(raarami)::,1.8::artist:healthyman::, year 2025, year 2024,-3::artist collaboration::,,(dagashiya), iuui, [[healthyman]], [momisan], [[[[as109]]]],{{{artist:ask_(askzy)}}}, [[artist:Mankai_Kaika]],, 1girl, bikini, bikini pull, black bikini, blonde hair, breasts, brown hair, cleavage, closed mouth, clothes lift, clothes pull, colored inner hair, cowboy shot, day, flower, hair flower, hair ornament, hand up, large breasts, lifting own clothes, long hair, looking to the side, multicolored hair, navel, no pants, orange eyes, outdoors, pulling own clothes, shirt, shirt lift, short sleeves, side-tie bikini bottom, skindentation, smile, solo, stomach, streaked hair, swimsuit, thigh gap, thighs, two-tone hair, very long hair, wet, white shirt",
+    "steps": 28,
+    "height": 1152,
+    "width": 896,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 894567820,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "2::artist:kat (bu-kunn)::, 1.2::artist:sumiyao (amam)::,0.7::artist:mignon::, 0.4::artist:mikozin ::, 1.1::artist:mannack::, 1.2::artist:ie_(raarami)::,1.8::artist:healthyman::, year 2025, year 2024,-3::artist collaboration::,,(dagashiya), iuui, [[healthyman]], [momisan], [[[[as109]]]],{{{artist:ask_(askzy)}}}, [[artist:Mankai_Kaika]],, 1girl, bikini, bikini pull, black bikini, blonde hair, breasts, brown hair, cleavage, closed mouth, clothes lift, clothes pull, colored inner hair, cowboy shot, day, flower, hair flower, hair ornament, hand up, large breasts, lifting own clothes, long hair, looking to the side, multicolored hair, navel, no pants, orange eyes, outdoors, pulling own clothes, shirt, shirt lift, short sleeves, side-tie bikini bottom, skindentation, smile, solo, stomach, streaked hair, swimsuit, thigh gap, thighs, two-tone hair, very long hair, wet, white shirt",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "bar censor,nude,censored,{crotchless},{bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, panties,[abstract],bad anatomy, bad hands, @_@, mismatched pupils, heart-shaped pupils, glowing eyes, {cubism}, {worst quality}, {normal quality}, {bad quality}, {{{{unskillful}}}}, {unfinished}, {incomplete}, {{failure}}, {inferior}, {terrifying}, {haunting}, {bad joint}, {monster}, {ugly}, {retro artstyle}, {key},low quality, disfigured,poorly drawn,deformed,mutation,fused fingers,fused limb,extra limb,missing fingers,missing limb,missing digit,missing legs,disappearing arms, extra limbs, aged up, old, long neck, long body, rib, dusty sunbeams,depth of field, bokeh,out of focus, blurry,text,title,signature,watermark,jpeg artifacts， chibi, chibi inset,chibi,chibi inset,doll,fumo_(doll), white border,black border,multiple views,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "bar censor,nude,censored,{crotchless},{bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, panties,[abstract],bad anatomy, bad hands, @_@, mismatched pupils, heart-shaped pupils, glowing eyes, {cubism}, {worst quality}, {normal quality}, {bad quality}, {{{{unskillful}}}}, {unfinished}, {incomplete}, {{failure}}, {inferior}, {terrifying}, {haunting}, {bad joint}, {monster}, {ugly}, {retro artstyle}, {key},low quality, disfigured,poorly drawn,deformed,mutation,fused fingers,fused limb,extra limb,missing fingers,missing limb,missing digit,missing legs,disappearing arms, extra limbs, aged up, old, long neck, long body, rib, dusty sunbeams,depth of field, bokeh,out of focus, blurry,text,title,signature,watermark,jpeg artifacts， chibi, chibi inset,chibi,chibi inset,doll,fumo_(doll), white border,black border,multiple views,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "ZSSPcrVjOnMi5+TKMLrdwAO00f4it2fappeaP2KLpU1Cu5uSM2FvGUzKjc3oPABNzxsuSP5kBbTBHcdNtipeCQ=="
+  },
+  "Style": "2::artist:kat (bu-kunn)::, 1.2::artist:sumiyao (amam)::,0.7::artist:mignon::, 0.4::artist:mikozin ::, 1.1::artist:mannack::, 1.2::artist:ie_(raarami)::,1.8::artist:healthyman::, year 2025, year 2024,-3::artist collaboration::,,(dagashiya), iuui, [[healthyman]], [momisan], [[[[as109]]]],{{{artist:ask_(askzy)}}}, [[artist:Mankai_Kaika]],"
+}

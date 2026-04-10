@@ -1,0 +1,81 @@
+{
+  "Description": "general,[artist:misaki_kurehito],[[artist:tsukishiro_saika]],artist:ponsuke_(pon00000),artist:hjl,artist:hito_komoru,artist:gintarou_(kurousagi108), 1girl, alternate costume, bandaid, bandaid on face, black panties, black thighhighs, breasts, cleavage, drill hair, gyaru, large breasts, long hair, looking at viewer, loose necktie, midriff, miniskirt, navel, necktie, panties, pink hair, pointy ears, red eyes, red nails, red skirt, shirt, skirt, solo, thighhighs, tied shirt, underwear, white shirt",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.340886905789375e-05",
+  "Comment": {
+    "prompt": "general,[artist:misaki_kurehito],[[artist:tsukishiro_saika]],artist:ponsuke_(pon00000),artist:hjl,artist:hito_komoru,artist:gintarou_(kurousagi108), 1girl, alternate costume, bandaid, bandaid on face, black panties, black thighhighs, breasts, cleavage, drill hair, gyaru, large breasts, long hair, looking at viewer, loose necktie, midriff, miniskirt, navel, necktie, panties, pink hair, pointy ears, red eyes, red nails, red skirt, shirt, skirt, solo, thighhighs, tied shirt, underwear, white shirt",
+    "steps": 28,
+    "height": 960,
+    "width": 1088,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 744175929,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "general,[artist:misaki_kurehito],[[artist:tsukishiro_saika]],artist:ponsuke_(pon00000),artist:hjl,artist:hito_komoru,artist:gintarou_(kurousagi108), 1girl, alternate costume, bandaid, bandaid on face, black panties, black thighhighs, breasts, cleavage, drill hair, gyaru, large breasts, long hair, looking at viewer, loose necktie, midriff, miniskirt, navel, necktie, panties, pink hair, pointy ears, red eyes, red nails, red skirt, shirt, skirt, solo, thighhighs, tied shirt, underwear, white shirt",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "g1uVPYFbqHsF1oVPNoEJtqVMPV9oldSkzf0JrceJpaIAtUWB3KwT0DmxiYp378XvX8G770pQVGmtKjbgePVUBg=="
+  },
+  "Style": "general,[artist:misaki_kurehito],[[artist:tsukishiro_saika]],artist:ponsuke_(pon00000),artist:hjl,artist:hito_komoru,artist:gintarou_(kurousagi108)"
+}

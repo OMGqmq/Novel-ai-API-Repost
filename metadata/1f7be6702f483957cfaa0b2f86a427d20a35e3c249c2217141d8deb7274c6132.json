@@ -1,0 +1,81 @@
+{
+  "Description": "maruro,micosiva,manzai_sugar,huyunokure,ozeu0916,ai_dongdong,, black horns, blush, butter, character doll, demon girl, demon horns, doll, fang, food, gourmet research society (blue archive), hair on horn, halo, holding, holding phone, horns, necktie, open mouth, pancake, phone, purple eyes, red hair, red halo, smile, stuffed toy, taking picture",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "2.4588312953710556e-05",
+  "Comment": {
+    "prompt": "maruro,micosiva,manzai_sugar,huyunokure,ozeu0916,ai_dongdong,, black horns, blush, butter, character doll, demon girl, demon horns, doll, fang, food, gourmet research society (blue archive), hair on horn, halo, holding, holding phone, horns, necktie, open mouth, pancake, phone, purple eyes, red hair, red halo, smile, stuffed toy, taking picture",
+    "steps": 28,
+    "height": 1152,
+    "width": 896,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 165795701,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "maruro,micosiva,manzai_sugar,huyunokure,ozeu0916,ai_dongdong,, black horns, blush, butter, character doll, demon girl, demon horns, doll, fang, food, gourmet research society (blue archive), hair on horn, halo, holding, holding phone, horns, necktie, open mouth, pancake, phone, purple eyes, red hair, red halo, smile, stuffed toy, taking picture",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "signature, Navel,bad anatomy, blurry, disembodied limb, Two navel eyes, worst quality, Hand with excessive fingers,Foot with excessive toes,Hand with surplus fingers,Hand with greyscale,deficient fingers,Abnormal anatomy,Poorly formed hands,Deformed hands and fingers,Additional limbs,Excessive limbs,Abnormal finger interlocking duplicate, cropped, text, jpeg, artifacts, signature, watermark, username, blurry, artist name, trademark, title, muscular, sd character, multiple view, Reference sheet, long body, malformed limbs, multiple breasts, cloned face, malformed, mutated, bad anatomy, disfigured, bad proportions, duplicate, bad feet, artist name, extra limbs, ugly, fused anus, text font ui, missing, bad foot quality, twisted toes, asymmetric toes, abnormal toe shapes, misplaced toes, missing toes, extra toes, oversized/small toes, misaligned ankles, mismatched foot sizes, scars or blemishes, nipple-like toes, swollen or deformed toes, overlapping toes, excess toenail, incorrect toe count, uneven toe count, unnatural foot proportions.",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "signature, Navel,bad anatomy, blurry, disembodied limb, Two navel eyes, worst quality, Hand with excessive fingers,Foot with excessive toes,Hand with surplus fingers,Hand with greyscale,deficient fingers,Abnormal anatomy,Poorly formed hands,Deformed hands and fingers,Additional limbs,Excessive limbs,Abnormal finger interlocking duplicate, cropped, text, jpeg, artifacts, signature, watermark, username, blurry, artist name, trademark, title, muscular, sd character, multiple view, Reference sheet, long body, malformed limbs, multiple breasts, cloned face, malformed, mutated, bad anatomy, disfigured, bad proportions, duplicate, bad feet, artist name, extra limbs, ugly, fused anus, text font ui, missing, bad foot quality, twisted toes, asymmetric toes, abnormal toe shapes, misplaced toes, missing toes, extra toes, oversized/small toes, misaligned ankles, mismatched foot sizes, scars or blemishes, nipple-like toes, swollen or deformed toes, overlapping toes, excess toenail, incorrect toe count, uneven toe count, unnatural foot proportions.",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "Xxb2p43EKPUizJi0xBzb7CTaRJkKRYNK4r62x2UIII6p7RQalIjpwuN9YtmVbThOiu4SERcKSuZXBOjZ3zD+AA=="
+  },
+  "Style": "maruro,micosiva,manzai_sugar,huyunokure,ozeu0916,ai_dongdong,"
+}

@@ -1,0 +1,81 @@
+{
+  "Description": "1.8::artist:rella::, 1.7::artist:mika_pikazo ::, 1.6::artist:nardack::, 1.6::artist:fuzichoco::, 1.6::artist:torino aqua::, 1.5::artist:meion::, 1.4::artist:reia::, 1.4::artist:konya karasue::, 1.4::artist:tatejima_uri::,  1.4::artist:yoneyama_mai::, 1.4::artist:st:k-suwabe::, 1.3::artist:ogipote ::, 1.3::artist:st:k-suwabe::, 0.7::artist:noyu_(noyu23386566)::, 1.2::artist:tianliang duohe fangdongye::,, 1girl, animal ears, beret, black hat, blush, cat ears, cat girl, flower, frown, hair ornament, hairclip, hat, hat flower, kemonomimi mode, multicolored hair, pink eyes, pink streaks, portrait, simple background, solo, streaked hair, white background, white flower, white hair, x hair ornament",
+  "Software": "NovelAI",
+  "Source": "NovelAI Diffusion V4.5 4BDE2A90",
+  "Generation time": "3.21902334690094e-05",
+  "Comment": {
+    "prompt": "1.8::artist:rella::, 1.7::artist:mika_pikazo ::, 1.6::artist:nardack::, 1.6::artist:fuzichoco::, 1.6::artist:torino aqua::, 1.5::artist:meion::, 1.4::artist:reia::, 1.4::artist:konya karasue::, 1.4::artist:tatejima_uri::,  1.4::artist:yoneyama_mai::, 1.4::artist:st:k-suwabe::, 1.3::artist:ogipote ::, 1.3::artist:st:k-suwabe::, 0.7::artist:noyu_(noyu23386566)::, 1.2::artist:tianliang duohe fangdongye::,, 1girl, animal ears, beret, black hat, blush, cat ears, cat girl, flower, frown, hair ornament, hairclip, hat, hat flower, kemonomimi mode, multicolored hair, pink eyes, pink streaks, portrait, simple background, solo, streaked hair, white background, white flower, white hair, x hair ornament",
+    "steps": 28,
+    "height": 960,
+    "width": 1088,
+    "scale": 5.0,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 728533696,
+    "n_samples": 1,
+    "noise_schedule": "polyexponential",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_images": null,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "1.8::artist:rella::, 1.7::artist:mika_pikazo ::, 1.6::artist:nardack::, 1.6::artist:fuzichoco::, 1.6::artist:torino aqua::, 1.5::artist:meion::, 1.4::artist:reia::, 1.4::artist:konya karasue::, 1.4::artist:tatejima_uri::,  1.4::artist:yoneyama_mai::, 1.4::artist:st:k-suwabe::, 1.3::artist:ogipote ::, 1.3::artist:st:k-suwabe::, 0.7::artist:noyu_(noyu23386566)::, 1.2::artist:tianliang duohe fangdongye::,, 1girl, animal ears, beret, black hat, blush, cat ears, cat girl, flower, frown, hair ornament, hairclip, hat, hat flower, kemonomimi mode, multicolored hair, pink eyes, pink streaks, portrait, simple background, solo, streaked hair, white background, white flower, white hair, x hair ornament",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "soft focus, low detail, bad anatomy, bad proportions,, deformed body, distorted body, fused limbs, fused fingers,, missing fingers, extra fingers, extra limbs, malformed limbs,, broken joints, dislocated joints, unnatural pose, stiff pose,, twisted pose, wrong posture, deformed torso, warped face,, asymmetrical face, uneven eyes, lopsided eyes, cross-eye,, wrong eye shape, deformed nose, deformed mouth, melted face,, collapsed face, mutated eyes, uncanny face,",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": false,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "sampler": "k_euler",
+    "controlnet_strength": 1.0,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": false,
+    "prefer_brownian": true,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "version": 1,
+    "uc": "soft focus, low detail, bad anatomy, bad proportions,, deformed body, distorted body, fused limbs, fused fingers,, missing fingers, extra fingers, extra limbs, malformed limbs,, broken joints, dislocated joints, unnatural pose, stiff pose,, twisted pose, wrong posture, deformed torso, warped face,, asymmetrical face, uneven eyes, lopsided eyes, cross-eye,, wrong eye shape, deformed nose, deformed mouth, melted face,, collapsed face, mutated eyes, uncanny face,",
+    "request_type": "PromptGenerateRequest",
+    "signed_hash": "j7eIAR3kV22kQHxxKarLJt0jtKRU7Zhf8u8KejZl/KgwKd36orxV1enk2tn/YfYHnc7jDCBMuB4c2Fn1OGTJDg=="
+  },
+  "Style": "1.8::artist:rella::, 1.7::artist:mika_pikazo ::, 1.6::artist:nardack::, 1.6::artist:fuzichoco::, 1.6::artist:torino aqua::, 1.5::artist:meion::, 1.4::artist:reia::, 1.4::artist:konya karasue::, 1.4::artist:tatejima_uri::,  1.4::artist:yoneyama_mai::, 1.4::artist:st:k-suwabe::, 1.3::artist:ogipote ::, 1.3::artist:st:k-suwabe::, 0.7::artist:noyu_(noyu23386566)::, 1.2::artist:tianliang duohe fangdongye::,"
+}
