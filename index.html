@@ -1265,7 +1265,7 @@
                 els.presetGrid.appendChild(d);
             });
         }
-
+2dd
         let tagData = {};
         fetch('all_tags.txt').then(r => r.json()).then(d => tagData = d).catch(() => { });
         els.tagSearchBtn.onclick = () => {
@@ -1393,25 +1393,70 @@
             statusEl.classList.remove('hidden');
 
             try {
-                const res = await fetch('/verify-key', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apiKey: key })
-                });
+                // 尝试1: 通过后端 /verify-key 接口验证
+                let verified = false;
+                try {
+                    const res = await fetch('/verify-key', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ apiKey: key })
+                    });
 
-                const data = await res.json();
-
-                if (res.ok && data.valid) {
-                    localStorage.setItem('nai_custom_api_key', key);
-                    statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功！订阅: <b>${data.tierName}</b>。已激活管理员模式。</span>`;
-                    document.getElementById('apiKeyClearBtn').classList.remove('hidden');
-                    checkAdminStatus();
-                    setTimeout(() => closeApiKeyModal(), 1500);
-                } else {
-                    statusEl.innerHTML = `<span class="text-red-500">✗ ${data.error || '验证失败'}</span>`;
+                    // 安全解析 JSON，防止空响应报错
+                    const text = await res.text();
+                    if (text) {
+                        const data = JSON.parse(text);
+                        if (res.ok && data.valid) {
+                            localStorage.setItem('nai_custom_api_key', key);
+                            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功！订阅: <b>${data.tierName}</b>。已激活管理员模式。</span>`;
+                            document.getElementById('apiKeyClearBtn').classList.remove('hidden');
+                            checkAdminStatus();
+                            setTimeout(() => closeApiKeyModal(), 1500);
+                            verified = true;
+                        } else if (data.error) {
+                            statusEl.innerHTML = `<span class="text-red-500">✗ ${data.error}</span>`;
+                            return;
+                        }
+                    }
+                } catch (serverErr) {
+                    console.warn('后端验证接口不可用，尝试直接验证:', serverErr.message);
                 }
+
+                if (verified) return;
+
+                // 尝试2: 直接调用 NovelAI API 验证（可能受 CORS 限制）
+                try {
+                    statusEl.innerHTML = '<span class="text-gray-400">⭮ 尝试直接连接 NovelAI...</span>';
+                    const directRes = await fetch('https://api.novelai.net/user/subscription', {
+                        headers: { 'Authorization': `Bearer ${key}` }
+                    });
+                    if (directRes.ok) {
+                        const subData = await directRes.json();
+                        const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
+                        const tierName = tierNames[subData.tier] || `Tier ${subData.tier}`;
+                        localStorage.setItem('nai_custom_api_key', key);
+                        statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功！订阅: <b>${tierName}</b>。已激活管理员模式。</span>`;
+                        document.getElementById('apiKeyClearBtn').classList.remove('hidden');
+                        checkAdminStatus();
+                        setTimeout(() => closeApiKeyModal(), 1500);
+                        return;
+                    } else {
+                        statusEl.innerHTML = '<span class="text-red-500">✗ API Key 无效或已过期，请检查后重试。</span>';
+                        return;
+                    }
+                } catch (directErr) {
+                    console.warn('直接验证也失败（可能 CORS），使用本地保存模式:', directErr.message);
+                }
+
+                // 尝试3: 两种在线验证都失败，本地保存 Key 并信任用户
+                localStorage.setItem('nai_custom_api_key', key);
+                statusEl.innerHTML = '<span class="text-yellow-500">⚠ 无法在线验证（后端不可用），已本地保存 Key 并激活管理员模式。生成时将直接使用此 Key。</span>';
+                document.getElementById('apiKeyClearBtn').classList.remove('hidden');
+                checkAdminStatus();
+                setTimeout(() => closeApiKeyModal(), 2500);
+
             } catch (e) {
-                statusEl.innerHTML = `<span class="text-red-500">✗ 网络错误: ${e.message}</span>`;
+                statusEl.innerHTML = `<span class="text-red-500">✗ 验证异常: ${e.message}</span>`;
             } finally {
                 verifyBtn.disabled = false;
                 verifyBtn.textContent = '验证并激活';
