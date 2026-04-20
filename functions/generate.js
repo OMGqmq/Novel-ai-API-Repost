@@ -24,19 +24,29 @@ export async function onRequest(context) {
   try {
     const env = context.env;
     
-    // 1. 检查 API Key
-    const NOVELAI_API_KEY = env.NOVELAI_API_KEY;
-    if (!NOVELAI_API_KEY) {
+    // 1. 检查服务器 API Key
+    const SERVER_API_KEY = env.NOVELAI_API_KEY;
+
+    // 2. 检查自定义 API Key (用户自带 Key)
+    const customApiKeyHeader = context.request.headers.get('x-custom-api-key');
+    const customApiKey = customApiKeyHeader ? customApiKeyHeader.trim() : "";
+    const useCustomKey = !!customApiKey;
+
+    // 如果没有自定义 Key，也没有服务器 Key，则报错
+    if (!useCustomKey && !SERVER_API_KEY) {
         throw new Error('服务器未配置 NOVELAI_API_KEY');
     }
 
-    // 2. 检查 KV 数据库
+    // 最终使用的 API Key
+    const NOVELAI_API_KEY = useCustomKey ? customApiKey : SERVER_API_KEY;
+
+    // 3. 检查 KV 数据库
     const kv = env.NAI_LIMIT;
     if (!kv) {
         console.warn("KV 数据库未绑定 (NAI_LIMIT)，限流功能将失效");
     }
 
-    // ================== 🛡️ 鉴权逻辑 (管理员 + 卡密 + 免费限制) ==================
+    // ================== 🛡️ 鉴权逻辑 (自定义Key / 管理员 + 卡密 + 免费限制) ==================
     const adminTokenHeader = context.request.headers.get('x-admin-token');
     const userKeyHeader = context.request.headers.get('x-user-key');
     const clientIP = context.request.headers.get('CF-Connecting-IP') || 'unknown';
@@ -50,8 +60,13 @@ export async function onRequest(context) {
     let remainingCredits = -1; // 剩余点数 (-1代表无限)
     let userRole = "Free"; // 返回给前端显示的角色
 
+    // 0. 自定义 API Key 用户 (等同管理员权限，无限制)
+    if (useCustomKey) {
+        isVip = true;
+        userRole = "CustomAPI";
+    }
     // A. 管理员 (最高权限)
-    if (serverAdminToken && adminToken === serverAdminToken) {
+    else if (serverAdminToken && adminToken === serverAdminToken) {
         isVip = true;
         userRole = "Admin";
     } 
@@ -122,12 +137,23 @@ export async function onRequest(context) {
     const version = data.version || "v3";
     const seed = Math.floor(Math.random() * 4294967295);
 
+    // 判断是否为局部重绘 (inpainting) 模式
+    const isInpaint = data.action === "infill" && data.mask;
+
+    // 决定 action
+    let action = "generate";
+    if (isInpaint) {
+      action = "infill";
+    } else if (data.image) {
+      action = "img2img";
+    }
+
     let payload = {};
     if (version === "v4.5") {
       payload = {
         input: prompt,
-        model: "nai-diffusion-4-5-full",
-        action: data.image ? "img2img" : "generate",
+        model: isInpaint ? "nai-diffusion-4-5-full-inpainting" : "nai-diffusion-4-5-full",
+        action: action,
         parameters: {
           params_version: 3,
           width: width, height: height, scale: data.scale, sampler: data.sampler, steps: steps, seed: seed,
@@ -142,8 +168,8 @@ export async function onRequest(context) {
     } else {
       payload = {
         input: prompt,
-        model: "nai-diffusion-3",
-        action: data.image ? "img2img" : "generate",
+        model: isInpaint ? "nai-diffusion-3-inpainting" : "nai-diffusion-3",
+        action: action,
         undesiredContent: negative_prompt, 
         parameters: {
           width: width, height: height, scale: data.scale, sampler: data.sampler, steps: steps, seed: seed,
@@ -152,11 +178,18 @@ export async function onRequest(context) {
       };
     }
 
+    // img2img 参数
     if (data.image) {
       payload.parameters.image = data.image;
       payload.parameters.strength = parseFloat(data.strength) || 0.5;
       payload.parameters.noise = parseFloat(data.noise) || 0;
       payload.parameters.extra_noise_seed = seed;
+    }
+
+    // 局部重绘 (inpainting) 参数
+    if (isInpaint) {
+      payload.parameters.mask = data.mask;
+      payload.parameters.add_original_image = true;
     }
 
     // 请求 NovelAI
