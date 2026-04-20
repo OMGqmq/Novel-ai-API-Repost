@@ -360,7 +360,6 @@
         .brush-cursor {
             position: fixed;
             border: 2px solid rgba(255,255,255,0.7);
-            border-radius: 50%;
             pointer-events: none;
             z-index: 9999;
             transition: width 0.1s, height 0.1s;
@@ -1713,25 +1712,43 @@
             };
         }
 
-        function drawOnMask(pos) {
-            const r = getBrushSize() / 2;
+        let lastPos = null;
+
+        function drawOnMask(pos, isStart = false) {
+            const r = getBrushSize();
+            
+            maskCtx.lineCap = 'square';
+            maskCtx.lineJoin = 'miter';
+            maskCtx.lineWidth = r;
+
             if (inpaintTool === 'brush') {
                 maskCtx.globalCompositeOperation = 'source-over';
+                maskCtx.strokeStyle = 'rgba(255, 60, 60, 0.45)';
                 maskCtx.fillStyle = 'rgba(255, 60, 60, 0.45)';
             } else {
                 maskCtx.globalCompositeOperation = 'destination-out';
+                maskCtx.strokeStyle = 'rgba(0,0,0,1)';
                 maskCtx.fillStyle = 'rgba(0,0,0,1)';
             }
-            maskCtx.beginPath();
-            maskCtx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-            maskCtx.fill();
+
+            if (isStart || !lastPos) {
+                // 画一个方块（应对只点击不拖动的情况）
+                maskCtx.fillRect(pos.x - r / 2, pos.y - r / 2, r, r);
+            } else {
+                // 连线平滑过渡，防止鼠标移动过快产生断点
+                maskCtx.beginPath();
+                maskCtx.moveTo(lastPos.x, lastPos.y);
+                maskCtx.lineTo(pos.x, pos.y);
+                maskCtx.stroke();
+            }
+            lastPos = pos;
         }
 
         // 鼠标事件
         maskCanvas.addEventListener('mousedown', e => {
             saveMaskState();
             inpaintDrawing = true;
-            drawOnMask(getCanvasPos(e));
+            drawOnMask(getCanvasPos(e), true);
         });
         maskCanvas.addEventListener('mousemove', e => {
             // 更新光标，光标屏幕视觉大小 = 图片原始像素对应大小 / 缩放比例
@@ -1745,11 +1762,15 @@
             brushCursor.classList.remove('hidden');
 
             if (!inpaintDrawing) return;
-            drawOnMask(getCanvasPos(e));
+            drawOnMask(getCanvasPos(e), false);
         });
-        maskCanvas.addEventListener('mouseup', () => inpaintDrawing = false);
+        maskCanvas.addEventListener('mouseup', () => {
+            inpaintDrawing = false;
+            lastPos = null;
+        });
         maskCanvas.addEventListener('mouseleave', () => {
             inpaintDrawing = false;
+            lastPos = null;
             brushCursor.classList.add('hidden');
         });
 
@@ -1758,14 +1779,17 @@
             e.preventDefault();
             saveMaskState();
             inpaintDrawing = true;
-            drawOnMask(getCanvasPos(e));
+            drawOnMask(getCanvasPos(e), true);
         }, { passive: false });
         maskCanvas.addEventListener('touchmove', e => {
             e.preventDefault();
             if (!inpaintDrawing) return;
-            drawOnMask(getCanvasPos(e));
+            drawOnMask(getCanvasPos(e), false);
         }, { passive: false });
-        maskCanvas.addEventListener('touchend', () => inpaintDrawing = false);
+        maskCanvas.addEventListener('touchend', () => {
+            inpaintDrawing = false;
+            lastPos = null;
+        });
 
         // 导出黑白 Mask（白=重绘区域，黑=保留）
         function exportMaskAsBase64() {
