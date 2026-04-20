@@ -137,13 +137,13 @@ export async function onRequest(context) {
     const version = data.version || "v3";
     const seed = data.seed ? parseInt(data.seed) : Math.floor(Math.random() * 4294967295);
 
-    // 检查是否局部重绘
-    const isInpaint = data.action === "inpainting" && data.mask;
+    // 检查是否局部重绘 (前端现在统一传 img2img + mask)
+    const isInpaint = data.action === "img2img" && data.mask;
 
     // 决定 action
     let action = "generate";
     if (isInpaint) {
-      action = "inpainting";
+      action = "img2img";
     } else if (data.image) {
       action = "img2img";
     }
