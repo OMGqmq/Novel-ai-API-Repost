@@ -313,6 +313,9 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            max-width: calc(100% - 40px);
+            max-height: calc(100% - 40px);
+            object-fit: contain;
         }
         #inpaintMaskCanvas {
             cursor: crosshair;
@@ -779,8 +782,8 @@
                 </button>
                 <div class="flex items-center gap-2 px-2">
                     <span class="text-white/50 text-[10px]">大小</span>
-                    <input type="range" id="inpaintBrushSize" min="5" max="120" value="30" class="brush-size-slider">
-                    <span id="inpaintBrushSizeVal" class="text-white/70 text-xs font-mono w-6">30</span>
+                    <input type="range" id="inpaintBrushSize" min="5" max="300" value="60" class="brush-size-slider">
+                    <span id="inpaintBrushSizeVal" class="text-white/70 text-xs font-mono w-8">60</span>
                 </div>
                 <button onclick="inpaintUndo()">
                     <i data-lucide="undo-2" class="w-3.5 h-3.5"></i> 撤销
@@ -1656,25 +1659,14 @@
         }
 
         function fitCanvasToContainer(img) {
-            const wrap = document.getElementById('inpaintCanvasWrap');
-            const wrapW = wrap.clientWidth;
-            const wrapH = wrap.clientHeight;
-            const imgW = img.naturalWidth;
-            const imgH = img.naturalHeight;
+            // 直接使用图片原始像素建立 Canvas，由 CSS max-width/max-height 负责界面显示缩放
+            baseCanvas.width = inpaintImgNaturalW;
+            baseCanvas.height = inpaintImgNaturalH;
+            maskCanvas.width = inpaintImgNaturalW;
+            maskCanvas.height = inpaintImgNaturalH;
 
-            // 按比例缩放，留 padding
-            const pad = 20;
-            const scale = Math.min((wrapW - pad * 2) / imgW, (wrapH - pad * 2) / imgH, 1);
-            const dispW = Math.floor(imgW * scale);
-            const dispH = Math.floor(imgH * scale);
-
-            baseCanvas.width = dispW;
-            baseCanvas.height = dispH;
-            maskCanvas.width = dispW;
-            maskCanvas.height = dispH;
-
-            baseCtx.drawImage(img, 0, 0, dispW, dispH);
-            maskCtx.clearRect(0, 0, dispW, dispH);
+            baseCtx.drawImage(img, 0, 0, inpaintImgNaturalW, inpaintImgNaturalH);
+            maskCtx.clearRect(0, 0, inpaintImgNaturalW, inpaintImgNaturalH);
         }
 
         function closeInpaintEditor() {
@@ -1712,7 +1704,13 @@
             const rect = maskCanvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return { x: clientX - rect.left, y: clientY - rect.top };
+            // 将屏幕相对坐标映射回图片原始像素坐标
+            const scaleX = maskCanvas.width / rect.width;
+            const scaleY = maskCanvas.height / rect.height;
+            return { 
+                x: (clientX - rect.left) * scaleX, 
+                y: (clientY - rect.top) * scaleY 
+            };
         }
 
         function drawOnMask(pos) {
@@ -1736,12 +1734,14 @@
             drawOnMask(getCanvasPos(e));
         });
         maskCanvas.addEventListener('mousemove', e => {
-            // 更新光标
-            const bs = getBrushSize();
-            brushCursor.style.width = bs + 'px';
-            brushCursor.style.height = bs + 'px';
-            brushCursor.style.left = (e.clientX - bs/2) + 'px';
-            brushCursor.style.top = (e.clientY - bs/2) + 'px';
+            // 更新光标，光标屏幕视觉大小 = 图片原始像素对应大小 / 缩放比例
+            const rect = maskCanvas.getBoundingClientRect();
+            const scaleX = maskCanvas.width / rect.width;
+            const visualBs = getBrushSize() / scaleX;
+            brushCursor.style.width = visualBs + 'px';
+            brushCursor.style.height = visualBs + 'px';
+            brushCursor.style.left = (e.clientX - visualBs/2) + 'px';
+            brushCursor.style.top = (e.clientY - visualBs/2) + 'px';
             brushCursor.classList.remove('hidden');
 
             if (!inpaintDrawing) return;
@@ -1774,41 +1774,20 @@
             tempCanvas.height = inpaintImgNaturalH;
             const ctx = tempCanvas.getContext('2d');
 
-            // 先全黑（保留区域）
+            // 全部涂黑（保留区域）
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
-            // 把遮罩画上去，按原始尺寸缩放
-            // 从 maskCanvas 读取像素判断哪些区域被涂了
+            // maskCanvas 已经是真实分辨率了，直接获取像素并二值化
             const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-            const scaleX = inpaintImgNaturalW / maskCanvas.width;
-            const scaleY = inpaintImgNaturalH / maskCanvas.height;
-
-            // 创建一个与原始尺寸一致的 mask
             const outData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            for (let y = 0; y < maskCanvas.height; y++) {
-                for (let x = 0; x < maskCanvas.width; x++) {
-                    const idx = (y * maskCanvas.width + x) * 4;
-                    const alpha = maskData.data[idx + 3]; // alpha channel
-                    if (alpha > 10) {
-                        // 这个像素被涂了，在输出中对应区域标白
-                        const ox = Math.floor(x * scaleX);
-                        const oy = Math.floor(y * scaleY);
-                        const ow = Math.ceil(scaleX);
-                        const oh = Math.ceil(scaleY);
-                        for (let dy = 0; dy < oh; dy++) {
-                            for (let dx = 0; dx < ow; dx++) {
-                                const tx = ox + dx;
-                                const ty = oy + dy;
-                                if (tx < tempCanvas.width && ty < tempCanvas.height) {
-                                    const tidx = (ty * tempCanvas.width + tx) * 4;
-                                    outData.data[tidx] = 255;
-                                    outData.data[tidx + 1] = 255;
-                                    outData.data[tidx + 2] = 255;
-                                }
-                            }
-                        }
-                    }
+            
+            for (let i = 0; i < maskData.data.length; i += 4) {
+                const alpha = maskData.data[i + 3];
+                if (alpha > 10) { // 涂了画笔的区域
+                    outData.data[i] = 255;     // R
+                    outData.data[i + 1] = 255; // G
+                    outData.data[i + 2] = 255; // B
                 }
             }
             ctx.putImageData(outData, 0, 0);
