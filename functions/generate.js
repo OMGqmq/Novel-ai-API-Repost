@@ -189,7 +189,7 @@ export async function onRequest(context) {
     // 局部重绘 (inpainting) 参数
     if (isInpaint) {
       payload.parameters.mask = data.mask;
-      payload.parameters.add_original_image = true;
+      payload.parameters.add_original_image = false;
     }
 
     // 请求 NovelAI
