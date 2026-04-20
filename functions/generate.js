@@ -135,15 +135,15 @@ export async function onRequest(context) {
     const prompt = data.prompt || "";
     const negative_prompt = data.negative_prompt || "";
     const version = data.version || "v3";
-    const seed = Math.floor(Math.random() * 4294967295);
+    const seed = data.seed ? parseInt(data.seed) : Math.floor(Math.random() * 4294967295);
 
-    // 判断是否为局部重绘 (inpainting) 模式
-    const isInpaint = data.action === "infill" && data.mask;
-
+    // 检查是否局部重绘
+    const isInpaint = data.action === "inpaint" && data.mask;
+    
     // 决定 action
     let action = "generate";
     if (isInpaint) {
-      action = "infill";
+      action = "inpaint";
     } else if (data.image) {
       action = "img2img";
     }
