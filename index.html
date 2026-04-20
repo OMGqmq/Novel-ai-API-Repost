@@ -320,6 +320,7 @@
         #inpaintMaskCanvas {
             cursor: crosshair;
             z-index: 2;
+            opacity: 0.45;
         }
         #inpaintBaseCanvas {
             z-index: 1;
@@ -1723,8 +1724,8 @@
 
             if (inpaintTool === 'brush') {
                 maskCtx.globalCompositeOperation = 'source-over';
-                maskCtx.strokeStyle = 'rgba(255, 60, 60, 0.45)';
-                maskCtx.fillStyle = 'rgba(255, 60, 60, 0.45)';
+                maskCtx.strokeStyle = 'rgba(255, 60, 60, 1)';
+                maskCtx.fillStyle = 'rgba(255, 60, 60, 1)';
             } else {
                 maskCtx.globalCompositeOperation = 'destination-out';
                 maskCtx.strokeStyle = 'rgba(0,0,0,1)';
