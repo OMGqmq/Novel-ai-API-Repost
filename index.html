@@ -1799,9 +1799,8 @@
             tempCanvas.height = inpaintImgNaturalH;
             const ctx = tempCanvas.getContext('2d');
 
-            // 全部涂黑（保留区域）
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            // 先重置为空白透明（保留区域 = 透明黑）
+            ctx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
 
             // maskCanvas 已经是真实分辨率了，直接获取像素并二值化
             const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
@@ -1809,10 +1808,16 @@
             
             for (let i = 0; i < maskData.data.length; i += 4) {
                 const alpha = maskData.data[i + 3];
-                if (alpha > 10) { // 涂了画笔的区域
+                if (alpha > 10) { // 涂了画笔的区域 (需要重绘，设为纯白且不透明)
                     outData.data[i] = 255;     // R
                     outData.data[i + 1] = 255; // G
                     outData.data[i + 2] = 255; // B
+                    outData.data[i + 3] = 255; // A
+                } else { // 没涂的区域 (保留，设为透明黑)
+                    outData.data[i] = 0;       // R
+                    outData.data[i + 1] = 0;   // G
+                    outData.data[i + 2] = 0;   // B
+                    outData.data[i + 3] = 0;   // A
                 }
             }
             ctx.putImageData(outData, 0, 0);
