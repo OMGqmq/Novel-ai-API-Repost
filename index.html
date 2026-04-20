@@ -288,6 +288,80 @@
             max-height: 200px;
             opacity: 1;
         }
+
+        /* --- Inpaint Editor --- */
+        #inpaintModal {
+            transition: opacity 0.3s;
+        }
+        #inpaintModal.modal-visible {
+            opacity: 1;
+        }
+        #inpaintModal.modal-hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .inpaint-canvas-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            overflow: hidden;
+        }
+        .inpaint-canvas-wrap canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #inpaintMaskCanvas {
+            cursor: crosshair;
+            z-index: 2;
+        }
+        #inpaintBaseCanvas {
+            z-index: 1;
+        }
+        .inpaint-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .inpaint-toolbar button {
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .inpaint-toolbar button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        .inpaint-toolbar button.tool-active {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            box-shadow: 0 0 12px rgba(255,255,255,0.15);
+        }
+        .inpaint-toolbar .brush-size-slider {
+            width: 100px;
+            accent-color: #fff;
+        }
+        .brush-cursor {
+            position: fixed;
+            border: 2px solid rgba(255,255,255,0.7);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transition: width 0.1s, height 0.1s;
+        }
     </style>
 </head>
 
@@ -385,6 +459,9 @@
                 <button onclick="useCurrentPrompt()"
                     class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i
                         data-lucide="pen-tool" class="w-3 h-3"></i> 提示词</button>
+                <button onclick="openInpaintEditor()"
+                    class="pointer-events-auto px-5 py-2.5 bg-gradient-to-r from-blue-500 to-violet-500 backdrop-blur-md text-xs font-semibold text-white rounded-full shadow-float border border-white/20 hover:scale-105 transition-all flex items-center gap-2"><i
+                        data-lucide="paintbrush" class="w-3 h-3"></i> 局部重绘</button>
                 <button onclick="deleteCurrentImage()"
                     class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-red-500 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i
                         data-lucide="trash" class="w-3 h-3"></i> 删除</button>
@@ -680,6 +757,66 @@
             </div>
         </div>
     </div>
+
+    <!-- 局部重绘 (Inpainting) 编辑器弹窗 -->
+    <div id="inpaintModal" class="fixed inset-0 z-[200] modal-hidden flex flex-col" style="background:rgba(15,23,42,0.95);">
+        <!-- 顶部工具栏 -->
+        <div class="shrink-0 flex items-center justify-between px-4 md:px-6 py-3 border-b border-white/10">
+            <div class="flex items-center gap-3">
+                <button onclick="closeInpaintEditor()" class="p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </button>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="paintbrush" class="w-4 h-4 text-blue-400"></i> 局部重绘
+                </h3>
+            </div>
+            <div class="inpaint-toolbar">
+                <button onclick="setInpaintTool('brush')" id="inpaintBrushBtn" class="tool-active">
+                    <i data-lucide="circle" class="w-3.5 h-3.5"></i> 画笔
+                </button>
+                <button onclick="setInpaintTool('eraser')" id="inpaintEraserBtn">
+                    <i data-lucide="eraser" class="w-3.5 h-3.5"></i> 橡皮
+                </button>
+                <div class="flex items-center gap-2 px-2">
+                    <span class="text-white/50 text-[10px]">大小</span>
+                    <input type="range" id="inpaintBrushSize" min="5" max="120" value="30" class="brush-size-slider">
+                    <span id="inpaintBrushSizeVal" class="text-white/70 text-xs font-mono w-6">30</span>
+                </div>
+                <button onclick="inpaintUndo()">
+                    <i data-lucide="undo-2" class="w-3.5 h-3.5"></i> 撤销
+                </button>
+                <button onclick="inpaintClearMask()">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 清除
+                </button>
+            </div>
+        </div>
+
+        <!-- 画布区域 -->
+        <div class="inpaint-canvas-wrap" id="inpaintCanvasWrap">
+            <canvas id="inpaintBaseCanvas"></canvas>
+            <canvas id="inpaintMaskCanvas"></canvas>
+        </div>
+
+        <!-- 底部：重绘提示词 + 确认按钮 -->
+        <div class="shrink-0 px-4 md:px-6 py-4 border-t border-white/10 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+            <div class="flex-1 flex flex-col md:flex-row gap-3">
+                <input type="text" id="inpaintPrompt" placeholder="重绘提示词（留空使用当前提示词）"
+                    class="flex-1 px-4 py-3 rounded-xl text-sm bg-white/10 border border-white/15 text-white placeholder-white/30 outline-none focus:border-white/40 transition-colors">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-white/50 text-[10px] whitespace-nowrap">重绘强度</span>
+                        <input type="range" id="inpaintStrength" min="0.1" max="1.0" value="0.6" step="0.05" class="w-20 accent-blue-500">
+                        <span id="inpaintStrengthVal" class="text-white/70 text-xs font-mono w-8">0.6</span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="doInpaint()" id="inpaintSubmitBtn"
+                class="px-8 py-3 bg-gradient-to-r from-blue-500 to-violet-500 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 whitespace-nowrap">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘
+            </button>
+        </div>
+    </div>
+    <div class="brush-cursor hidden" id="brushCursor"></div>
 
     <script>
         lucide.createIcons();
@@ -1471,6 +1608,325 @@
             statusEl.innerHTML = '<span class="text-gray-500">✔ 已清除自定义 Key</span>';
             statusEl.classList.remove('hidden');
             checkAdminStatus();
+        }
+
+        // =================== 局部重绘 (Inpainting) ===================
+        const inpaintModal = document.getElementById('inpaintModal');
+        const baseCanvas = document.getElementById('inpaintBaseCanvas');
+        const maskCanvas = document.getElementById('inpaintMaskCanvas');
+        const baseCtx = baseCanvas.getContext('2d');
+        const maskCtx = maskCanvas.getContext('2d');
+        const brushCursor = document.getElementById('brushCursor');
+        let inpaintTool = 'brush';
+        let inpaintDrawing = false;
+        let inpaintHistory = [];
+        let inpaintOriginalImgSrc = '';
+        let inpaintImgNaturalW = 0;
+        let inpaintImgNaturalH = 0;
+
+        // 画笔大小联动
+        document.getElementById('inpaintBrushSize').addEventListener('input', e => {
+            document.getElementById('inpaintBrushSizeVal').textContent = e.target.value;
+        });
+        document.getElementById('inpaintStrength').addEventListener('input', e => {
+            document.getElementById('inpaintStrengthVal').textContent = parseFloat(e.target.value).toFixed(2);
+        });
+
+        function openInpaintEditor() {
+            const imgEl = document.getElementById('resultImage');
+            if (!imgEl || imgEl.classList.contains('hidden') || !imgEl.src) {
+                alert('请先生成或选择一张图片');
+                return;
+            }
+            inpaintOriginalImgSrc = imgEl.src;
+
+            // 加载图片到底层 canvas
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                inpaintImgNaturalW = img.naturalWidth;
+                inpaintImgNaturalH = img.naturalHeight;
+                fitCanvasToContainer(img);
+                inpaintHistory = [];
+                inpaintModal.classList.remove('modal-hidden');
+                inpaintModal.classList.add('modal-visible');
+                lucide.createIcons();
+            };
+            img.src = inpaintOriginalImgSrc;
+        }
+
+        function fitCanvasToContainer(img) {
+            const wrap = document.getElementById('inpaintCanvasWrap');
+            const wrapW = wrap.clientWidth;
+            const wrapH = wrap.clientHeight;
+            const imgW = img.naturalWidth;
+            const imgH = img.naturalHeight;
+
+            // 按比例缩放，留 padding
+            const pad = 20;
+            const scale = Math.min((wrapW - pad * 2) / imgW, (wrapH - pad * 2) / imgH, 1);
+            const dispW = Math.floor(imgW * scale);
+            const dispH = Math.floor(imgH * scale);
+
+            baseCanvas.width = dispW;
+            baseCanvas.height = dispH;
+            maskCanvas.width = dispW;
+            maskCanvas.height = dispH;
+
+            baseCtx.drawImage(img, 0, 0, dispW, dispH);
+            maskCtx.clearRect(0, 0, dispW, dispH);
+        }
+
+        function closeInpaintEditor() {
+            inpaintModal.classList.add('modal-hidden');
+            inpaintModal.classList.remove('modal-visible');
+        }
+
+        function setInpaintTool(tool) {
+            inpaintTool = tool;
+            document.getElementById('inpaintBrushBtn').classList.toggle('tool-active', tool === 'brush');
+            document.getElementById('inpaintEraserBtn').classList.toggle('tool-active', tool === 'eraser');
+        }
+
+        function getBrushSize() {
+            return parseInt(document.getElementById('inpaintBrushSize').value);
+        }
+
+        function saveMaskState() {
+            inpaintHistory.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
+            if (inpaintHistory.length > 50) inpaintHistory.shift();
+        }
+
+        function inpaintUndo() {
+            if (inpaintHistory.length === 0) return;
+            const state = inpaintHistory.pop();
+            maskCtx.putImageData(state, 0, 0);
+        }
+
+        function inpaintClearMask() {
+            saveMaskState();
+            maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+        }
+
+        function getCanvasPos(e) {
+            const rect = maskCanvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function drawOnMask(pos) {
+            const r = getBrushSize() / 2;
+            if (inpaintTool === 'brush') {
+                maskCtx.globalCompositeOperation = 'source-over';
+                maskCtx.fillStyle = 'rgba(255, 60, 60, 0.45)';
+            } else {
+                maskCtx.globalCompositeOperation = 'destination-out';
+                maskCtx.fillStyle = 'rgba(0,0,0,1)';
+            }
+            maskCtx.beginPath();
+            maskCtx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            maskCtx.fill();
+        }
+
+        // 鼠标事件
+        maskCanvas.addEventListener('mousedown', e => {
+            saveMaskState();
+            inpaintDrawing = true;
+            drawOnMask(getCanvasPos(e));
+        });
+        maskCanvas.addEventListener('mousemove', e => {
+            // 更新光标
+            const bs = getBrushSize();
+            brushCursor.style.width = bs + 'px';
+            brushCursor.style.height = bs + 'px';
+            brushCursor.style.left = (e.clientX - bs/2) + 'px';
+            brushCursor.style.top = (e.clientY - bs/2) + 'px';
+            brushCursor.classList.remove('hidden');
+
+            if (!inpaintDrawing) return;
+            drawOnMask(getCanvasPos(e));
+        });
+        maskCanvas.addEventListener('mouseup', () => inpaintDrawing = false);
+        maskCanvas.addEventListener('mouseleave', () => {
+            inpaintDrawing = false;
+            brushCursor.classList.add('hidden');
+        });
+
+        // 触摸事件
+        maskCanvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            saveMaskState();
+            inpaintDrawing = true;
+            drawOnMask(getCanvasPos(e));
+        }, { passive: false });
+        maskCanvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if (!inpaintDrawing) return;
+            drawOnMask(getCanvasPos(e));
+        }, { passive: false });
+        maskCanvas.addEventListener('touchend', () => inpaintDrawing = false);
+
+        // 导出黑白 Mask（白=重绘区域，黑=保留）
+        function exportMaskAsBase64() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = inpaintImgNaturalW;
+            tempCanvas.height = inpaintImgNaturalH;
+            const ctx = tempCanvas.getContext('2d');
+
+            // 先全黑（保留区域）
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+            // 把遮罩画上去，按原始尺寸缩放
+            // 从 maskCanvas 读取像素判断哪些区域被涂了
+            const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+            const scaleX = inpaintImgNaturalW / maskCanvas.width;
+            const scaleY = inpaintImgNaturalH / maskCanvas.height;
+
+            // 创建一个与原始尺寸一致的 mask
+            const outData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            for (let y = 0; y < maskCanvas.height; y++) {
+                for (let x = 0; x < maskCanvas.width; x++) {
+                    const idx = (y * maskCanvas.width + x) * 4;
+                    const alpha = maskData.data[idx + 3]; // alpha channel
+                    if (alpha > 10) {
+                        // 这个像素被涂了，在输出中对应区域标白
+                        const ox = Math.floor(x * scaleX);
+                        const oy = Math.floor(y * scaleY);
+                        const ow = Math.ceil(scaleX);
+                        const oh = Math.ceil(scaleY);
+                        for (let dy = 0; dy < oh; dy++) {
+                            for (let dx = 0; dx < ow; dx++) {
+                                const tx = ox + dx;
+                                const ty = oy + dy;
+                                if (tx < tempCanvas.width && ty < tempCanvas.height) {
+                                    const tidx = (ty * tempCanvas.width + tx) * 4;
+                                    outData.data[tidx] = 255;
+                                    outData.data[tidx + 1] = 255;
+                                    outData.data[tidx + 2] = 255;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            ctx.putImageData(outData, 0, 0);
+            return tempCanvas.toDataURL('image/png').split(',')[1];
+        }
+
+        // 导出原始图片 Base64
+        function exportBaseImageAsBase64() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = inpaintImgNaturalW;
+            tempCanvas.height = inpaintImgNaturalH;
+            const ctx = tempCanvas.getContext('2d');
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            return new Promise((resolve) => {
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0, inpaintImgNaturalW, inpaintImgNaturalH);
+                    resolve(tempCanvas.toDataURL('image/png').split(',')[1]);
+                };
+                img.src = inpaintOriginalImgSrc;
+            });
+        }
+
+        // 发送重绘请求
+        async function doInpaint() {
+            const maskB64 = exportMaskAsBase64();
+            // 检查 mask 是否有内容
+            if (!maskB64) { alert('请先在图片上绘制需要重绘的区域'); return; }
+
+            const submitBtn = document.getElementById('inpaintSubmitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loader w-4 h-4 border-white/50"></span> 重绘中...';
+
+            try {
+                const imageB64 = await exportBaseImageAsBase64();
+                const inpaintPromptText = document.getElementById('inpaintPrompt').value.trim() || els.prompt.value.trim();
+                const selectedVersion = document.getElementById('modelValue').value;
+                const adminToken = localStorage.getItem('nai_admin_token') || '';
+                const userKey = localStorage.getItem('nai_user_key') || '';
+                const customApiKey = localStorage.getItem('nai_custom_api_key') || '';
+
+                const payload = {
+                    version: selectedVersion,
+                    prompt: inpaintPromptText,
+                    negative_prompt: els.negative.value.trim(),
+                    width: inpaintImgNaturalW,
+                    height: inpaintImgNaturalH,
+                    steps: parseInt(els.steps.value),
+                    scale: parseFloat(els.scale.value),
+                    sampler: els.sampler.value,
+                    image: imageB64,
+                    mask: maskB64,
+                    strength: parseFloat(document.getElementById('inpaintStrength').value),
+                    action: 'infill'
+                };
+
+                const res = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-admin-token': adminToken,
+                        'x-user-key': userKey,
+                        'x-custom-api-key': customApiKey
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const contentType = res.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const errData = await res.json();
+                    throw new Error(errData.error || `Server Error: ${res.status}`);
+                }
+                if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+
+                const rawRole = res.headers.get('X-User-Role');
+                if (rawRole) updateCreditDisplay(decodeURIComponent(rawRole));
+
+                const blob = await res.blob();
+                const zip = await JSZip.loadAsync(blob);
+                let imgFile = null;
+                zip.forEach((p, f) => { if (p.endsWith('.png')) imgFile = f; });
+                if (!imgFile) throw new Error('ZIP 中未找到图片');
+
+                const imgBlob = await imgFile.async('blob');
+                const imgUrl = URL.createObjectURL(imgBlob);
+
+                // 关闭编辑器，显示结果
+                closeInpaintEditor();
+                if (currentRightView !== 'preview') switchRightView('preview');
+
+                const tempImg = new Image();
+                tempImg.src = imgUrl;
+                await new Promise(resolve => {
+                    tempImg.onload = () => {
+                        els.resultImg.src = imgUrl;
+                        els.placeholder.classList.add('hidden');
+                        els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
+                        els.dlBtn.disabled = false;
+                        els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                        const reader = new FileReader();
+                        reader.readAsDataURL(imgBlob);
+                        reader.onloadend = () => {
+                            const promptText = inpaintPromptText || els.prompt.value.trim();
+                            saveToHistory(reader.result, promptText + ' [inpaint]', selectedVersion);
+                        };
+                        resolve();
+                    };
+                });
+
+            } catch (err) {
+                console.error(err);
+                alert('重绘失败: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘';
+                lucide.createIcons();
+            }
         }
     </script>
 </body>
