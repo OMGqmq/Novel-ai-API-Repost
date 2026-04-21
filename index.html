@@ -1715,32 +1715,41 @@
 
         let lastPos = null;
 
+        // 像素级方块绘制（无抗锯齿），用 fillRect 沿路径插值替代 stroke()
+        function stampRect(x, y, r) {
+            const halfR = Math.floor(r / 2);
+            maskCtx.fillRect(Math.round(x) - halfR, Math.round(y) - halfR, r, r);
+        }
+
         function drawOnMask(pos, isStart = false) {
             const r = getBrushSize();
-            
-            maskCtx.lineCap = 'square';
-            maskCtx.lineJoin = 'miter';
-            maskCtx.lineWidth = r;
 
             if (inpaintTool === 'brush') {
                 maskCtx.globalCompositeOperation = 'source-over';
-                maskCtx.strokeStyle = 'rgba(255, 60, 60, 1)';
                 maskCtx.fillStyle = 'rgba(255, 60, 60, 1)';
             } else {
                 maskCtx.globalCompositeOperation = 'destination-out';
-                maskCtx.strokeStyle = 'rgba(0,0,0,1)';
                 maskCtx.fillStyle = 'rgba(0,0,0,1)';
             }
 
             if (isStart || !lastPos) {
-                // 画一个方块（应对只点击不拖动的情况）
-                maskCtx.fillRect(pos.x - r / 2, pos.y - r / 2, r, r);
+                // 单击：画一个像素对齐的方块
+                stampRect(pos.x, pos.y, r);
             } else {
-                // 连线平滑过渡，防止鼠标移动过快产生断点
-                maskCtx.beginPath();
-                maskCtx.moveTo(lastPos.x, lastPos.y);
-                maskCtx.lineTo(pos.x, pos.y);
-                maskCtx.stroke();
+                // 拖动：沿路径用 fillRect 插值，彻底避免 stroke() 的抗锯齿
+                const dx = pos.x - lastPos.x;
+                const dy = pos.y - lastPos.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                // 步长取画笔大小的 1/4，保证无间隙
+                const step = Math.max(1, Math.floor(r / 4));
+                const numSteps = Math.max(1, Math.ceil(dist / step));
+
+                for (let i = 0; i <= numSteps; i++) {
+                    const t = i / numSteps;
+                    const x = lastPos.x + dx * t;
+                    const y = lastPos.y + dy * t;
+                    stampRect(x, y, r);
+                }
             }
             lastPos = pos;
         }
@@ -1793,33 +1802,59 @@
         });
 
         // 导出黑白 Mask（白=重绘区域，黑=保留）
+        // 包含二值化 + 膨胀处理，确保 mask 边缘干净
         function exportMaskAsBase64() {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = inpaintImgNaturalW;
-            tempCanvas.height = inpaintImgNaturalH;
-            const ctx = tempCanvas.getContext('2d');
+            const w = inpaintImgNaturalW;
+            const h = inpaintImgNaturalH;
 
-            // 全部设为纯黑色 (保留区域 = 纯黑不透明)
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            // 第 1 步：从 maskCanvas 读取像素，二值化为 0/1 数组
+            const maskData = maskCtx.getImageData(0, 0, w, h);
+            const binary = new Uint8Array(w * h); // 0 = 保留, 1 = 重绘
+            for (let i = 0; i < w * h; i++) {
+                binary[i] = maskData.data[i * 4 + 3] > 10 ? 1 : 0;
+            }
 
-            // maskCanvas 已经是真实分辨率了，直接获取像素并二值化
-            const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-            const outData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            
-            for (let i = 0; i < maskData.data.length; i += 4) {
-                const alpha = maskData.data[i + 3];
-                if (alpha > 10) { // 涂了画笔的区域 (需要重绘，设为纯白不透明)
-                    outData.data[i] = 255;     // R
-                    outData.data[i + 1] = 255; // G
-                    outData.data[i + 2] = 255; // B
-                    outData.data[i + 3] = 255; // A
-                } else { // 没涂的区域 (保留，设为纯黑不透明)
-                    outData.data[i] = 0;       // R
-                    outData.data[i + 1] = 0;   // G
-                    outData.data[i + 2] = 0;   // B
-                    outData.data[i + 3] = 255; // A
+            // 第 2 步：膨胀 (dilate) 3 像素，消除边缘锯齿/间隙
+            const DILATE_R = 3;
+            const dilated = new Uint8Array(w * h);
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    if (binary[y * w + x] === 1) {
+                        dilated[y * w + x] = 1;
+                        continue;
+                    }
+                    // 检查周围 DILATE_R 范围内是否有 mask 像素
+                    let found = false;
+                    for (let dy = -DILATE_R; dy <= DILATE_R && !found; dy++) {
+                        for (let dx = -DILATE_R; dx <= DILATE_R && !found; dx++) {
+                            const nx = x + dx, ny = y + dy;
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                if (binary[ny * w + nx] === 1) {
+                                    // 圆形膨胀：只在半径内
+                                    if (dx * dx + dy * dy <= DILATE_R * DILATE_R) {
+                                        found = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    dilated[y * w + x] = found ? 1 : 0;
                 }
+            }
+
+            // 第 3 步：写入输出 canvas
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            const ctx = tempCanvas.getContext('2d');
+            const outData = ctx.createImageData(w, h);
+
+            for (let i = 0; i < w * h; i++) {
+                const v = dilated[i] ? 255 : 0;
+                outData.data[i * 4]     = v;   // R
+                outData.data[i * 4 + 1] = v;   // G
+                outData.data[i * 4 + 2] = v;   // B
+                outData.data[i * 4 + 3] = 255; // A (始终不透明)
             }
             ctx.putImageData(outData, 0, 0);
             return tempCanvas.toDataURL('image/png').split(',')[1];
@@ -1872,7 +1907,7 @@
                     image: imageB64,
                     mask: maskB64,
                     strength: parseFloat(document.getElementById('inpaintStrength').value),
-                    action: 'img2img'
+                    action: 'infill'
                 };
 
                 const res = await fetch('/generate', {
