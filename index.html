@@ -1810,9 +1810,9 @@
             for (let i = 0; i < maskData.data.length; i += 4) {
                 const alpha = maskData.data[i + 3];
                 if (alpha > 10) { // 涂了画笔的区域 (需要重绘，设为纯白不透明)
-                    outData.data[i] = 255;     // R
-                    outData.data[i + 1] = 255; // G
-                    outData.data[i + 2] = 255; // B
+                    outData.data[i] = alpha;     // R
+                    outData.data[i + 1] = alpha; // G
+                    outData.data[i + 2] = alpha; // B
                     outData.data[i + 3] = 255; // A
                 } else { // 没涂的区域 (保留，设为纯黑不透明)
                     outData.data[i] = 0;       // R
