@@ -143,7 +143,7 @@ export async function onRequest(context) {
     // 决定 action
     let action = "generate";
     if (isInpaint) {
-      action = "img2img";
+      action = "infill";
     } else if (data.image) {
       action = "img2img";
     }
