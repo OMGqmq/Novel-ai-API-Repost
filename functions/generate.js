@@ -1,14 +1,14 @@
 // functions/generate.js
 
 // 辅助函数：构建 V4 Prompt
-function buildV4Prompt(prompt) {
+function buildV4Prompt(prompt, isNegative = false) {
   return {
     caption: {
       base_caption: prompt,
       char_captions: []
     },
     use_coords: false,
-    use_order: true
+    use_order: isNegative ? false : true
   };
 }
 
@@ -137,59 +137,122 @@ export async function onRequest(context) {
     const version = data.version || "v3";
     const seed = data.seed ? parseInt(data.seed) : Math.floor(Math.random() * 4294967295);
 
-    // 检查是否局部重绘 (前端现在统一传 img2img + mask)
-    const isInpaint = data.action === "img2img" && data.mask;
+    // 检查是否局部重绘 
+    const isInpaint = data.action === "infill" && data.mask;
 
     // 决定 action
     let action = "generate";
     if (isInpaint) {
-      action = "img2img";
+      action = "infill";
     } else if (data.image) {
       action = "img2img";
     }
 
     let payload = {};
     if (version === "v4.5") {
+      // ============ V4.5 payload ============
+      // 决定模型名（infill 需要 -inpainting 后缀）
+      const model = isInpaint ? "nai-diffusion-4-5-full-inpainting" : "nai-diffusion-4-5-full";
+
       payload = {
         input: prompt,
-        model: isInpaint ? "nai-diffusion-4-5-full-inpainting" : "nai-diffusion-4-5-full",
+        model: model,
         action: action,
         parameters: {
           params_version: 3,
-          width: width, height: height, scale: data.scale, sampler: data.sampler, steps: steps, seed: seed,
+          width: width,
+          height: height,
+          scale: parseFloat(data.scale) || 5.0,
+          sampler: data.sampler || "k_euler",
+          steps: steps,
+          seed: seed,
           n_samples: 1,
-          v4_prompt: buildV4Prompt(prompt),
-          v4_negative_prompt: buildV4Prompt(negative_prompt),
+          // 提示词 (prompt 需要同时出现在 input 和 parameters 内)
+          prompt: prompt,
           negative_prompt: negative_prompt,
-          ucPreset: 4, dynamic_thresholding: false, controlnet_strength: 1, add_original_image: true,
-          cfg_rescale: 0, noise_schedule: "exponential", skip_cfg_above_sigma: 58, legacy_v3_extend: false
+          // V4 格式提示词
+          v4_prompt: buildV4Prompt(prompt, false),
+          v4_negative_prompt: buildV4Prompt(negative_prompt, true),
+          // 基础参数 (对齐 ComfyUI 工作配置)
+          ucPreset: 3,
+          qualityToggle: false,
+          sm: false,
+          sm_dyn: false,
+          dynamic_thresholding: false,
+          controlnet_strength: 1,
+          legacy: false,
+          add_original_image: false,
+          cfg_rescale: 0,
+          noise_schedule: "native",
+          legacy_v3_extend: false,
+          uncond_scale: 1.0,
+          skip_cfg_above_sigma: null,
+          // 空 reference 数组 (VibeTransfer 占位)
+          reference_image_multiple: [],
+          reference_information_extracted_multiple: [],
+          reference_strength_multiple: [],
+          extra_noise_seed: seed
         }
       };
     } else {
+      // ============ V3 payload ============
+      const model = isInpaint ? "nai-diffusion-3-inpainting" : "nai-diffusion-3";
+
       payload = {
         input: prompt,
-        model: isInpaint ? "nai-diffusion-3-inpainting" : "nai-diffusion-3",
+        model: model,
         action: action,
-        undesiredContent: negative_prompt,
         parameters: {
-          width: width, height: height, scale: data.scale, sampler: data.sampler, steps: steps, seed: seed,
-          n_samples: 1, sm: true, sm_dyn: true, qualityToggle: true, ucPreset: 0
+          params_version: 1,
+          width: width,
+          height: height,
+          scale: parseFloat(data.scale) || 5.0,
+          sampler: data.sampler || "k_euler",
+          steps: steps,
+          seed: seed,
+          n_samples: 1,
+          // 提示词
+          prompt: prompt,
+          negative_prompt: negative_prompt,
+          // 基础参数
+          ucPreset: 3,
+          qualityToggle: false,
+          sm: true,
+          sm_dyn: true,
+          dynamic_thresholding: false,
+          controlnet_strength: 1,
+          legacy: false,
+          add_original_image: false,
+          cfg_rescale: 0,
+          noise_schedule: "native",
+          legacy_v3_extend: false,
+          uncond_scale: 1.0,
+          // 空 reference 数组
+          reference_image_multiple: [],
+          reference_information_extracted_multiple: [],
+          reference_strength_multiple: [],
+          extra_noise_seed: seed
         }
       };
     }
 
-    // img2img 参数
-    if (data.image) {
+    // ============ 分开处理 img2img 和 infill 参数 ============
+    // 关键：infill 和 img2img 的参数集不同！不要混用。
+    if (isInpaint) {
+      // 局部重绘 (infill) 参数 — 对齐 ComfyUI InpaintingOption
+      payload.parameters.image = data.image;
+      payload.parameters.mask = data.mask;
+      payload.parameters.add_original_image = true;
+      // infill 模式下 strength 控制重绘强度（可选，API 接受此参数）
+      if (data.strength !== undefined && data.strength !== null) {
+        payload.parameters.strength = parseFloat(data.strength);
+      }
+    } else if (data.image) {
+      // 图生图 (img2img) 参数
       payload.parameters.image = data.image;
       payload.parameters.strength = parseFloat(data.strength) || 0.5;
       payload.parameters.noise = parseFloat(data.noise) || 0;
       payload.parameters.extra_noise_seed = seed;
-    }
-
-    // 局部重绘 (inpainting) 参数
-    if (isInpaint) {
-      payload.parameters.mask = data.mask;
-      payload.parameters.add_original_image = false;
     }
 
     // 请求 NovelAI
@@ -242,5 +305,3 @@ export async function onRequest(context) {
     });
   }
 }
-
-
