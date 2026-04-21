@@ -1872,7 +1872,7 @@
                     image: imageB64,
                     mask: maskB64,
                     strength: parseFloat(document.getElementById('inpaintStrength').value),
-                    action: 'img2img'
+                    action: 'infill'
                 };
 
                 const res = await fetch('/generate', {
