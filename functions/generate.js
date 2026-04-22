@@ -237,18 +237,18 @@ export async function onRequest(context) {
     }
 
     // ============ 分开处理 img2img 和 infill 参数 ============
-    // 关键：infill 和 img2img 的参数集不同！不要混用。
     if (isInpaint) {
-      // 局部重绘 (infill) 参数 — 对齐 ComfyUI InpaintingOption
+      // 局部重绘 (infill)
+      // V4+ 支持 Inpainting Strength：1.0 = 完全重绘，0.5 = 半保留原图
+      // 官方文档：https://docs.novelai.net/en/image/inpaint/#inpainting-strength
       payload.parameters.image = data.image;
       payload.parameters.mask = data.mask;
       payload.parameters.add_original_image = true;
-      // infill 模式下 strength 控制重绘强度（可选，API 接受此参数）
-      if (data.strength !== undefined && data.strength !== null) {
-        payload.parameters.strength = parseFloat(data.strength);
-      }
+      payload.parameters.strength = parseFloat(data.strength) || 1.0;  // 默认 1.0 = 完全重绘
+      payload.parameters.noise = 0;
+      payload.parameters.extra_noise_seed = seed;
     } else if (data.image) {
-      // 图生图 (img2img) 参数
+      // 图生图 (img2img)
       payload.parameters.image = data.image;
       payload.parameters.strength = parseFloat(data.strength) || 0.5;
       payload.parameters.noise = parseFloat(data.noise) || 0;
