@@ -360,7 +360,8 @@
         }
         .brush-cursor {
             position: fixed;
-            border: 2px solid rgba(255,255,255,0.7);
+            border: 2px solid rgba(255,255,255,0.85);
+            border-radius: 50%;
             pointer-events: none;
             z-index: 9999;
             transition: width 0.1s, height 0.1s;
@@ -1715,10 +1716,12 @@
 
         let lastPos = null;
 
-        // 像素级方块绘制（无抗锯齿），用 fillRect 沿路径插值替代 stroke()
-        function stampRect(x, y, r) {
-            const halfR = Math.floor(r / 2);
-            maskCtx.fillRect(Math.round(x) - halfR, Math.round(y) - halfR, r, r);
+        // 圆形笔刷绘制（匹配 NovelAI 官网圆形笔刷）
+        // 使用 arc + fill 画圆，沿路径密集插值保证连续
+        function stampCircle(x, y, radius) {
+            maskCtx.beginPath();
+            maskCtx.arc(Math.round(x), Math.round(y), radius / 2, 0, Math.PI * 2);
+            maskCtx.fill();
         }
 
         function drawOnMask(pos, isStart = false) {
@@ -1726,29 +1729,30 @@
 
             if (inpaintTool === 'brush') {
                 maskCtx.globalCompositeOperation = 'source-over';
-                maskCtx.fillStyle = 'rgba(255, 60, 60, 1)';
+                // 蓝色遮罩，匹配 NovelAI 官网蓝色 Mask 风格
+                maskCtx.fillStyle = 'rgba(80, 130, 255, 1)';
             } else {
                 maskCtx.globalCompositeOperation = 'destination-out';
                 maskCtx.fillStyle = 'rgba(0,0,0,1)';
             }
 
             if (isStart || !lastPos) {
-                // 单击：画一个像素对齐的方块
-                stampRect(pos.x, pos.y, r);
+                // 单击：画一个圆
+                stampCircle(pos.x, pos.y, r);
             } else {
-                // 拖动：沿路径用 fillRect 插值，彻底避免 stroke() 的抗锯齿
+                // 拖动：沿路径密集插值画圆，保证笔画连续无间隙
                 const dx = pos.x - lastPos.x;
                 const dy = pos.y - lastPos.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                // 步长取画笔大小的 1/4，保证无间隙
-                const step = Math.max(1, Math.floor(r / 4));
+                // 步长取半径的 1/4，确保圆之间重叠无缝
+                const step = Math.max(1, Math.floor(r / 8));
                 const numSteps = Math.max(1, Math.ceil(dist / step));
 
                 for (let i = 0; i <= numSteps; i++) {
                     const t = i / numSteps;
                     const x = lastPos.x + dx * t;
                     const y = lastPos.y + dy * t;
-                    stampRect(x, y, r);
+                    stampCircle(x, y, r);
                 }
             }
             lastPos = pos;
@@ -1814,8 +1818,8 @@
                 binary[i] = maskData.data[i * 4 + 3] > 10 ? 1 : 0;
             }
 
-            // 第 2 步：膨胀 (dilate) 3 像素，消除边缘锯齿/间隙
-            const DILATE_R = 3;
+            // 第 2 步：膨胀 (dilate) 8 像素，覆盖圆形笔刷抗锯齿边缘 + API 端边缘泄露
+            const DILATE_R = 8;
             const dilated = new Uint8Array(w * h);
             for (let y = 0; y < h; y++) {
                 for (let x = 0; x < w; x++) {
