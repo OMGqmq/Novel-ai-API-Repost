@@ -243,7 +243,7 @@ export async function onRequest(context) {
       // 官方文档：https://docs.novelai.net/en/image/inpaint/#inpainting-strength
       payload.parameters.image = data.image;
       payload.parameters.mask = data.mask;
-      payload.parameters.add_original_image = true;
+      payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : true;
       payload.parameters.strength = parseFloat(data.strength) || 1.0;  // 默认 1.0 = 完全重绘
       payload.parameters.noise = 0;
       payload.parameters.extra_noise_seed = seed;

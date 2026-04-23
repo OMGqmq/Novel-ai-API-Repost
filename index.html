@@ -1913,7 +1913,8 @@
                     image: imageB64,
                     mask: maskB64,
                     strength: parseFloat(document.getElementById('inpaintStrength').value),
-                    action: 'infill'
+                    action: 'infill',
+                    add_original_image: false // 极其关键：必须设为 false，让前端进行软边缘合成，避免服务端硬拼接产生灰块
                 };
 
                 const res = await fetch('/generate', {
@@ -1943,32 +1944,71 @@
                 zip.forEach((p, f) => { if (p.endsWith('.png')) imgFile = f; });
                 if (!imgFile) throw new Error('ZIP 中未找到图片');
 
-                const imgBlob = await imgFile.async('blob');
-                const imgUrl = URL.createObjectURL(imgBlob);
+                const rawGeneratedBlob = await imgFile.async('blob');
+
+                // 官方核心逻辑复刻：本地前端软边缘合成 (Local Compositing)
+                // 服务端返回的只是局部重绘的区域，我们需要使用高斯模糊的 mask 将其与原图无缝融合
+                const finalCompositedBlob = await new Promise(async (resolve) => {
+                    const w = inpaintImgNaturalW;
+                    const h = inpaintImgNaturalH;
+
+                    // 1. 加载生成的图片和原图
+                    const genImg = new Image();
+                    genImg.src = URL.createObjectURL(rawGeneratedBlob);
+                    await new Promise(r => genImg.onload = r);
+
+                    const origImg = new Image();
+                    origImg.src = inpaintOriginalImgSrc;
+                    origImg.crossOrigin = 'anonymous';
+                    await new Promise(r => origImg.onload = r);
+
+                    // 2. 创建模糊的软边缘 Mask (对应官方 B.blur 逻辑)
+                    // 使用 blur(30px) 来模拟官方的潜空间扩张和高斯模糊
+                    const blurredMaskCanvas = document.createElement('canvas');
+                    blurredMaskCanvas.width = w;
+                    blurredMaskCanvas.height = h;
+                    const bCtx = blurredMaskCanvas.getContext('2d');
+                    bCtx.filter = 'blur(30px)';
+                    bCtx.drawImage(maskCanvas, 0, 0);
+
+                    // 3. 将生成的图片与软边缘 Mask 结合 (提取有效的重绘部分)
+                    const fgCanvas = document.createElement('canvas');
+                    fgCanvas.width = w;
+                    fgCanvas.height = h;
+                    const fCtx = fgCanvas.getContext('2d');
+                    fCtx.drawImage(genImg, 0, 0, w, h);
+                    fCtx.globalCompositeOperation = 'destination-in';
+                    fCtx.drawImage(blurredMaskCanvas, 0, 0);
+
+                    // 4. 将提取出的柔和重绘部分叠加到原图上
+                    const finalCanvas = document.createElement('canvas');
+                    finalCanvas.width = w;
+                    finalCanvas.height = h;
+                    const ctx = finalCanvas.getContext('2d');
+                    ctx.drawImage(origImg, 0, 0, w, h);
+                    ctx.drawImage(fgCanvas, 0, 0, w, h);
+
+                    finalCanvas.toBlob(blob => resolve(blob), 'image/png');
+                });
+
+                const finalImgUrl = URL.createObjectURL(finalCompositedBlob);
 
                 // 关闭编辑器，显示结果
                 closeInpaintEditor();
                 if (currentRightView !== 'preview') switchRightView('preview');
 
-                const tempImg = new Image();
-                tempImg.src = imgUrl;
-                await new Promise(resolve => {
-                    tempImg.onload = () => {
-                        els.resultImg.src = imgUrl;
-                        els.placeholder.classList.add('hidden');
-                        els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
-                        els.dlBtn.disabled = false;
-                        els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                els.resultImg.src = finalImgUrl;
+                els.placeholder.classList.add('hidden');
+                els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
+                els.dlBtn.disabled = false;
+                els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
 
-                        const reader = new FileReader();
-                        reader.readAsDataURL(imgBlob);
-                        reader.onloadend = () => {
-                            const promptText = inpaintPromptText || els.prompt.value.trim();
-                            saveToHistory(reader.result, promptText + ' [inpaint]', selectedVersion);
-                        };
-                        resolve();
-                    };
-                });
+                const reader = new FileReader();
+                reader.readAsDataURL(finalCompositedBlob);
+                reader.onloadend = () => {
+                    const promptText = inpaintPromptText || els.prompt.value.trim();
+                    saveToHistory(reader.result, promptText + ' [inpaint]', selectedVersion);
+                };
 
             } catch (err) {
                 console.error(err);
