@@ -321,6 +321,8 @@
             cursor: crosshair;
             z-index: 2;
             opacity: 0.45;
+            /* 用 CSS 滤镜将白色笔画染成蓝色供视觉预览，不影响 canvas 内实际像素值 */
+            /* 实际 canvas 数据仍是纯白 #FFFFFF，匹配 NovelAI 官方 mask draw tool */
         }
         #inpaintBaseCanvas {
             z-index: 1;
@@ -1729,8 +1731,9 @@
 
             if (inpaintTool === 'brush') {
                 maskCtx.globalCompositeOperation = 'source-over';
-                // 蓝色遮罩，匹配 NovelAI 官网蓝色 Mask 风格
-                maskCtx.fillStyle = 'rgba(80, 130, 255, 1)';
+                // 纯白色笔画，与 NovelAI 官方 mask draw tool (e_) 完全一致
+                // 视觉上通过 CSS opacity: 0.45 显示为半透明白色覆盖层
+                maskCtx.fillStyle = '#FFFFFF';
             } else {
                 maskCtx.globalCompositeOperation = 'destination-out';
                 maskCtx.fillStyle = 'rgba(0,0,0,1)';
@@ -1806,110 +1809,61 @@
         });
 
         // 导出黑白 Mask（白=重绘区域，黑=保留）
-        // 使用高斯模糊羽化边缘，匹配 NovelAI 官方的柔和 mask 行为
-        // 避免硬边缘导致生成结果出现灰色伪影块
+        // 精确复刻 NovelAI 官方前端 eU/rX 函数的处理逻辑：
+        //   1. 创建目标尺寸 canvas，用黑色填充背景
+        //   2. 将 mask 绘制到黑色背景上 (imageSmoothingEnabled = false)
+        //   3. 导出为 PNG base64
         function exportMaskAsBase64() {
             const w = inpaintImgNaturalW;
             const h = inpaintImgNaturalH;
 
-            // 第 1 步：从 maskCanvas 读取像素，二值化为 0/255
+            // 检查 mask 是否有内容
             const maskData = maskCtx.getImageData(0, 0, w, h);
-            const binaryBuf = new Float32Array(w * h);
             let hasContent = false;
             for (let i = 0; i < w * h; i++) {
                 if (maskData.data[i * 4 + 3] > 10) {
-                    binaryBuf[i] = 255;
                     hasContent = true;
-                } else {
-                    binaryBuf[i] = 0;
+                    break;
                 }
             }
             if (!hasContent) return null;
 
-            // 第 2 步：高斯模糊实现柔和羽化边缘
-            // 使用可分离的两趟 Box Blur x3 来近似高斯模糊（Box Blur 三次 ≈ Gaussian Blur）
-            const BLUR_RADIUS = 20; // 羽化半径（像素），越大边缘越柔和
-            const blurred = boxBlurApproxGaussian(binaryBuf, w, h, BLUR_RADIUS);
-
-            // 第 3 步：对模糊结果做 clamp，确保核心涂抹区域是纯白
-            // 原始二值化为255的区域保持255，只让边缘保持渐变
-            for (let i = 0; i < w * h; i++) {
-                if (binaryBuf[i] === 255) {
-                    blurred[i] = 255;
-                }
-            }
-
-            // 第 4 步：写入输出 canvas
+            // 创建输出 canvas — 与 NovelAI eU 函数逻辑对齐
+            // maskCanvas 上画的是纯白色笔画，直接合成到黑色背景上
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = w;
             tempCanvas.height = h;
             const ctx = tempCanvas.getContext('2d');
-            const outData = ctx.createImageData(w, h);
 
-            for (let i = 0; i < w * h; i++) {
-                const v = Math.round(Math.min(255, Math.max(0, blurred[i])));
-                outData.data[i * 4]     = v;   // R
-                outData.data[i * 4 + 1] = v;   // G
-                outData.data[i * 4 + 2] = v;   // B
-                outData.data[i * 4 + 3] = 255; // A (始终不透明)
+            // 第 1 步：黑色背景填充 (对应 eU 中的 f.fillStyle="black"; f.fillRect(...))
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, w, h);
+
+            // 第 2 步：关闭图像平滑 (对应 eU 中的 f.imageSmoothingEnabled = false)
+            ctx.imageSmoothingEnabled = false;
+
+            // 第 3 步：将 mask 绘制到黑色背景上
+            // mask 笔画是白色 (#FFFFFF)，透明区域会保留黑色背景
+            // 使用同步方式：直接从 maskCanvas 绘制
+            ctx.drawImage(maskCanvas, 0, 0, w, h);
+
+            // 第 4 步：二值化清理 — 消除 Canvas 2D arc() 抗锯齿产生的灰色边缘像素
+            // NovelAI 官方使用 WebGL + pixelSnap 绘制 mask，不产生抗锯齿
+            // 我们用 Canvas 2D 绘制会在圆形边缘产生 1-2px 灰色像素
+            // 将所有非纯黑像素强制为纯白，确保 mask 是干净的二值图
+            const imgData = ctx.getImageData(0, 0, w, h);
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+                if (d[i] > 0 || d[i + 1] > 0 || d[i + 2] > 0) {
+                    d[i] = 255;     // R
+                    d[i + 1] = 255; // G
+                    d[i + 2] = 255; // B
+                }
+                d[i + 3] = 255; // A 始终不透明
             }
-            ctx.putImageData(outData, 0, 0);
+            ctx.putImageData(imgData, 0, 0);
+
             return tempCanvas.toDataURL('image/png').split(',')[1];
-        }
-
-        // Box Blur 三趟近似高斯模糊（可分离、高效）
-        function boxBlurApproxGaussian(src, w, h, radius) {
-            // 三趟 box blur 的半径需要从目标高斯 sigma 计算
-            // sigma ≈ radius, 三趟 box blur 的单趟半径 ≈ sqrt((radius^2 * 12 + 1) / 3)
-            const wIdeal = Math.sqrt((12 * radius * radius) / 3 + 1);
-            let wl = Math.floor(wIdeal); if (wl % 2 === 0) wl--;
-            const wu = wl + 2;
-            const m = Math.round((12 * radius * radius - 3 * wl * wl - 12 * wl - 9) / (-4 * wl - 4));
-            const sizes = [];
-            for (let i = 0; i < 3; i++) {
-                sizes.push(i < m ? wl : wu);
-            }
-
-            let buf = new Float32Array(src);
-            let tmp = new Float32Array(w * h);
-
-            for (let pass = 0; pass < 3; pass++) {
-                const r = (sizes[pass] - 1) / 2;
-                // 水平趟
-                for (let y = 0; y < h; y++) {
-                    let sum = 0;
-                    const count = 2 * r + 1;
-                    // 初始窗口
-                    for (let x = -r; x <= r; x++) {
-                        const cx = Math.min(w - 1, Math.max(0, x));
-                        sum += buf[y * w + cx];
-                    }
-                    tmp[y * w] = sum / count;
-                    for (let x = 1; x < w; x++) {
-                        const addIdx = Math.min(w - 1, x + r);
-                        const removeIdx = Math.max(0, x - r - 1);
-                        sum += buf[y * w + addIdx] - buf[y * w + removeIdx];
-                        tmp[y * w + x] = sum / count;
-                    }
-                }
-                // 垂直趟
-                for (let x = 0; x < w; x++) {
-                    let sum = 0;
-                    const count = 2 * r + 1;
-                    for (let y = -r; y <= r; y++) {
-                        const cy = Math.min(h - 1, Math.max(0, y));
-                        sum += tmp[cy * w + x];
-                    }
-                    buf[x] = sum / count;
-                    for (let y = 1; y < h; y++) {
-                        const addIdx = Math.min(h - 1, y + r);
-                        const removeIdx = Math.max(0, y - r - 1);
-                        sum += tmp[addIdx * w + x] - tmp[removeIdx * w + x];
-                        buf[y * w + x] = sum / count;
-                    }
-                }
-            }
-            return buf;
         }
 
         // 导出原始图片 Base64
