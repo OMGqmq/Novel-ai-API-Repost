@@ -1828,30 +1828,30 @@
             }
             if (!hasContent) return null;
 
-            // 创建输出 canvas — 与 NovelAI eU 函数逻辑对齐
-            // maskCanvas 上画的是纯白色笔画，直接合成到黑色背景上
+            // NovelAI 官方前端在发送 mask 前，会将其缩小到 1/8（即 latent 分辨率）
+            // 并使用最近邻插值（无平滑）。如果发送全尺寸 mask，服务端缩放时可能产生灰度边缘，
+            // 导致 UNet 生成出现灰色伪影块。
+            const targetW = Math.ceil(w / 8);
+            const targetH = Math.ceil(h / 8);
+
+            // 创建输出 canvas — 与 NovelAI eU/k2 函数逻辑对齐
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = w;
-            tempCanvas.height = h;
+            tempCanvas.width = targetW;
+            tempCanvas.height = targetH;
             const ctx = tempCanvas.getContext('2d');
 
-            // 第 1 步：黑色背景填充 (对应 eU 中的 f.fillStyle="black"; f.fillRect(...))
+            // 第 1 步：黑色背景填充
             ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, w, h);
+            ctx.fillRect(0, 0, targetW, targetH);
 
-            // 第 2 步：关闭图像平滑 (对应 eU 中的 f.imageSmoothingEnabled = false)
+            // 第 2 步：关闭图像平滑 (强制最近邻插值，保持二值边缘锐利)
             ctx.imageSmoothingEnabled = false;
 
-            // 第 3 步：将 mask 绘制到黑色背景上
-            // mask 笔画是白色 (#FFFFFF)，透明区域会保留黑色背景
-            // 使用同步方式：直接从 maskCanvas 绘制
-            ctx.drawImage(maskCanvas, 0, 0, w, h);
+            // 第 3 步：将全尺寸 mask 缩小绘制到黑色背景上
+            ctx.drawImage(maskCanvas, 0, 0, targetW, targetH);
 
-            // 第 4 步：二值化清理 — 消除 Canvas 2D arc() 抗锯齿产生的灰色边缘像素
-            // NovelAI 官方使用 WebGL + pixelSnap 绘制 mask，不产生抗锯齿
-            // 我们用 Canvas 2D 绘制会在圆形边缘产生 1-2px 灰色像素
-            // 将所有非纯黑像素强制为纯白，确保 mask 是干净的二值图
-            const imgData = ctx.getImageData(0, 0, w, h);
+            // 第 4 步：二值化清理 — 消除缩小和 Canvas 2D arc() 抗锯齿产生的灰色边缘像素
+            const imgData = ctx.getImageData(0, 0, targetW, targetH);
             const d = imgData.data;
             for (let i = 0; i < d.length; i += 4) {
                 if (d[i] > 0 || d[i + 1] > 0 || d[i + 2] > 0) {
