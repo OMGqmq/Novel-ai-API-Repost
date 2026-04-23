@@ -1941,8 +1941,12 @@
                 const blob = await res.blob();
                 const zip = await JSZip.loadAsync(blob);
                 let imgFile = null;
-                zip.forEach((p, f) => { if (p.endsWith('.png')) imgFile = f; });
-                if (!imgFile) throw new Error('ZIP 中未找到图片');
+                zip.forEach((p, f) => { 
+                    if (p.endsWith('.png') && !p.toLowerCase().includes('mask')) {
+                        imgFile = f; 
+                    }
+                });
+                if (!imgFile) throw new Error('ZIP 中未找到生成的图片');
 
                 const rawGeneratedBlob = await imgFile.async('blob');
 
