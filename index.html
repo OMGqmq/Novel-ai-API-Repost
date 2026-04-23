@@ -1962,14 +1962,53 @@
                     origImg.crossOrigin = 'anonymous';
                     await new Promise(r => origImg.onload = r);
 
-                    // 2. 创建模糊的软边缘 Mask (对应官方 B.blur 逻辑)
-                    // 使用 blur(30px) 来模拟官方的潜空间扩张和高斯模糊
+                    // 2. 完美复刻官方软边缘 Mask (先膨胀，后放大并模糊，再转换 Alpha)
+                    // 这样可以确保透明度过渡带刚好盖住服务端 VAE 生成的接缝，防止半透明灰块
+                    const maskImg = new Image();
+                    maskImg.src = 'data:image/png;base64,' + maskB64;
+                    await new Promise(r => maskImg.onload = r);
+
+                    const targetW = Math.ceil(w / 8);
+                    const targetH = Math.ceil(h / 8);
+
+                    const smallCanvas = document.createElement('canvas');
+                    smallCanvas.width = targetW;
+                    smallCanvas.height = targetH;
+                    const sCtx = smallCanvas.getContext('2d');
+                    sCtx.drawImage(maskImg, 0, 0);
+
+                    // 在 1/8 尺寸上膨胀 4 像素
+                    const dilatedCanvas = document.createElement('canvas');
+                    dilatedCanvas.width = targetW;
+                    dilatedCanvas.height = targetH;
+                    const dCtx = dilatedCanvas.getContext('2d');
+                    dCtx.fillStyle = '#000000';
+                    dCtx.fillRect(0, 0, targetW, targetH);
+                    dCtx.globalCompositeOperation = 'lighten';
+                    for (let dx = -4; dx <= 4; dx++) {
+                        for (let dy = -4; dy <= 4; dy++) {
+                            if (dx * dx + dy * dy <= 16) {
+                                dCtx.drawImage(smallCanvas, dx, dy);
+                            }
+                        }
+                    }
+
+                    // 放大 8 倍并进行 20px 模糊
                     const blurredMaskCanvas = document.createElement('canvas');
                     blurredMaskCanvas.width = w;
                     blurredMaskCanvas.height = h;
                     const bCtx = blurredMaskCanvas.getContext('2d');
-                    bCtx.filter = 'blur(30px)';
-                    bCtx.drawImage(maskCanvas, 0, 0);
+                    bCtx.filter = 'blur(20px)';
+                    bCtx.imageSmoothingEnabled = true;
+                    bCtx.drawImage(dilatedCanvas, 0, 0, w, h);
+
+                    // 模拟官方 alphaMatchRed: 将 RGB 亮度转为 Alpha 通道
+                    const imgData = bCtx.getImageData(0, 0, w, h);
+                    const data = imgData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        data[i + 3] = data[i]; // 取 Red 通道的值作为 Alpha
+                    }
+                    bCtx.putImageData(imgData, 0, 0);
 
                     // 3. 将生成的图片与软边缘 Mask 结合 (提取有效的重绘部分)
                     const fgCanvas = document.createElement('canvas');
