@@ -1991,26 +1991,45 @@
                     gCtx.drawImage(genImg, 0, 0, w, h);
                     const genData = gCtx.getImageData(0, 0, w, h).data;
 
-                    // 构建纯黑底色画布用于膨胀
+                    // 构建基础的黑白遮罩
                     const maskTempCanvas = document.createElement('canvas');
                     maskTempCanvas.width = w; maskTempCanvas.height = h;
                     const mCtx = maskTempCanvas.getContext('2d');
                     mCtx.fillStyle = '#000000';
                     mCtx.fillRect(0, 0, w, h);
-                    
-                    // 完美的平滑全尺寸纯粹膨胀 (精确外扩 32px)
-                    // 通过在多个同心圆上重复绘制，实现全分辨率的形态学膨胀，
-                    // 彻底避免 1/8 缩放导致的“马赛克灰块”，也避免了 shadowBlur 的不确定性！
                     mCtx.drawImage(maskCanvas, 0, 0);
-                    for (let r = 8; r <= 32; r += 8) {
-                        const steps = r; // 每圈绘制的次数 (8, 16, 24, 32)
-                        for (let i = 0; i < steps; i++) {
-                            const angle = (i / steps) * Math.PI * 2;
-                            const dx = Math.cos(angle) * r;
-                            const dy = Math.sin(angle) * r;
-                            mCtx.drawImage(maskCanvas, dx, dy);
-                        }
+
+                    // 核心转折：形态学腐蚀 (Erosion) —— 向内收缩！
+                    // 之前的灰圈是因为服务器返回的生成图在边缘外部是纯黑色的！
+                    // 我们一旦向外膨胀，就会把黑色给混进来。所以我们必须向内收缩！
+                    // 我们把白色边缘向内吃掉 16 像素，确保所有的渐变都在生成的彩色有效区内发生。
+                    mCtx.globalCompositeOperation = 'destination-out';
+                    mCtx.strokeStyle = '#000000';
+                    mCtx.lineWidth = 32; // 半径16，所以线宽32
+                    mCtx.lineJoin = 'round';
+                    mCtx.lineCap = 'round';
+                    // 将原来的笔触路径再画一遍，用黑色将其边缘抠掉 (相当于向内缩小 16px)
+                    // 由于 maskCanvas 本身是一个已经画好的图，Canvas 没有直接提取路径的简单方法。
+                    // 我们可以用多重位移的 destination-in 来实现完美腐蚀：
+                    mCtx.globalCompositeOperation = 'source-over'; // 恢复
+
+                    const erodeCanvas = document.createElement('canvas');
+                    erodeCanvas.width = w; erodeCanvas.height = h;
+                    const eCtx = erodeCanvas.getContext('2d');
+                    eCtx.drawImage(maskCanvas, 0, 0);
+                    eCtx.globalCompositeOperation = 'source-in'; // 只有重叠部分保留
+                    
+                    const shrinkRadius = 16;
+                    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+                        const dx = Math.cos(angle) * shrinkRadius;
+                        const dy = Math.sin(angle) * shrinkRadius;
+                        eCtx.drawImage(maskCanvas, dx, dy);
                     }
+
+                    // 把腐蚀好的小一圈的白色图案画到黑底上
+                    mCtx.fillStyle = '#000000';
+                    mCtx.fillRect(0, 0, w, h);
+                    mCtx.drawImage(erodeCanvas, 0, 0);
 
                     // 官方参数：20px 高斯模糊
                     const blurredMaskCanvas = document.createElement('canvas');
