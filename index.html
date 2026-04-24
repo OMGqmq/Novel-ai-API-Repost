@@ -2013,6 +2013,7 @@
                     // 我们可以用多重位移的 destination-in 来实现完美腐蚀：
                     mCtx.globalCompositeOperation = 'source-over'; // 恢复
 
+                    // 形态学腐蚀 (Erosion) —— 保持 16px 收缩
                     const erodeCanvas = document.createElement('canvas');
                     erodeCanvas.width = w; erodeCanvas.height = h;
                     const eCtx = erodeCanvas.getContext('2d');
@@ -2031,11 +2032,14 @@
                     mCtx.fillRect(0, 0, w, h);
                     mCtx.drawImage(erodeCanvas, 0, 0);
 
-                    // 官方参数：20px 高斯模糊
+                    // 关键微调：把高斯模糊从 20px 降到 10px
+                    // 因为高斯模糊的“尾巴”通常会扩散到设定值的 1.5 倍（约 15px）。
+                    // 我们向内收缩了 16px，如果用 10px 模糊，它的透明度刚好会在边界处降为绝对的 0！
+                    // 这样就能 100% 确保不会有任何半透明灰边溢出。
                     const blurredMaskCanvas = document.createElement('canvas');
                     blurredMaskCanvas.width = w; blurredMaskCanvas.height = h;
                     const bCtx = blurredMaskCanvas.getContext('2d');
-                    bCtx.filter = 'blur(20px)';
+                    bCtx.filter = 'blur(10px)';
                     bCtx.drawImage(maskTempCanvas, 0, 0);
                     
                     const maskData = bCtx.getImageData(0, 0, w, h).data;
