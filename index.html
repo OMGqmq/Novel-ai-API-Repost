@@ -1973,51 +1973,62 @@
                     maskImg.src = 'data:image/png;base64,' + maskB64;
                     await new Promise(r => maskImg.onload = r);
 
-                    // 2. 纯前端高精度平滑膨胀与模糊 (High-Res Smooth Dilation)
-                    // 抛弃官方 1/8 缩放导致的马赛克方块边缘，直接使用你画的全尺寸平滑 Mask！
-                    // 利用连续的高强度 shadowBlur 实现平滑向外膨胀，完美覆盖 VAE 瑕疵缝隙。
+                    // 2. 纯像素级完美融合 (Pixel-Perfect ImageData Blending)
+                    // 彻底抛弃 Canvas 的 globalCompositeOperation 和 shadowBlur，
+                    // 避免由于浏览器渲染机制、Alpha 预乘或色彩配置(Gamma)差异导致的任何灰边和光环效应。
                     
-                    const tempExpandedMask = document.createElement('canvas');
-                    tempExpandedMask.width = w;
-                    tempExpandedMask.height = h;
-                    const eCtx = tempExpandedMask.getContext('2d');
-                    
-                    // 利用阴影实现向外平滑扩张 (Dilation)
-                    eCtx.shadowColor = '#FFFFFF';
-                    eCtx.shadowBlur = 40;
-                    
-                    // 连续绘制多次，将内部和扩张的阴影区域堆叠至 100% 不透明
-                    for (let i = 0; i < 8; i++) {
-                        eCtx.drawImage(maskCanvas, 0, 0);
-                    }
-                    
-                    // 再次高斯模糊，打造极其柔和的终极边缘
+                    // 获取原图的像素数据
+                    const origCanvas = document.createElement('canvas');
+                    origCanvas.width = w; origCanvas.height = h;
+                    const oCtx = origCanvas.getContext('2d');
+                    oCtx.drawImage(origImg, 0, 0, w, h);
+                    const origData = oCtx.getImageData(0, 0, w, h).data;
+
+                    // 获取生成图的像素数据
+                    const genCanvas = document.createElement('canvas');
+                    genCanvas.width = w; genCanvas.height = h;
+                    const gCtx = genCanvas.getContext('2d');
+                    gCtx.drawImage(genImg, 0, 0, w, h);
+                    const genData = gCtx.getImageData(0, 0, w, h).data;
+
+                    // 构建极其纯粹的黑白软遮罩 (白=生成区，黑=原图区)
+                    const maskTempCanvas = document.createElement('canvas');
+                    maskTempCanvas.width = w; maskTempCanvas.height = h;
+                    const mCtx = maskTempCanvas.getContext('2d');
+                    mCtx.fillStyle = '#000000';
+                    mCtx.fillRect(0, 0, w, h);
+                    // 为了覆盖 VAE 接缝，轻微多次绘制叠加 (轻度膨胀)
+                    mCtx.drawImage(maskCanvas, 0, 0);
+                    mCtx.drawImage(maskCanvas, 0, 0);
+                    mCtx.drawImage(maskCanvas, 0, 0);
+
                     const blurredMaskCanvas = document.createElement('canvas');
-                    blurredMaskCanvas.width = w;
-                    blurredMaskCanvas.height = h;
+                    blurredMaskCanvas.width = w; blurredMaskCanvas.height = h;
                     const bCtx = blurredMaskCanvas.getContext('2d');
-                    bCtx.filter = 'blur(15px)';
-                    bCtx.drawImage(tempExpandedMask, 0, 0);
+                    // 官方参数：20px 高斯模糊
+                    bCtx.filter = 'blur(20px)';
+                    bCtx.drawImage(maskTempCanvas, 0, 0);
                     
-                    // 因为这里全程使用的是透明背景+白色的绘制，所以不需要手动转换 Alpha，
-                    // blurredMaskCanvas 已经自带完美的 Alpha 通道！
+                    const maskData = bCtx.getImageData(0, 0, w, h).data;
 
-                    // 3. 将生成的图片与软边缘 Mask 结合 (提取有效的重绘部分)
-                    const fgCanvas = document.createElement('canvas');
-                    fgCanvas.width = w;
-                    fgCanvas.height = h;
-                    const fCtx = fgCanvas.getContext('2d');
-                    fCtx.drawImage(genImg, 0, 0, w, h);
-                    fCtx.globalCompositeOperation = 'destination-in';
-                    fCtx.drawImage(blurredMaskCanvas, 0, 0);
-
-                    // 4. 将提取出的柔和重绘部分叠加到原图上
+                    // 3. 像素级硬算叠加 (绝对精确，免疫任何渲染器 Bug)
                     const finalCanvas = document.createElement('canvas');
-                    finalCanvas.width = w;
-                    finalCanvas.height = h;
-                    const ctx = finalCanvas.getContext('2d');
-                    ctx.drawImage(origImg, 0, 0, w, h);
-                    ctx.drawImage(fgCanvas, 0, 0, w, h);
+                    finalCanvas.width = w; finalCanvas.height = h;
+                    const finalCtx = finalCanvas.getContext('2d');
+                    const finalImgData = finalCtx.createImageData(w, h);
+                    const fData = finalImgData.data;
+
+                    for (let i = 0; i < fData.length; i += 4) {
+                        // 由于遮罩是黑白的，Red 通道 (maskData[i]) 即代表了混合权重
+                        // alpha = 1.0 代表完全使用生成图，0.0 代表完全使用原图
+                        const alpha = maskData[i] / 255.0;
+                        
+                        fData[i] = origData[i] * (1 - alpha) + genData[i] * alpha;
+                        fData[i + 1] = origData[i + 1] * (1 - alpha) + genData[i + 1] * alpha;
+                        fData[i + 2] = origData[i + 2] * (1 - alpha) + genData[i + 2] * alpha;
+                        fData[i + 3] = 255; // 最终图像完全不透明
+                    }
+                    finalCtx.putImageData(finalImgData, 0, 0);
 
                     finalCanvas.toBlob(blob => resolve(blob), 'image/png');
                 });
