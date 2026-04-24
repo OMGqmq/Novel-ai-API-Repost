@@ -1991,21 +1991,31 @@
                     gCtx.drawImage(genImg, 0, 0, w, h);
                     const genData = gCtx.getImageData(0, 0, w, h).data;
 
-                    // 构建极其纯粹的黑白软遮罩 (白=生成区，黑=原图区)
+                    // 构建纯黑底色画布用于膨胀
                     const maskTempCanvas = document.createElement('canvas');
                     maskTempCanvas.width = w; maskTempCanvas.height = h;
                     const mCtx = maskTempCanvas.getContext('2d');
                     mCtx.fillStyle = '#000000';
                     mCtx.fillRect(0, 0, w, h);
-                    // 为了覆盖 VAE 接缝，轻微多次绘制叠加 (轻度膨胀)
+                    
+                    // 完美的平滑全尺寸纯粹膨胀 (精确外扩 32px)
+                    // 通过在多个同心圆上重复绘制，实现全分辨率的形态学膨胀，
+                    // 彻底避免 1/8 缩放导致的“马赛克灰块”，也避免了 shadowBlur 的不确定性！
                     mCtx.drawImage(maskCanvas, 0, 0);
-                    mCtx.drawImage(maskCanvas, 0, 0);
-                    mCtx.drawImage(maskCanvas, 0, 0);
+                    for (let r = 8; r <= 32; r += 8) {
+                        const steps = r; // 每圈绘制的次数 (8, 16, 24, 32)
+                        for (let i = 0; i < steps; i++) {
+                            const angle = (i / steps) * Math.PI * 2;
+                            const dx = Math.cos(angle) * r;
+                            const dy = Math.sin(angle) * r;
+                            mCtx.drawImage(maskCanvas, dx, dy);
+                        }
+                    }
 
+                    // 官方参数：20px 高斯模糊
                     const blurredMaskCanvas = document.createElement('canvas');
                     blurredMaskCanvas.width = w; blurredMaskCanvas.height = h;
                     const bCtx = blurredMaskCanvas.getContext('2d');
-                    // 官方参数：20px 高斯模糊
                     bCtx.filter = 'blur(20px)';
                     bCtx.drawImage(maskTempCanvas, 0, 0);
                     
