@@ -1967,12 +1967,15 @@
                     await new Promise(r => origImg.onload = r);
 
                     // 2. 创建模糊的软边缘 Mask (对应官方 B.blur 逻辑)
-                    // 使用 blur(30px) 来模拟官方的潜空间扩张和高斯模糊
+                    // 减小模糊半径到 10px，并多次绘制以增加核心区域的不透明度（简单的边缘向外扩张）
+                    // 这样可以极大减少“半透明”的渐变带宽度，同时又保留边缘的柔和过渡
                     const blurredMaskCanvas = document.createElement('canvas');
                     blurredMaskCanvas.width = w;
                     blurredMaskCanvas.height = h;
                     const bCtx = blurredMaskCanvas.getContext('2d');
-                    bCtx.filter = 'blur(30px)';
+                    bCtx.filter = 'blur(10px)';
+                    bCtx.drawImage(maskCanvas, 0, 0);
+                    bCtx.drawImage(maskCanvas, 0, 0);
                     bCtx.drawImage(maskCanvas, 0, 0);
 
                     // 3. 将生成的图片与软边缘 Mask 结合 (提取有效的重绘部分)
