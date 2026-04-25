@@ -2082,7 +2082,7 @@
                     mask: maskB64,
                     strength: parseFloat(document.getElementById('inpaintStrength').value),
                     action: 'infill',
-                    add_original_image: true // 服务端羽化合成,前端直接展示(不做二次合成)
+                    add_original_image: false // 官方做法：前端自己做羽化合成，服务端只返回mask区域图
                 };
 
                 const res = await fetch('/generate', {
@@ -2118,19 +2118,110 @@
 
                 const rawGeneratedBlob = await imgFile.async('blob');
 
-                // 官方核心逻辑复刻:本地前端软边缘合成 (Local Compositing)
-                // 服务端返回的只是局部重绘的区域,我们需要使用高斯模糊的 mask 将其与原图无缝融合
-                // add_original_image=true 时，服务端已经做了羽化融合，genImg 就是最终结果
-                // 直接用它替换显示即可，无需再做复杂合成
+                // 官方核心逻辑复刻：本地前端软边缘合成 (Local Compositing)
+                // add_original_image=false 时，NAI 只返回 mask 区域的重绘结果
+                // 前端需要用模糊 mask 将其与原图无缝融合
                 const finalCompositedBlob = await new Promise(async (resolve) => {
+                    const w = inpaintImgNaturalW;
+                    const h = inpaintImgNaturalH;
+
+                    // 1. 加载服务端返回的重绘结果和原图
                     const genImg = new Image();
                     genImg.src = URL.createObjectURL(rawGeneratedBlob);
                     await new Promise(r => genImg.onload = r);
-                    const c = document.createElement('canvas');
-                    c.width = genImg.naturalWidth;
-                    c.height = genImg.naturalHeight;
-                    c.getContext('2d').drawImage(genImg, 0, 0);
-                    c.toBlob(b => resolve(b), 'image/png');
+
+                    const origImg = new Image();
+                    origImg.src = inpaintOriginalImgSrc;
+                    origImg.crossOrigin = 'anonymous';
+                    await new Promise(r => origImg.onload = r);
+
+                    // 2. 重新导出当前 mask（和发送时一致）
+                    const maskData = maskCtx.getImageData(0, 0, w, h);
+
+                    // 3. 官方 mask 处理流程（和 exportMaskAsBase64 对齐）
+                    // 第1步：侵蚀（erode）- 将 mask 边缘向内收缩 2px，避免 VAE 接缝
+                    const erodedCanvas = document.createElement('canvas');
+                    erodedCanvas.width = w;
+                    erodedCanvas.height = h;
+                    const erodedCtx = erodedCanvas.getContext('2d');
+                    erodedCtx.drawImage(maskCanvas, 0, 0);
+                    const erodedData = erodedCtx.getImageData(0, 0, w, h);
+                    // 简单侵蚀：每个像素检查 3x3 邻域是否有透明像素
+                    for (let y = 1; y < h - 1; y++) {
+                        for (let x = 1; x < w - 1; x++) {
+                            let allOpaque = true;
+                            for (let dy = -2; dy <= 2; dy++) {
+                                for (let dx = -2; dx <= 2; dx++) {
+                                    const nx = x + dx, ny = y + dy;
+                                    const ni = (ny * w + nx) * 4;
+                                    if (erodedData.data[ni + 3] < 128) { allOpaque = false; break; }
+                                }
+                                if (!allOpaque) break;
+                            }
+                            const i = (y * w + x) * 4;
+                            erodedData.data[i + 3] = allOpaque ? 255 : 0;
+                        }
+                    }
+                    erodedCtx.putImageData(erodedData, 0, 0);
+
+                    // 第4步：缩小到 1/8（latent 分辨率）
+                    const latentW = Math.ceil(w / 8);
+                    const latentH = Math.ceil(h / 8);
+                    const latentCanvas = document.createElement('canvas');
+                    latentCanvas.width = latentW;
+                    latentCanvas.height = latentH;
+                    const latentCtx = latentCanvas.getContext('2d');
+                    latentCtx.imageSmoothingEnabled = false;
+                    latentCtx.drawImage(erodedCanvas, 0, 0, latentW, latentH);
+
+                    // 第5步：二值化
+                    const latentData = latentCtx.getImageData(0, 0, latentW, latentH);
+                    for (let i = 0; i < latentData.data.length; i += 4) {
+                        const isWhite = latentData.data[i] > 0 || latentData.data[i+1] > 0 || latentData.data[i+2] > 0;
+                        latentData.data[i] = latentData.data[i+1] = latentData.data[i+2] = 255;
+                        latentData.data[i+3] = isWhite ? 255 : 0;
+                    }
+                    latentCtx.putImageData(latentData, 0, 0);
+
+                    // 第6步：放大回原尺寸并高斯模糊（关键软边缘）
+                    const blurCanvas = document.createElement('canvas');
+                    blurCanvas.width = w;
+                    blurCanvas.height = h;
+                    const blurCtx = blurCanvas.getContext('2d');
+                    // 官方用 sigma=20/2=10 的高斯模糊
+                    blurCtx.filter = 'blur(10px)';
+                    blurCtx.drawImage(latentCanvas, 0, 0, w, h);
+
+                    // 7. 用模糊 mask 做软边缘合成
+                    const finalCanvas = document.createElement('canvas');
+                    finalCanvas.width = w;
+                    finalCanvas.height = h;
+                    const finalCtx = finalCanvas.getContext('2d');
+
+                    // 先画原图
+                    finalCtx.drawImage(origImg, 0, 0, w, h);
+
+                    // 再用模糊 mask 把重绘区域叠加上去
+                    finalCtx.globalCompositeOperation = 'source-over';
+                    // 创建一个带 alpha 的重绘图
+                    const genCanvas = document.createElement('canvas');
+                    genCanvas.width = w;
+                    genCanvas.height = h;
+                    const genCtx = genCanvas.getContext('2d');
+                    // 如果生成图和原图尺寸不同，需要处理
+                    if (genImg.naturalWidth === w && genImg.naturalHeight === h) {
+                        genCtx.drawImage(genImg, 0, 0);
+                    } else {
+                        // NAI 可能返回的是裁剪到 mask 区域的图，需要居中绘制
+                        genCtx.drawImage(genImg, 0, 0, w, h);
+                    }
+
+                    // 用 mask 作为 alpha 蒙版合成
+                    finalCtx.drawImage(blurCanvas, 0, 0);
+                    finalCtx.globalCompositeOperation = 'source-over';
+                    finalCtx.drawImage(genCanvas, 0, 0);
+
+                    finalCanvas.toBlob(blob => resolve(blob), 'image/png');
                 });
 
                 const finalImgUrl = URL.createObjectURL(finalCompositedBlob);
