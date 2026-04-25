@@ -321,8 +321,8 @@
             cursor: crosshair;
             z-index: 2;
             opacity: 0.45;
-            /* 用 CSS 滤镜将白色笔画染成蓝色供视觉预览，不影响 canvas 内实际像素值 */
-            /* 实际 canvas 数据仍是纯白 #FFFFFF，匹配 NovelAI 官方 mask draw tool */
+            /* 用 CSS 滤镜将白色笔画染成蓝色供视觉预览,不影响 canvas 内实际像素值 */
+            /* 实际 canvas 数据仍是纯白 #FFFFFF,匹配 NovelAI 官方 mask draw tool */
         }
         #inpaintBaseCanvas {
             z-index: 1;
@@ -695,7 +695,7 @@
                     </div>
                     <input type="range" id="batchCount" min="1" max="40" value="1"
                         class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600">
-                    <p class="text-[10px] text-gray-400">设置为 1 为单张生成，>1 为自动循环生成模式。</p>
+                    <p class="text-[10px] text-gray-400">设置为 1 为单张生成,>1 为自动循环生成模式。</p>
                 </div>
             </div>
 
@@ -749,7 +749,7 @@
                 </button>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-400">输入你的 NovelAI API
-                Token（pst-开头），验证成功后将用你的账号生成图片，并解锁批量生成等管理员功能。</p>
+                Token(pst-开头),验证成功后将用你的账号生成图片,并解锁批量生成等管理员功能。</p>
             <div>
                 <input type="password" id="apiKeyInput" placeholder="pst-xxxxxxxxxxxxxxxx..."
                     class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono">
@@ -832,10 +832,10 @@
             <canvas id="inpaintMaskCanvas"></canvas>
         </div>
 
-        <!-- 底部：重绘提示词 + 确认按钮 -->
+        <!-- 底部:重绘提示词 + 确认按钮 -->
         <div class="shrink-0 px-4 md:px-6 py-4 border-t border-white/10 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
             <div class="flex-1 flex flex-col md:flex-row gap-3">
-                <input type="text" id="inpaintPrompt" placeholder="重绘提示词（留空使用当前提示词）"
+                <input type="text" id="inpaintPrompt" placeholder="重绘提示词(留空使用当前提示词)"
                     class="flex-1 px-4 py-3 rounded-xl text-sm bg-white/10 border border-white/15 text-white placeholder-white/30 outline-none focus:border-white/40 transition-colors">
                 <div class="flex items-center gap-3">
                     <div class="flex items-center gap-2">
@@ -1198,7 +1198,7 @@
                     console.error(err);
                     setLoading(false);
                     toggleMobileControls(true);
-                    if (err.message.includes('429')) alert("⚠️ 并发生成，请稍候重试");
+                    if (err.message.includes('429')) alert("⚠️ 并发生成,请稍候重试");
                     else if (err.message.includes('403')) alert("后端账号已封禁");
                     else alert("生成失败: " + err.message);
                     break;
@@ -1241,13 +1241,13 @@
         }
         function deleteCurrentImage() {
             if (currentImageData && currentImageData.isShowcase) return;
-            if (!currentImageId || !db || !confirm("删除此图片？")) return;
+            if (!currentImageId || !db || !confirm("删除此图片?")) return;
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(currentImageId).onsuccess = () => {
                 resetPreview(); loadGallery();
             };
         }
         window.clearAllHistory = function () {
-            if (!db || !confirm("清空所有历史？")) return;
+            if (!db || !confirm("清空所有历史?")) return;
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).clear().onsuccess = () => {
                 loadGallery(); resetPreview();
             };
@@ -1339,7 +1339,7 @@
         let currentGalleryTab = 'showcase';
         fetch('gallery_index.json').then(r => r.json()).then(d => {
             showcaseData = d;
-            // 数据就绪后，若当前在展示 tab 且 grid 为空则立即渲染
+            // 数据就绪后,若当前在展示 tab 且 grid 为空则立即渲染
             const grid = document.getElementById('showcaseGrid');
             if (currentGalleryTab === 'showcase' && grid && grid.children.length === 0) {
                 renderShowcase();
@@ -1485,7 +1485,7 @@
             if (t !== null) {
                 if (!t.trim()) localStorage.removeItem('nai_user_key');
                 else localStorage.setItem('nai_user_key', t.trim());
-                // 这里其实可以不alert，而是静默保存
+                // 这里其实可以不alert,而是静默保存
             }
         }
         function checkAdminStatus() {
@@ -1574,13 +1574,13 @@
                         body: JSON.stringify({ apiKey: key })
                     });
 
-                    // 安全解析 JSON，防止空响应报错
+                    // 安全解析 JSON,防止空响应报错
                     const text = await res.text();
                     if (text) {
                         const data = JSON.parse(text);
                         if (res.ok && data.valid) {
                             localStorage.setItem('nai_custom_api_key', key);
-                            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功！订阅: <b>${data.tierName}</b>。已激活管理员模式。</span>`;
+                            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功!订阅: <b>${data.tierName}</b>。已激活管理员模式。</span>`;
                             document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                             checkAdminStatus();
                             setTimeout(() => closeApiKeyModal(), 1500);
@@ -1591,12 +1591,12 @@
                         }
                     }
                 } catch (serverErr) {
-                    console.warn('后端验证接口不可用，尝试直接验证:', serverErr.message);
+                    console.warn('后端验证接口不可用,尝试直接验证:', serverErr.message);
                 }
 
                 if (verified) return;
 
-                // 尝试2: 直接调用 NovelAI API 验证（可能受 CORS 限制）
+                // 尝试2: 直接调用 NovelAI API 验证(可能受 CORS 限制)
                 try {
                     statusEl.innerHTML = '<span class="text-gray-400">⭮ 尝试直接连接 NovelAI...</span>';
                     const directRes = await fetch('https://api.novelai.net/user/subscription', {
@@ -1607,22 +1607,22 @@
                         const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
                         const tierName = tierNames[subData.tier] || `Tier ${subData.tier}`;
                         localStorage.setItem('nai_custom_api_key', key);
-                        statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功！订阅: <b>${tierName}</b>。已激活管理员模式。</span>`;
+                        statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功!订阅: <b>${tierName}</b>。已激活管理员模式。</span>`;
                         document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                         checkAdminStatus();
                         setTimeout(() => closeApiKeyModal(), 1500);
                         return;
                     } else {
-                        statusEl.innerHTML = '<span class="text-red-500">✗ API Key 无效或已过期，请检查后重试。</span>';
+                        statusEl.innerHTML = '<span class="text-red-500">✗ API Key 无效或已过期,请检查后重试。</span>';
                         return;
                     }
                 } catch (directErr) {
-                    console.warn('直接验证也失败（可能 CORS），使用本地保存模式:', directErr.message);
+                    console.warn('直接验证也失败(可能 CORS),使用本地保存模式:', directErr.message);
                 }
 
-                // 尝试3: 两种在线验证都失败，本地保存 Key 并信任用户
+                // 尝试3: 两种在线验证都失败,本地保存 Key 并信任用户
                 localStorage.setItem('nai_custom_api_key', key);
-                statusEl.innerHTML = '<span class="text-yellow-500">⚠ 无法在线验证（后端不可用），已本地保存 Key 并激活管理员模式。生成时将直接使用此 Key。</span>';
+                statusEl.innerHTML = '<span class="text-yellow-500">⚠ 无法在线验证(后端不可用),已本地保存 Key 并激活管理员模式。生成时将直接使用此 Key。</span>';
                 document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                 checkAdminStatus();
                 setTimeout(() => closeApiKeyModal(), 2500);
@@ -1701,7 +1701,7 @@
         }
 
         function fitCanvasToContainer(img) {
-            // 直接使用图片原始像素建立 Canvas，由 CSS max-width/max-height 负责界面显示缩放
+            // 直接使用图片原始像素建立 Canvas,由 CSS max-width/max-height 负责界面显示缩放
             baseCanvas.width = inpaintImgNaturalW;
             baseCanvas.height = inpaintImgNaturalH;
             maskCanvas.width = inpaintImgNaturalW;
@@ -1761,16 +1761,16 @@
             // 将屏幕相对坐标映射回图片原始像素坐标
             const scaleX = maskCanvas.width / rect.width;
             const scaleY = maskCanvas.height / rect.height;
-            return { 
-                x: (clientX - rect.left) * scaleX, 
-                y: (clientY - rect.top) * scaleY 
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
             };
         }
 
         // 绘制图章 - 匹配官方 e_/ex 实现
         function stampBrush(x, y, radius) {
             if (brushType === 'soft') {
-                // 软刷：使用高斯模糊滤镜
+                // 软刷:使用高斯模糊滤镜
                 maskCtx.save();
                 maskCtx.filter = `blur(${radius * 0.3}px)`;
                 maskCtx.beginPath();
@@ -1794,7 +1794,7 @@
             }
         }
 
-        // 插值绘制（连续笔画无间隙）
+        // 插值绘制(连续笔画无间隙)
         function drawInterpolated(from, to, radius, stampFn) {
             const dx = to.x - from.x;
             const dy = to.y - from.y;
@@ -1813,15 +1813,15 @@
             const h = maskCanvas.height;
             const imageData = maskCtx.getImageData(0, 0, w, h);
             const data = imageData.data;
-            
+
             // 获取起点颜色 (alpha)
             const startIdx = (Math.floor(startY) * w + Math.floor(startX)) * 4;
             const startAlpha = data[startIdx + 3];
             const targetAlpha = startAlpha > 127 ? 0 : 255;
-            
+
             const stack = [[Math.floor(startX), Math.floor(startY)]];
             const visited = new Uint8Array(w * h);
-            
+
             while (stack.length > 0) {
                 const [x, y] = stack.pop();
                 if (x < 0 || x >= w || y < 0 || y >= h) continue;
@@ -1837,23 +1837,23 @@
                 data[pixelIdx + 3] = 255;
                 stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
             }
-            
+
             maskCtx.putImageData(imageData, 0, 0);
         }
 
         // 模糊工具 - 匹配官方 ep 实现
         function blurMask(pos, radius, intensity) {
-            // 模糊：通过降低边缘像素的 alpha 来软化边界
+            // 模糊:通过降低边缘像素的 alpha 来软化边界
             const w = maskCanvas.width;
             const h = maskCanvas.height;
             const imageData = maskCtx.getImageData(0, 0, w, h);
             const data = imageData.data;
-            
+
             const bx = Math.round(pos.x);
             const by = Math.round(pos.y);
             const r = Math.round(radius * 1.5); // 模糊范围略大半径
             const alphaReduce = intensity / 100;
-            
+
             for (let y = Math.max(0, by - r); y <= Math.min(h - 1, by + r); y++) {
                 for (let x = Math.max(0, bx - r); x <= Math.min(w - 1, bx + r); x++) {
                     const dx = x - bx;
@@ -1936,7 +1936,7 @@
             drawOnMask(getCanvasPos(e), true);
         });
         maskCanvas.addEventListener('mousemove', e => {
-            // 更新光标，光标屏幕视觉大小 = 图片原始像素对应大小 / 缩放比例
+            // 更新光标,光标屏幕视觉大小 = 图片原始像素对应大小 / 缩放比例
             const rect = maskCanvas.getBoundingClientRect();
             const scaleX = maskCanvas.width / rect.width;
             const visualBs = getBrushSize() / scaleX;
@@ -1976,9 +1976,9 @@
             lastPos = null;
         });
 
-        // 导出黑白 Mask（白=重绘区域，黑=保留）
-        // 精确复刻 NovelAI 官方前端 eU/rX 函数的处理逻辑：
-        //   1. 创建目标尺寸 canvas，用黑色填充背景
+        // 导出黑白 Mask(白=重绘区域,黑=保留)
+        // 精确复刻 NovelAI 官方前端 eU/rX 函数的处理逻辑:
+        //   1. 创建目标尺寸 canvas,用黑色填充背景
         //   2. 将 mask 绘制到黑色背景上 (imageSmoothingEnabled = false)
         //   3. 导出为 PNG base64
         function exportMaskAsBase64() {
@@ -1996,29 +1996,29 @@
             }
             if (!hasContent) return null;
 
-            // NovelAI 官方前端在发送 mask 前，会将其缩小到 1/8（即 latent 分辨率）
-            // 并使用最近邻插值（无平滑）。如果发送全尺寸 mask，服务端缩放时可能产生灰度边缘，
+            // NovelAI 官方前端在发送 mask 前,会将其缩小到 1/8(即 latent 分辨率)
+            // 并使用最近邻插值(无平滑)。如果发送全尺寸 mask,服务端缩放时可能产生灰度边缘,
             // 导致 UNet 生成出现灰色伪影块。
             const targetW = Math.ceil(w / 8);
             const targetH = Math.ceil(h / 8);
 
-            // 创建输出 canvas — 与 NovelAI eU/k2 函数逻辑对齐
+            // 创建输出 canvas - 与 NovelAI eU/k2 函数逻辑对齐
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = targetW;
             tempCanvas.height = targetH;
             const ctx = tempCanvas.getContext('2d');
 
-            // 第 1 步：黑色背景填充
+            // 第 1 步:黑色背景填充
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, targetW, targetH);
 
-            // 第 2 步：关闭图像平滑 (强制最近邻插值，保持二值边缘锐利)
+            // 第 2 步:关闭图像平滑 (强制最近邻插值,保持二值边缘锐利)
             ctx.imageSmoothingEnabled = false;
 
-            // 第 3 步：将全尺寸 mask 缩小绘制到黑色背景上
+            // 第 3 步:将全尺寸 mask 缩小绘制到黑色背景上
             ctx.drawImage(maskCanvas, 0, 0, targetW, targetH);
 
-            // 第 4 步：二值化清理 — 消除缩小和 Canvas 2D arc() 抗锯齿产生的灰色边缘像素
+            // 第 4 步:二值化清理 - 消除缩小和 Canvas 2D arc() 抗锯齿产生的灰色边缘像素
             const imgData = ctx.getImageData(0, 0, targetW, targetH);
             const d = imgData.data;
             for (let i = 0; i < d.length; i += 4) {
@@ -2082,7 +2082,7 @@
                     mask: maskB64,
                     strength: parseFloat(document.getElementById('inpaintStrength').value),
                     action: 'infill',
-                    add_original_image: true // 让 NAI 服务端做软边缘融合，前端只做最终展示合成
+                    add_original_image: true // 服务端羽化合成,前端直接展示(不做二次合成)
                 };
 
                 const res = await fetch('/generate', {
@@ -2109,134 +2109,33 @@
                 const blob = await res.blob();
                 const zip = await JSZip.loadAsync(blob);
                 let imgFile = null;
-                zip.forEach((p, f) => { 
+                zip.forEach((p, f) => {
                     if (p.endsWith('.png') && !p.toLowerCase().includes('mask')) {
-                        imgFile = f; 
+                        imgFile = f;
                     }
                 });
                 if (!imgFile) throw new Error('ZIP 中未找到生成的图片');
 
                 const rawGeneratedBlob = await imgFile.async('blob');
 
-                // 官方核心逻辑复刻：本地前端软边缘合成 (Local Compositing)
-                // 服务端返回的只是局部重绘的区域，我们需要使用高斯模糊的 mask 将其与原图无缝融合
+                // 官方核心逻辑复刻:本地前端软边缘合成 (Local Compositing)
+                // 服务端返回的只是局部重绘的区域,我们需要使用高斯模糊的 mask 将其与原图无缝融合
+                // add_original_image=true 时，服务端已经做了羽化融合，genImg 就是最终结果
+                // 直接用它替换显示即可，无需再做复杂合成
                 const finalCompositedBlob = await new Promise(async (resolve) => {
-                    const w = inpaintImgNaturalW;
-                    const h = inpaintImgNaturalH;
-
-                    // 1. 加载生成的图片和原图
                     const genImg = new Image();
                     genImg.src = URL.createObjectURL(rawGeneratedBlob);
                     await new Promise(r => genImg.onload = r);
-
-                    const origImg = new Image();
-                    origImg.src = inpaintOriginalImgSrc;
-                    origImg.crossOrigin = 'anonymous';
-                    await new Promise(r => origImg.onload = r);
-
-                    // 2. 完美复刻官方软边缘 Mask (先膨胀，后放大并模糊，再转换 Alpha)
-                    // 膨胀的作用是把透明度过渡带向外推，使其落在 VAE 接缝的外部（那里是与原图完美的连续区域）
-                    // 从而彻底掩盖由于 UNet mask 边界造成的灰块/突变缝隙
-                    const maskImg = new Image();
-                    maskImg.src = 'data:image/png;base64,' + maskB64;
-                    await new Promise(r => maskImg.onload = r);
-
-                    // 2. 纯像素级完美融合 (Pixel-Perfect ImageData Blending)
-                    // 彻底抛弃 Canvas 的 globalCompositeOperation 和 shadowBlur，
-                    // 避免由于浏览器渲染机制、Alpha 预乘或色彩配置(Gamma)差异导致的任何灰边和光环效应。
-                    
-                    // 获取原图的像素数据
-                    const origCanvas = document.createElement('canvas');
-                    origCanvas.width = w; origCanvas.height = h;
-                    const oCtx = origCanvas.getContext('2d');
-                    oCtx.drawImage(origImg, 0, 0, w, h);
-                    const origData = oCtx.getImageData(0, 0, w, h).data;
-
-                    // 获取生成图的像素数据
-                    const genCanvas = document.createElement('canvas');
-                    genCanvas.width = w; genCanvas.height = h;
-                    const gCtx = genCanvas.getContext('2d');
-                    gCtx.drawImage(genImg, 0, 0, w, h);
-                    const genData = gCtx.getImageData(0, 0, w, h).data;
-
-                    // 构建基础的黑白遮罩
-                    const maskTempCanvas = document.createElement('canvas');
-                    maskTempCanvas.width = w; maskTempCanvas.height = h;
-                    const mCtx = maskTempCanvas.getContext('2d');
-                    mCtx.fillStyle = '#000000';
-                    mCtx.fillRect(0, 0, w, h);
-                    mCtx.drawImage(maskCanvas, 0, 0);
-
-                    // 核心转折：形态学腐蚀 (Erosion) —— 向内收缩！
-                    // 之前的灰圈是因为服务器返回的生成图在边缘外部是纯黑色的！
-                    // 我们一旦向外膨胀，就会把黑色给混进来。所以我们必须向内收缩！
-                    // 我们把白色边缘向内吃掉 16 像素，确保所有的渐变都在生成的彩色有效区内发生。
-                    mCtx.globalCompositeOperation = 'destination-out';
-                    mCtx.strokeStyle = '#000000';
-                    mCtx.lineWidth = 32; // 半径16，所以线宽32
-                    mCtx.lineJoin = 'round';
-                    mCtx.lineCap = 'round';
-                    // 将原来的笔触路径再画一遍，用黑色将其边缘抠掉 (相当于向内缩小 16px)
-                    // 由于 maskCanvas 本身是一个已经画好的图，Canvas 没有直接提取路径的简单方法。
-                    // 我们可以用多重位移的 destination-in 来实现完美腐蚀：
-                    mCtx.globalCompositeOperation = 'source-over'; // 恢复
-
-                    // 形态学腐蚀 (Erosion) —— 保持 16px 收缩
-                    const erodeCanvas = document.createElement('canvas');
-                    erodeCanvas.width = w; erodeCanvas.height = h;
-                    const eCtx = erodeCanvas.getContext('2d');
-                    eCtx.drawImage(maskCanvas, 0, 0);
-                    eCtx.globalCompositeOperation = 'source-in'; // 只有重叠部分保留
-                    
-                    const shrinkRadius = 16;
-                    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
-                        const dx = Math.cos(angle) * shrinkRadius;
-                        const dy = Math.sin(angle) * shrinkRadius;
-                        eCtx.drawImage(maskCanvas, dx, dy);
-                    }
-
-                    // 把腐蚀好的小一圈的白色图案画到黑底上
-                    mCtx.fillStyle = '#000000';
-                    mCtx.fillRect(0, 0, w, h);
-                    mCtx.drawImage(erodeCanvas, 0, 0);
-
-                    // 关键微调：把高斯模糊从 20px 降到 10px
-                    // 因为高斯模糊的“尾巴”通常会扩散到设定值的 1.5 倍（约 15px）。
-                    // 我们向内收缩了 16px，如果用 10px 模糊，它的透明度刚好会在边界处降为绝对的 0！
-                    // 这样就能 100% 确保不会有任何半透明灰边溢出。
-                    const blurredMaskCanvas = document.createElement('canvas');
-                    blurredMaskCanvas.width = w; blurredMaskCanvas.height = h;
-                    const bCtx = blurredMaskCanvas.getContext('2d');
-                    bCtx.filter = 'blur(10px)';
-                    bCtx.drawImage(maskTempCanvas, 0, 0);
-                    
-                    const maskData = bCtx.getImageData(0, 0, w, h).data;
-
-                    // 3. 像素级硬算叠加 (绝对精确，免疫任何渲染器 Bug)
-                    const finalCanvas = document.createElement('canvas');
-                    finalCanvas.width = w; finalCanvas.height = h;
-                    const finalCtx = finalCanvas.getContext('2d');
-                    const finalImgData = finalCtx.createImageData(w, h);
-                    const fData = finalImgData.data;
-
-                    for (let i = 0; i < fData.length; i += 4) {
-                        // 由于遮罩是黑白的，Red 通道 (maskData[i]) 即代表了混合权重
-                        // alpha = 1.0 代表完全使用生成图，0.0 代表完全使用原图
-                        const alpha = maskData[i] / 255.0;
-                        
-                        fData[i] = origData[i] * (1 - alpha) + genData[i] * alpha;
-                        fData[i + 1] = origData[i + 1] * (1 - alpha) + genData[i + 1] * alpha;
-                        fData[i + 2] = origData[i + 2] * (1 - alpha) + genData[i + 2] * alpha;
-                        fData[i + 3] = 255; // 最终图像完全不透明
-                    }
-                    finalCtx.putImageData(finalImgData, 0, 0);
-
-                    finalCanvas.toBlob(blob => resolve(blob), 'image/png');
+                    const c = document.createElement('canvas');
+                    c.width = genImg.naturalWidth;
+                    c.height = genImg.naturalHeight;
+                    c.getContext('2d').drawImage(genImg, 0, 0);
+                    c.toBlob(b => resolve(b), 'image/png');
                 });
 
                 const finalImgUrl = URL.createObjectURL(finalCompositedBlob);
 
-                // 关闭编辑器，显示结果
+                // 关闭编辑器,显示结果
                 closeInpaintEditor();
                 if (currentRightView !== 'preview') switchRightView('preview');
 
