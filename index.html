@@ -2188,39 +2188,69 @@
                     blurCanvas.width = w;
                     blurCanvas.height = h;
                     const blurCtx = blurCanvas.getContext('2d');
-                    // 官方用 sigma=20/2=10 的高斯模糊
+                    // 清空并填充黑色背景
+                    blurCtx.fillStyle = '#000000';
+                    blurCtx.fillRect(0, 0, w, h);
+                    // 用高斯模糊把白色 latent mask 模糊化
                     blurCtx.filter = 'blur(10px)';
                     blurCtx.drawImage(latentCanvas, 0, 0, w, h);
+                    blurCtx.filter = 'none';
+                    // 提取 blur 结果的 ImageData，把 RGB 转成 alpha 通道
+                    const blurImgData = blurCtx.getImageData(0, 0, w, h);
+                    const bData = blurImgData.data;
+                    // 计算每个像素的亮度作为 alpha
+                    for (let i = 0; i < bData.length; i += 4) {
+                        const brightness = (bData[i] * 0.299 + bData[i+1] * 0.587 + bData[i+2] * 0.114);
+                        bData[i+3] = Math.round(brightness); // alpha = 亮度
+                    }
+                    blurCtx.putImageData(blurImgData, 0, 0);
 
-                    // 7. 用模糊 mask 做软边缘合成
+                    // 7. 直接像素级 alpha 混合（最可靠的软边缘合成）
                     const finalCanvas = document.createElement('canvas');
                     finalCanvas.width = w;
                     finalCanvas.height = h;
                     const finalCtx = finalCanvas.getContext('2d');
 
-                    // 先画原图
+                    // 把原图和生成图都绘制到 finalCanvas 同一位置
                     finalCtx.drawImage(origImg, 0, 0, w, h);
+                    const origImgData = finalCtx.getImageData(0, 0, w, h);
 
-                    // 再用模糊 mask 把重绘区域叠加上去
-                    finalCtx.globalCompositeOperation = 'source-over';
-                    // 创建一个带 alpha 的重绘图
+                    // 创建 genCanvas（尺寸和位置取决于 NAI 返回什么）
                     const genCanvas = document.createElement('canvas');
                     genCanvas.width = w;
                     genCanvas.height = h;
                     const genCtx = genCanvas.getContext('2d');
-                    // 如果生成图和原图尺寸不同，需要处理
                     if (genImg.naturalWidth === w && genImg.naturalHeight === h) {
                         genCtx.drawImage(genImg, 0, 0);
                     } else {
-                        // NAI 可能返回的是裁剪到 mask 区域的图，需要居中绘制
                         genCtx.drawImage(genImg, 0, 0, w, h);
                     }
+                    const genImgData = genCtx.getImageData(0, 0, w, h);
 
-                    // 用 mask 作为 alpha 蒙版合成
-                    finalCtx.drawImage(blurCanvas, 0, 0);
-                    finalCtx.globalCompositeOperation = 'source-over';
-                    finalCtx.drawImage(genCanvas, 0, 0);
+                    // blurCanvas 的 alpha 已经设置为亮度 (0-255)，直接用它做 alpha 混合
+                    const maskBlurData = blurCtx.getImageData(0, 0, w, h);
 
+                    // 对每个像素做 alpha 混合：result = orig × (1-α) + gen × α
+                    for (let i = 0; i < maskBlurData.data.length; i += 4) {
+                        const alpha = maskBlurData.data[i + 3] / 255; // 0.0 - 1.0
+                        if (alpha > 0) {
+                            const oi = i; // origImgData 同一位置
+                            // 如果 genImg 尺寸不对（是 latent 裁剪），那对应位置可能是黑的/空的
+                            // 这种情况下不要覆盖原图
+                            const genR = genImgData.data[i];
+                            const genG = genImgData.data[i + 1];
+                            const genB = genImgData.data[i + 2];
+                            // 检查 gen 像素是否是有效内容（不是全黑/接近黑色的空洞）
+                            const genBrightness = (genR * 0.299 + genG * 0.587 + genB * 0.114);
+                            if (genBrightness > 5) {
+                                origImgData.data[oi] = Math.round(origImgData.data[oi] * (1 - alpha) + genR * alpha);
+                                origImgData.data[oi + 1] = Math.round(origImgData.data[oi + 1] * (1 - alpha) + genG * alpha);
+                                origImgData.data[oi + 2] = Math.round(origImgData.data[oi + 2] * (1 - alpha) + genB * alpha);
+                                origImgData.data[oi + 3] = 255;
+                            }
+                        }
+                    }
+                    finalCtx.putImageData(origImgData, 0, 0);
                     finalCanvas.toBlob(blob => resolve(blob), 'image/png');
                 });
 
