@@ -2082,7 +2082,7 @@
                     mask: maskB64,
                     strength: parseFloat(document.getElementById('inpaintStrength').value),
                     action: 'infill',
-                    add_original_image: false // 极其关键：必须设为 false，让前端进行软边缘合成，避免服务端硬拼接产生灰块
+                    add_original_image: true // 让 NAI 服务端做软边缘融合，前端只做最终展示合成
                 };
 
                 const res = await fetch('/generate', {
