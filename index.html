@@ -2082,7 +2082,7 @@
                     mask: maskB64,
                     strength: parseFloat(document.getElementById('inpaintStrength').value),
                     action: 'infill',
-                    add_original_image: true // NAI 做合成，前端直接显示（暂用这个，调试用）
+                    add_original_image: false // 前端做合成，精确控制羽化
                 };
 
                 const res = await fetch('/generate', {
@@ -2118,30 +2118,101 @@
 
                 const rawGeneratedBlob = await imgFile.async('blob');
 
-                // ========== 调试：保存 NAI 返回的原始图片 ==========
-                const debugUrl = URL.createObjectURL(rawGeneratedBlob);
-                console.log(`[Inpaint DEBUG] NAI raw blob: ${(rawGeneratedBlob.size / 1024).toFixed(1)} KB, mask: ${maskB64.length} chars, image: ${imageB64.length} chars`);
-
-                // 调试：直接显示 NAI 返回的结果，不做任何合成
+                // ========== add_original_image: false 时的前端正则合成 ==========
+                // NAI 只返回重绘区域，前端用模糊 mask 做羽化融合
                 const finalCompositedBlob = await new Promise(async (resolve) => {
+                    const w = inpaintImgNaturalW;
+                    const h = inpaintImgNaturalH;
+
+                    // 加载 NAI 返回的图（应该是全尺寸，只是 mask 区域有新内容）
                     const genImg = new Image();
                     genImg.src = URL.createObjectURL(rawGeneratedBlob);
                     await new Promise(r => genImg.onload = r);
 
-                    const infoText = `[DEBUG] NAI返回:${genImg.naturalWidth}x${genImg.naturalHeight} 原图:${inpaintImgNaturalW}x${inpaintImgNaturalH}`;
-                    console.log(`[Inpaint DEBUG] ${infoText}`);
+                    // 加载原图
+                    const origImg = new Image();
+                    origImg.src = inpaintOriginalImgSrc;
+                    origImg.crossOrigin = 'anonymous';
+                    await new Promise(r => origImg.onload = r);
 
-                    const c = document.createElement('canvas');
-                    c.width = genImg.naturalWidth;
-                    c.height = genImg.naturalHeight;
-                    c.getContext('2d').drawImage(genImg, 0, 0);
-                    c.toBlob(b => resolve(b), 'image/png');
+                    // 重新构建发送时的 mask（1/8 latent + 模糊羽化）
+                    // 和 exportMaskAsBase64() 对齐
+                    const maskData = maskCtx.getImageData(0, 0, w, h);
 
-                    // 同时自动下载 raw result 方便检查
-                    const a = document.createElement('a');
-                    a.href = debugUrl;
-                    a.download = 'nai_raw_result.png';
-                    a.click();
+                    // 1. 缩小到 1/8
+                    const latentW = Math.ceil(w / 8);
+                    const latentH = Math.ceil(h / 8);
+                    const latentCanvas = document.createElement('canvas');
+                    latentCanvas.width = latentW;
+                    latentCanvas.height = latentH;
+                    const latentCtx = latentCanvas.getContext('2d');
+                    latentCtx.imageSmoothingEnabled = false;
+                    latentCtx.fillStyle = '#000000';
+                    latentCtx.fillRect(0, 0, latentW, latentH);
+                    latentCtx.drawImage(maskCanvas, 0, 0, latentW, latentH);
+
+                    // 2. 二值化
+                    const latentData = latentCtx.getImageData(0, 0, latentW, latentH);
+                    for (let i = 0; i < latentData.data.length; i += 4) {
+                        const isWhite = latentData.data[i] > 0 || latentData.data[i+1] > 0 || latentData.data[i+2] > 0;
+                        latentData.data[i] = latentData.data[i+1] = latentData.data[i+2] = 255;
+                        latentData.data[i+3] = isWhite ? 255 : 0;
+                    }
+                    latentCtx.putImageData(latentData, 0, 0);
+
+                    // 3. 放大回原尺寸并高斯模糊 -> 作为 alpha mask
+                    const blurCanvas = document.createElement('canvas');
+                    blurCanvas.width = w;
+                    blurCanvas.height = h;
+                    const blurCtx = blurCanvas.getContext('2d');
+                    blurCtx.filter = 'blur(8px)';
+                    blurCtx.drawImage(latentCanvas, 0, 0, w, h);
+                    blurCtx.filter = 'none';
+
+                    // 4. 把 blur 的亮度转成 alpha
+                    const blurData = blurCtx.getImageData(0, 0, w, h);
+                    for (let i = 0; i < blurData.data.length; i += 4) {
+                        const brightness = blurData.data[i] * 0.299 + blurData.data[i+1] * 0.587 + blurData.data[i+2] * 0.114;
+                        blurData.data[i+3] = Math.round(brightness); // alpha = 亮度
+                    }
+                    blurCtx.putImageData(blurData, 0, 0);
+
+                    // 5. 像素级 alpha 混合: result = orig * (1-alpha) + gen * alpha
+                    const finalCanvas = document.createElement('canvas');
+                    finalCanvas.width = w;
+                    finalCanvas.height = h;
+                    const finalCtx = finalCanvas.getContext('2d');
+
+                    // 先画原图
+                    finalCtx.drawImage(origImg, 0, 0, w, h);
+                    const finalData = finalCtx.getImageData(0, 0, w, h);
+
+                    // 再画 genImg 到同一 canvas（只是把数据放到内存）
+                    const genCanvas = document.createElement('canvas');
+                    genCanvas.width = w;
+                    genCanvas.height = h;
+                    const genCtx = genCanvas.getContext('2d');
+                    // 如果 genImg 是全尺寸
+                    if (genImg.naturalWidth === w && genImg.naturalHeight === h) {
+                        genCtx.drawImage(genImg, 0, 0);
+                    } else {
+                        // 如果是 latent 裁剪，居中
+                        genCtx.drawImage(genImg, 0, 0, w, h);
+                    }
+                    const genData = genCtx.getImageData(0, 0, w, h);
+
+                    // alpha 混合
+                    for (let i = 0; i < finalData.data.length; i += 4) {
+                        const alpha = blurData.data[i + 3] / 255; // 0-1
+                        if (alpha > 0.01) {
+                            finalData.data[i] = Math.round(finalData.data[i] * (1 - alpha) + genData.data[i] * alpha);
+                            finalData.data[i + 1] = Math.round(finalData.data[i + 1] * (1 - alpha) + genData.data[i + 1] * alpha);
+                            finalData.data[i + 2] = Math.round(finalData.data[i + 2] * (1 - alpha) + genData.data[i + 2] * alpha);
+                            finalData.data[i + 3] = 255;
+                        }
+                    }
+                    finalCtx.putImageData(finalData, 0, 0);
+                    finalCanvas.toBlob(b => resolve(b), 'image/png');
                 });
 
                 const finalImgUrl = URL.createObjectURL(finalCompositedBlob);
