@@ -245,9 +245,10 @@ export async function onRequest(context) {
       payload.parameters.image = data.image;
       payload.parameters.mask = data.mask;
       payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : true;
-      // 官方 inpaintImg2ImgStrength：1.0 = 完全重绘蒙版区域，<1.0 保留部分原图信息
+      // 极其关键：对于 infill，参数中的 strength 必须保持为 1.0，否则非蒙版区域会产生虚影/变色。
+      // 真正的重绘强度由 inpaintImg2ImgStrength 控制。
       payload.parameters.inpaintImg2ImgStrength = inpaintStrength;
-      payload.parameters.strength = inpaintStrength;
+      payload.parameters.strength = 1.0; 
       payload.parameters.noise = 0;
       payload.parameters.extra_noise_seed = seed;
     } else if (data.image) {

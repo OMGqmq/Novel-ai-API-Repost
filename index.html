@@ -1983,7 +1983,6 @@
 
             // 匹配 ComfyUI_NAIDGenerator 的逻辑：
             // 1. 先计算 Latent 尺寸 (1/8 比例，且基于 64 像素对齐)
-            // width = int(np.ceil(w / 64) * 8)
             const latentW = Math.ceil(targetW / 64) * 8;
             const latentH = Math.ceil(targetH / 64) * 8;
 
@@ -2000,34 +1999,16 @@
             ctx.imageSmoothingEnabled = false;
 
             // 第 3 步: 将全尺寸 mask 缩小绘制到 latent 画布上
+            // 注意：此处不进行二值化，保留用户绘制的软边缘(Alpha/Grayscale)
             ctx.drawImage(maskCanvas, 0, 0, latentW, latentH);
 
-            // 第 4 步: 二值化清理 (彻底消除灰色边缘像素)
-            const imgData = ctx.getImageData(0, 0, latentW, latentH);
-            const d = imgData.data;
-            let hasContent = false;
-            for (let i = 0; i < d.length; i += 4) {
-                // 计算亮度
-                const val = (d[i] + d[i + 1] + d[i + 2]) / 3;
-                if (val > 10) { 
-                    d[i] = 255; d[i + 1] = 255; d[i + 2] = 255;
-                    hasContent = true;
-                } else {
-                    d[i] = 0; d[i + 1] = 0; d[i + 2] = 0;
-                }
-                d[i + 3] = 255; // A 始终不透明
-            }
-            ctx.putImageData(imgData, 0, 0);
-
-            if (!hasContent) return null;
-
-            // 第 5 步: 如果是 V4+，需要将二值化后的 latent mask 放大回 full 分辨率
+            // 第 4 步: 如果是 V4+，需要将二值化后的 latent mask 放大回 full 分辨率
             if (isV4) {
                 const finalCanvas = document.createElement('canvas');
                 finalCanvas.width = latentW * 8;
                 finalCanvas.height = latentH * 8;
                 const finalCtx = finalCanvas.getContext('2d');
-                finalCtx.imageSmoothingEnabled = false;
+                finalCtx.imageSmoothingEnabled = false; // 必须保持 Nearest Neighbor
                 finalCtx.drawImage(tempCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
                 return finalCanvas.toDataURL('image/png').split(',')[1];
             }
