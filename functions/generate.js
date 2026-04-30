@@ -152,10 +152,8 @@ export async function onRequest(context) {
     if (version === "v4.5") {
       // ============ V4.5 payload ============
       let model = "nai-diffusion-4-5-full";
-      // 严格对齐 ComfyUI 逻辑：只有当 action 为 infill 且不是 V2/V4 系列时才追加 -inpainting
-      // 但对于 nai-diffusion-4-5-full，它包含 "nai-diffusion-4"，所以不应该追加。
-      // 既然用户报错不支持，我们尝试手动恢复 -inpainting 逻辑看是否能解决
-      if (isInpaint && !model.includes("nai-diffusion-4") && !model.includes("nai-diffusion-2")) {
+      // 强制根据用户要求，在局部重绘时追加 -inpainting 后缀
+      if (isInpaint) {
         model = `${model}-inpainting`;
       }
 
