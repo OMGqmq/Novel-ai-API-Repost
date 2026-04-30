@@ -250,17 +250,18 @@ export async function onRequest(context) {
     // ============ 分开处理 img2img 和 infill 参数 ============
     if (isInpaint) {
       // 局部重绘 (infill)
-      // V4+ 支持 Inpainting Strength：1.0 = 完全重绘，0.5 = 半保留原图
-      // 官方文档：https://docs.novelai.net/en/image/inpaint/#inpainting-strength
+      // 极其关键：对于 infill，参数中的 strength 必须保持为 1.0，否则非蒙版区域会产生虚影/变色。
+      // 同时，SMEA 和 DYN (sm, sm_dyn) 在重绘模式下通常不被支持，必须关闭。
       const inpaintStrength = parseFloat(data.strength) || 1.0;
       payload.parameters.image = data.image;
       payload.parameters.mask = data.mask;
       payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : true;
-      // 极其关键：对于 infill，参数中的 strength 必须保持为 1.0，否则非蒙版区域会产生虚影/变色。
-      // 真正的重绘强度由 inpaintImg2ImgStrength 控制。
+      
       payload.parameters.inpaintImg2ImgStrength = inpaintStrength;
       payload.parameters.strength = 1.0; 
       payload.parameters.noise = 0;
+      payload.parameters.sm = false;
+      payload.parameters.sm_dyn = false;
       payload.parameters.extra_noise_seed = seed;
     } else if (data.image) {
       // 图生图 (img2img)
