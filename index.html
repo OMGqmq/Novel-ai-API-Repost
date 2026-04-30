@@ -1977,74 +1977,78 @@
         });
 
         // 导出黑白 Mask(白=重绘区域,黑=保留)
-        // 精确复刻 NovelAI 官方前端 eU/rX 函数的处理逻辑:
-        //   1. 创建目标尺寸 canvas,用黑色填充背景
-        //   2. 将 mask 绘制到黑色背景上 (imageSmoothingEnabled = false)
-        //   3. 导出为 PNG base64
-        function exportMaskAsBase64() {
-            const w = inpaintImgNaturalW;
-            const h = inpaintImgNaturalH;
+        function exportMaskAsBase64(targetW, targetH) {
+            const selectedVersion = document.getElementById('modelValue').value;
+            const isV4 = selectedVersion.includes('v4');
 
-            // 检查 mask 是否有内容
-            const maskData = maskCtx.getImageData(0, 0, w, h);
-            let hasContent = false;
-            for (let i = 0; i < w * h; i++) {
-                if (maskData.data[i * 4 + 3] > 10) {
-                    hasContent = true;
-                    break;
-                }
-            }
-            if (!hasContent) return null;
+            // 匹配 ComfyUI_NAIDGenerator 的逻辑：
+            // 1. 先计算 Latent 尺寸 (1/8 比例，且基于 64 像素对齐)
+            // width = int(np.ceil(w / 64) * 8)
+            const latentW = Math.ceil(targetW / 64) * 8;
+            const latentH = Math.ceil(targetH / 64) * 8;
 
-            // NovelAI 官方前端在发送 mask 前,会将其缩小到 1/8(即 latent 分辨率)
-            // 并使用最近邻插值(无平滑)。如果发送全尺寸 mask,服务端缩放时可能产生灰度边缘,
-            // 导致 UNet 生成出现灰色伪影块。
-            const targetW = Math.ceil(w / 8);
-            const targetH = Math.ceil(h / 8);
-
-            // 创建输出 canvas - 与 NovelAI eU/k2 函数逻辑对齐
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = targetW;
-            tempCanvas.height = targetH;
+            tempCanvas.width = latentW;
+            tempCanvas.height = latentH;
             const ctx = tempCanvas.getContext('2d');
 
-            // 第 1 步:黑色背景填充
+            // 第 1 步: 黑色背景填充
             ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, targetW, targetH);
+            ctx.fillRect(0, 0, latentW, latentH);
 
-            // 第 2 步:关闭图像平滑 (强制最近邻插值,保持二值边缘锐利)
+            // 第 2 步: 关闭图像平滑 (强制最近邻插值)
             ctx.imageSmoothingEnabled = false;
 
-            // 第 3 步:将全尺寸 mask 缩小绘制到黑色背景上
-            ctx.drawImage(maskCanvas, 0, 0, targetW, targetH);
+            // 第 3 步: 将全尺寸 mask 缩小绘制到 latent 画布上
+            ctx.drawImage(maskCanvas, 0, 0, latentW, latentH);
 
-            // 第 4 步:二值化清理 - 消除缩小和 Canvas 2D arc() 抗锯齿产生的灰色边缘像素
-            const imgData = ctx.getImageData(0, 0, targetW, targetH);
+            // 第 4 步: 二值化清理 (彻底消除灰色边缘像素)
+            const imgData = ctx.getImageData(0, 0, latentW, latentH);
             const d = imgData.data;
+            let hasContent = false;
             for (let i = 0; i < d.length; i += 4) {
-                if (d[i] > 0 || d[i + 1] > 0 || d[i + 2] > 0) {
-                    d[i] = 255;     // R
-                    d[i + 1] = 255; // G
-                    d[i + 2] = 255; // B
+                // 计算亮度
+                const val = (d[i] + d[i + 1] + d[i + 2]) / 3;
+                if (val > 10) { 
+                    d[i] = 255; d[i + 1] = 255; d[i + 2] = 255;
+                    hasContent = true;
+                } else {
+                    d[i] = 0; d[i + 1] = 0; d[i + 2] = 0;
                 }
                 d[i + 3] = 255; // A 始终不透明
             }
             ctx.putImageData(imgData, 0, 0);
 
+            if (!hasContent) return null;
+
+            // 第 5 步: 如果是 V4+，需要将二值化后的 latent mask 放大回 full 分辨率
+            if (isV4) {
+                const finalCanvas = document.createElement('canvas');
+                finalCanvas.width = latentW * 8;
+                finalCanvas.height = latentH * 8;
+                const finalCtx = finalCanvas.getContext('2d');
+                finalCtx.imageSmoothingEnabled = false;
+                finalCtx.drawImage(tempCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
+                return finalCanvas.toDataURL('image/png').split(',')[1];
+            }
+
+            // V3 直接返回 latent mask (1/8 尺寸)
             return tempCanvas.toDataURL('image/png').split(',')[1];
         }
 
-        // 导出原始图片 Base64
-        function exportBaseImageAsBase64() {
+        // 导出原始图片 Base64 (带尺寸调整)
+        function exportBaseImageAsBase64(targetW, targetH) {
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = inpaintImgNaturalW;
-            tempCanvas.height = inpaintImgNaturalH;
+            tempCanvas.width = targetW;
+            tempCanvas.height = targetH;
             const ctx = tempCanvas.getContext('2d');
             const img = new Image();
             img.crossOrigin = 'anonymous';
             return new Promise((resolve) => {
                 img.onload = () => {
-                    ctx.drawImage(img, 0, 0, inpaintImgNaturalW, inpaintImgNaturalH);
+                    // 使用平滑缩放将原图调整到 64 倍数的分辨率
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.drawImage(img, 0, 0, targetW, targetH);
                     resolve(tempCanvas.toDataURL('image/png').split(',')[1]);
                 };
                 img.src = inpaintOriginalImgSrc;
@@ -2053,8 +2057,11 @@
 
         // 发送重绘请求
         async function doInpaint() {
-            const maskB64 = exportMaskAsBase64();
-            // 检查 mask 是否有内容
+            // 对齐 ComfyUI：分辨率必须是 64 的倍数
+            const targetW = Math.ceil(inpaintImgNaturalW / 64) * 64;
+            const targetH = Math.ceil(inpaintImgNaturalH / 64) * 64;
+
+            const maskB64 = exportMaskAsBase64(targetW, targetH);
             if (!maskB64) { alert('请先在图片上绘制需要重绘的区域'); return; }
 
             const submitBtn = document.getElementById('inpaintSubmitBtn');
@@ -2062,7 +2069,7 @@
             submitBtn.innerHTML = '<span class="loader w-4 h-4 border-white/50"></span> 重绘中...';
 
             try {
-                const imageB64 = await exportBaseImageAsBase64();
+                const imageB64 = await exportBaseImageAsBase64(targetW, targetH);
                 const inpaintPromptText = document.getElementById('inpaintPrompt').value.trim() || els.prompt.value.trim();
                 const selectedVersion = document.getElementById('modelValue').value;
                 const adminToken = localStorage.getItem('nai_admin_token') || '';
@@ -2073,8 +2080,8 @@
                     version: selectedVersion,
                     prompt: inpaintPromptText,
                     negative_prompt: els.negative.value.trim(),
-                    width: inpaintImgNaturalW,
-                    height: inpaintImgNaturalH,
+                    width: targetW,
+                    height: targetH,
                     steps: parseInt(els.steps.value),
                     scale: parseFloat(els.scale.value),
                     sampler: els.sampler.value,
@@ -2082,7 +2089,7 @@
                     mask: maskB64,
                     strength: parseFloat(document.getElementById('inpaintStrength').value),
                     action: 'infill',
-                    add_original_image: true // 由服务端进行完美融合，解决灰边问题
+                    add_original_image: true
                 };
 
                 const res = await fetch('/generate', {

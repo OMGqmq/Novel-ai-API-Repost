@@ -151,8 +151,8 @@ export async function onRequest(context) {
     let payload = {};
     if (version === "v4.5") {
       // ============ V4.5 payload ============
-      // 决定模型名（infill 需要 -inpainting 后缀）
-      const model = isInpaint ? "nai-diffusion-4-5-full-inpainting" : "nai-diffusion-4-5-full";
+      // V4+ 模型本身就包含重绘能力，不需要额外追加 -inpainting
+      const model = "nai-diffusion-4-5-full";
 
       payload = {
         input: prompt,
@@ -181,7 +181,7 @@ export async function onRequest(context) {
           dynamic_thresholding: false,
           controlnet_strength: 1,
           legacy: false,
-          add_original_image: false,
+          add_original_image: true,
           cfg_rescale: 0,
           noise_schedule: "native",
           legacy_v3_extend: false,
@@ -222,7 +222,7 @@ export async function onRequest(context) {
           dynamic_thresholding: false,
           controlnet_strength: 1,
           legacy: false,
-          add_original_image: false,
+          add_original_image: true,
           cfg_rescale: 0,
           noise_schedule: "native",
           legacy_v3_extend: false,
@@ -244,7 +244,7 @@ export async function onRequest(context) {
       const inpaintStrength = parseFloat(data.strength) || 1.0;
       payload.parameters.image = data.image;
       payload.parameters.mask = data.mask;
-      payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : false;
+      payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : true;
       // 官方 inpaintImg2ImgStrength：1.0 = 完全重绘蒙版区域，<1.0 保留部分原图信息
       payload.parameters.inpaintImg2ImgStrength = inpaintStrength;
       payload.parameters.strength = inpaintStrength;
