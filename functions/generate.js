@@ -151,15 +151,20 @@ export async function onRequest(context) {
     let payload = {};
     if (version === "v4.5") {
       // ============ V4.5 payload ============
-      // V4+ 模型本身就包含重绘能力，不需要额外追加 -inpainting
-      const model = "nai-diffusion-4-5-full";
+      let model = "nai-diffusion-4-5-full";
+      // 严格对齐 ComfyUI 逻辑：只有当 action 为 infill 且不是 V2/V4 系列时才追加 -inpainting
+      // 但对于 nai-diffusion-4-5-full，它包含 "nai-diffusion-4"，所以不应该追加。
+      // 既然用户报错不支持，我们尝试手动恢复 -inpainting 逻辑看是否能解决
+      if (isInpaint && !model.includes("nai-diffusion-4") && !model.includes("nai-diffusion-2")) {
+        model = `${model}-inpainting`;
+      }
 
       payload = {
         input: prompt,
         model: model,
         action: action,
         parameters: {
-          params_version: 3,
+          params_version: 1, // 对齐 ComfyUI
           width: width,
           height: height,
           scale: parseFloat(data.scale) || 5.0,
@@ -171,8 +176,16 @@ export async function onRequest(context) {
           prompt: prompt,
           negative_prompt: negative_prompt,
           // V4 格式提示词
-          v4_prompt: buildV4Prompt(prompt, false),
-          v4_negative_prompt: buildV4Prompt(negative_prompt, true),
+          v4_prompt: {
+            caption: { base_caption: prompt, char_captions: [] },
+            use_coords: false,
+            use_order: false // 对齐 ComfyUI
+          },
+          v4_negative_prompt: {
+            caption: { base_caption: negative_prompt, char_captions: [] },
+            use_coords: false,
+            use_order: false // 对齐 ComfyUI
+          },
           // 基础参数 (对齐 ComfyUI 工作配置)
           ucPreset: 3,
           qualityToggle: false,
