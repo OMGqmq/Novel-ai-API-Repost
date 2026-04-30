@@ -1914,7 +1914,7 @@
                     mask: maskB64,
                     strength: parseFloat(document.getElementById('inpaintStrength').value),
                     action: 'infill',
-                    add_original_image: false // 极其关键：必须设为 false，让前端进行软边缘合成，避免服务端硬拼接产生灰块
+                    add_original_image: true // 由服务端进行完美融合，解决灰边问题
                 };
 
                 const res = await fetch('/generate', {
@@ -1948,125 +1948,8 @@
                 });
                 if (!imgFile) throw new Error('ZIP 中未找到生成的图片');
 
-                const rawGeneratedBlob = await imgFile.async('blob');
-
-                // 官方核心逻辑复刻：本地前端软边缘合成 (Local Compositing)
-                // 服务端返回的只是局部重绘的区域，我们需要使用高斯模糊的 mask 将其与原图无缝融合
-                const finalCompositedBlob = await new Promise(async (resolve) => {
-                    const w = inpaintImgNaturalW;
-                    const h = inpaintImgNaturalH;
-
-                    // 1. 加载生成的图片和原图
-                    const genImg = new Image();
-                    genImg.src = URL.createObjectURL(rawGeneratedBlob);
-                    await new Promise(r => genImg.onload = r);
-
-                    const origImg = new Image();
-                    origImg.src = inpaintOriginalImgSrc;
-                    origImg.crossOrigin = 'anonymous';
-                    await new Promise(r => origImg.onload = r);
-
-                    // 2. 完美复刻官方软边缘 Mask (先膨胀，后放大并模糊，再转换 Alpha)
-                    // 膨胀的作用是把透明度过渡带向外推，使其落在 VAE 接缝的外部（那里是与原图完美的连续区域）
-                    // 从而彻底掩盖由于 UNet mask 边界造成的灰块/突变缝隙
-                    const maskImg = new Image();
-                    maskImg.src = 'data:image/png;base64,' + maskB64;
-                    await new Promise(r => maskImg.onload = r);
-
-                    // 2. 纯像素级完美融合 (Pixel-Perfect ImageData Blending)
-                    // 彻底抛弃 Canvas 的 globalCompositeOperation 和 shadowBlur，
-                    // 避免由于浏览器渲染机制、Alpha 预乘或色彩配置(Gamma)差异导致的任何灰边和光环效应。
-                    
-                    // 获取原图的像素数据
-                    const origCanvas = document.createElement('canvas');
-                    origCanvas.width = w; origCanvas.height = h;
-                    const oCtx = origCanvas.getContext('2d');
-                    oCtx.drawImage(origImg, 0, 0, w, h);
-                    const origData = oCtx.getImageData(0, 0, w, h).data;
-
-                    // 获取生成图的像素数据
-                    const genCanvas = document.createElement('canvas');
-                    genCanvas.width = w; genCanvas.height = h;
-                    const gCtx = genCanvas.getContext('2d');
-                    gCtx.drawImage(genImg, 0, 0, w, h);
-                    const genData = gCtx.getImageData(0, 0, w, h).data;
-
-                    // 构建基础的黑白遮罩
-                    const maskTempCanvas = document.createElement('canvas');
-                    maskTempCanvas.width = w; maskTempCanvas.height = h;
-                    const mCtx = maskTempCanvas.getContext('2d');
-                    mCtx.fillStyle = '#000000';
-                    mCtx.fillRect(0, 0, w, h);
-                    mCtx.drawImage(maskCanvas, 0, 0);
-
-                    // 核心转折：形态学腐蚀 (Erosion) —— 向内收缩！
-                    // 之前的灰圈是因为服务器返回的生成图在边缘外部是纯黑色的！
-                    // 我们一旦向外膨胀，就会把黑色给混进来。所以我们必须向内收缩！
-                    // 我们把白色边缘向内吃掉 16 像素，确保所有的渐变都在生成的彩色有效区内发生。
-                    mCtx.globalCompositeOperation = 'destination-out';
-                    mCtx.strokeStyle = '#000000';
-                    mCtx.lineWidth = 32; // 半径16，所以线宽32
-                    mCtx.lineJoin = 'round';
-                    mCtx.lineCap = 'round';
-                    // 将原来的笔触路径再画一遍，用黑色将其边缘抠掉 (相当于向内缩小 16px)
-                    // 由于 maskCanvas 本身是一个已经画好的图，Canvas 没有直接提取路径的简单方法。
-                    // 我们可以用多重位移的 destination-in 来实现完美腐蚀：
-                    mCtx.globalCompositeOperation = 'source-over'; // 恢复
-
-                    // 形态学腐蚀 (Erosion) —— 保持 16px 收缩
-                    const erodeCanvas = document.createElement('canvas');
-                    erodeCanvas.width = w; erodeCanvas.height = h;
-                    const eCtx = erodeCanvas.getContext('2d');
-                    eCtx.drawImage(maskCanvas, 0, 0);
-                    eCtx.globalCompositeOperation = 'source-in'; // 只有重叠部分保留
-                    
-                    const shrinkRadius = 16;
-                    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
-                        const dx = Math.cos(angle) * shrinkRadius;
-                        const dy = Math.sin(angle) * shrinkRadius;
-                        eCtx.drawImage(maskCanvas, dx, dy);
-                    }
-
-                    // 把腐蚀好的小一圈的白色图案画到黑底上
-                    mCtx.fillStyle = '#000000';
-                    mCtx.fillRect(0, 0, w, h);
-                    mCtx.drawImage(erodeCanvas, 0, 0);
-
-                    // 关键微调：把高斯模糊从 20px 降到 10px
-                    // 因为高斯模糊的“尾巴”通常会扩散到设定值的 1.5 倍（约 15px）。
-                    // 我们向内收缩了 16px，如果用 10px 模糊，它的透明度刚好会在边界处降为绝对的 0！
-                    // 这样就能 100% 确保不会有任何半透明灰边溢出。
-                    const blurredMaskCanvas = document.createElement('canvas');
-                    blurredMaskCanvas.width = w; blurredMaskCanvas.height = h;
-                    const bCtx = blurredMaskCanvas.getContext('2d');
-                    bCtx.filter = 'blur(10px)';
-                    bCtx.drawImage(maskTempCanvas, 0, 0);
-                    
-                    const maskData = bCtx.getImageData(0, 0, w, h).data;
-
-                    // 3. 像素级硬算叠加 (绝对精确，免疫任何渲染器 Bug)
-                    const finalCanvas = document.createElement('canvas');
-                    finalCanvas.width = w; finalCanvas.height = h;
-                    const finalCtx = finalCanvas.getContext('2d');
-                    const finalImgData = finalCtx.createImageData(w, h);
-                    const fData = finalImgData.data;
-
-                    for (let i = 0; i < fData.length; i += 4) {
-                        // 由于遮罩是黑白的，Red 通道 (maskData[i]) 即代表了混合权重
-                        // alpha = 1.0 代表完全使用生成图，0.0 代表完全使用原图
-                        const alpha = maskData[i] / 255.0;
-                        
-                        fData[i] = origData[i] * (1 - alpha) + genData[i] * alpha;
-                        fData[i + 1] = origData[i + 1] * (1 - alpha) + genData[i + 1] * alpha;
-                        fData[i + 2] = origData[i + 2] * (1 - alpha) + genData[i + 2] * alpha;
-                        fData[i + 3] = 255; // 最终图像完全不透明
-                    }
-                    finalCtx.putImageData(finalImgData, 0, 0);
-
-                    finalCanvas.toBlob(blob => resolve(blob), 'image/png');
-                });
-
-                const finalImgUrl = URL.createObjectURL(finalCompositedBlob);
+                const finalImgBlob = await imgFile.async('blob');
+                const finalImgUrl = URL.createObjectURL(finalImgBlob);
 
                 // 关闭编辑器，显示结果
                 closeInpaintEditor();
@@ -2079,7 +1962,7 @@
                 els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
 
                 const reader = new FileReader();
-                reader.readAsDataURL(finalCompositedBlob);
+                reader.readAsDataURL(finalImgBlob);
                 reader.onloadend = () => {
                     const promptText = inpaintPromptText || els.prompt.value.trim();
                     saveToHistory(reader.result, promptText + ' [inpaint]', selectedVersion);
