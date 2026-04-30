@@ -321,8 +321,8 @@
             cursor: crosshair;
             z-index: 2;
             opacity: 0.45;
-            /* 用 CSS 滤镜将白色笔画染成蓝色供视觉预览，不影响 canvas 内实际像素值 */
-            /* 实际 canvas 数据仍是纯白 #FFFFFF，匹配 NovelAI 官方 mask draw tool */
+            /* 用 CSS 滤镜将白色笔画染成蓝色供视觉预览,不影响 canvas 内实际像素值 */
+            /* 实际 canvas 数据仍是纯白 #FFFFFF,匹配 NovelAI 官方 mask draw tool */
         }
         #inpaintBaseCanvas {
             z-index: 1;
@@ -335,8 +335,8 @@
             justify-content: center;
         }
         .inpaint-toolbar button {
-            padding: 8px 14px;
-            border-radius: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
             font-size: 12px;
             font-weight: 600;
             border: 1px solid rgba(255,255,255,0.15);
@@ -346,7 +346,8 @@
             transition: all 0.2s;
             display: flex;
             align-items: center;
-            gap: 5px;
+            justify-content: center;
+            min-width: 36px;
         }
         .inpaint-toolbar button:hover {
             background: rgba(255,255,255,0.2);
@@ -694,7 +695,7 @@
                     </div>
                     <input type="range" id="batchCount" min="1" max="40" value="1"
                         class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600">
-                    <p class="text-[10px] text-gray-400">设置为 1 为单张生成，>1 为自动循环生成模式。</p>
+                    <p class="text-[10px] text-gray-400">设置为 1 为单张生成,>1 为自动循环生成模式。</p>
                 </div>
             </div>
 
@@ -748,7 +749,7 @@
                 </button>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-400">输入你的 NovelAI API
-                Token（pst-开头），验证成功后将用你的账号生成图片，并解锁批量生成等管理员功能。</p>
+                Token(pst-开头),验证成功后将用你的账号生成图片,并解锁批量生成等管理员功能。</p>
             <div>
                 <input type="password" id="apiKeyInput" placeholder="pst-xxxxxxxxxxxxxxxx..."
                     class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono">
@@ -777,22 +778,50 @@
                 </h3>
             </div>
             <div class="inpaint-toolbar">
-                <button onclick="setInpaintTool('brush')" id="inpaintBrushBtn" class="tool-active">
-                    <i data-lucide="circle" class="w-3.5 h-3.5"></i> 画笔
+                <button onclick="setInpaintTool('brush')" id="inpaintBrushBtn" class="tool-active" title="画笔">
+                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                 </button>
-                <button onclick="setInpaintTool('eraser')" id="inpaintEraserBtn">
-                    <i data-lucide="eraser" class="w-3.5 h-3.5"></i> 橡皮
+                <button onclick="setInpaintTool('eraser')" id="inpaintEraserBtn" title="橡皮擦">
+                    <i data-lucide="eraser" class="w-3.5 h-3.5"></i>
                 </button>
+                <button onclick="setInpaintTool('blur')" id="inpaintBlurBtn" title="模糊工具">
+                    <i data-lucide="wind" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="setInpaintTool('fill')" id="inpaintFillBtn" title="洪水填充">
+                    <i data-lucide="paint-bucket" class="w-3.5 h-3.5"></i>
+                </button>
+                <div class="w-px h-6 bg-white/20"></div>
+                <button onclick="setBrushType('round')" id="brushRoundBtn" class="tool-active" title="圆形笔刷">
+                    <i data-lucide="circle" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="setBrushType('soft')" id="brushSoftBtn" title="软刷">
+                    <i data-lucide="circle-dot" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="setBrushType('square')" id="brushSquareBtn" title="方形笔刷">
+                    <i data-lucide="square" class="w-3.5 h-3.5"></i>
+                </button>
+                <div class="w-px h-6 bg-white/20"></div>
                 <div class="flex items-center gap-2 px-2">
                     <span class="text-white/50 text-[10px]">大小</span>
                     <input type="range" id="inpaintBrushSize" min="5" max="300" value="60" class="brush-size-slider">
                     <span id="inpaintBrushSizeVal" class="text-white/70 text-xs font-mono w-8">60</span>
                 </div>
-                <button onclick="inpaintUndo()">
-                    <i data-lucide="undo-2" class="w-3.5 h-3.5"></i> 撤销
+                <div class="flex items-center gap-2 px-2" id="blurStrengthWrap" style="display:none;">
+                    <span class="text-white/50 text-[10px]">模糊</span>
+                    <input type="range" id="inpaintBlurStrength" min="1" max="100" value="50" class="brush-size-slider">
+                    <span id="inpaintBlurStrengthVal" class="text-white/70 text-xs font-mono w-8">50</span>
+                </div>
+                <div class="flex items-center gap-2 px-2" id="fillToleranceWrap" style="display:none;">
+                    <span class="text-white/50 text-[10px]">容差</span>
+                    <input type="range" id="inpaintFillTolerance" min="0" max="255" value="15" class="brush-size-slider">
+                    <span id="inpaintFillToleranceVal" class="text-white/70 text-xs font-mono w-8">15</span>
+                </div>
+                <div class="w-px h-6 bg-white/20"></div>
+                <button onclick="inpaintUndo()" title="撤销">
+                    <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
                 </button>
-                <button onclick="inpaintClearMask()">
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 清除
+                <button onclick="inpaintClearMask()" title="清除全部">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                 </button>
             </div>
         </div>
@@ -803,10 +832,10 @@
             <canvas id="inpaintMaskCanvas"></canvas>
         </div>
 
-        <!-- 底部：重绘提示词 + 确认按钮 -->
+        <!-- 底部:重绘提示词 + 确认按钮 -->
         <div class="shrink-0 px-4 md:px-6 py-4 border-t border-white/10 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
             <div class="flex-1 flex flex-col md:flex-row gap-3">
-                <input type="text" id="inpaintPrompt" placeholder="重绘提示词（留空使用当前提示词）"
+                <input type="text" id="inpaintPrompt" placeholder="重绘提示词(留空使用当前提示词)"
                     class="flex-1 px-4 py-3 rounded-xl text-sm bg-white/10 border border-white/15 text-white placeholder-white/30 outline-none focus:border-white/40 transition-colors">
                 <div class="flex items-center gap-3">
                     <div class="flex items-center gap-2">
@@ -1169,7 +1198,7 @@
                     console.error(err);
                     setLoading(false);
                     toggleMobileControls(true);
-                    if (err.message.includes('429')) alert("⚠️ 并发生成，请稍候重试");
+                    if (err.message.includes('429')) alert("⚠️ 并发生成,请稍候重试");
                     else if (err.message.includes('403')) alert("后端账号已封禁");
                     else alert("生成失败: " + err.message);
                     break;
@@ -1212,13 +1241,13 @@
         }
         function deleteCurrentImage() {
             if (currentImageData && currentImageData.isShowcase) return;
-            if (!currentImageId || !db || !confirm("删除此图片？")) return;
+            if (!currentImageId || !db || !confirm("删除此图片?")) return;
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(currentImageId).onsuccess = () => {
                 resetPreview(); loadGallery();
             };
         }
         window.clearAllHistory = function () {
-            if (!db || !confirm("清空所有历史？")) return;
+            if (!db || !confirm("清空所有历史?")) return;
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).clear().onsuccess = () => {
                 loadGallery(); resetPreview();
             };
@@ -1310,7 +1339,7 @@
         let currentGalleryTab = 'showcase';
         fetch('gallery_index.json').then(r => r.json()).then(d => {
             showcaseData = d;
-            // 数据就绪后，若当前在展示 tab 且 grid 为空则立即渲染
+            // 数据就绪后,若当前在展示 tab 且 grid 为空则立即渲染
             const grid = document.getElementById('showcaseGrid');
             if (currentGalleryTab === 'showcase' && grid && grid.children.length === 0) {
                 renderShowcase();
@@ -1456,7 +1485,7 @@
             if (t !== null) {
                 if (!t.trim()) localStorage.removeItem('nai_user_key');
                 else localStorage.setItem('nai_user_key', t.trim());
-                // 这里其实可以不alert，而是静默保存
+                // 这里其实可以不alert,而是静默保存
             }
         }
         function checkAdminStatus() {
@@ -1545,13 +1574,13 @@
                         body: JSON.stringify({ apiKey: key })
                     });
 
-                    // 安全解析 JSON，防止空响应报错
+                    // 安全解析 JSON,防止空响应报错
                     const text = await res.text();
                     if (text) {
                         const data = JSON.parse(text);
                         if (res.ok && data.valid) {
                             localStorage.setItem('nai_custom_api_key', key);
-                            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功！订阅: <b>${data.tierName}</b>。已激活管理员模式。</span>`;
+                            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功!订阅: <b>${data.tierName}</b>。已激活管理员模式。</span>`;
                             document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                             checkAdminStatus();
                             setTimeout(() => closeApiKeyModal(), 1500);
@@ -1562,12 +1591,12 @@
                         }
                     }
                 } catch (serverErr) {
-                    console.warn('后端验证接口不可用，尝试直接验证:', serverErr.message);
+                    console.warn('后端验证接口不可用,尝试直接验证:', serverErr.message);
                 }
 
                 if (verified) return;
 
-                // 尝试2: 直接调用 NovelAI API 验证（可能受 CORS 限制）
+                // 尝试2: 直接调用 NovelAI API 验证(可能受 CORS 限制)
                 try {
                     statusEl.innerHTML = '<span class="text-gray-400">⭮ 尝试直接连接 NovelAI...</span>';
                     const directRes = await fetch('https://api.novelai.net/user/subscription', {
@@ -1578,22 +1607,22 @@
                         const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
                         const tierName = tierNames[subData.tier] || `Tier ${subData.tier}`;
                         localStorage.setItem('nai_custom_api_key', key);
-                        statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功！订阅: <b>${tierName}</b>。已激活管理员模式。</span>`;
+                        statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功!订阅: <b>${tierName}</b>。已激活管理员模式。</span>`;
                         document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                         checkAdminStatus();
                         setTimeout(() => closeApiKeyModal(), 1500);
                         return;
                     } else {
-                        statusEl.innerHTML = '<span class="text-red-500">✗ API Key 无效或已过期，请检查后重试。</span>';
+                        statusEl.innerHTML = '<span class="text-red-500">✗ API Key 无效或已过期,请检查后重试。</span>';
                         return;
                     }
                 } catch (directErr) {
-                    console.warn('直接验证也失败（可能 CORS），使用本地保存模式:', directErr.message);
+                    console.warn('直接验证也失败(可能 CORS),使用本地保存模式:', directErr.message);
                 }
 
-                // 尝试3: 两种在线验证都失败，本地保存 Key 并信任用户
+                // 尝试3: 两种在线验证都失败,本地保存 Key 并信任用户
                 localStorage.setItem('nai_custom_api_key', key);
-                statusEl.innerHTML = '<span class="text-yellow-500">⚠ 无法在线验证（后端不可用），已本地保存 Key 并激活管理员模式。生成时将直接使用此 Key。</span>';
+                statusEl.innerHTML = '<span class="text-yellow-500">⚠ 无法在线验证(后端不可用),已本地保存 Key 并激活管理员模式。生成时将直接使用此 Key。</span>';
                 document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                 checkAdminStatus();
                 setTimeout(() => closeApiKeyModal(), 2500);
@@ -1624,11 +1653,13 @@
         const maskCtx = maskCanvas.getContext('2d');
         const brushCursor = document.getElementById('brushCursor');
         let inpaintTool = 'brush';
+        let brushType = 'round'; // 'round' | 'soft' | 'square'
         let inpaintDrawing = false;
         let inpaintHistory = [];
         let inpaintOriginalImgSrc = '';
         let inpaintImgNaturalW = 0;
         let inpaintImgNaturalH = 0;
+        let lastPos = null;
 
         // 画笔大小联动
         document.getElementById('inpaintBrushSize').addEventListener('input', e => {
@@ -1636,6 +1667,14 @@
         });
         document.getElementById('inpaintStrength').addEventListener('input', e => {
             document.getElementById('inpaintStrengthVal').textContent = parseFloat(e.target.value).toFixed(2);
+        });
+        // 模糊强度联动
+        document.getElementById('inpaintBlurStrength')?.addEventListener('input', e => {
+            document.getElementById('inpaintBlurStrengthVal').textContent = e.target.value;
+        });
+        // 填充容差联动
+        document.getElementById('inpaintFillTolerance')?.addEventListener('input', e => {
+            document.getElementById('inpaintFillToleranceVal').textContent = e.target.value;
         });
 
         function openInpaintEditor() {
@@ -1662,7 +1701,7 @@
         }
 
         function fitCanvasToContainer(img) {
-            // 直接使用图片原始像素建立 Canvas，由 CSS max-width/max-height 负责界面显示缩放
+            // 直接使用图片原始像素建立 Canvas,由 CSS max-width/max-height 负责界面显示缩放
             baseCanvas.width = inpaintImgNaturalW;
             baseCanvas.height = inpaintImgNaturalH;
             maskCanvas.width = inpaintImgNaturalW;
@@ -1681,6 +1720,18 @@
             inpaintTool = tool;
             document.getElementById('inpaintBrushBtn').classList.toggle('tool-active', tool === 'brush');
             document.getElementById('inpaintEraserBtn').classList.toggle('tool-active', tool === 'eraser');
+            document.getElementById('inpaintBlurBtn').classList.toggle('tool-active', tool === 'blur');
+            document.getElementById('inpaintFillBtn').classList.toggle('tool-active', tool === 'fill');
+            // 显示/隐藏工具相关控件
+            document.getElementById('blurStrengthWrap').style.display = tool === 'blur' ? 'flex' : 'none';
+            document.getElementById('fillToleranceWrap').style.display = tool === 'fill' ? 'flex' : 'none';
+        }
+
+        function setBrushType(type) {
+            brushType = type;
+            document.getElementById('brushRoundBtn').classList.toggle('tool-active', type === 'round');
+            document.getElementById('brushSoftBtn').classList.toggle('tool-active', type === 'soft');
+            document.getElementById('brushSquareBtn').classList.toggle('tool-active', type === 'square');
         }
 
         function getBrushSize() {
@@ -1710,56 +1761,173 @@
             // 将屏幕相对坐标映射回图片原始像素坐标
             const scaleX = maskCanvas.width / rect.width;
             const scaleY = maskCanvas.height / rect.height;
-            return { 
-                x: (clientX - rect.left) * scaleX, 
-                y: (clientY - rect.top) * scaleY 
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
             };
         }
 
-        let lastPos = null;
+        // 绘制图章 - 匹配官方 e_/ex 实现
+        function stampBrush(x, y, radius) {
+            if (brushType === 'soft') {
+                // 软刷:使用高斯模糊滤镜
+                maskCtx.save();
+                maskCtx.filter = `blur(${radius * 0.3}px)`;
+                maskCtx.beginPath();
+                if (brushType === 'square') {
+                    const s = radius;
+                    maskCtx.rect(Math.round(x - s/2), Math.round(y - s/2), s, s);
+                } else {
+                    maskCtx.arc(Math.round(x), Math.round(y), radius / 2, 0, Math.PI * 2);
+                }
+                maskCtx.fill();
+                maskCtx.restore();
+            } else if (brushType === 'square') {
+                // 方形刷
+                const s = Math.round(radius);
+                maskCtx.fillRect(Math.round(x - s/2), Math.round(y - s/2), s, s);
+            } else {
+                // 圆形刷 (默认)
+                maskCtx.beginPath();
+                maskCtx.arc(Math.round(x), Math.round(y), radius / 2, 0, Math.PI * 2);
+                maskCtx.fill();
+            }
+        }
 
-        // 圆形笔刷绘制（匹配 NovelAI 官网圆形笔刷）
-        // 使用 arc + fill 画圆，沿路径密集插值保证连续
-        function stampCircle(x, y, radius) {
-            maskCtx.beginPath();
-            maskCtx.arc(Math.round(x), Math.round(y), radius / 2, 0, Math.PI * 2);
-            maskCtx.fill();
+        // 插值绘制(连续笔画无间隙)
+        function drawInterpolated(from, to, radius, stampFn) {
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const step = Math.max(1, Math.floor(radius / 8));
+            const numSteps = Math.max(1, Math.ceil(dist / step));
+            for (let i = 0; i <= numSteps; i++) {
+                const t = i / numSteps;
+                stampFn(from.x + dx * t, from.y + dy * t, radius);
+            }
+        }
+
+        // 洪水填充 (Flood Fill) - 匹配官方 ev 实现
+        function floodFill(startX, startY, tolerance) {
+            const w = maskCanvas.width;
+            const h = maskCanvas.height;
+            const imageData = maskCtx.getImageData(0, 0, w, h);
+            const data = imageData.data;
+
+            // 获取起点颜色 (alpha)
+            const startIdx = (Math.floor(startY) * w + Math.floor(startX)) * 4;
+            const startAlpha = data[startIdx + 3];
+            const targetAlpha = startAlpha > 127 ? 0 : 255;
+
+            const stack = [[Math.floor(startX), Math.floor(startY)]];
+            const visited = new Uint8Array(w * h);
+
+            while (stack.length > 0) {
+                const [x, y] = stack.pop();
+                if (x < 0 || x >= w || y < 0 || y >= h) continue;
+                const idx = y * w + x;
+                if (visited[idx]) continue;
+                const pixelIdx = idx * 4;
+                const pixelAlpha = data[pixelIdx + 3];
+                if (Math.abs(pixelAlpha - startAlpha) > tolerance) continue;
+                visited[idx] = 1;
+                data[pixelIdx] = targetAlpha;
+                data[pixelIdx + 1] = targetAlpha;
+                data[pixelIdx + 2] = targetAlpha;
+                data[pixelIdx + 3] = 255;
+                stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+            }
+
+            maskCtx.putImageData(imageData, 0, 0);
+        }
+
+        // 模糊工具 - 匹配官方 ep 实现
+        function blurMask(pos, radius, intensity) {
+            // 模糊:通过降低边缘像素的 alpha 来软化边界
+            const w = maskCanvas.width;
+            const h = maskCanvas.height;
+            const imageData = maskCtx.getImageData(0, 0, w, h);
+            const data = imageData.data;
+
+            const bx = Math.round(pos.x);
+            const by = Math.round(pos.y);
+            const r = Math.round(radius * 1.5); // 模糊范围略大半径
+            const alphaReduce = intensity / 100;
+
+            for (let y = Math.max(0, by - r); y <= Math.min(h - 1, by + r); y++) {
+                for (let x = Math.max(0, bx - r); x <= Math.min(w - 1, bx + r); x++) {
+                    const dx = x - bx;
+                    const dy = y - by;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist <= r) {
+                        const idx = (y * w + x) * 4;
+                        const fade = 1 - (dist / r) * alphaReduce;
+                        data[idx + 3] = Math.round(data[idx + 3] * fade);
+                    }
+                }
+            }
+            maskCtx.putImageData(imageData, 0, 0);
         }
 
         function drawOnMask(pos, isStart = false) {
             const r = getBrushSize();
+            const tool = inpaintTool;
 
-            if (inpaintTool === 'brush') {
-                maskCtx.globalCompositeOperation = 'source-over';
-                // 纯白色笔画，与 NovelAI 官方 mask draw tool (e_) 完全一致
-                // 视觉上通过 CSS opacity: 0.45 显示为半透明白色覆盖层
-                maskCtx.fillStyle = '#FFFFFF';
-            } else {
+            if (tool === 'eraser') {
                 maskCtx.globalCompositeOperation = 'destination-out';
                 maskCtx.fillStyle = 'rgba(0,0,0,1)';
-            }
-
-            if (isStart || !lastPos) {
-                // 单击：画一个圆
-                stampCircle(pos.x, pos.y, r);
-            } else {
-                // 拖动：沿路径密集插值画圆，保证笔画连续无间隙
-                const dx = pos.x - lastPos.x;
-                const dy = pos.y - lastPos.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                // 步长取半径的 1/4，确保圆之间重叠无缝
-                const step = Math.max(1, Math.floor(r / 8));
-                const numSteps = Math.max(1, Math.ceil(dist / step));
-
-                for (let i = 0; i <= numSteps; i++) {
-                    const t = i / numSteps;
-                    const x = lastPos.x + dx * t;
-                    const y = lastPos.y + dy * t;
-                    stampCircle(x, y, r);
+                if (brushType === 'soft') {
+                    maskCtx.save();
+                    maskCtx.filter = `blur(${r * 0.3}px)`;
+                    maskCtx.beginPath();
+                    maskCtx.arc(Math.round(pos.x), Math.round(pos.y), r / 2, 0, Math.PI * 2);
+                    maskCtx.fill();
+                    maskCtx.restore();
+                } else if (brushType === 'square') {
+                    const s = Math.round(r);
+                    maskCtx.fillRect(Math.round(pos.x - s/2), Math.round(pos.y - s/2), s, s);
+                } else {
+                    maskCtx.beginPath();
+                    maskCtx.arc(Math.round(pos.x), Math.round(pos.y), r / 2, 0, Math.PI * 2);
+                    maskCtx.fill();
+                }
+                maskCtx.globalCompositeOperation = 'source-over';
+            } else if (tool === 'brush') {
+                maskCtx.globalCompositeOperation = 'source-over';
+                maskCtx.fillStyle = '#FFFFFF';
+                if (isStart || !lastPos) {
+                    stampBrush(pos.x, pos.y, r);
+                } else {
+                    drawInterpolated(lastPos, pos, r, stampBrush);
+                }
+            } else if (tool === 'blur') {
+                const intensity = parseInt(document.getElementById('inpaintBlurStrength')?.value || 50);
+                if (isStart || !lastPos) {
+                    blurMask(pos, r, intensity);
+                } else {
+                    // 沿路径模糊
+                    const dx = pos.x - lastPos.x;
+                    const dy = pos.y - lastPos.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const step = Math.max(1, Math.floor(r / 4));
+                    const numSteps = Math.max(1, Math.ceil(dist / step));
+                    for (let i = 0; i <= numSteps; i++) {
+                        const t = i / numSteps;
+                        blurMask({x: lastPos.x + dx * t, y: lastPos.y + dy * t}, r, intensity);
+                    }
                 }
             }
             lastPos = pos;
         }
+
+        // 填充工具单独处理点击
+        maskCanvas.addEventListener('click', e => {
+            if (inpaintTool !== 'fill') return;
+            const pos = getCanvasPos(e);
+            const tolerance = parseInt(document.getElementById('inpaintFillTolerance')?.value || 15);
+            saveMaskState();
+            floodFill(pos.x, pos.y, tolerance);
+        });
 
         // 鼠标事件
         maskCanvas.addEventListener('mousedown', e => {
@@ -1768,7 +1936,7 @@
             drawOnMask(getCanvasPos(e), true);
         });
         maskCanvas.addEventListener('mousemove', e => {
-            // 更新光标，光标屏幕视觉大小 = 图片原始像素对应大小 / 缩放比例
+            // 更新光标,光标屏幕视觉大小 = 图片原始像素对应大小 / 缩放比例
             const rect = maskCanvas.getBoundingClientRect();
             const scaleX = maskCanvas.width / rect.width;
             const visualBs = getBrushSize() / scaleX;
@@ -1808,9 +1976,9 @@
             lastPos = null;
         });
 
-        // 导出黑白 Mask（白=重绘区域，黑=保留）
-        // 精确复刻 NovelAI 官方前端 eU/rX 函数的处理逻辑：
-        //   1. 创建目标尺寸 canvas，用黑色填充背景
+        // 导出黑白 Mask(白=重绘区域,黑=保留)
+        // 精确复刻 NovelAI 官方前端 eU/rX 函数的处理逻辑:
+        //   1. 创建目标尺寸 canvas,用黑色填充背景
         //   2. 将 mask 绘制到黑色背景上 (imageSmoothingEnabled = false)
         //   3. 导出为 PNG base64
         function exportMaskAsBase64() {
@@ -1828,29 +1996,29 @@
             }
             if (!hasContent) return null;
 
-            // NovelAI 官方前端在发送 mask 前，会将其缩小到 1/8（即 latent 分辨率）
-            // 并使用最近邻插值（无平滑）。如果发送全尺寸 mask，服务端缩放时可能产生灰度边缘，
+            // NovelAI 官方前端在发送 mask 前,会将其缩小到 1/8(即 latent 分辨率)
+            // 并使用最近邻插值(无平滑)。如果发送全尺寸 mask,服务端缩放时可能产生灰度边缘,
             // 导致 UNet 生成出现灰色伪影块。
             const targetW = Math.ceil(w / 8);
             const targetH = Math.ceil(h / 8);
 
-            // 创建输出 canvas — 与 NovelAI eU/k2 函数逻辑对齐
+            // 创建输出 canvas - 与 NovelAI eU/k2 函数逻辑对齐
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = targetW;
             tempCanvas.height = targetH;
             const ctx = tempCanvas.getContext('2d');
 
-            // 第 1 步：黑色背景填充
+            // 第 1 步:黑色背景填充
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, targetW, targetH);
 
-            // 第 2 步：关闭图像平滑 (强制最近邻插值，保持二值边缘锐利)
+            // 第 2 步:关闭图像平滑 (强制最近邻插值,保持二值边缘锐利)
             ctx.imageSmoothingEnabled = false;
 
-            // 第 3 步：将全尺寸 mask 缩小绘制到黑色背景上
+            // 第 3 步:将全尺寸 mask 缩小绘制到黑色背景上
             ctx.drawImage(maskCanvas, 0, 0, targetW, targetH);
 
-            // 第 4 步：二值化清理 — 消除缩小和 Canvas 2D arc() 抗锯齿产生的灰色边缘像素
+            // 第 4 步:二值化清理 - 消除缩小和 Canvas 2D arc() 抗锯齿产生的灰色边缘像素
             const imgData = ctx.getImageData(0, 0, targetW, targetH);
             const d = imgData.data;
             for (let i = 0; i < d.length; i += 4) {
@@ -1941,9 +2109,9 @@
                 const blob = await res.blob();
                 const zip = await JSZip.loadAsync(blob);
                 let imgFile = null;
-                zip.forEach((p, f) => { 
+                zip.forEach((p, f) => {
                     if (p.endsWith('.png') && !p.toLowerCase().includes('mask')) {
-                        imgFile = f; 
+                        imgFile = f;
                     }
                 });
                 if (!imgFile) throw new Error('ZIP 中未找到生成的图片');
@@ -1951,7 +2119,7 @@
                 const finalImgBlob = await imgFile.async('blob');
                 const finalImgUrl = URL.createObjectURL(finalImgBlob);
 
-                // 关闭编辑器，显示结果
+                // 关闭编辑器,显示结果
                 closeInpaintEditor();
                 if (currentRightView !== 'preview') switchRightView('preview');
 

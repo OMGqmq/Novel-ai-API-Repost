@@ -241,10 +241,13 @@ export async function onRequest(context) {
       // 局部重绘 (infill)
       // V4+ 支持 Inpainting Strength：1.0 = 完全重绘，0.5 = 半保留原图
       // 官方文档：https://docs.novelai.net/en/image/inpaint/#inpainting-strength
+      const inpaintStrength = parseFloat(data.strength) || 1.0;
       payload.parameters.image = data.image;
       payload.parameters.mask = data.mask;
-      payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : true;
-      payload.parameters.strength = parseFloat(data.strength) || 1.0;  // 默认 1.0 = 完全重绘
+      payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : false;
+      // 官方 inpaintImg2ImgStrength：1.0 = 完全重绘蒙版区域，<1.0 保留部分原图信息
+      payload.parameters.inpaintImg2ImgStrength = inpaintStrength;
+      payload.parameters.strength = inpaintStrength;
       payload.parameters.noise = 0;
       payload.parameters.extra_noise_seed = seed;
     } else if (data.image) {
