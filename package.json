@@ -1,0 +1,25 @@
+{
+  "name": "novel-ai-api-repost",
+  "version": "1.0.0",
+  "description": "如何在cloudflare配置你的novel ai key？",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OMGqmq/Novel-ai-API-Repost.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/OMGqmq/Novel-ai-API-Repost/issues"
+  },
+  "homepage": "https://github.com/OMGqmq/Novel-ai-API-Repost#readme",
+  "devDependencies": {
+    "miniflare": "^4.20260507.1",
+    "vitest": "^4.1.6"
+  }
+}
