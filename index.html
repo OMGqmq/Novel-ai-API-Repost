@@ -953,7 +953,12 @@
     <div class="brush-cursor hidden" id="brushCursor"></div>
 
     <script>
-        lucide.createIcons();
+        function safeCreateIcons() {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                lucide.createIcons();
+            }
+        }
+        safeCreateIcons();
 
         // --- 移动端抽屉控制 ---
         const mobileControls = document.getElementById('mobileControls');
@@ -1138,7 +1143,12 @@
             } else {
                 els.floatBtn.innerHTML = '<i data-lucide="sparkles" class="w-7 h-7 text-yellow-400 dark:text-gray-900"></i>';
                 els.floatBtn.classList.remove('scale-90');
+                function safeCreateIcons() {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
                 lucide.createIcons();
+            }
+        }
+        safeCreateIcons();
             }
 
             if (loading && !els.resultImg.classList.contains('hidden')) {
@@ -1619,7 +1629,12 @@
             if (apiBtn) updateApiBtn(apiBtn);
             if (apiBtnMobile) updateApiBtn(apiBtnMobile);
 
-            lucide.createIcons();
+            function safeCreateIcons() {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                lucide.createIcons();
+            }
+        }
+        safeCreateIcons();
         }
         checkAdminStatus();
 
@@ -1640,7 +1655,12 @@
                 input.value = '';
                 clearBtn.classList.add('hidden');
             }
-            lucide.createIcons();
+            function safeCreateIcons() {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                lucide.createIcons();
+            }
+        }
+        safeCreateIcons();
         }
 
         function closeApiKeyModal() {
@@ -1823,7 +1843,12 @@
                 inpaintHistory = [];
                 inpaintModal.classList.remove('modal-hidden');
                 inpaintModal.classList.add('modal-visible');
+                function safeCreateIcons() {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
                 lucide.createIcons();
+            }
+        }
+        safeCreateIcons();
             };
             img.src = inpaintOriginalImgSrc;
         }
@@ -2234,7 +2259,12 @@
                     submitBtnMobile.disabled = false;
                     submitBtnMobile.innerHTML = normalHtml;
                 }
+                function safeCreateIcons() {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
                 lucide.createIcons();
+            }
+        }
+        safeCreateIcons();
             }
         }
     </script>
