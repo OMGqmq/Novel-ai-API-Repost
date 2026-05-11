@@ -310,6 +310,11 @@
             overflow: hidden;
             background: #020617; /* 更深的背景突出画布 */
         }
+        @media (max-width: 768px) {
+            .inpaint-canvas-wrap {
+                padding: 60px 50px 80px 50px; /* 顶部留出返回按钮, 两边留出侧边栏, 底部留出抽屉 */
+            }
+        }
         .inpaint-canvas-wrap canvas {
             position: absolute;
             top: 50%;
@@ -2121,8 +2126,15 @@
             if (!maskB64) { alert('请先在图片上绘制需要重绘的区域'); return; }
 
             const submitBtn = document.getElementById('inpaintSubmitBtn');
+            const submitBtnMobile = document.getElementById('inpaintSubmitBtnMobile');
+            
+            // 禁用按钮防止重复点击
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="loader w-4 h-4 border-white/50"></span> 重绘中...';
+            if (submitBtnMobile) submitBtnMobile.disabled = true;
+            
+            const loadingHtml = '<span class="loader w-4 h-4 border-white/50"></span> 重绘中...';
+            submitBtn.innerHTML = loadingHtml;
+            if (submitBtnMobile) submitBtnMobile.innerHTML = loadingHtml;
 
             try {
                 const imageB64 = await exportBaseImageAsBase64(targetW, targetH);
@@ -2160,7 +2172,7 @@
                 });
 
                 const contentType = res.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
+                if (contentType && contentType.includes("application/json")) {
                     const errData = await res.json();
                     throw new Error(errData.error || `Server Error: ${res.status}`);
                 }
@@ -2203,8 +2215,13 @@
                 console.error(err);
                 alert('重绘失败: ' + err.message);
             } finally {
+                const normalHtml = '<i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘';
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘';
+                submitBtn.innerHTML = normalHtml;
+                if (submitBtnMobile) {
+                    submitBtnMobile.disabled = false;
+                    submitBtnMobile.innerHTML = normalHtml;
+                }
                 lucide.createIcons();
             }
         }
