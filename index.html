@@ -792,12 +792,6 @@
                 <button onclick="setInpaintTool('eraser')" id="inpaintEraserBtn" title="橡皮擦">
                     <i data-lucide="eraser" class="w-4 h-4"></i>
                 </button>
-                <button onclick="setInpaintTool('blur')" id="inpaintBlurBtn" title="模糊工具">
-                    <i data-lucide="wind" class="w-4 h-4"></i>
-                </button>
-                <button onclick="setInpaintTool('fill')" id="inpaintFillBtn" title="洪水填充">
-                    <i data-lucide="paint-bucket" class="w-4 h-4"></i>
-                </button>
                 
                 <div class="w-px h-6 bg-white/10 mx-1"></div>
                 
@@ -805,18 +799,6 @@
                     <span class="text-white/40 text-[10px] font-bold uppercase tracking-wider">大小</span>
                     <input type="range" id="inpaintBrushSize" min="5" max="300" value="60" class="brush-size-slider">
                     <span id="inpaintBrushSizeVal" class="text-white/80 text-xs font-mono w-8 text-center">60</span>
-                </div>
-
-                <div class="flex items-center gap-3 px-2 bg-white/5 rounded-xl py-1" id="blurStrengthWrap" style="display:none;">
-                    <span class="text-white/40 text-[10px] font-bold uppercase tracking-wider">模糊</span>
-                    <input type="range" id="inpaintBlurStrength" min="1" max="100" value="50" class="brush-size-slider">
-                    <span id="inpaintBlurStrengthVal" class="text-white/80 text-xs font-mono w-8 text-center">50</span>
-                </div>
-
-                <div class="flex items-center gap-3 px-2 bg-white/5 rounded-xl py-1" id="fillToleranceWrap" style="display:none;">
-                    <span class="text-white/40 text-[10px] font-bold uppercase tracking-wider">容差</span>
-                    <input type="range" id="inpaintFillTolerance" min="0" max="255" value="15" class="brush-size-slider">
-                    <span id="inpaintFillToleranceVal" class="text-white/80 text-xs font-mono w-8 text-center">15</span>
                 </div>
 
                 <div class="w-px h-6 bg-white/10 mx-1"></div>
