@@ -307,22 +307,22 @@
             justify-content: center;
             flex: 1;
             overflow: hidden;
+            background: #000;
         }
         .inpaint-canvas-wrap canvas {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            max-width: calc(100% - 40px);
-            max-height: calc(100% - 40px);
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
         #inpaintMaskCanvas {
-            cursor: crosshair;
+            cursor: none;
             z-index: 2;
-            opacity: 0.45;
-            /* 用 CSS 滤镜将白色笔画染成蓝色供视觉预览,不影响 canvas 内实际像素值 */
-            /* 实际 canvas 数据仍是纯白 #FFFFFF,匹配 NovelAI 官方 mask draw tool */
+            opacity: 0.5;
         }
         #inpaintBaseCanvas {
             z-index: 1;
@@ -330,44 +330,52 @@
         .inpaint-toolbar {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
             flex-wrap: wrap;
             justify-content: center;
         }
         .inpaint-toolbar button {
-            padding: 8px 10px;
-            border-radius: 8px;
-            font-size: 12px;
+            padding: 10px;
+            border-radius: 12px;
+            font-size: 13px;
             font-weight: 600;
-            border: 1px solid rgba(255,255,255,0.15);
-            background: rgba(255,255,255,0.1);
-            color: #fff;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.8);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             justify-content: center;
-            min-width: 36px;
+            min-width: 42px;
+            min-height: 42px;
         }
         .inpaint-toolbar button:hover {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            transform: translateY(-1px);
         }
         .inpaint-toolbar button.tool-active {
-            background: rgba(255,255,255,0.3);
-            border-color: rgba(255,255,255,0.5);
-            box-shadow: 0 0 12px rgba(255,255,255,0.15);
+            background: #3b82f6;
+            color: #fff;
+            border-color: #60a5fa;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
         .inpaint-toolbar .brush-size-slider {
-            width: 100px;
-            accent-color: #fff;
+            width: 120px;
+            height: 4px;
+            border-radius: 2px;
+            accent-color: #3b82f6;
         }
         .brush-cursor {
             position: fixed;
-            border: 2px solid rgba(255,255,255,0.85);
+            border: 2px solid #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.5);
             border-radius: 50%;
             pointer-events: none;
             z-index: 9999;
-            transition: width 0.1s, height 0.1s;
+            display: none;
+        }
         }
     </style>
 </head>
@@ -779,49 +787,45 @@
             </div>
             <div class="inpaint-toolbar">
                 <button onclick="setInpaintTool('brush')" id="inpaintBrushBtn" class="tool-active" title="画笔">
-                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                    <i data-lucide="pencil" class="w-4 h-4"></i>
                 </button>
                 <button onclick="setInpaintTool('eraser')" id="inpaintEraserBtn" title="橡皮擦">
-                    <i data-lucide="eraser" class="w-3.5 h-3.5"></i>
+                    <i data-lucide="eraser" class="w-4 h-4"></i>
                 </button>
                 <button onclick="setInpaintTool('blur')" id="inpaintBlurBtn" title="模糊工具">
-                    <i data-lucide="wind" class="w-3.5 h-3.5"></i>
+                    <i data-lucide="wind" class="w-4 h-4"></i>
                 </button>
                 <button onclick="setInpaintTool('fill')" id="inpaintFillBtn" title="洪水填充">
-                    <i data-lucide="paint-bucket" class="w-3.5 h-3.5"></i>
+                    <i data-lucide="paint-bucket" class="w-4 h-4"></i>
                 </button>
-                <div class="w-px h-6 bg-white/20"></div>
-                <button onclick="setBrushType('round')" id="brushRoundBtn" class="tool-active" title="圆形笔刷">
-                    <i data-lucide="circle" class="w-3.5 h-3.5"></i>
-                </button>
-                <button onclick="setBrushType('soft')" id="brushSoftBtn" title="软刷">
-                    <i data-lucide="circle-dot" class="w-3.5 h-3.5"></i>
-                </button>
-                <button onclick="setBrushType('square')" id="brushSquareBtn" title="方形笔刷">
-                    <i data-lucide="square" class="w-3.5 h-3.5"></i>
-                </button>
-                <div class="w-px h-6 bg-white/20"></div>
-                <div class="flex items-center gap-2 px-2">
-                    <span class="text-white/50 text-[10px]">大小</span>
+                
+                <div class="w-px h-6 bg-white/10 mx-1"></div>
+                
+                <div class="flex items-center gap-3 px-2 bg-white/5 rounded-xl py-1">
+                    <span class="text-white/40 text-[10px] font-bold uppercase tracking-wider">大小</span>
                     <input type="range" id="inpaintBrushSize" min="5" max="300" value="60" class="brush-size-slider">
-                    <span id="inpaintBrushSizeVal" class="text-white/70 text-xs font-mono w-8">60</span>
+                    <span id="inpaintBrushSizeVal" class="text-white/80 text-xs font-mono w-8 text-center">60</span>
                 </div>
-                <div class="flex items-center gap-2 px-2" id="blurStrengthWrap" style="display:none;">
-                    <span class="text-white/50 text-[10px]">模糊</span>
+
+                <div class="flex items-center gap-3 px-2 bg-white/5 rounded-xl py-1" id="blurStrengthWrap" style="display:none;">
+                    <span class="text-white/40 text-[10px] font-bold uppercase tracking-wider">模糊</span>
                     <input type="range" id="inpaintBlurStrength" min="1" max="100" value="50" class="brush-size-slider">
-                    <span id="inpaintBlurStrengthVal" class="text-white/70 text-xs font-mono w-8">50</span>
+                    <span id="inpaintBlurStrengthVal" class="text-white/80 text-xs font-mono w-8 text-center">50</span>
                 </div>
-                <div class="flex items-center gap-2 px-2" id="fillToleranceWrap" style="display:none;">
-                    <span class="text-white/50 text-[10px]">容差</span>
+
+                <div class="flex items-center gap-3 px-2 bg-white/5 rounded-xl py-1" id="fillToleranceWrap" style="display:none;">
+                    <span class="text-white/40 text-[10px] font-bold uppercase tracking-wider">容差</span>
                     <input type="range" id="inpaintFillTolerance" min="0" max="255" value="15" class="brush-size-slider">
-                    <span id="inpaintFillToleranceVal" class="text-white/70 text-xs font-mono w-8">15</span>
+                    <span id="inpaintFillToleranceVal" class="text-white/80 text-xs font-mono w-8 text-center">15</span>
                 </div>
-                <div class="w-px h-6 bg-white/20"></div>
-                <button onclick="inpaintUndo()" title="撤销">
-                    <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+
+                <div class="w-px h-6 bg-white/10 mx-1"></div>
+                
+                <button onclick="inpaintUndo()" title="撤销" class="hover:text-blue-400 transition-colors">
+                    <i data-lucide="undo-2" class="w-4 h-4"></i>
                 </button>
-                <button onclick="inpaintClearMask()" title="清除全部">
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <button onclick="inpaintClearMask()" title="清除全部" class="hover:text-red-400 transition-colors">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>
             </div>
         </div>
@@ -1727,13 +1731,6 @@
             document.getElementById('fillToleranceWrap').style.display = tool === 'fill' ? 'flex' : 'none';
         }
 
-        function setBrushType(type) {
-            brushType = type;
-            document.getElementById('brushRoundBtn').classList.toggle('tool-active', type === 'round');
-            document.getElementById('brushSoftBtn').classList.toggle('tool-active', type === 'soft');
-            document.getElementById('brushSquareBtn').classList.toggle('tool-active', type === 'square');
-        }
-
         function getBrushSize() {
             return parseInt(document.getElementById('inpaintBrushSize').value);
         }
@@ -1767,31 +1764,11 @@
             };
         }
 
-        // 绘制图章 - 匹配官方 e_/ex 实现
+        // 绘制图章 - 仅硬笔刷 (圆形)
         function stampBrush(x, y, radius) {
-            if (brushType === 'soft') {
-                // 软刷:使用高斯模糊滤镜
-                maskCtx.save();
-                maskCtx.filter = `blur(${radius * 0.3}px)`;
-                maskCtx.beginPath();
-                if (brushType === 'square') {
-                    const s = radius;
-                    maskCtx.rect(Math.round(x - s/2), Math.round(y - s/2), s, s);
-                } else {
-                    maskCtx.arc(Math.round(x), Math.round(y), radius / 2, 0, Math.PI * 2);
-                }
-                maskCtx.fill();
-                maskCtx.restore();
-            } else if (brushType === 'square') {
-                // 方形刷
-                const s = Math.round(radius);
-                maskCtx.fillRect(Math.round(x - s/2), Math.round(y - s/2), s, s);
-            } else {
-                // 圆形刷 (默认)
-                maskCtx.beginPath();
-                maskCtx.arc(Math.round(x), Math.round(y), radius / 2, 0, Math.PI * 2);
-                maskCtx.fill();
-            }
+            maskCtx.beginPath();
+            maskCtx.arc(Math.round(x), Math.round(y), radius / 2, 0, Math.PI * 2);
+            maskCtx.fill();
         }
 
         // 插值绘制(连续笔画无间隙)
@@ -1876,21 +1853,9 @@
             if (tool === 'eraser') {
                 maskCtx.globalCompositeOperation = 'destination-out';
                 maskCtx.fillStyle = 'rgba(0,0,0,1)';
-                if (brushType === 'soft') {
-                    maskCtx.save();
-                    maskCtx.filter = `blur(${r * 0.3}px)`;
-                    maskCtx.beginPath();
-                    maskCtx.arc(Math.round(pos.x), Math.round(pos.y), r / 2, 0, Math.PI * 2);
-                    maskCtx.fill();
-                    maskCtx.restore();
-                } else if (brushType === 'square') {
-                    const s = Math.round(r);
-                    maskCtx.fillRect(Math.round(pos.x - s/2), Math.round(pos.y - s/2), s, s);
-                } else {
-                    maskCtx.beginPath();
-                    maskCtx.arc(Math.round(pos.x), Math.round(pos.y), r / 2, 0, Math.PI * 2);
-                    maskCtx.fill();
-                }
+                maskCtx.beginPath();
+                maskCtx.arc(Math.round(pos.x), Math.round(pos.y), r / 2, 0, Math.PI * 2);
+                maskCtx.fill();
                 maskCtx.globalCompositeOperation = 'source-over';
             } else if (tool === 'brush') {
                 maskCtx.globalCompositeOperation = 'source-over';
