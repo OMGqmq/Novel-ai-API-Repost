@@ -328,65 +328,61 @@
         #inpaintBaseCanvas {
             z-index: 1;
         }
-        .inpaint-toolbox {
+        .inpaint-sidebar {
             position: absolute;
-            left: 20px;
             top: 50%;
             transform: translateY(-50%);
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            padding: 10px;
-            background: rgba(30, 41, 59, 0.7);
+            gap: 12px;
+            padding: 8px;
+            background: rgba(30, 41, 59, 0.6);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.08);
             border-radius: 20px;
             z-index: 10;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
+        .inpaint-sidebar-left { left: 16px; }
+        .inpaint-sidebar-right { right: 16px; }
+
         @media (max-width: 768px) {
-            .inpaint-toolbox {
-                left: 50%;
-                top: auto;
-                bottom: 140px;
-                transform: translateX(-50%);
-                flex-direction: row;
-                padding: 8px;
+            .inpaint-sidebar-left { left: 8px; }
+            .inpaint-sidebar-right { right: 8px; }
+            .inpaint-sidebar {
+                padding: 6px;
+                gap: 8px;
+                border-radius: 16px;
+            }
+            .inpaint-sidebar button {
+                width: 40px !important;
+                height: 40px !important;
             }
         }
-        .inpaint-toolbox button {
-            width: 44px;
-            height: 44px;
+
+        .inpaint-sidebar button {
+            width: 48px;
+            height: 48px;
             border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(255,255,255,0.03);
+            background: rgba(255,255,255,0.02);
             border: 1px solid rgba(255,255,255,0.05);
-            color: rgba(255,255,255,0.5);
+            color: rgba(255,255,255,0.4);
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .inpaint-toolbox button:hover {
+        .inpaint-sidebar button:hover {
             background: rgba(255,255,255,0.1);
             color: #fff;
             transform: scale(1.05);
         }
-        .inpaint-toolbox button.tool-active {
+        .inpaint-sidebar button.tool-active {
             background: #3b82f6;
             color: #fff;
             border-color: #60a5fa;
             box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5);
-        }
-        .brush-size-panel {
-            padding: 15px;
-            background: rgba(30, 41, 59, 0.9);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            margin-top: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
         }
         .brush-size-slider {
             width: 140px;
@@ -825,25 +821,18 @@
             </div>
         </div>
 
-        <!-- 画布区域 & 浮动工具箱 -->
+        <!-- 画布区域 & 侧边工具栏 -->
         <div class="inpaint-canvas-wrap group" id="inpaintCanvasWrap">
-            <!-- 侧边工具箱 -->
-            <div class="inpaint-toolbox">
+            <!-- 左侧工具栏: 工具选择 -->
+            <div class="inpaint-sidebar inpaint-sidebar-left">
                 <button onclick="setInpaintTool('brush')" id="inpaintBrushBtn" class="tool-active" title="画笔">
                     <i data-lucide="pencil" class="w-5 h-5"></i>
                 </button>
                 <button onclick="setInpaintTool('eraser')" id="inpaintEraserBtn" title="橡皮擦">
                     <i data-lucide="eraser" class="w-5 h-5"></i>
                 </button>
-                <div class="w-full md:w-px h-px md:h-4 bg-white/10 my-1 mx-auto"></div>
-                <button onclick="inpaintUndo()" title="撤销" class="hover:text-blue-400">
-                    <i data-lucide="undo-2" class="w-5 h-5"></i>
-                </button>
-                <button onclick="inpaintClearMask()" title="全部清除" class="hover:text-red-400">
-                    <i data-lucide="trash-2" class="w-5 h-5"></i>
-                </button>
                 
-                <!-- 大小调节 (垂直显示或悬浮) -->
+                <!-- 桌面端大小调节 -->
                 <div class="hidden md:flex flex-col items-center gap-3 py-4 mt-2 border-t border-white/5">
                     <span class="text-[9px] font-bold text-white/20 uppercase vertical-text">SIZE</span>
                     <div class="h-32 flex items-center justify-center">
@@ -852,6 +841,16 @@
                     </div>
                     <span id="inpaintBrushSizeVal" class="text-[10px] font-mono text-white/50">60</span>
                 </div>
+            </div>
+
+            <!-- 右侧工具栏: 操作按钮 -->
+            <div class="inpaint-sidebar inpaint-sidebar-right">
+                <button onclick="inpaintUndo()" title="撤销" class="hover:text-blue-400">
+                    <i data-lucide="undo-2" class="w-5 h-5"></i>
+                </button>
+                <button onclick="inpaintClearMask()" title="全部清除" class="hover:text-red-400">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
             </div>
 
             <canvas id="inpaintBaseCanvas"></canvas>
