@@ -498,7 +498,7 @@
     <div
         class="absolute inset-0 md:relative md:flex-1 md:order-2 flex flex-col overflow-hidden transition-colors z-0 bg-white/50 dark:bg-slate-900/50">
         <div
-            class="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-4 md:px-8 z-20 pointer-events-none">
+            class="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-4 md:px-8 z-[50] pointer-events-none select-none">
             <div
                 class="pointer-events-auto shadow-sm rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur p-0.5 border border-gray-100 dark:border-gray-700/50">
                 <div class="view-toggle" id="viewToggle" data-state="preview">
@@ -510,13 +510,13 @@
             <div class="pointer-events-auto flex gap-2">
                 <button onclick="clearAllHistory()" id="clearBtn"
                     class="hidden p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 shadow-sm transition-all"><i
-                        data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i></button>
                 <button onclick="downloadZip()" id="zipBtn"
                     class="hidden p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 shadow-sm transition-all"><i
-                        data-lucide="archive" class="w-4 h-4"></i></button>
-                <button onclick="downloadImage()" id="dlBtn"
-                    class="p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 shadow-sm transition-all opacity-50 cursor-not-allowed"
-                    disabled><i data-lucide="download" class="w-4 h-4"></i></button>
+                        data-lucide="archive" class="w-4 h-4 pointer-events-none"></i></button>
+                <button onclick="window.downloadImage()" id="dlBtn"
+                    class="p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 shadow-sm transition-all opacity-50 cursor-pointer"
+                    disabled><i data-lucide="download" class="w-4 h-4 pointer-events-none"></i></button>
             </div>
         </div>
 
@@ -1280,7 +1280,8 @@
                             els.placeholder.classList.add('hidden');
                             els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
                             els.dlBtn.disabled = false;
-                            els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                            els.dlBtn.classList.remove('opacity-50');
+                            els.dlBtn.classList.add('cursor-pointer');
                             // 转Base64存历史
                             const reader = new FileReader();
                             reader.readAsDataURL(imgBlob);
@@ -1386,7 +1387,8 @@
             els.placeholder.classList.add('hidden');
             els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
             els.dlBtn.disabled = false;
-            els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            els.dlBtn.classList.remove('opacity-50');
+            els.dlBtn.classList.add('cursor-pointer');
             currentImageId = item.id;
             currentImageData = item;
             showImageActions(true);
@@ -1494,7 +1496,8 @@
             els.placeholder.classList.add('hidden');
             els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
             els.dlBtn.disabled = false;
-            els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            els.dlBtn.classList.remove('opacity-50');
+            els.dlBtn.classList.add('cursor-pointer');
             currentImageId = null;
             currentImageData = { prompt: item.prompt, model: item.model, isShowcase: true };
             showImageActions(true);
