@@ -292,6 +292,7 @@
         /* --- Inpaint Editor --- */
         #inpaintModal {
             transition: opacity 0.3s;
+            background: #000;
         }
         #inpaintModal.modal-visible {
             opacity: 1;
@@ -307,7 +308,7 @@
             justify-content: center;
             flex: 1;
             overflow: hidden;
-            background: #000;
+            background: #0f172a;
         }
         .inpaint-canvas-wrap canvas {
             position: absolute;
@@ -317,7 +318,7 @@
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            box-shadow: 0 0 100px rgba(0,0,0,0.8);
         }
         #inpaintMaskCanvas {
             cursor: none;
@@ -327,54 +328,83 @@
         #inpaintBaseCanvas {
             z-index: 1;
         }
-        .inpaint-toolbar {
+        .inpaint-toolbox {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
             display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        .inpaint-toolbar button {
+            flex-direction: column;
+            gap: 10px;
             padding: 10px;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 600;
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(255,255,255,0.05);
-            color: rgba(255,255,255,0.8);
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 20px;
+            z-index: 10;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        @media (max-width: 768px) {
+            .inpaint-toolbox {
+                left: 50%;
+                top: auto;
+                bottom: 140px;
+                transform: translateX(-50%);
+                flex-direction: row;
+                padding: 8px;
+            }
+        }
+        .inpaint-toolbox button {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-width: 42px;
-            min-height: 42px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.5);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .inpaint-toolbar button:hover {
+        .inpaint-toolbox button:hover {
             background: rgba(255,255,255,0.1);
             color: #fff;
-            transform: translateY(-1px);
+            transform: scale(1.05);
         }
-        .inpaint-toolbar button.tool-active {
+        .inpaint-toolbox button.tool-active {
             background: #3b82f6;
             color: #fff;
             border-color: #60a5fa;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5);
         }
-        .inpaint-toolbar .brush-size-slider {
-            width: 120px;
+        .brush-size-panel {
+            padding: 15px;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .brush-size-slider {
+            width: 140px;
             height: 4px;
             border-radius: 2px;
             accent-color: #3b82f6;
+            background: rgba(255,255,255,0.1);
+            appearance: none;
         }
         .brush-cursor {
             position: fixed;
             border: 2px solid #fff;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.5);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.3);
             border-radius: 50%;
             pointer-events: none;
             z-index: 9999;
             display: none;
+            mix-blend-mode: difference;
         }
         }
     </style>
@@ -718,7 +748,7 @@
                     <div class="flex justify-between text-xs px-1"><span class="text-gray-500">相关性 (Scale)</span><span
                             id="scaleValue" class="font-mono font-bold text-gray-900 dark:text-gray-100">5.0</span>
                     </div>
-                    <input type="range" id="scale" min="1" max="20" value="5" step="0.5"
+                    <input type="range" id="scale" min="1" max="20" value="5" step="0.1"
                         class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
                 </div>
             </div>
@@ -774,66 +804,86 @@
     </div>
 
     <!-- 局部重绘 (Inpainting) 编辑器弹窗 -->
-    <div id="inpaintModal" class="fixed inset-0 z-[200] modal-hidden flex flex-col" style="background:rgba(15,23,42,0.95);">
-        <!-- 顶部工具栏 -->
-        <div class="shrink-0 flex items-center justify-between px-4 md:px-6 py-3 border-b border-white/10">
-            <div class="flex items-center gap-3">
-                <button onclick="closeInpaintEditor()" class="p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors">
-                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+    <div id="inpaintModal" class="fixed inset-0 z-[200] modal-hidden flex flex-col">
+        <!-- 顶部: 导航 -->
+        <div class="shrink-0 flex items-center justify-between px-4 md:px-6 py-4 border-b border-white/5 bg-slate-900/50 backdrop-blur-xl">
+            <div class="flex items-center gap-4">
+                <button onclick="closeInpaintEditor()" class="p-2 rounded-xl hover:bg-white/10 text-white/50 hover:text-white transition-all">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
                 </button>
-                <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                    <i data-lucide="paintbrush" class="w-4 h-4 text-blue-400"></i> 局部重绘
-                </h3>
-            </div>
-            <div class="inpaint-toolbar">
-                <button onclick="setInpaintTool('brush')" id="inpaintBrushBtn" class="tool-active" title="画笔">
-                    <i data-lucide="pencil" class="w-4 h-4"></i>
-                </button>
-                <button onclick="setInpaintTool('eraser')" id="inpaintEraserBtn" title="橡皮擦">
-                    <i data-lucide="eraser" class="w-4 h-4"></i>
-                </button>
-                
-                <div class="w-px h-6 bg-white/10 mx-1"></div>
-                
-                <div class="flex items-center gap-3 px-2 bg-white/5 rounded-xl py-1">
-                    <span class="text-white/40 text-[10px] font-bold uppercase tracking-wider">大小</span>
-                    <input type="range" id="inpaintBrushSize" min="5" max="300" value="60" class="brush-size-slider">
-                    <span id="inpaintBrushSizeVal" class="text-white/80 text-xs font-mono w-8 text-center">60</span>
+                <div class="flex flex-col">
+                    <h3 class="text-sm font-bold text-white tracking-tight">局部重绘模式</h3>
+                    <span class="text-[10px] text-white/30 font-medium uppercase tracking-widest">Inpaint Editor</span>
                 </div>
-
-                <div class="w-px h-6 bg-white/10 mx-1"></div>
-                
-                <button onclick="inpaintUndo()" title="撤销" class="hover:text-blue-400 transition-colors">
-                    <i data-lucide="undo-2" class="w-4 h-4"></i>
-                </button>
-                <button onclick="inpaintClearMask()" title="清除全部" class="hover:text-red-400 transition-colors">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold">
+                    PREVIEW
+                </div>
             </div>
         </div>
 
-        <!-- 画布区域 -->
-        <div class="inpaint-canvas-wrap" id="inpaintCanvasWrap">
+        <!-- 画布区域 & 浮动工具箱 -->
+        <div class="inpaint-canvas-wrap group" id="inpaintCanvasWrap">
+            <!-- 侧边工具箱 -->
+            <div class="inpaint-toolbox">
+                <button onclick="setInpaintTool('brush')" id="inpaintBrushBtn" class="tool-active" title="画笔">
+                    <i data-lucide="pencil" class="w-5 h-5"></i>
+                </button>
+                <button onclick="setInpaintTool('eraser')" id="inpaintEraserBtn" title="橡皮擦">
+                    <i data-lucide="eraser" class="w-5 h-5"></i>
+                </button>
+                <div class="w-full md:w-px h-px md:h-4 bg-white/10 my-1 mx-auto"></div>
+                <button onclick="inpaintUndo()" title="撤销" class="hover:text-blue-400">
+                    <i data-lucide="undo-2" class="w-5 h-5"></i>
+                </button>
+                <button onclick="inpaintClearMask()" title="全部清除" class="hover:text-red-400">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
+                
+                <!-- 大小调节 (垂直显示或悬浮) -->
+                <div class="hidden md:flex flex-col items-center gap-3 py-4 mt-2 border-t border-white/5">
+                    <span class="text-[9px] font-bold text-white/20 uppercase vertical-text">SIZE</span>
+                    <div class="h-32 flex items-center justify-center">
+                        <input type="range" id="inpaintBrushSize" min="5" max="300" value="60" 
+                            class="brush-size-slider -rotate-90 origin-center" style="width: 100px;">
+                    </div>
+                    <span id="inpaintBrushSizeVal" class="text-[10px] font-mono text-white/50">60</span>
+                </div>
+            </div>
+
             <canvas id="inpaintBaseCanvas"></canvas>
             <canvas id="inpaintMaskCanvas"></canvas>
         </div>
 
-        <!-- 底部:重绘提示词 + 确认按钮 -->
-        <div class="shrink-0 px-4 md:px-6 py-4 border-t border-white/10 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-            <div class="flex-1 flex flex-col md:flex-row gap-3">
-                <input type="text" id="inpaintPrompt" placeholder="重绘提示词(留空使用当前提示词)"
-                    class="flex-1 px-4 py-3 rounded-xl text-sm bg-white/10 border border-white/15 text-white placeholder-white/30 outline-none focus:border-white/40 transition-colors">
-                <div class="flex items-center gap-3">
-                    <div class="flex items-center gap-2">
-                        <span class="text-white/50 text-[10px] whitespace-nowrap">重绘强度</span>
-                        <input type="range" id="inpaintStrength" min="0.1" max="1.0" value="1.0" step="0.05" class="w-20 accent-blue-500">
-                        <span id="inpaintStrengthVal" class="text-white/70 text-xs font-mono w-8">1.0</span>
+        <!-- 移动端大小调节栏 -->
+        <div class="md:hidden px-6 py-4 bg-slate-900/80 border-t border-white/5 flex items-center gap-4">
+            <span class="text-[10px] font-bold text-white/20 uppercase tracking-widest">Size</span>
+            <input type="range" id="inpaintBrushSizeMobile" min="5" max="300" value="60" class="flex-1 accent-blue-500">
+            <span id="inpaintBrushSizeValMobile" class="text-xs font-mono text-white/50 w-8 text-right">60</span>
+        </div>
+
+        <!-- 底部: 参数与提交 -->
+        <div class="shrink-0 px-4 md:px-8 py-6 border-t border-white/5 bg-slate-900/90 backdrop-blur-2xl flex flex-col md:flex-row gap-6 items-stretch md:items-center">
+            <div class="flex-1 flex flex-col md:flex-row gap-6">
+                <div class="flex-1 relative group">
+                    <div class="absolute -top-2.5 left-4 px-2 bg-slate-900 text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] z-10">Prompt</div>
+                    <input type="text" id="inpaintPrompt" placeholder="留空则沿用当前提示词..."
+                        class="w-full px-5 py-4 rounded-2xl text-sm bg-white/5 border border-white/10 text-white placeholder-white/20 outline-none focus:border-blue-500/50 focus:bg-white/[0.08] transition-all">
+                </div>
+                <div class="flex items-center gap-6 px-2">
+                    <div class="flex flex-col gap-3 min-w-[140px]">
+                        <div class="flex justify-between items-center text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                            <span>Strength</span>
+                            <span id="inpaintStrengthVal" class="text-blue-400 font-mono">1.00</span>
+                        </div>
+                        <input type="range" id="inpaintStrength" min="0.1" max="1.0" value="1.0" step="0.01" class="w-full accent-blue-500 h-1 bg-white/10 rounded-full appearance-none cursor-pointer">
                     </div>
                 </div>
             </div>
             <button onclick="doInpaint()" id="inpaintSubmitBtn"
-                class="px-8 py-3 bg-gradient-to-r from-blue-500 to-violet-500 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 whitespace-nowrap">
-                <i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘
+                class="px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-black rounded-2xl shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:shadow-[0_0_40px_rgba(59,130,246,0.5)] transition-all active:scale-[0.95] flex items-center justify-center gap-3">
+                <i data-lucide="sparkles" class="w-5 h-5"></i> 确认重绘
             </button>
         </div>
     </div>
@@ -1648,9 +1698,21 @@
         let lastPos = null;
 
         // 画笔大小联动
-        document.getElementById('inpaintBrushSize').addEventListener('input', e => {
-            document.getElementById('inpaintBrushSizeVal').textContent = e.target.value;
-        });
+        const brushSizeSlider = document.getElementById('inpaintBrushSize');
+        const brushSizeSliderMobile = document.getElementById('inpaintBrushSizeMobile');
+        const brushSizeVal = document.getElementById('inpaintBrushSizeVal');
+        const brushSizeValMobile = document.getElementById('inpaintBrushSizeValMobile');
+
+        function syncBrushSize(val) {
+            brushSizeSlider.value = val;
+            brushSizeSliderMobile.value = val;
+            brushSizeVal.textContent = val;
+            brushSizeValMobile.textContent = val;
+        }
+
+        brushSizeSlider.addEventListener('input', e => syncBrushSize(e.target.value));
+        brushSizeSliderMobile.addEventListener('input', e => syncBrushSize(e.target.value));
+
         document.getElementById('inpaintStrength').addEventListener('input', e => {
             document.getElementById('inpaintStrengthVal').textContent = parseFloat(e.target.value).toFixed(2);
         });
