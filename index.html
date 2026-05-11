@@ -1307,12 +1307,12 @@
         els.deskBtn.addEventListener('click', doGenerate);
         els.floatBtn.addEventListener('click', doGenerate);
 
-        function downloadImage() {
+        window.downloadImage = function() {
             if (els.resultImg.src && !els.resultImg.classList.contains('hidden')) {
                 const a = document.createElement('a');
                 a.href = els.resultImg.src;
                 a.download = `novelai-gen-${Date.now()}.png`;
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                a.click();
             }
         }
 
