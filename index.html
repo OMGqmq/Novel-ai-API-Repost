@@ -1764,6 +1764,7 @@
         function closeInpaintEditor() {
             inpaintModal.classList.add('modal-hidden');
             inpaintModal.classList.remove('modal-visible');
+            if (brushCursor) brushCursor.style.display = 'none';
         }
 
         function setInpaintTool(tool) {
