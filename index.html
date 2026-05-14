@@ -751,7 +751,13 @@
             <!-- 氛围传输 (Vibe Transfer) 区域 -->
             <div class="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
                 <div class="flex justify-between items-center px-1">
-                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">氛围传输 (Vibe Transfer)</label>
+                    <div class="flex items-center gap-2">
+                        <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">氛围传输 (Vibe Transfer)</label>
+                        <label class="relative inline-flex items-center cursor-pointer scale-75 origin-left">
+                            <input type="checkbox" id="vibeEnabled" class="sr-only peer" checked onchange="toggleVibeEnabled()">
+                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
                     <button onclick="clearVibeImage()" id="clearVibeImageBtn"
                         class="hidden text-[10px] text-red-500 hover:text-red-600 transition-colors flex items-center gap-1"><i
                             data-lucide="x" class="w-3 h-3"></i> 移除</button>
@@ -1037,8 +1043,11 @@
         // Restore Vibe settings from storage
         const savedVibeData = store.getSetting('nai_vibe_image');
         const savedVibeIsJson = store.getSetting('nai_vibe_is_json') === 'true';
+        const savedVibeEnabled = store.getSetting('nai_vibe_enabled') !== 'false';
         const savedVibeInfo = store.getSetting('nai_vibe_info');
         const savedVibeStrength = store.getSetting('nai_vibe_strength');
+
+        document.getElementById('vibeEnabled').checked = savedVibeEnabled;
 
         if (savedVibeData) {
             currentVibeImageBase64 = savedVibeData;
@@ -1157,6 +1166,7 @@
                     document.getElementById('vibeImagePlaceholder').classList.add('hidden');
                     document.getElementById('clearVibeImageBtn').classList.remove('hidden');
                     document.getElementById('vibeControls').classList.remove('hidden');
+                    toggleVibeEnabled(); // Update UI state
                 } catch (e) {
                     console.error("Failed to process vibe file", e);
                     alert("文件处理失败，请重试。");
@@ -1175,6 +1185,20 @@
             document.getElementById('vibeImagePlaceholder').classList.remove('hidden');
             document.getElementById('clearVibeImageBtn').classList.add('hidden');
             document.getElementById('vibeControls').classList.add('hidden');
+        }
+
+        function toggleVibeEnabled() {
+            const enabled = document.getElementById('vibeEnabled').checked;
+            store.setSetting('nai_vibe_enabled', enabled.toString());
+            const previewContainer = document.getElementById('vibeImagePreviewContainer');
+            const controls = document.getElementById('vibeControls');
+            if (enabled) {
+                previewContainer.classList.remove('opacity-40', 'grayscale-[0.5]');
+                if (currentVibeImageBase64) controls.classList.remove('hidden');
+            } else {
+                previewContainer.classList.add('opacity-40', 'grayscale-[0.5]');
+                controls.classList.add('hidden');
+            }
         }
 
         document.getElementById('strength')?.addEventListener('input', e => document.getElementById('strengthValue').textContent = e.target.value);
@@ -1227,7 +1251,8 @@
             if (ui.currentRightView !== 'preview') ui.switchRightView('preview');
             ui.toggleMobileControls(false);
             
-            if (selectedVersion === 'v4.5' && currentVibeImageBase64 && !currentVibeIsJson) {
+            const vibeEnabled = document.getElementById('vibeEnabled').checked;
+            if (vibeEnabled && selectedVersion === 'v4.5' && currentVibeImageBase64 && !currentVibeIsJson) {
                 alert("V4.5 模型氛围传输需要上传官方提取的 .nai4vibe 或 .json 编码文件。\n由于直接上传图片会重复消耗 Anlas 去编码，为了您的账号安全，请先在官方获取编码文件后再使用此功能。");
                 ui.setLoading(false);
                 ui.toggleMobileControls(true);
@@ -1255,7 +1280,7 @@
                         params.noise = parseFloat(document.getElementById('noise').value);
                     }
                     
-                    if (currentVibeImageBase64) {
+                    if (vibeEnabled && currentVibeImageBase64) {
                         params.vibe_image = currentVibeImageBase64;
                         params.vibe_info = parseFloat(document.getElementById('vibeInfo').value);
                         params.vibe_strength = parseFloat(document.getElementById('vibeStrength').value);
