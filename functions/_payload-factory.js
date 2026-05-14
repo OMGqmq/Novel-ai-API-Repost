@@ -22,6 +22,16 @@ export function createPayload(version, data) {
     action = "img2img";
   }
 
+  // Handle vibe transfer (atmosphere transfer)
+  let vibe_images = [];
+  let vibe_info = [];
+  let vibe_strength = [];
+  if (data.vibe_image) {
+    vibe_images.push(data.vibe_image);
+    vibe_info.push(parseFloat(data.vibe_info) !== undefined && !isNaN(data.vibe_info) ? parseFloat(data.vibe_info) : 1.0);
+    vibe_strength.push(parseFloat(data.vibe_strength) !== undefined && !isNaN(data.vibe_strength) ? parseFloat(data.vibe_strength) : 0.6);
+  }
+
   let payload = {};
 
   if (version === "v4.5") {
@@ -60,9 +70,9 @@ export function createPayload(version, data) {
         legacy_v3_extend: false,
         uncond_scale: 1.0,
         skip_cfg_above_sigma: null,
-        reference_image_multiple: [],
-        reference_information_extracted_multiple: [],
-        reference_strength_multiple: [],
+        reference_image_multiple: vibe_images,
+        reference_information_extracted_multiple: vibe_info,
+        reference_strength_multiple: vibe_strength,
         extra_noise_seed: seed
       }
     };
@@ -89,9 +99,9 @@ export function createPayload(version, data) {
         noise_schedule: "native",
         legacy_v3_extend: false,
         uncond_scale: 1.0,
-        reference_image_multiple: [],
-        reference_information_extracted_multiple: [],
-        reference_strength_multiple: [],
+        reference_image_multiple: vibe_images,
+        reference_information_extracted_multiple: vibe_info,
+        reference_strength_multiple: vibe_strength,
         extra_noise_seed: seed
       }
     };
