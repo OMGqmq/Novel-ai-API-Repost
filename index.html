@@ -1184,7 +1184,7 @@
             ui.toggleMobileControls(true);
         }
 
-        window.downloadZip = async function () {
+        async function downloadZip() {
             try {
                 const items = await store.getAllImages();
                 if (!items.length) return;
@@ -1199,7 +1199,7 @@
             } catch (e) {
                 console.error("Failed to generate zip", e);
             }
-        };
+        }
 
         // --- 暴露给 Window 的代理方法 ---
         Object.assign(window, {
@@ -1210,7 +1210,7 @@
             switchDrawerTab: (t) => ui.switchDrawerTab(t, () => renderPresets(document.getElementById('modelValue').value)),
             openPresets: () => ui.openPresets(() => renderPresets(document.getElementById('modelValue').value)),
             handleInitImage, clearInitImage, doGenerate, useCurrentPrompt,
-            deleteCurrentImage, clearAllHistory, switchGalleryTab
+            deleteCurrentImage, clearAllHistory, switchGalleryTab, downloadZip
         });
 
 
