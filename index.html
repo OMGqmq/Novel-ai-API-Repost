@@ -1221,10 +1221,21 @@
                         
                         // Handle multiple formats (single object, NAI export with 'images' array, etc.)
                         const extractEncoding = (item) => {
-                            const img = item.image || item.latent;
-                            const info = item.params?.information_extracted ?? item.info;
+                            if (!item || typeof item !== 'object') return null;
+                            
+                            // Try common image/latent field names
+                            const img = item.image || item.latent || item.vibe_image || item.encoded_image;
+                            
+                            // Try common info/strength field names
+                            let info = undefined;
+                            if (item.params && item.params.information_extracted !== undefined) {
+                                info = item.params.information_extracted;
+                            } else {
+                                info = item.information_extracted ?? item.info ?? item.strength ?? item.extract_strength;
+                            }
+                            
                             if (img && info !== undefined) {
-                                return { base64: img, info: info };
+                                return { base64: img, info: parseFloat(info) };
                             }
                             return null;
                         };
@@ -1240,11 +1251,18 @@
 
                         items.forEach(item => {
                             const enc = extractEncoding(item);
-                            if (enc) availableVibeEncodings.push(enc);
+                            if (enc) {
+                                availableVibeEncodings.push(enc);
+                            } else if (item.vibe && typeof item.vibe === 'object') {
+                                // Try nested 'vibe' object
+                                const nestedEnc = extractEncoding(item.vibe);
+                                if (nestedEnc) availableVibeEncodings.push(nestedEnc);
+                            }
                         });
 
                         if (availableVibeEncodings.length === 0) {
-                            throw new Error("未在文件中找到有效的 Vibe 编码数据");
+                            console.error("Vibe JSON structure unrecognized:", obj);
+                            throw new Error("未在文件中找到有效的 Vibe 编码数据 (识别到的字段不全)");
                         }
 
                         // Use source image, thumbnail or root image for preview
