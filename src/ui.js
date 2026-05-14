@@ -261,4 +261,3 @@ export class UIController {
         this.showResultImages([{ imageUrl: url }]);
     }
 }
-}
