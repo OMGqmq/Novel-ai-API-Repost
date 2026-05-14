@@ -952,227 +952,32 @@
     </div>
     <div class="brush-cursor hidden" id="brushCursor"></div>
 
-    <script>
+    <script type="module">
+        import { ImageEngine } from './src/engine.js';
+        import { GalleryStore } from './src/storage.js';
+        import { UIController } from './src/ui.js';
+
+        const engine = new ImageEngine();
+        const store = new GalleryStore();
+        const ui = new UIController();
+        const els = ui.els;
+
         function safeCreateIcons() {
             if (typeof lucide !== 'undefined' && lucide.createIcons) {
                 lucide.createIcons();
             }
         }
+        window.safeCreateIcons = safeCreateIcons;
         safeCreateIcons();
-
-        // --- 移动端抽屉控制 ---
-        const mobileControls = document.getElementById('mobileControls');
-        const mobileBackdrop = document.getElementById('mobileBackdrop');
-        let isControlsExpanded = false;
-
-        function toggleMobileControls(forceState) {
-            if (window.innerWidth >= 768) return;
-            if (typeof forceState !== 'undefined') isControlsExpanded = forceState;
-            else isControlsExpanded = !isControlsExpanded;
-
-            if (isControlsExpanded) {
-                mobileControls.classList.remove('collapsed');
-                mobileControls.classList.add('expanded');
-                mobileBackdrop.classList.remove('hidden-backdrop', 'opacity-0', 'pointer-events-none');
-            } else {
-                mobileControls.classList.remove('expanded');
-                mobileControls.classList.add('collapsed');
-                mobileBackdrop.classList.add('opacity-0', 'pointer-events-none');
-                setTimeout(() => mobileBackdrop.classList.add('hidden-backdrop'), 300);
-            }
-        }
-
-        // --- 模型切换逻辑 ---
-        function setModel(ver) {
-            document.getElementById('modelValue').value = ver;
-            document.querySelectorAll('.switch-bg').forEach(bg => {
-                bg.style.transform = ver === 'v4.5' ? 'translateX(100%)' : 'translateX(0)';
-            });
-            const badge = document.getElementById('modelBadge');
-            if (badge) badge.innerText = (ver === 'v4.5' ? 'V4.5' : 'V3') + ' MODE';
-            const mini = document.getElementById('modelStatusMini');
-            if (mini) mini.innerText = ver === 'v4.5' ? 'V4.5' : 'V3';
-        }
-
-        // --- 视图切换 ---
-        let currentRightView = 'preview';
-        const els = {
-            viewToggle: document.getElementById('viewToggle'),
-            viewBtnPreview: document.getElementById('viewBtnPreview'),
-            viewBtnHistory: document.getElementById('viewBtnHistory'),
-            previewArea: document.getElementById('previewArea'),
-            historyArea: document.getElementById('historyArea'),
-            zipBtn: document.getElementById('zipBtn'),
-            clearBtn: document.getElementById('clearBtn'),
-            dlBtn: document.getElementById('dlBtn'),
-            prompt: document.getElementById('prompt'),
-            negative: document.getElementById('negativePrompt'),
-            resolution: document.getElementById('resolution'),
-            steps: document.getElementById('steps'),
-            scale: document.getElementById('scale'),
-            sampler: document.getElementById('sampler'),
-            deskBtn: document.getElementById('desktopGenerateBtn'),
-            floatBtn: document.getElementById('floatingGenerateBtn'),
-            resultImg: document.getElementById('resultImage'),
-            placeholder: document.getElementById('placeholder'),
-            imageActions: document.getElementById('imageActions'),
-            stepsVal: document.getElementById('stepsValue'),
-            scaleVal: document.getElementById('scaleValue'),
-            galleryGrid: document.getElementById('galleryGrid'),
-            emptyGallery: document.getElementById('emptyGallery'),
-            adminLockBtn: document.getElementById('adminLockBtn'),
-            adminLockBtnMobile: document.getElementById('adminLockBtnMobile'),
-            adminControls: document.getElementById('adminControls'),
-            batchCount: document.getElementById('batchCount'),
-            batchValue: document.getElementById('batchValue'),
-            keyBtn: document.getElementById('keyBtn'),
-            keyBtnMobile: document.getElementById('keyBtnMobile'),
-            presetGrid: document.getElementById('presetGrid'),
-            btnPreV3: document.getElementById('btn-pre-v3'),
-            btnPreV4: document.getElementById('btn-pre-v4'),
-            tagSearchInput: document.getElementById('tagSearchInput'),
-            tagSearchBtn: document.getElementById('tagSearchBtn'),
-            tagResults: document.getElementById('tagResults'),
-            sideDrawer: document.getElementById('sideDrawer'),
-            drawerOverlay: document.getElementById('drawerOverlay'),
-            tabSearch: document.getElementById('tab-search'),
-            tabPreset: document.getElementById('tab-preset'),
-            viewSearch: document.getElementById('view-search'),
-            viewPreset: document.getElementById('view-preset'),
-            creditDisplayMobile: document.getElementById('creditDisplayMobile'),
-            creditDisplayDesktop: document.getElementById('creditDisplayDesktop')
-        };
-
-        function switchRightView(view) {
-            currentRightView = view;
-            const toggleBg = els.viewToggle.querySelector('.view-toggle-bg');
-            if (view === 'history') toggleBg.style.transform = 'translateX(100%)';
-            else toggleBg.style.transform = 'translateX(0)';
-
-            if (view === 'preview') {
-                els.viewBtnPreview.classList.add('active');
-                els.viewBtnHistory.classList.remove('active');
-                els.previewArea.classList.remove('hidden');
-                els.historyArea.classList.add('hidden');
-                els.zipBtn.classList.add('hidden');
-                els.clearBtn.classList.add('hidden');
-                els.dlBtn.classList.remove('hidden');
-            } else {
-                els.viewBtnPreview.classList.remove('active');
-                els.viewBtnHistory.classList.add('active');
-                els.previewArea.classList.add('hidden');
-                els.historyArea.classList.remove('hidden');
-                els.dlBtn.classList.add('hidden');
-                switchGalleryTab(currentGalleryTab);
-            }
-        }
-
-        // --- 侧边栏 ---
-        function toggleDrawer() {
-            els.sideDrawer.classList.toggle('drawer-open');
-            els.sideDrawer.classList.toggle('drawer-closed');
-            els.drawerOverlay.classList.toggle('hidden');
-        }
-
-        function switchDrawerTab(tab) {
-            const activeClass = "active flex-1 py-2 text-xs font-medium rounded-lg transition-all border shadow-sm text-gray-900 bg-white border-gray-200 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-200";
-            const inactiveClass = "flex-1 py-2 text-xs font-medium rounded-lg transition-all border border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white";
-
-            if (tab === 'search') {
-                els.tabSearch.className = activeClass;
-                els.tabPreset.className = inactiveClass;
-                els.viewSearch.classList.remove('hidden');
-                els.viewPreset.classList.add('hidden');
-            } else {
-                els.tabSearch.className = inactiveClass;
-                els.tabPreset.className = activeClass;
-                els.viewSearch.classList.add('hidden');
-                els.viewPreset.classList.remove('hidden');
-                renderPresets(document.getElementById('modelValue').value);
-            }
-        }
-
-        function openPresets() {
-            if (!els.sideDrawer.classList.contains('drawer-open')) toggleDrawer();
-            switchDrawerTab('preset');
-        }
-
-        // --- 核心变量 ---
-        let currentImageId = null;
-        let currentImageData = null;
-
-        // UI 联动
-        els.steps.addEventListener('input', e => els.stepsVal.textContent = e.target.value);
-        els.scale.addEventListener('input', e => els.scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
-
-        // 批量滑块
-        if (els.batchCount) {
-            els.batchCount.addEventListener('input', e => {
-                els.batchValue.textContent = e.target.value;
-            });
-        }
 
         // 缓存加载
-        const savedPrompt = localStorage.getItem('nai_prompt');
+        const savedPrompt = store.getSetting('nai_prompt');
         if (savedPrompt) els.prompt.value = savedPrompt;
-        const savedNegative = localStorage.getItem('nai_negative_prompt');
+        const savedNegative = store.getSetting('nai_negative_prompt');
         if (savedNegative) els.negative.value = savedNegative;
 
-        els.prompt.addEventListener('input', (e) => localStorage.setItem('nai_prompt', e.target.value));
-        els.negative.addEventListener('input', (e) => localStorage.setItem('nai_negative_prompt', e.target.value));
-
-        // --- 生成逻辑 ---
-        function setLoading(loading, text = "生成中...") {
-            // 桌面
-            els.deskBtn.disabled = loading;
-            if (loading) {
-                els.deskBtn.querySelector('#deskBtnIcon').classList.add('hidden');
-                els.deskBtn.querySelector('.loader').classList.remove('hidden');
-                els.deskBtn.querySelector('#deskBtnText').textContent = text;
-            } else {
-                els.deskBtn.querySelector('#deskBtnIcon').classList.remove('hidden');
-                els.deskBtn.querySelector('.loader').classList.add('hidden');
-                els.deskBtn.querySelector('#deskBtnText').textContent = "免费生成";
-            }
-
-            // 悬浮
-            els.floatBtn.disabled = loading;
-            if (loading) {
-                els.floatBtn.innerHTML = '<span class="loader border-gray-800 dark:border-white"></span>';
-                els.floatBtn.classList.add('scale-90');
-            } else {
-                els.floatBtn.innerHTML = '<i data-lucide="sparkles" class="w-7 h-7 text-yellow-400 dark:text-gray-900"></i>';
-                els.floatBtn.classList.remove('scale-90');
-        safeCreateIcons();
-            }
-
-            if (loading && !els.resultImg.classList.contains('hidden')) {
-                els.resultImg.classList.add('opacity-50', 'blur-sm');
-            } else if (!loading) {
-                els.resultImg.classList.remove('opacity-50', 'blur-sm');
-            }
-        }
-
-        // 更新余额显示
-        function updateCreditDisplay(roleStr) {
-            // roleStr 格式可能为 "VIP (余:499)" 或 "Admin (Unlimited)" 或 "Guest (Limited)"
-            if (!roleStr) return;
-
-            // 提取关键信息
-            const text = roleStr.replace(" (Limited)", "").replace(" (Unlimited)", "");
-
-            const mobileEl = document.getElementById('creditDisplayMobile');
-            const desktopEl = document.getElementById('creditDisplayDesktop');
-
-            if (mobileEl) {
-                mobileEl.textContent = text;
-                mobileEl.classList.remove('hidden');
-            }
-            if (desktopEl) {
-                desktopEl.textContent = text;
-                desktopEl.classList.remove('hidden');
-            }
-        }
+        els.prompt.addEventListener('input', (e) => store.setSetting('nai_prompt', e.target.value));
+        els.negative.addEventListener('input', (e) => store.setSetting('nai_negative_prompt', e.target.value));
 
         let currentInitImageBase64 = null;
         function handleInitImage(event) {
@@ -1203,31 +1008,36 @@
         document.getElementById('strength')?.addEventListener('input', e => document.getElementById('strengthValue').textContent = e.target.value);
         document.getElementById('noise')?.addEventListener('input', e => document.getElementById('noiseValue').textContent = e.target.value);
 
+        let currentImageId = null;
+        let currentImageData = null;
+
         async function doGenerate() {
             const promptText = els.prompt.value.trim();
-            if (!promptText) { els.prompt.focus(); toggleMobileControls(true); return; }
+            if (!promptText) { els.prompt.focus(); ui.toggleMobileControls(true); return; }
 
             const selectedVersion = document.getElementById('modelValue').value;
             const [w, h] = els.resolution.value.split(',').map(Number);
-            const adminToken = localStorage.getItem('nai_admin_token') || "";
-            const userKey = localStorage.getItem('nai_user_key') || "";
-            const customApiKey = localStorage.getItem('nai_custom_api_key') || "";
-            const isAdmin = !!adminToken || !!customApiKey;
+            const auth = {
+                adminToken: store.getSetting('nai_admin_token'),
+                userKey: store.getSetting('nai_user_key'),
+                customApiKey: store.getSetting('nai_custom_api_key')
+            };
+            const isAdmin = !!auth.adminToken || !!auth.customApiKey;
 
             let batchTotal = 1;
             if (isAdmin && els.batchCount) {
                 batchTotal = parseInt(els.batchCount.value) || 1;
             }
 
-            if (currentRightView !== 'preview') switchRightView('preview');
-            toggleMobileControls(false);
+            if (ui.currentRightView !== 'preview') ui.switchRightView('preview');
+            ui.toggleMobileControls(false);
 
             for (let i = 0; i < batchTotal; i++) {
                 const statusText = batchTotal > 1 ? `生成中 (${i + 1}/${batchTotal})` : "生成中...";
-                setLoading(true, statusText);
+                ui.setLoading(true, statusText);
 
                 try {
-                    const payload = {
+                    const params = {
                         version: selectedVersion,
                         prompt: promptText,
                         negative_prompt: els.negative.value.trim(),
@@ -1238,78 +1048,38 @@
                     };
 
                     if (currentInitImageBase64) {
-                        payload.image = currentInitImageBase64;
-                        payload.strength = parseFloat(document.getElementById('strength').value);
-                        payload.noise = parseFloat(document.getElementById('noise').value);
+                        params.image = currentInitImageBase64;
+                        params.strength = parseFloat(document.getElementById('strength').value);
+                        params.noise = parseFloat(document.getElementById('noise').value);
                     }
 
-                    const res = await fetch('/generate', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-admin-token': adminToken,
-                            'x-user-key': userKey,
-                            'x-custom-api-key': customApiKey
-                        },
-                        body: JSON.stringify(payload)
-                    });
+                    const result = await engine.generate(params, auth);
 
-                    // 错误处理
-                    const contentType = res.headers.get("content-type");
-                    if (contentType && contentType.includes("application/json")) {
-                        const errData = await res.json();
-                        throw new Error(errData.error || `Server Error: ${res.status}`);
+                    if (result.userRole) {
+                        ui.updateCreditDisplay(result.userRole);
                     }
-                    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
 
-                    // 获取并显示剩余点数 (从后端 Header 中读取)
-                    const rawRole = res.headers.get("X-User-Role");
-                    if (rawRole) {
-                        const userRole = decodeURIComponent(rawRole); updateCreditDisplay(userRole);
+                    const { imageUrl, blob } = result;
+                    ui.showResultImage(imageUrl);
+
+                    // 转Base64存历史
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onloadend = async () => {
+                        await saveToHistory(reader.result, promptText, selectedVersion);
                     }
-                    const blob = await res.blob();
-                    const zip = await JSZip.loadAsync(blob);
-                    let imgFile = null;
-                    zip.forEach((relativePath, file) => {
-                        if (relativePath.endsWith('.png')) imgFile = file;
-                    });
-
-                    if (!imgFile) throw new Error("ZIP 中未找到图片");
-
-                    const imgBlob = await imgFile.async("blob");
-                    const imgUrl = URL.createObjectURL(imgBlob);
-
-                    const tempImg = new Image();
-                    tempImg.src = imgUrl;
-                    await new Promise(resolve => {
-                        tempImg.onload = () => {
-                            els.resultImg.src = imgUrl;
-                            els.placeholder.classList.add('hidden');
-                            els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
-                            els.dlBtn.disabled = false;
-                            els.dlBtn.classList.remove('opacity-50');
-                            els.dlBtn.classList.add('cursor-pointer');
-                            // 转Base64存历史
-                            const reader = new FileReader();
-                            reader.readAsDataURL(imgBlob);
-                            reader.onloadend = () => {
-                                saveToHistory(reader.result, promptText, selectedVersion);
-                            }
-                            resolve();
-                        };
-                    });
 
                 } catch (err) {
                     console.error(err);
-                    setLoading(false);
-                    toggleMobileControls(true);
+                    ui.setLoading(false);
+                    ui.toggleMobileControls(true);
                     if (err.message.includes('429')) alert("⚠️ 并发生成,请稍候重试");
                     else if (err.message.includes('403')) alert("后端账号已封禁");
                     else alert("生成失败: " + err.message);
                     break;
                 }
             }
-            setLoading(false);
+            ui.setLoading(false);
         }
 
         els.deskBtn.addEventListener('click', doGenerate);
@@ -1324,49 +1094,56 @@
             }
         }
 
-        // --- IndexedDB ---
-        const DB_NAME = 'nai_opus_db';
-        const STORE_NAME = 'history';
-        let db;
-        const initDB = () => {
-            const r = indexedDB.open(DB_NAME, 1);
-            r.onupgradeneeded = e => { if (!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true }); };
-            r.onsuccess = e => { db = e.target.result; loadGallery(); };
-        };
-        initDB();
+        // --- Store Integration ---
+        store.init().then(() => loadGallery());
 
-        function saveToHistory(imgData, prompt, model) {
-            if (!db) return;
-            db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).add({ image: imgData, prompt, model, date: Date.now() }).onsuccess = (e) => {
-                currentImageId = e.target.result;
-                currentImageData = { image: imgData, prompt, model };
-                showImageActions(true);
+        async function saveToHistory(imgData, prompt, model) {
+            try {
+                const savedItem = await store.saveImage(imgData, prompt, model);
+                currentImageId = savedItem.id;
+                currentImageData = savedItem;
+                ui.showImageActions(true);
                 loadGallery();
-            };
+            } catch (e) {
+                console.error("Failed to save to history", e);
+            }
         }
-        function deleteCurrentImage() {
+
+        async function deleteCurrentImage() {
             if (currentImageData && currentImageData.isShowcase) return;
-            if (!currentImageId || !db || !confirm("删除此图片?")) return;
-            db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(currentImageId).onsuccess = () => {
-                resetPreview(); loadGallery();
-            };
+            if (!currentImageId || !confirm("删除此图片?")) return;
+            try {
+                await store.deleteImage(currentImageId);
+                ui.resetPreview();
+                loadGallery();
+            } catch (e) {
+                console.error("Failed to delete image", e);
+            }
         }
-        window.clearAllHistory = function () {
-            if (!db || !confirm("清空所有历史?")) return;
-            db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).clear().onsuccess = () => {
-                loadGallery(); resetPreview();
-            };
+
+        async function clearAllHistory() {
+            if (!confirm("清空所有历史?")) return;
+            try {
+                await store.clearAll();
+                loadGallery();
+                ui.resetPreview();
+            } catch (e) {
+                console.error("Failed to clear history", e);
+            }
         };
-        function loadGallery() {
-            if (!db) return;
-            db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll().onsuccess = (e) => {
-                const items = e.target.result.reverse();
+
+        async function loadGallery() {
+            try {
+                const items = await store.getAllImages();
                 renderGallery(items);
                 if (currentGalleryTab === 'history' && items.length === 0) {
                     els.emptyGallery.classList.remove('hidden');
                 }
-            };
+            } catch (e) {
+                console.error("Failed to load gallery", e);
+            }
         }
+
         function renderGallery(items) {
             els.galleryGrid.innerHTML = '';
             if (items.length === 0) {
@@ -1375,7 +1152,7 @@
                 els.clearBtn.classList.add('hidden');
             } else {
                 els.emptyGallery.classList.add('hidden');
-                if (currentRightView === 'history') {
+                if (ui.currentRightView === 'history') {
                     els.zipBtn.classList.remove('hidden');
                     els.clearBtn.classList.remove('hidden');
                 }
@@ -1388,57 +1165,55 @@
                 });
             }
         }
+
         function loadPreviewFromHistory(item) {
-            switchRightView('preview');
-            els.resultImg.src = item.image;
-            els.placeholder.classList.add('hidden');
-            els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
-            els.dlBtn.disabled = false;
-            els.dlBtn.classList.remove('opacity-50');
-            els.dlBtn.classList.add('cursor-pointer');
+            ui.switchRightView('preview');
+            ui.showResultImage(item.image);
             currentImageId = item.id;
             currentImageData = item;
-            showImageActions(true);
-            toggleMobileControls(false);
+            ui.showImageActions(true);
+            ui.toggleMobileControls(false);
         }
+
         function useCurrentPrompt() {
             if (!currentImageData) return;
             els.prompt.value = currentImageData.prompt;
-            setModel(currentImageData.model || 'v3');
+            ui.setModel(currentImageData.model || 'v3');
             els.prompt.classList.add('bg-blue-50', 'dark:bg-blue-900/30');
             setTimeout(() => els.prompt.classList.remove('bg-blue-50', 'dark:bg-blue-900/30'), 500);
-            toggleMobileControls(true);
+            ui.toggleMobileControls(true);
         }
-        function resetPreview() {
-            els.resultImg.src = '';
-            els.resultImg.classList.add('hidden', 'scale-95', 'opacity-0');
-            els.placeholder.classList.remove('hidden');
-            els.dlBtn.disabled = true;
-            els.dlBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            showImageActions(false);
-            currentImageId = null;
-            currentImageData = null;
-        }
-        function showImageActions(show) {
-            if (show) els.imageActions.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
-            else els.imageActions.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
-        }
-        window.downloadZip = function () {
-            if (!db) return;
-            db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll().onsuccess = (e) => {
-                const items = e.target.result;
+
+        window.downloadZip = async function () {
+            try {
+                const items = await store.getAllImages();
                 if (!items.length) return;
                 const zip = new JSZip();
                 const folder = zip.folder("novelai_gallery");
                 items.forEach((item, idx) => folder.file(`image_${idx}.png`, item.image.split(',')[1], { base64: true }));
-                zip.generateAsync({ type: "blob" }).then(c => {
-                    const a = document.createElement("a");
-                    a.href = URL.createObjectURL(c);
-                    a.download = `history_${Date.now()}.zip`;
-                    a.click();
-                });
-            };
+                const content = await zip.generateAsync({ type: "blob" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(content);
+                a.download = `history_${Date.now()}.zip`;
+                a.click();
+            } catch (e) {
+                console.error("Failed to generate zip", e);
+            }
         };
+
+        // --- 暴露给 Window 的代理方法 ---
+        Object.assign(window, {
+            toggleMobileControls: (s) => ui.toggleMobileControls(s),
+            setModel: (v) => ui.setModel(v),
+            switchRightView: (v) => ui.switchRightView(v, (tab) => switchGalleryTab(tab)),
+            toggleDrawer: () => ui.toggleDrawer(),
+            switchDrawerTab: (t) => ui.switchDrawerTab(t, () => renderPresets(document.getElementById('modelValue').value)),
+            openPresets: () => ui.openPresets(() => renderPresets(document.getElementById('modelValue').value)),
+            handleInitImage, clearInitImage, doGenerate, useCurrentPrompt,
+            deleteCurrentImage, clearAllHistory
+        });
+
+
 
         // --- 展示图库 (Showcase) ---
         let showcaseData = [];
@@ -1753,495 +1528,33 @@
         }
 
         // =================== 局部重绘 (Inpainting) ===================
-        const inpaintModal = document.getElementById('inpaintModal');
-        const baseCanvas = document.getElementById('inpaintBaseCanvas');
-        const maskCanvas = document.getElementById('inpaintMaskCanvas');
-        const baseCtx = baseCanvas.getContext('2d');
-        const maskCtx = maskCanvas.getContext('2d');
-        const brushCursor = document.getElementById('brushCursor');
-        let inpaintTool = 'brush';
-        let brushType = 'round'; // 'round' | 'soft' | 'square'
-        let inpaintDrawing = false;
-        let inpaintHistory = [];
-        let inpaintOriginalImgSrc = '';
-        let inpaintImgNaturalW = 0;
-        let inpaintImgNaturalH = 0;
-        let lastPos = null;
-
-        // 画笔大小联动
-        const brushSizeSlider = document.getElementById('inpaintBrushSize');
-        const brushSizeSliderMobile = document.getElementById('inpaintBrushSizeMobile');
-        const brushSizeVal = document.getElementById('inpaintBrushSizeVal');
-        const brushSizeValMobile = document.getElementById('inpaintBrushSizeValMobile');
-
-        function syncBrushSize(val) {
-            brushSizeSlider.value = val;
-            brushSizeSliderMobile.value = val;
-            brushSizeVal.textContent = val;
-            brushSizeValMobile.textContent = val;
-        }
-
-        brushSizeSlider.addEventListener('input', e => syncBrushSize(e.target.value));
-        brushSizeSliderMobile.addEventListener('input', e => syncBrushSize(e.target.value));
-
-        // 移动端抽屉切换
-        function toggleInpaintDrawer() {
-            const drawer = document.getElementById('inpaintMobileDrawer');
-            drawer.classList.toggle('expanded');
-        }
-
-        // 移动端输入同步到隐藏或主输入框
-        document.getElementById('inpaintStrengthMobile')?.addEventListener('input', e => {
-            const val = parseFloat(e.target.value).toFixed(2);
-            document.getElementById('inpaintStrength').value = e.target.value;
-            document.getElementById('inpaintStrengthVal').textContent = val;
-            document.getElementById('inpaintStrengthValMobile').textContent = val;
-        });
-
-        document.getElementById('inpaintPromptMobile')?.addEventListener('input', e => {
-            document.getElementById('inpaintPrompt').value = e.target.value;
-        });
-        // 模糊强度联动
-        document.getElementById('inpaintBlurStrength')?.addEventListener('input', e => {
-            document.getElementById('inpaintBlurStrengthVal').textContent = e.target.value;
-        });
-        // 填充容差联动
-        document.getElementById('inpaintFillTolerance')?.addEventListener('input', e => {
-            document.getElementById('inpaintFillToleranceVal').textContent = e.target.value;
-        });
-
-        function openInpaintEditor() {
-            const imgEl = document.getElementById('resultImage');
-            if (!imgEl || imgEl.classList.contains('hidden') || !imgEl.src) {
-                alert('请先生成或选择一张图片');
-                return;
-            }
-            inpaintOriginalImgSrc = imgEl.src;
-
-            // 加载图片到底层 canvas
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => {
-                inpaintImgNaturalW = img.naturalWidth;
-                inpaintImgNaturalH = img.naturalHeight;
-                fitCanvasToContainer(img);
-                inpaintHistory = [];
-                inpaintModal.classList.remove('modal-hidden');
-                inpaintModal.classList.add('modal-visible');
-        safeCreateIcons();
-            };
-            img.src = inpaintOriginalImgSrc;
-        }
-
-        function fitCanvasToContainer(img) {
-            // 直接使用图片原始像素建立 Canvas,由 CSS max-width/max-height 负责界面显示缩放
-            baseCanvas.width = inpaintImgNaturalW;
-            baseCanvas.height = inpaintImgNaturalH;
-            maskCanvas.width = inpaintImgNaturalW;
-            maskCanvas.height = inpaintImgNaturalH;
-
-            baseCtx.drawImage(img, 0, 0, inpaintImgNaturalW, inpaintImgNaturalH);
-            maskCtx.clearRect(0, 0, inpaintImgNaturalW, inpaintImgNaturalH);
-        }
-
-        function closeInpaintEditor() {
-            inpaintModal.classList.add('modal-hidden');
-            inpaintModal.classList.remove('modal-visible');
-            if (brushCursor) brushCursor.style.display = 'none';
-        }
-
-        function setInpaintTool(tool) {
-            inpaintTool = tool;
-            document.getElementById('inpaintBrushBtn').classList.toggle('tool-active', tool === 'brush');
-            document.getElementById('inpaintEraserBtn').classList.toggle('tool-active', tool === 'eraser');
-            document.getElementById('inpaintBlurBtn').classList.toggle('tool-active', tool === 'blur');
-            document.getElementById('inpaintFillBtn').classList.toggle('tool-active', tool === 'fill');
-            // 显示/隐藏工具相关控件
-            document.getElementById('blurStrengthWrap').style.display = tool === 'blur' ? 'flex' : 'none';
-            document.getElementById('fillToleranceWrap').style.display = tool === 'fill' ? 'flex' : 'none';
-        }
-
-        function getBrushSize() {
-            return parseInt(document.getElementById('inpaintBrushSize').value);
-        }
-
-        function saveMaskState() {
-            inpaintHistory.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
-            if (inpaintHistory.length > 50) inpaintHistory.shift();
-        }
-
-        function inpaintUndo() {
-            if (inpaintHistory.length === 0) return;
-            const state = inpaintHistory.pop();
-            maskCtx.putImageData(state, 0, 0);
-        }
-
-        function inpaintClearMask() {
-            saveMaskState();
-            maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-        }
-
-        function getCanvasPos(e) {
-            const rect = maskCanvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            // 将屏幕相对坐标映射回图片原始像素坐标
-            const scaleX = maskCanvas.width / rect.width;
-            const scaleY = maskCanvas.height / rect.height;
-            return {
-                x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY
-            };
-        }
-
-        // 绘制图章 - 仅硬笔刷 (圆形)
-        function stampBrush(x, y, radius) {
-            maskCtx.beginPath();
-            maskCtx.arc(Math.round(x), Math.round(y), radius / 2, 0, Math.PI * 2);
-            maskCtx.fill();
-        }
-
-        // 插值绘制(连续笔画无间隙)
-        function drawInterpolated(from, to, radius, stampFn) {
-            const dx = to.x - from.x;
-            const dy = to.y - from.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const step = Math.max(1, Math.floor(radius / 8));
-            const numSteps = Math.max(1, Math.ceil(dist / step));
-            for (let i = 0; i <= numSteps; i++) {
-                const t = i / numSteps;
-                stampFn(from.x + dx * t, from.y + dy * t, radius);
-            }
-        }
-
-        // 洪水填充 (Flood Fill) - 匹配官方 ev 实现
-        function floodFill(startX, startY, tolerance) {
-            const w = maskCanvas.width;
-            const h = maskCanvas.height;
-            const imageData = maskCtx.getImageData(0, 0, w, h);
-            const data = imageData.data;
-
-            // 获取起点颜色 (alpha)
-            const startIdx = (Math.floor(startY) * w + Math.floor(startX)) * 4;
-            const startAlpha = data[startIdx + 3];
-            const targetAlpha = startAlpha > 127 ? 0 : 255;
-
-            const stack = [[Math.floor(startX), Math.floor(startY)]];
-            const visited = new Uint8Array(w * h);
-
-            while (stack.length > 0) {
-                const [x, y] = stack.pop();
-                if (x < 0 || x >= w || y < 0 || y >= h) continue;
-                const idx = y * w + x;
-                if (visited[idx]) continue;
-                const pixelIdx = idx * 4;
-                const pixelAlpha = data[pixelIdx + 3];
-                if (Math.abs(pixelAlpha - startAlpha) > tolerance) continue;
-                visited[idx] = 1;
-                data[pixelIdx] = targetAlpha;
-                data[pixelIdx + 1] = targetAlpha;
-                data[pixelIdx + 2] = targetAlpha;
-                data[pixelIdx + 3] = 255;
-                stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-            }
-
-            maskCtx.putImageData(imageData, 0, 0);
-        }
-
-        // 模糊工具 - 匹配官方 ep 实现
-        function blurMask(pos, radius, intensity) {
-            // 模糊:通过降低边缘像素的 alpha 来软化边界
-            const w = maskCanvas.width;
-            const h = maskCanvas.height;
-            const imageData = maskCtx.getImageData(0, 0, w, h);
-            const data = imageData.data;
-
-            const bx = Math.round(pos.x);
-            const by = Math.round(pos.y);
-            const r = Math.round(radius * 1.5); // 模糊范围略大半径
-            const alphaReduce = intensity / 100;
-
-            for (let y = Math.max(0, by - r); y <= Math.min(h - 1, by + r); y++) {
-                for (let x = Math.max(0, bx - r); x <= Math.min(w - 1, bx + r); x++) {
-                    const dx = x - bx;
-                    const dy = y - by;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist <= r) {
-                        const idx = (y * w + x) * 4;
-                        const fade = 1 - (dist / r) * alphaReduce;
-                        data[idx + 3] = Math.round(data[idx + 3] * fade);
-                    }
-                }
-            }
-            maskCtx.putImageData(imageData, 0, 0);
-        }
-
-        function drawOnMask(pos, isStart = false) {
-            const r = getBrushSize();
-            const tool = inpaintTool;
-
-            if (tool === 'eraser') {
-                maskCtx.globalCompositeOperation = 'destination-out';
-                maskCtx.fillStyle = 'rgba(0,0,0,1)';
-                maskCtx.beginPath();
-                maskCtx.arc(Math.round(pos.x), Math.round(pos.y), r / 2, 0, Math.PI * 2);
-                maskCtx.fill();
-                maskCtx.globalCompositeOperation = 'source-over';
-            } else if (tool === 'brush') {
-                maskCtx.globalCompositeOperation = 'source-over';
-                maskCtx.fillStyle = '#FFFFFF';
-                if (isStart || !lastPos) {
-                    stampBrush(pos.x, pos.y, r);
-                } else {
-                    drawInterpolated(lastPos, pos, r, stampBrush);
-                }
-            } else if (tool === 'blur') {
-                const intensity = parseInt(document.getElementById('inpaintBlurStrength')?.value || 50);
-                if (isStart || !lastPos) {
-                    blurMask(pos, r, intensity);
-                } else {
-                    // 沿路径模糊
-                    const dx = pos.x - lastPos.x;
-                    const dy = pos.y - lastPos.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const step = Math.max(1, Math.floor(r / 4));
-                    const numSteps = Math.max(1, Math.ceil(dist / step));
-                    for (let i = 0; i <= numSteps; i++) {
-                        const t = i / numSteps;
-                        blurMask({x: lastPos.x + dx * t, y: lastPos.y + dy * t}, r, intensity);
-                    }
-                }
-            }
-            lastPos = pos;
-        }
-
-        // 填充工具单独处理点击
-        maskCanvas.addEventListener('click', e => {
-            if (inpaintTool !== 'fill') return;
-            const pos = getCanvasPos(e);
-            const tolerance = parseInt(document.getElementById('inpaintFillTolerance')?.value || 15);
-            saveMaskState();
-            floodFill(pos.x, pos.y, tolerance);
-        });
-
-        // 鼠标事件
-        maskCanvas.addEventListener('mousedown', e => {
-            saveMaskState();
-            inpaintDrawing = true;
-            drawOnMask(getCanvasPos(e), true);
-        });
-        maskCanvas.addEventListener('mousemove', e => {
-            // 更新光标,光标屏幕视觉大小 = 图片原始像素对应大小 / 缩放比例
-            const rect = maskCanvas.getBoundingClientRect();
-            const scaleX = maskCanvas.width / rect.width;
-            const visualBs = getBrushSize() / scaleX;
-            
-            brushCursor.style.width = visualBs + 'px';
-            brushCursor.style.height = visualBs + 'px';
-            brushCursor.style.left = e.clientX + 'px';
-            brushCursor.style.top = e.clientY + 'px';
-            brushCursor.style.transform = 'translate(-50%, -50%)';
-            brushCursor.style.display = 'block';
-
-            if (!inpaintDrawing) return;
-            drawOnMask(getCanvasPos(e), false);
-        });
-        maskCanvas.addEventListener('mouseup', () => {
-            inpaintDrawing = false;
-            lastPos = null;
-        });
-        maskCanvas.addEventListener('mouseleave', () => {
-            inpaintDrawing = false;
-            lastPos = null;
-            brushCursor.classList.add('hidden');
-        });
-
-        // 触摸事件
-        maskCanvas.addEventListener('touchstart', e => {
-            e.preventDefault();
-            saveMaskState();
-            inpaintDrawing = true;
-            drawOnMask(getCanvasPos(e), true);
-        }, { passive: false });
-        maskCanvas.addEventListener('touchmove', e => {
-            e.preventDefault();
-            if (!inpaintDrawing) return;
-            drawOnMask(getCanvasPos(e), false);
-        }, { passive: false });
-        maskCanvas.addEventListener('touchend', () => {
-            inpaintDrawing = false;
-            lastPos = null;
-        });
-
-        // 导出黑白 Mask(白=重绘区域,黑=保留)
-        function exportMaskAsBase64(targetW, targetH) {
-            const selectedVersion = document.getElementById('modelValue').value;
-            const isV4 = selectedVersion.includes('v4');
-
-            // 匹配 ComfyUI_NAIDGenerator 的逻辑：
-            // 1. 先计算 Latent 尺寸 (1/8 比例，且基于 64 像素对齐)
-            const latentW = Math.ceil(targetW / 64) * 8;
-            const latentH = Math.ceil(targetH / 64) * 8;
-
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = latentW;
-            tempCanvas.height = latentH;
-            const ctx = tempCanvas.getContext('2d');
-
-            // 第 1 步: 黑色背景填充
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, latentW, latentH);
-
-            // 第 2 步: 关闭图像平滑 (强制最近邻插值)
-            ctx.imageSmoothingEnabled = false;
-
-            // 第 3 步: 将全尺寸 mask 缩小绘制到 latent 画布上
-            // 注意：此处不进行二值化，保留用户绘制的软边缘(Alpha/Grayscale)
-            ctx.drawImage(maskCanvas, 0, 0, latentW, latentH);
-
-            // 第 4 步: 如果是 V4+，需要将二值化后的 latent mask 放大回 full 分辨率
-            if (isV4) {
-                const finalCanvas = document.createElement('canvas');
-                finalCanvas.width = latentW * 8;
-                finalCanvas.height = latentH * 8;
-                const finalCtx = finalCanvas.getContext('2d');
-                finalCtx.imageSmoothingEnabled = false; // 必须保持 Nearest Neighbor
-                finalCtx.drawImage(tempCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
-                return finalCanvas.toDataURL('image/png').split(',')[1];
-            }
-
-            // V3 直接返回 latent mask (1/8 尺寸)
-            return tempCanvas.toDataURL('image/png').split(',')[1];
-        }
-
-        // 导出原始图片 Base64 (带尺寸调整)
-        function exportBaseImageAsBase64(targetW, targetH) {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = targetW;
-            tempCanvas.height = targetH;
-            const ctx = tempCanvas.getContext('2d');
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            return new Promise((resolve) => {
-                img.onload = () => {
-                    // 使用平滑缩放将原图调整到 64 倍数的分辨率
-                    ctx.imageSmoothingEnabled = true;
-                    ctx.drawImage(img, 0, 0, targetW, targetH);
-                    resolve(tempCanvas.toDataURL('image/png').split(',')[1]);
-                };
-                img.src = inpaintOriginalImgSrc;
-            });
-        }
-
-        // 发送重绘请求
-        async function doInpaint() {
-            // 对齐 ComfyUI：分辨率必须是 64 的倍数
-            const targetW = Math.ceil(inpaintImgNaturalW / 64) * 64;
-            const targetH = Math.ceil(inpaintImgNaturalH / 64) * 64;
-
-            const maskB64 = exportMaskAsBase64(targetW, targetH);
-            if (!maskB64) { alert('请先在图片上绘制需要重绘的区域'); return; }
-
-            const submitBtn = document.getElementById('inpaintSubmitBtn');
-            const submitBtnMobile = document.getElementById('inpaintSubmitBtnMobile');
-            
-            // 禁用按钮防止重复点击
-            submitBtn.disabled = true;
-            if (submitBtnMobile) submitBtnMobile.disabled = true;
-            
-            const loadingHtml = '<span class="loader w-4 h-4 border-white/50"></span> 重绘中...';
-            submitBtn.innerHTML = loadingHtml;
-            if (submitBtnMobile) submitBtnMobile.innerHTML = loadingHtml;
-
-            try {
-                const imageB64 = await exportBaseImageAsBase64(targetW, targetH);
-                const inpaintPromptText = document.getElementById('inpaintPrompt').value.trim() || els.prompt.value.trim();
-                const selectedVersion = document.getElementById('modelValue').value;
-                const adminToken = localStorage.getItem('nai_admin_token') || '';
-                const userKey = localStorage.getItem('nai_user_key') || '';
-                const customApiKey = localStorage.getItem('nai_custom_api_key') || '';
-
-                const payload = {
-                    version: selectedVersion,
-                    prompt: inpaintPromptText,
-                    negative_prompt: els.negative.value.trim(),
-                    width: targetW,
-                    height: targetH,
-                    steps: parseInt(els.steps.value),
-                    scale: parseFloat(els.scale.value),
-                    sampler: els.sampler.value,
-                    image: imageB64,
-                    mask: maskB64,
-                    strength: parseFloat(document.getElementById('inpaintStrength').value),
-                    action: 'infill',
-                    add_original_image: true
-                };
-
-                const res = await fetch('/generate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-admin-token': adminToken,
-                        'x-user-key': userKey,
-                        'x-custom-api-key': customApiKey
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                const contentType = res.headers.get('content-type');
-                if (contentType && contentType.includes("application/json")) {
-                    const errData = await res.json();
-                    throw new Error(errData.error || `Server Error: ${res.status}`);
-                }
-                if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-
-                const rawRole = res.headers.get('X-User-Role');
-                if (rawRole) updateCreditDisplay(decodeURIComponent(rawRole));
-
-                const blob = await res.blob();
-                const zip = await JSZip.loadAsync(blob);
-                let imgFile = null;
-                zip.forEach((p, f) => {
-                    if (p.endsWith('.png') && !p.toLowerCase().includes('mask')) {
-                        imgFile = f;
-                    }
-                });
-                if (!imgFile) throw new Error('ZIP 中未找到生成的图片');
-
-                const finalImgBlob = await imgFile.async('blob');
-                const finalImgUrl = URL.createObjectURL(finalImgBlob);
-
-                // 关闭编辑器,显示结果
-                closeInpaintEditor();
-                if (currentRightView !== 'preview') switchRightView('preview');
-
-                els.resultImg.src = finalImgUrl;
-                els.placeholder.classList.add('hidden');
-                els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
-                els.dlBtn.disabled = false;
-                els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-
+        import { InpaintEditor } from './src/inpaint.js';
+        const inpaintEditor = new InpaintEditor({
+            ui: ui,
+            engine: engine,
+            store: store,
+            onComplete: async (result, promptText, selectedVersion) => {
+                ui.showResultImage(result.imageUrl);
                 const reader = new FileReader();
-                reader.readAsDataURL(finalImgBlob);
-                reader.onloadend = () => {
-                    const promptText = inpaintPromptText || els.prompt.value.trim();
-                    saveToHistory(reader.result, promptText + ' [inpaint]', selectedVersion);
+                reader.readAsDataURL(result.blob);
+                reader.onloadend = async () => {
+                    await saveToHistory(reader.result, promptText + ' [inpaint]', selectedVersion);
                 };
-
-            } catch (err) {
-                console.error(err);
-                alert('重绘失败: ' + err.message);
-            } finally {
-                const normalHtml = '<i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘';
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = normalHtml;
-                if (submitBtnMobile) {
-                    submitBtnMobile.disabled = false;
-                    submitBtnMobile.innerHTML = normalHtml;
-                }
-        safeCreateIcons();
             }
-        }
+        });
+
+        // --- 暴露局部重绘、主题、API Key和鉴权等所有函数到全局 ---
+        Object.assign(window, {
+            openInpaintEditor: () => inpaintEditor.open(),
+            closeInpaintEditor: () => inpaintEditor.close(),
+            setInpaintTool: (t) => inpaintEditor.setTool(t), 
+            inpaintUndo: () => inpaintEditor.undo(),
+            inpaintClearMask: () => inpaintEditor.clearMask(),
+            toggleInpaintDrawer: () => inpaintEditor.toggleDrawer(),
+            doInpaint: () => inpaintEditor.doInpaint(),
+            enterCustomApiKey, closeApiKeyModal, verifyCustomApiKey, clearCustomApiKey,
+            enterAdminToken, enterUserKey, toggleTheme, renderPresets
+        });
     </script>
 </body>
 
