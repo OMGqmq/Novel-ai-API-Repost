@@ -47,6 +47,44 @@ export class ImageEngine {
         };
     }
 
+    /**
+     * Augments an image (e.g., extract lineart or sketch).
+     * @param {Object} params - Augment parameters (req_type, width, height, image)
+     * @param {Object} auth - Authentication tokens
+     * @returns {Promise<{imageUrl: string, blob: Blob, userRole: string}>}
+     */
+    async augment(params, auth) {
+        if (!this.JSZip) {
+            throw new Error("JSZip library not found. Please ensure it is loaded.");
+        }
+
+        const { adminToken, userKey, customApiKey } = auth;
+
+        const response = await fetch(`${this.baseUrl}/augment`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-admin-token': adminToken || "",
+                'x-user-key': userKey || "",
+                'x-custom-api-key': customApiKey || ""
+            },
+            body: JSON.stringify(params)
+        });
+
+        await this._handleErrors(response);
+
+        const userRole = this._parseUserRole(response);
+        const blob = await response.blob();
+        const imgBlob = await this._extractImageFromZip(blob);
+        const imageUrl = URL.createObjectURL(imgBlob);
+
+        return {
+            imageUrl,
+            blob: imgBlob,
+            userRole
+        };
+    }
+
     async _handleErrors(response) {
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {

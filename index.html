@@ -555,6 +555,12 @@
                 <button onclick="openInpaintEditor()"
                     class="pointer-events-auto px-5 py-2.5 bg-gradient-to-r from-blue-500 to-violet-500 backdrop-blur-md text-xs font-semibold text-white rounded-full shadow-float border border-white/20 hover:scale-105 transition-all flex items-center gap-2"><i
                         data-lucide="paintbrush" class="w-3 h-3"></i> 局部重绘</button>
+                <button onclick="doAugment('lineart')"
+                    class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i
+                        data-lucide="pen-line" class="w-3 h-3"></i> 转线稿</button>
+                <button onclick="doAugment('sketch')"
+                    class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i
+                        data-lucide="pencil" class="w-3 h-3"></i> 转草稿</button>
                 <button onclick="deleteCurrentImage()"
                     class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-red-500 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i
                         data-lucide="trash" class="w-3 h-3"></i> 删除</button>
@@ -1174,6 +1180,87 @@
             }
         };
 
+        async function doAugment(reqType) {
+            if (!currentImageData || !currentImageData.imageUrl) return;
+            
+            const authBase = {
+                adminToken: store.getSetting('nai_admin_token'),
+                userKey: store.getSetting('nai_user_key')
+            };
+            const customApiKeyRaw = store.getSetting('nai_custom_api_key');
+            const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
+            const auth = customApiKeys.length > 0 
+                ? { ...authBase, customApiKey: customApiKeys[0] } 
+                : { ...authBase, customApiKey: "" };
+
+            ui.setLoading(true, "处理中...");
+            try {
+                // Fetch the current image to convert it to base64
+                const response = await fetch(currentImageData.imageUrl);
+                const blob = await response.blob();
+                
+                // create an Image to get width/height, and to draw to canvas if resizing is needed, but for simplicity let's just use it as is if it's not too big. 
+                // Since NAI expects width/height, we should measure it.
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        img.src = reader.result;
+                    };
+                    reader.readAsDataURL(blob);
+                });
+                
+                // 移除 "data:image/png;base64," 等前缀
+                const canvas = document.createElement('canvas');
+                let w = img.width;
+                let h = img.height;
+                
+                // Limit to 1024x1024 equivalent pixels for Opus Free
+                if (w * h > 1024 * 1024) {
+                    const ratio = Math.sqrt((1024 * 1024) / (w * h));
+                    w = Math.floor(w * ratio);
+                    h = Math.floor(h * ratio);
+                }
+                
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                const base64Data = canvas.toDataURL('image/png').split(',')[1];
+
+                const params = {
+                    req_type: reqType,
+                    width: w,
+                    height: h,
+                    image: base64Data
+                };
+
+                const result = await engine.augment(params, auth);
+                
+                if (result.userRole) {
+                    ui.updateCreditDisplay(result.userRole);
+                }
+
+                // Save to history
+                const reader2 = new FileReader();
+                reader2.readAsDataURL(result.blob);
+                reader2.onloadend = async () => {
+                    await saveToHistory(reader2.result, `[${reqType}] ` + (currentImageData.prompt || ""), currentImageData.model || "v3");
+                };
+
+                ui.showResultImage(result.imageUrl);
+
+            } catch (err) {
+                console.error(err);
+                if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
+                else alert("处理失败: " + err.message);
+            } finally {
+                ui.setLoading(false);
+            }
+        }
+
         async function loadGallery() {
             try {
                 const items = await store.getAllImages();
@@ -1254,7 +1341,8 @@
             openPresets: () => ui.openPresets(() => renderPresets(document.getElementById('modelValue').value)),
             handleInitImage, clearInitImage, doGenerate, useCurrentPrompt,
             deleteCurrentImage, clearAllHistory, switchGalleryTab, downloadZip,
-            backToGrid: () => ui.showGrid()
+            backToGrid: () => ui.showGrid(),
+            doAugment
         });
 
 
