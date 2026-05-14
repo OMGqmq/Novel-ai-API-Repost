@@ -1034,20 +1034,51 @@
         els.prompt.addEventListener('input', (e) => store.setSetting('nai_prompt', e.target.value));
         els.negative.addEventListener('input', (e) => store.setSetting('nai_negative_prompt', e.target.value));
 
+        // Helper function to compress image
+        async function compressImage(file, maxPixels = 1024 * 1024) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        let w = img.width;
+                        let h = img.height;
+                        if (w * h > maxPixels) {
+                            const ratio = Math.sqrt(maxPixels / (w * h));
+                            w = Math.floor(w * ratio);
+                            h = Math.floor(h * ratio);
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', 0.9)); // Use JPEG for better compression
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         let currentInitImageBase64 = null;
-        function handleInitImage(event) {
+        async function handleInitImage(event) {
             const file = event.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    currentInitImageBase64 = e.target.result.split(',')[1];
-                    document.getElementById('initImagePreview').src = e.target.result;
+                try {
+                    const compressedDataUrl = await compressImage(file);
+                    currentInitImageBase64 = compressedDataUrl.split(',')[1];
+                    document.getElementById('initImagePreview').src = compressedDataUrl;
                     document.getElementById('initImagePreview').classList.remove('hidden');
                     document.getElementById('initImagePlaceholder').classList.add('hidden');
                     document.getElementById('clearInitImageBtn').classList.remove('hidden');
                     document.getElementById('img2imgControls').classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
+                } catch (e) {
+                    console.error("Failed to compress image", e);
+                    alert("图片处理失败，请重试。");
+                }
             }
         }
         function clearInitImage() {
@@ -1061,19 +1092,21 @@
         }
 
         let currentVibeImageBase64 = null;
-        function handleVibeImage(event) {
+        async function handleVibeImage(event) {
             const file = event.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    currentVibeImageBase64 = e.target.result.split(',')[1];
-                    document.getElementById('vibeImagePreview').src = e.target.result;
+                try {
+                    const compressedDataUrl = await compressImage(file);
+                    currentVibeImageBase64 = compressedDataUrl.split(',')[1];
+                    document.getElementById('vibeImagePreview').src = compressedDataUrl;
                     document.getElementById('vibeImagePreview').classList.remove('hidden');
                     document.getElementById('vibeImagePlaceholder').classList.add('hidden');
                     document.getElementById('clearVibeImageBtn').classList.remove('hidden');
                     document.getElementById('vibeControls').classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
+                } catch (e) {
+                    console.error("Failed to compress vibe image", e);
+                    alert("图片处理失败，请重试。");
+                }
             }
         }
         function clearVibeImage() {
