@@ -789,7 +789,7 @@
                     </div>
                 </div>
                 <div class="space-y-3">
-                    <div class="flex justify-between text-xs px-1"><span class="text-gray-500">传输强度 (Strength)</span><span
+                    <div class="flex justify-between text-xs px-1"><span class="text-gray-500">参考强度 (Reference Strength)</span><span
                             id="vibeStrengthValue" class="font-mono font-bold text-gray-900 dark:text-gray-100">0.6</span></div>
                     <input type="range" id="vibeStrength" min="0.01" max="0.99" value="0.6" step="0.01"
                         class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
@@ -1219,39 +1219,38 @@
                         const text = await file.text();
                         const obj = JSON.parse(text);
                         
-                        let sourceImg = null;
-                        
                         // Handle multiple formats (single object, NAI export with 'images' array, etc.)
                         const extractEncoding = (item) => {
-                            if (item.image && item.params?.information_extracted !== undefined) {
-                                return { base64: item.image, info: item.params.information_extracted };
+                            const img = item.image || item.latent;
+                            const info = item.params?.information_extracted ?? item.info;
+                            if (img && info !== undefined) {
+                                return { base64: img, info: info };
                             }
                             return null;
                         };
 
+                        const items = [];
                         if (Array.isArray(obj)) {
-                            obj.forEach(item => {
-                                const enc = extractEncoding(item);
-                                if (enc) availableVibeEncodings.push(enc);
-                            });
-                            sourceImg = obj[0]?.thumbnail || obj[0]?.image; // fallback
+                            items.push(...obj);
                         } else if (obj.images && Array.isArray(obj.images)) {
-                            obj.images.forEach(item => {
-                                const enc = extractEncoding(item);
-                                if (enc) availableVibeEncodings.push(enc);
-                            });
-                            sourceImg = obj.thumbnail || obj.image;
+                            items.push(...obj.images);
                         } else {
-                            const enc = extractEncoding(obj);
-                            if (enc) availableVibeEncodings.push(enc);
-                            sourceImg = obj.thumbnail || obj.image;
+                            items.push(obj);
                         }
+
+                        items.forEach(item => {
+                            const enc = extractEncoding(item);
+                            if (enc) availableVibeEncodings.push(enc);
+                        });
 
                         if (availableVibeEncodings.length === 0) {
                             throw new Error("未在文件中找到有效的 Vibe 编码数据");
                         }
 
-                        // Use source image or thumbnail for preview
+                        // Use source image, thumbnail or root image for preview
+                        const firstItem = items[0];
+                        let sourceImg = obj.source_image || firstItem?.source_image || obj.thumbnail || firstItem?.thumbnail || obj.image || firstItem?.image;
+                        
                         const previewImg = document.getElementById('vibeImagePreview');
                         if (sourceImg && (sourceImg.startsWith('data:image') || sourceImg.length > 1000)) {
                              previewImg.src = sourceImg.startsWith('data:image') ? sourceImg : ('data:image/png;base64,' + sourceImg);
