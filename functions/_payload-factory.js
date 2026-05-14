@@ -43,33 +43,33 @@ export function createPayload(version, data) {
       model: model,
       action: action,
       parameters: {
-        params_version: 1,
+        params_version: 3,
         width, height, scale, sampler, steps, seed,
         n_samples: 1,
         prompt, negative_prompt,
         v4_prompt: {
           caption: { base_caption: prompt, char_captions: [] },
           use_coords: false,
-          use_order: false
+          use_order: true
         },
         v4_negative_prompt: {
           caption: { base_caption: negative_prompt, char_captions: [] },
           use_coords: false,
-          use_order: false
+          use_order: true
         },
-        ucPreset: 3,
+        ucPreset: 4,
         qualityToggle: false,
-        sm: false,
-        sm_dyn: false,
+        sm: data.sm !== undefined ? data.sm : false,
+        sm_dyn: data.sm_dyn !== undefined ? data.sm_dyn : false,
         dynamic_thresholding: false,
         controlnet_strength: 1,
         legacy: false,
         add_original_image: true,
         cfg_rescale: 0,
-        noise_schedule: "native",
+        noise_schedule: data.noise_schedule || "exponential",
         legacy_v3_extend: false,
         uncond_scale: 1.0,
-        skip_cfg_above_sigma: null,
+        skip_cfg_above_sigma: 19,
         reference_image_multiple: vibe_images,
         reference_information_extracted_multiple: vibe_info,
         reference_strength_multiple: vibe_strength,
