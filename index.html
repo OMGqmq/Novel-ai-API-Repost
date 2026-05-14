@@ -1492,7 +1492,8 @@
                     
                     if (vibeEnabled && currentVibeImageBase64) {
                         params.vibe_image = currentVibeImageBase64;
-                        params.vibe_info = parseFloat(document.getElementById('vibeInfo').value);
+                        const vibeInfoEl = document.getElementById('vibeInfo');
+                        params.vibe_info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : parseFloat(document.getElementById('vibeInfoValue').textContent);
                         params.vibe_strength = parseFloat(document.getElementById('vibeStrength').value);
                     }
 
