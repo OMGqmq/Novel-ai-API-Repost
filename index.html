@@ -779,10 +779,14 @@
 
             <div id="vibeControls" class="hidden space-y-4 pt-2">
                 <div class="space-y-3">
-                    <div class="flex justify-between text-xs px-1"><span class="text-gray-500">信息提取 (Info Extract)</span><span id="vibeInfoValue"
-                            class="font-mono font-bold text-gray-900 dark:text-gray-100">1.0</span></div>
-                    <input type="range" id="vibeInfo" min="0.01" max="1.0" value="1.0" step="0.01"
-                        class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
+                    <div class="flex justify-between text-xs px-1">
+                        <span class="text-gray-500">信息提取 (Info Extract)</span>
+                        <span id="vibeInfoValue" class="font-mono font-bold text-gray-900 dark:text-gray-100">1.0</span>
+                    </div>
+                    <div id="vibeInfoContainer">
+                        <input type="range" id="vibeInfo" min="0.01" max="1.0" value="1.0" step="0.01"
+                            class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
+                    </div>
                 </div>
                 <div class="space-y-3">
                     <div class="flex justify-between text-xs px-1"><span class="text-gray-500">传输强度 (Strength)</span><span
@@ -1046,36 +1050,59 @@
         const savedVibeEnabled = store.getSetting('nai_vibe_enabled') !== 'false';
         const savedVibeInfo = store.getSetting('nai_vibe_info');
         const savedVibeStrength = store.getSetting('nai_vibe_strength');
+        const savedVibePreview = store.getSetting('nai_vibe_preview');
+        const savedVibeEncodings = store.getSetting('nai_vibe_encodings');
 
         document.getElementById('vibeEnabled').checked = savedVibeEnabled;
 
         if (savedVibeData) {
             currentVibeImageBase64 = savedVibeData;
             currentVibeIsJson = savedVibeIsJson;
-            const previewImg = document.getElementById('vibeImagePreview');
+            if (savedVibeEncodings) {
+                try {
+                    availableVibeEncodings = JSON.parse(savedVibeEncodings);
+                } catch(e) {}
+            }
             
-            if (currentVibeIsJson) {
-                previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
-                previewImg.classList.add('p-4');
+            const previewImg = document.getElementById('vibeImagePreview');
+            if (savedVibePreview) {
+                previewImg.src = savedVibePreview;
+                if (savedVibePreview.includes('svg')) previewImg.classList.add('p-4');
             } else {
-                // If it was a compressed image, it's already a dataUrl with prefix
-                previewImg.src = 'data:image/jpeg;base64,' + savedVibeData;
+                // Legacy fallback
+                if (currentVibeIsJson) {
+                    previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
+                    previewImg.classList.add('p-4');
+                } else {
+                    previewImg.src = 'data:image/jpeg;base64,' + savedVibeData;
+                }
             }
             
             previewImg.classList.remove('hidden');
             document.getElementById('vibeImagePlaceholder').classList.add('hidden');
             document.getElementById('clearVibeImageBtn').classList.remove('hidden');
             document.getElementById('vibeControls').classList.remove('hidden');
+            
+            updateVibeInfoUI(currentVibeIsJson);
+            
+            // Restore selection if multiple
+            if (currentVibeIsJson && availableVibeEncodings.length > 1) {
+                const savedIndex = store.getSetting('nai_vibe_selected_index');
+                if (savedIndex !== null) {
+                    document.getElementById('vibeInfoSelect').value = savedIndex;
+                    onVibeStrengthSelect(savedIndex);
+                }
+            } else if (!currentVibeIsJson && savedVibeInfo) {
+                document.getElementById('vibeInfo').value = savedVibeInfo;
+                document.getElementById('vibeInfoValue').textContent = parseFloat(savedVibeInfo).toFixed(2);
+            }
         }
         
-        if (savedVibeInfo) {
-            document.getElementById('vibeInfo').value = savedVibeInfo;
-            document.getElementById('vibeInfoValue').textContent = parseFloat(savedVibeInfo).toFixed(2);
-        }
         if (savedVibeStrength) {
             document.getElementById('vibeStrength').value = savedVibeStrength;
             document.getElementById('vibeStrengthValue').textContent = parseFloat(savedVibeStrength).toFixed(2);
         }
+        toggleVibeEnabled();
 
         // Helper function to compress image
         async function compressImage(file, maxPixels = 1024 * 1024) {
@@ -1136,6 +1163,7 @@
 
         let currentVibeImageBase64 = null;
         let currentVibeIsJson = false;
+        let availableVibeEncodings = []; // { base64: string, info: number }
 
         async function handleVibeImage(event) {
             const file = event.target.files[0];
@@ -1143,41 +1171,132 @@
                 try {
                     const isJson = file.name.endsWith('.json') || file.name.endsWith('.nai4vibe') || file.type === 'application/json';
                     currentVibeIsJson = isJson;
+                    availableVibeEncodings = [];
 
                     if (isJson) {
                         const text = await file.text();
-                        // Base64 encode the JSON string safely
-                        currentVibeImageBase64 = btoa(unescape(encodeURIComponent(text)));
+                        const obj = JSON.parse(text);
                         
-                        // Show a JSON icon instead of the image preview
-                        document.getElementById('vibeImagePreview').src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
-                        document.getElementById('vibeImagePreview').classList.remove('hidden');
-                        document.getElementById('vibeImagePreview').classList.add('p-4'); // add some padding for the icon
+                        let sourceImg = null;
+                        
+                        // Handle multiple formats (single object, NAI export with 'images' array, etc.)
+                        const extractEncoding = (item) => {
+                            if (item.image && item.params?.information_extracted !== undefined) {
+                                return { base64: item.image, info: item.params.information_extracted };
+                            }
+                            return null;
+                        };
+
+                        if (Array.isArray(obj)) {
+                            obj.forEach(item => {
+                                const enc = extractEncoding(item);
+                                if (enc) availableVibeEncodings.push(enc);
+                            });
+                            sourceImg = obj[0]?.thumbnail || obj[0]?.image; // fallback
+                        } else if (obj.images && Array.isArray(obj.images)) {
+                            obj.images.forEach(item => {
+                                const enc = extractEncoding(item);
+                                if (enc) availableVibeEncodings.push(enc);
+                            });
+                            sourceImg = obj.thumbnail || obj.image;
+                        } else {
+                            const enc = extractEncoding(obj);
+                            if (enc) availableVibeEncodings.push(enc);
+                            sourceImg = obj.thumbnail || obj.image;
+                        }
+
+                        if (availableVibeEncodings.length === 0) {
+                            throw new Error("未在文件中找到有效的 Vibe 编码数据");
+                        }
+
+                        // Use source image or thumbnail for preview
+                        const previewImg = document.getElementById('vibeImagePreview');
+                        if (sourceImg && (sourceImg.startsWith('data:image') || sourceImg.length > 1000)) {
+                             previewImg.src = sourceImg.startsWith('data:image') ? sourceImg : ('data:image/png;base64,' + sourceImg);
+                             previewImg.classList.remove('p-4');
+                        } else {
+                             previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
+                             previewImg.classList.add('p-4');
+                        }
+                        previewImg.classList.remove('hidden');
+                        
+                        updateVibeInfoUI(true);
                     } else {
                         const compressedDataUrl = await compressImage(file);
                         currentVibeImageBase64 = compressedDataUrl.split(',')[1];
                         document.getElementById('vibeImagePreview').src = compressedDataUrl;
                         document.getElementById('vibeImagePreview').classList.remove('hidden', 'p-4');
+                        updateVibeInfoUI(false);
                     }
                     
-                    store.setSetting('nai_vibe_image', currentVibeImageBase64);
-                    store.setSetting('nai_vibe_is_json', currentVibeIsJson.toString());
-                    
+                    saveVibeState();
                     document.getElementById('vibeImagePlaceholder').classList.add('hidden');
                     document.getElementById('clearVibeImageBtn').classList.remove('hidden');
                     document.getElementById('vibeControls').classList.remove('hidden');
-                    toggleVibeEnabled(); // Update UI state
+                    toggleVibeEnabled(); 
                 } catch (e) {
                     console.error("Failed to process vibe file", e);
-                    alert("文件处理失败，请重试。");
+                    alert("文件处理失败: " + e.message);
                 }
             }
         }
+
+        function updateVibeInfoUI(isJson) {
+            const container = document.getElementById('vibeInfoContainer');
+            const infoVal = document.getElementById('vibeInfoValue');
+            
+            if (isJson && availableVibeEncodings.length > 0) {
+                if (availableVibeEncodings.length === 1) {
+                    const enc = availableVibeEncodings[0];
+                    currentVibeImageBase64 = enc.base64;
+                    container.innerHTML = `<div class="text-[10px] text-gray-400 bg-gray-100 dark:bg-slate-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700 italic">固定强度: ${enc.info.toFixed(2)} (已锁定)</div>`;
+                    infoVal.textContent = enc.info.toFixed(2);
+                } else {
+                    // Create selector
+                    let html = `<select id="vibeInfoSelect" onchange="onVibeStrengthSelect(this.value)" class="art-input w-full px-3 py-2 rounded-xl text-xs font-medium outline-none shadow-sm appearance-none cursor-pointer text-gray-700 dark:text-gray-200">`;
+                    availableVibeEncodings.forEach((enc, index) => {
+                        html += `<option value="${index}">强度: ${enc.info.toFixed(2)}</option>`;
+                    });
+                    html += `</select>`;
+                    container.innerHTML = html;
+                    onVibeStrengthSelect(0);
+                }
+            } else {
+                container.innerHTML = `<input type="range" id="vibeInfo" min="0.01" max="1.0" value="1.0" step="0.01" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">`;
+                const slider = document.getElementById('vibeInfo');
+                slider.addEventListener('input', (e) => {
+                    infoVal.textContent = parseFloat(e.target.value).toFixed(2);
+                    store.setSetting('nai_vibe_info', e.target.value);
+                });
+                infoVal.textContent = parseFloat(slider.value).toFixed(2);
+            }
+        }
+
+        window.onVibeStrengthSelect = function(index) {
+            const enc = availableVibeEncodings[index];
+            if (enc) {
+                currentVibeImageBase64 = enc.base64;
+                document.getElementById('vibeInfoValue').textContent = enc.info.toFixed(2);
+                store.setSetting('nai_vibe_selected_index', index);
+                store.setSetting('nai_vibe_image', currentVibeImageBase64);
+            }
+        };
+
+        function saveVibeState() {
+            store.setSetting('nai_vibe_image', currentVibeImageBase64);
+            store.setSetting('nai_vibe_is_json', currentVibeIsJson.toString());
+            store.setSetting('nai_vibe_encodings', JSON.stringify(availableVibeEncodings));
+            store.setSetting('nai_vibe_preview', document.getElementById('vibeImagePreview').src);
+        }
+
         function clearVibeImage() {
             currentVibeImageBase64 = null;
             currentVibeIsJson = false;
+            availableVibeEncodings = [];
             store.setSetting('nai_vibe_image', '');
             store.setSetting('nai_vibe_is_json', 'false');
+            store.setSetting('nai_vibe_encodings', '[]');
+            store.setSetting('nai_vibe_preview', '');
             document.getElementById('vibeImageInput').value = '';
             document.getElementById('vibeImagePreview').src = '';
             document.getElementById('vibeImagePreview').classList.remove('p-4');
@@ -1185,6 +1304,7 @@
             document.getElementById('vibeImagePlaceholder').classList.remove('hidden');
             document.getElementById('clearVibeImageBtn').classList.add('hidden');
             document.getElementById('vibeControls').classList.add('hidden');
+            updateVibeInfoUI(false);
         }
 
         function toggleVibeEnabled() {
