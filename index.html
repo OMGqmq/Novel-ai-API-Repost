@@ -1021,11 +1021,21 @@
         import { ImageEngine } from './src/engine.js';
         import { GalleryStore } from './src/storage.js';
         import { UIController } from './src/ui.js';
+        import { InpaintEditor } from './src/inpaint.js';
 
         const engine = new ImageEngine();
         const store = new GalleryStore();
         const ui = new UIController();
         const els = ui.els;
+
+        let currentInitImageBase64 = null;
+        let currentVibeImageBase64 = null;
+        let currentVibeIsJson = false;
+        let availableVibeEncodings = []; 
+        let currentImageId = null;
+        let currentImageData = null;
+        let showcaseData = [];
+        let currentGalleryTab = 'showcase';
 
         function safeCreateIcons() {
             if (typeof lucide !== 'undefined' && lucide.createIcons) {
@@ -1133,7 +1143,6 @@
             });
         }
 
-        let currentInitImageBase64 = null;
         async function handleInitImage(event) {
             const file = event.target.files[0];
             if (file) {
@@ -1160,10 +1169,6 @@
             document.getElementById('clearInitImageBtn').classList.add('hidden');
             document.getElementById('img2imgControls').classList.add('hidden');
         }
-
-        let currentVibeImageBase64 = null;
-        let currentVibeIsJson = false;
-        let availableVibeEncodings = []; // { base64: string, info: number }
 
         async function handleVibeImage(event) {
             const file = event.target.files[0];
@@ -1333,9 +1338,6 @@
             document.getElementById('vibeStrengthValue').textContent = parseFloat(val).toFixed(2);
             store.setSetting('nai_vibe_strength', val);
         });
-
-        let currentImageId = null;
-        let currentImageData = null;
 
         async function doGenerate() {
             const promptText = els.prompt.value.trim();
@@ -1695,9 +1697,6 @@
 
 
 
-        // --- 展示图库 (Showcase) ---
-        let showcaseData = [];
-        let currentGalleryTab = 'showcase';
         fetch('gallery_index.json').then(r => r.json()).then(d => {
             showcaseData = d;
             // 数据就绪后,若当前在展示 tab 且 grid 为空则立即渲染
@@ -2008,7 +2007,6 @@
         }
 
         // =================== 局部重绘 (Inpainting) ===================
-        import { InpaintEditor } from './src/inpaint.js';
         const inpaintEditor = new InpaintEditor({
             ui: ui,
             engine: engine,
