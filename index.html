@@ -1146,27 +1146,42 @@
 
         function safeCreateIcons() {
             if (typeof lucide !== 'undefined' && lucide.createIcons) {
-                lucide.createIcons();
+                // 延迟一下确保 DOM 已更新
+                setTimeout(() => {
+                    try {
+                        lucide.createIcons();
+                    } catch (e) {
+                        console.warn('Lucide icons creation failed:', e);
+                    }
+                }, 10);
             }
         }
         window.safeCreateIcons = safeCreateIcons;
         safeCreateIcons();
 
         // 缓存加载
-        const savedPrompt = store.getSetting('nai_prompt');
-        if (savedPrompt) els.prompt.value = savedPrompt;
-        const savedNegative = store.getSetting('nai_negative_prompt');
-        if (savedNegative) els.negative.value = savedNegative;
+        try {
+            const savedPrompt = store.getSetting('nai_prompt');
+            if (savedPrompt && els.prompt) els.prompt.value = savedPrompt;
+            const savedNegative = store.getSetting('nai_negative_prompt');
+            if (savedNegative && els.negative) els.negative.value = savedNegative;
 
-        els.prompt.addEventListener('input', (e) => store.setSetting('nai_prompt', e.target.value));
-        els.negative.addEventListener('input', (e) => store.setSetting('nai_negative_prompt', e.target.value));
+            if (els.prompt) {
+                els.prompt.addEventListener('input', (e) => store.setSetting('nai_prompt', e.target.value));
+            }
+            if (els.negative) {
+                els.negative.addEventListener('input', (e) => store.setSetting('nai_negative_prompt', e.target.value));
+            }
 
-        // Restore model version first
-        const savedModel = store.getSetting('nai_model_version', 'v3');
-        ui.setModel(savedModel);
+            // Restore model version first
+            const savedModel = store.getSetting('nai_model_version', 'v3');
+            ui.setModel(savedModel);
 
-        // Restore Vibe settings from storage
-        loadVibeState(savedModel);
+            // Restore Vibe settings from storage
+            loadVibeState(savedModel);
+        } catch (e) {
+            console.error("Initialization error (from cache):", e);
+        }
 
         // Helper function to compress image
         async function compressImage(file, maxPixels = 1024 * 1024) {
@@ -1747,13 +1762,28 @@
                     els.zipBtn.classList.remove('hidden');
                     els.clearBtn.classList.remove('hidden');
                 }
-                items.forEach(item => {
-                    const el = document.createElement('div');
-                    el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm';
-                    el.innerHTML = `<img src="${item.image}" class="w-full h-full object-cover">`;
-                    el.onclick = () => loadPreviewFromHistory(item);
-                    els.galleryGrid.appendChild(el);
-                });
+                
+                // 分批渲染，每批 20 个，防止卡死
+                const chunkSize = 20;
+                let index = 0;
+
+                function renderChunk() {
+                    const fragment = document.createDocumentFragment();
+                    const end = Math.min(index + chunkSize, items.length);
+                    for (; index < end; index++) {
+                        const item = items[index];
+                        const el = document.createElement('div');
+                        el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm';
+                        el.innerHTML = `<img src="${item.image}" class="w-full h-full object-cover" loading="lazy">`;
+                        el.onclick = () => loadPreviewFromHistory(item);
+                        fragment.appendChild(el);
+                    }
+                    els.galleryGrid.appendChild(fragment);
+                    if (index < items.length) {
+                        requestAnimationFrame(renderChunk);
+                    }
+                }
+                renderChunk();
             }
         }
 
@@ -1854,18 +1884,33 @@
             const grid = document.getElementById('showcaseGrid');
             if (!grid || showcaseData.length === 0) return;
             grid.innerHTML = '';
-            showcaseData.forEach(item => {
-                const el = document.createElement('div');
-                el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:shadow-md transition-shadow';
-                const img = document.createElement('img');
-                img.className = 'w-full h-full object-cover';
-                img.loading = 'lazy';
-                img.src = `images/${item.id}.png`;
-                img.alt = '';
-                el.appendChild(img);
-                el.onclick = () => loadPreviewFromShowcase(item);
-                grid.appendChild(el);
-            });
+            
+            // 分批渲染
+            const chunkSize = 24;
+            let index = 0;
+
+            function renderChunk() {
+                const fragment = document.createDocumentFragment();
+                const end = Math.min(index + chunkSize, showcaseData.length);
+                for (; index < end; index++) {
+                    const item = showcaseData[index];
+                    const el = document.createElement('div');
+                    el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:shadow-md transition-shadow';
+                    const img = document.createElement('img');
+                    img.className = 'w-full h-full object-cover';
+                    img.loading = 'lazy';
+                    img.src = `images/${item.id}.png`;
+                    img.alt = '';
+                    el.appendChild(img);
+                    el.onclick = () => loadPreviewFromShowcase(item);
+                    fragment.appendChild(el);
+                }
+                grid.appendChild(fragment);
+                if (index < showcaseData.length) {
+                    requestAnimationFrame(renderChunk);
+                }
+            }
+            renderChunk();
         }
 
         function loadPreviewFromShowcase(item) {
