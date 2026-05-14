@@ -524,6 +524,10 @@
 
         <div id="previewArea"
             class="flex-1 w-full h-full flex flex-col items-center justify-center p-4 pt-20 pb-24 md:p-10 relative overflow-hidden">
+            <button id="backToGridBtn" onclick="backToGrid()"
+                class="absolute top-20 left-4 md:left-10 p-2.5 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-300 shadow-float hover:scale-110 transition-all z-20 hidden">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </button>
             <div id="placeholder"
                 class="text-center transition-all duration-500 transform hover:scale-105 cursor-default">
                 <div
@@ -538,6 +542,9 @@
             <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
                 <div id="resultGrid" class="hidden w-full h-full grid gap-4 p-2 place-items-center overflow-y-auto custom-scroll">
                     <!-- 并发生成的图片将并排显示在这里 -->
+                </div>
+                <div id="singleResultArea" class="hidden w-full h-full flex items-center justify-center p-2">
+                    <img id="singleResultImg" class="max-w-full max-h-full object-contain shadow-2xl rounded-lg">
                 </div>
             </div>
             <div id="imageActions"
@@ -1102,11 +1109,6 @@
                         // 为了兼容 downloadImage 等，我们需要一个全局的 currentImageUrl 或类似物
                         window.lastSelectedImageUrl = selected.imageUrl;
                     });
-                    
-                    // 默认选中第一个
-                    currentImageData = successfulResults[0];
-                    window.lastSelectedImageUrl = successfulResults[0].imageUrl;
-                    ui.showImageActions(true);
 
                 } catch (err) {
                     console.error(err);
@@ -1251,7 +1253,8 @@
             switchDrawerTab: (t) => ui.switchDrawerTab(t, () => renderPresets(document.getElementById('modelValue').value)),
             openPresets: () => ui.openPresets(() => renderPresets(document.getElementById('modelValue').value)),
             handleInitImage, clearInitImage, doGenerate, useCurrentPrompt,
-            deleteCurrentImage, clearAllHistory, switchGalleryTab, downloadZip
+            deleteCurrentImage, clearAllHistory, switchGalleryTab, downloadZip,
+            backToGrid: () => ui.showGrid()
         });
 
 

@@ -33,6 +33,9 @@ export class UIController {
             deskBtn: document.getElementById('desktopGenerateBtn'),
             floatBtn: document.getElementById('floatingGenerateBtn'),
             resultGrid: document.getElementById('resultGrid'), // 替换单个 resultImg
+            singleResultArea: document.getElementById('singleResultArea'),
+            singleResultImg: document.getElementById('singleResultImg'),
+            backToGridBtn: document.getElementById('backToGridBtn'),
             placeholder: document.getElementById('placeholder'),
             imageActions: document.getElementById('imageActions'),
             stepsVal: document.getElementById('stepsValue'),
@@ -204,13 +207,44 @@ export class UIController {
     }
 
     resetPreview() {
-        const { resultGrid, placeholder, dlBtn } = this.els;
+        const { resultGrid, singleResultArea, backToGridBtn, placeholder, dlBtn } = this.els;
         resultGrid.innerHTML = '';
         resultGrid.classList.add('hidden');
+        singleResultArea.classList.add('hidden');
+        backToGridBtn.classList.add('hidden');
         placeholder.classList.remove('hidden');
         dlBtn.disabled = true;
         dlBtn.classList.add('opacity-50', 'cursor-not-allowed');
         this.showImageActions(false);
+    }
+
+    showGrid() {
+        const { resultGrid, singleResultArea, backToGridBtn, placeholder } = this.els;
+        if (resultGrid.children.length === 0) return;
+        
+        placeholder.classList.add('hidden');
+        resultGrid.classList.remove('hidden');
+        singleResultArea.classList.add('hidden');
+        backToGridBtn.classList.add('hidden');
+        this.showImageActions(false);
+    }
+
+    focusImage(item) {
+        const { resultGrid, singleResultArea, singleResultImg, backToGridBtn, placeholder } = this.els;
+        
+        placeholder.classList.add('hidden');
+        resultGrid.classList.add('hidden');
+        singleResultArea.classList.remove('hidden');
+        
+        // 如果网格中有超过一张图，才显示返回按钮
+        if (resultGrid.children.length > 1) {
+            backToGridBtn.classList.remove('hidden');
+        } else {
+            backToGridBtn.classList.add('hidden');
+        }
+
+        singleResultImg.src = item.imageUrl;
+        this.showImageActions(true);
     }
     
     showResultImages(results, onSelect) {
@@ -219,6 +253,9 @@ export class UIController {
         placeholder.classList.add('hidden');
         resultGrid.classList.remove('hidden');
         
+        // 初始不显示操作按钮，除非之后点击了聚焦
+        this.showImageActions(false);
+
         // 根据图片数量决定网格列数
         const count = results.length;
         let cols = 1;
@@ -235,21 +272,36 @@ export class UIController {
             img.src = item.imageUrl;
             img.className = 'max-w-full max-h-full object-contain shadow-2xl rounded-lg border-2 border-transparent transition-all';
             
-            imgWrapper.appendChild(img);
+            // 聚焦按钮叠加层
+            const focusOverlay = document.createElement('div');
+            focusOverlay.className = 'absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg z-10';
+            focusOverlay.innerHTML = `
+                <button class="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white border border-white/30 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95 shadow-xl">
+                    <i data-lucide="maximize" class="w-4 h-4"></i>
+                    聚焦 (Focus)
+                </button>
+            `;
             
-            const select = () => {
+            imgWrapper.appendChild(img);
+            imgWrapper.appendChild(focusOverlay);
+            
+            const select = (e) => {
+                if (e) e.stopPropagation();
                 // 清除其他选中状态
                 resultGrid.querySelectorAll('img').forEach(i => i.classList.remove('border-blue-500', 'ring-4', 'ring-blue-500/20'));
                 img.classList.add('border-blue-500', 'ring-4', 'ring-blue-500/20');
                 if (onSelect) onSelect(item);
+                
+                // 进入聚焦单图模式
+                this.focusImage(item);
             };
 
             imgWrapper.onclick = select;
             resultGrid.appendChild(imgWrapper);
-
-            // 默认选中第一个
-            if (index === 0) select();
         });
+
+        // 重新创建图标 (Lucide) - 循环外调用一次即可
+        if (window.safeCreateIcons) window.safeCreateIcons();
 
         dlBtn.disabled = false;
         dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -258,6 +310,8 @@ export class UIController {
 
     // 保持兼容性，虽然现在主要用 showResultImages
     showResultImage(url) {
-        this.showResultImages([{ imageUrl: url }]);
+        const item = { imageUrl: url };
+        this.showResultImages([item]);
+        this.focusImage(item);
     }
 }
