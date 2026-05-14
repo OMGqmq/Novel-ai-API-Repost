@@ -766,7 +766,7 @@
                         </div>
                         <img id="vibeImagePreview" class="hidden h-full object-contain">
                     </label>
-                    <input id="vibeImageInput" type="file" class="hidden" accept="image/png, image/jpeg, image/webp"
+                    <input id="vibeImageInput" type="file" class="hidden" accept="image/png, image/jpeg, image/webp, .json, .nai4vibe"
                         onchange="handleVibeImage(event)" />
                 </div>
             </div>
@@ -1092,27 +1092,46 @@
         }
 
         let currentVibeImageBase64 = null;
+        let currentVibeIsJson = false;
+
         async function handleVibeImage(event) {
             const file = event.target.files[0];
             if (file) {
                 try {
-                    const compressedDataUrl = await compressImage(file);
-                    currentVibeImageBase64 = compressedDataUrl.split(',')[1];
-                    document.getElementById('vibeImagePreview').src = compressedDataUrl;
-                    document.getElementById('vibeImagePreview').classList.remove('hidden');
+                    const isJson = file.name.endsWith('.json') || file.name.endsWith('.nai4vibe') || file.type === 'application/json';
+                    currentVibeIsJson = isJson;
+
+                    if (isJson) {
+                        const text = await file.text();
+                        // Base64 encode the JSON string safely
+                        currentVibeImageBase64 = btoa(unescape(encodeURIComponent(text)));
+                        
+                        // Show a JSON icon instead of the image preview
+                        document.getElementById('vibeImagePreview').src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
+                        document.getElementById('vibeImagePreview').classList.remove('hidden');
+                        document.getElementById('vibeImagePreview').classList.add('p-4'); // add some padding for the icon
+                    } else {
+                        const compressedDataUrl = await compressImage(file);
+                        currentVibeImageBase64 = compressedDataUrl.split(',')[1];
+                        document.getElementById('vibeImagePreview').src = compressedDataUrl;
+                        document.getElementById('vibeImagePreview').classList.remove('hidden', 'p-4');
+                    }
+                    
                     document.getElementById('vibeImagePlaceholder').classList.add('hidden');
                     document.getElementById('clearVibeImageBtn').classList.remove('hidden');
                     document.getElementById('vibeControls').classList.remove('hidden');
                 } catch (e) {
-                    console.error("Failed to compress vibe image", e);
-                    alert("图片处理失败，请重试。");
+                    console.error("Failed to process vibe file", e);
+                    alert("文件处理失败，请重试。");
                 }
             }
         }
         function clearVibeImage() {
             currentVibeImageBase64 = null;
+            currentVibeIsJson = false;
             document.getElementById('vibeImageInput').value = '';
             document.getElementById('vibeImagePreview').src = '';
+            document.getElementById('vibeImagePreview').classList.remove('p-4');
             document.getElementById('vibeImagePreview').classList.add('hidden');
             document.getElementById('vibeImagePlaceholder').classList.remove('hidden');
             document.getElementById('clearVibeImageBtn').classList.add('hidden');
@@ -1160,6 +1179,13 @@
 
             if (ui.currentRightView !== 'preview') ui.switchRightView('preview');
             ui.toggleMobileControls(false);
+            
+            if (selectedVersion === 'v4.5' && currentVibeImageBase64 && !currentVibeIsJson) {
+                alert("V4.5 模型氛围传输需要上传官方提取的 .nai4vibe 或 .json 编码文件。\n由于直接上传图片会重复消耗 Anlas 去编码，为了您的账号安全，请先在官方获取编码文件后再使用此功能。");
+                ui.setLoading(false);
+                ui.toggleMobileControls(true);
+                return;
+            }
 
             for (let i = 0; i < batchTotal; i++) {
                 const statusText = batchTotal > 1 ? `生成中 (${i + 1}/${batchTotal})` : "生成中...";
