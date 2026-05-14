@@ -1426,124 +1426,148 @@
             store.setSetting(getVibeKey('nai_vibe_strength'), val);
         });
 
+        // 全局错误捕获，防止界面卡死
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Error: ' + msg + '\nScript: ' + url + '\nLine: ' + lineNo + '\nColumn: ' + columnNo + '\nStackTrace: ' + (error ? error.stack : ''));
+            if (window.ui) window.ui.setLoading(false);
+            return false;
+        };
+
+        window.onunhandledrejection = function(event) {
+            console.error('Unhandled rejection (promise):', event.reason);
+            if (window.ui) window.ui.setLoading(false);
+        };
+
         async function doGenerate() {
-            const promptText = els.prompt.value.trim();
-            if (!promptText) { els.prompt.focus(); ui.toggleMobileControls(true); return; }
+            try {
+                const promptText = els.prompt.value.trim();
+                if (!promptText) { els.prompt.focus(); ui.toggleMobileControls(true); return; }
 
-            const selectedVersion = document.getElementById('modelValue').value;
-            const [w, h] = els.resolution.value.split(',').map(Number);
-            
-            // 获取所有自定义 Key
-            const customApiKeyRaw = store.getSetting('nai_custom_api_key');
-            const customApiKeys = (customApiKeyRaw || "")
-                .split(/[\n,]/)
-                .map(k => k.trim())
-                .filter(k => k);
+                const selectedVersion = document.getElementById('modelValue').value;
+                const resEl = document.getElementById('resolution');
+                if (!resEl) throw new Error("找不到分辨率选择器");
+                const [w, h] = resEl.value.split(',').map(Number);
+                
+                // 获取所有自定义 Key
+                const customApiKeyRaw = store.getSetting('nai_custom_api_key');
+                const customApiKeys = (customApiKeyRaw || "")
+                    .split(/[\n,]/)
+                    .map(k => k.trim())
+                    .filter(k => k);
 
-            const authBase = {
-                adminToken: store.getSetting('nai_admin_token'),
-                userKey: store.getSetting('nai_user_key')
-            };
+                const authBase = {
+                    adminToken: store.getSetting('nai_admin_token'),
+                    userKey: store.getSetting('nai_user_key')
+                };
 
-            // 如果有多个 Key,构造多个 auth 对象用于并发
-            const auths = customApiKeys.length > 0 
-                ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
-                : [{ ...authBase, customApiKey: "" }];
+                // 如果有多个 Key,构造多个 auth 对象用于并发
+                const auths = customApiKeys.length > 0 
+                    ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
+                    : [{ ...authBase, customApiKey: "" }];
 
-            const isAdmin = !!authBase.adminToken || customApiKeys.length > 0;
+                const isAdmin = !!authBase.adminToken || customApiKeys.length > 0;
 
-            let batchTotal = 1;
-            if (isAdmin && els.batchCount) {
-                batchTotal = parseInt(els.batchCount.value) || 1;
-            }
+                let batchTotal = 1;
+                if (isAdmin && els.batchCount) {
+                    batchTotal = parseInt(els.batchCount.value) || 1;
+                }
 
-            if (ui.currentRightView !== 'preview') ui.switchRightView('preview');
-            ui.toggleMobileControls(false);
-            
-            const vibeEnabled = document.getElementById('vibeEnabled').checked;
-            if (vibeEnabled && selectedVersion === 'v4.5' && currentVibeImageBase64 && !currentVibeIsJson) {
-                alert("V4.5 模型氛围传输需要上传官方提取的 .nai4vibe 或 .json 编码文件。\n由于直接上传图片会重复消耗 Anlas 去编码，为了您的账号安全，请先在官方获取编码文件后再使用此功能。");
-                ui.setLoading(false);
-                ui.toggleMobileControls(true);
-                return;
-            }
-
-            for (let i = 0; i < batchTotal; i++) {
-                const statusText = batchTotal > 1 ? `生成中 (${i + 1}/${batchTotal})` : "生成中...";
-                ui.setLoading(true, statusText);
-
-                try {
-                    const params = {
-                        version: selectedVersion,
-                        prompt: promptText,
-                        negative_prompt: els.negative.value.trim(),
-                        width: w, height: h,
-                        steps: parseInt(els.steps.value),
-                        scale: parseFloat(els.scale.value),
-                        sampler: els.sampler.value,
-                        noise_schedule: document.getElementById('noise_schedule').value
-                    };
-
-                    if (currentInitImageBase64) {
-                        params.image = currentInitImageBase64;
-                        params.strength = parseFloat(document.getElementById('strength').value);
-                        params.noise = parseFloat(document.getElementById('noise').value);
-                    }
-                    
-                    if (vibeEnabled && currentVibeImageBase64) {
-                        params.vibe_image = currentVibeImageBase64;
-                        const vibeInfoEl = document.getElementById('vibeInfo');
-                        params.vibe_info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : parseFloat(document.getElementById('vibeInfoValue').textContent);
-                        params.vibe_strength = parseFloat(document.getElementById('vibeStrength').value);
-                    }
-
-                    // 并发执行！
-                    const fetchPromises = auths.map(auth => engine.generate(params, auth));
-                    const results = await Promise.allSettled(fetchPromises);
-
-                    const successfulResults = [];
-                    for (const res of results) {
-                        if (res.status === 'fulfilled') {
-                            const result = res.value;
-                            if (result.userRole) {
-                                ui.updateCreditDisplay(result.userRole);
-                            }
-                            successfulResults.push(result);
-
-                            // 转Base64存历史
-                            const reader = new FileReader();
-                            reader.readAsDataURL(result.blob);
-                            reader.onloadend = async () => {
-                                await saveToHistory(reader.result, promptText, selectedVersion);
-                            }
-                        } else {
-                            console.error("Concurrent Gen Error:", res.reason);
-                        }
-                    }
-
-                    if (successfulResults.length === 0) {
-                        const firstError = results.find(r => r.status === 'rejected')?.reason || new Error("所有 API 请求均失败");
-                        throw firstError;
-                    }
-
-                    // 批量展示！
-                    ui.showResultImages(successfulResults, (selected) => {
-                        currentImageData = selected;
-                        // 为了兼容 downloadImage 等，我们需要一个全局的 currentImageUrl 或类似物
-                        window.lastSelectedImageUrl = selected.imageUrl;
-                    });
-
-                } catch (err) {
-                    console.error(err);
+                if (ui.currentRightView !== 'preview') ui.switchRightView('preview');
+                ui.toggleMobileControls(false);
+                
+                const vibeEnabled = document.getElementById('vibeEnabled')?.checked;
+                if (vibeEnabled && selectedVersion === 'v4.5' && currentVibeImageBase64 && !currentVibeIsJson) {
+                    alert("V4.5 模型氛围传输需要上传官方提取的 .nai4vibe 或 .json 编码文件。\n由于直接上传图片会重复消耗 Anlas 去编码，为了您的账号安全，请先在官方获取编码文件后再使用此功能。");
                     ui.setLoading(false);
                     ui.toggleMobileControls(true);
-                    if (err.message.includes('429')) alert("⚠️ 并发生成,请稍候重试");
-                    else if (err.message.includes('403')) alert("后端账号已封禁");
-                    else alert("生成失败: " + err.message);
-                    break;
+                    return;
                 }
+
+                for (let i = 0; i < batchTotal; i++) {
+                    const statusText = batchTotal > 1 ? `生成中 (${i + 1}/${batchTotal})` : "生成中...";
+                    ui.setLoading(true, statusText);
+
+                    try {
+                        const nsEl = document.getElementById('noise_schedule');
+                        const params = {
+                            version: selectedVersion,
+                            prompt: promptText,
+                            negative_prompt: els.negative.value.trim(),
+                            width: w, height: h,
+                            steps: parseInt(els.steps.value),
+                            scale: parseFloat(els.scale.value),
+                            sampler: els.sampler.value,
+                            noise_schedule: nsEl ? nsEl.value : "exponential"
+                        };
+
+                        if (currentInitImageBase64) {
+                            const strEl = document.getElementById('strength');
+                            const noiEl = document.getElementById('noise');
+                            params.image = currentInitImageBase64;
+                            params.strength = strEl ? parseFloat(strEl.value) : 0.5;
+                            params.noise = noiEl ? parseFloat(noiEl.value) : 0;
+                        }
+                        
+                        if (vibeEnabled && currentVibeImageBase64) {
+                            params.vibe_image = currentVibeImageBase64;
+                            const vibeInfoEl = document.getElementById('vibeInfo');
+                            const vibeStrengthEl = document.getElementById('vibeStrength');
+                            params.vibe_info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : parseFloat(document.getElementById('vibeInfoValue')?.textContent || "1.0");
+                            params.vibe_strength = vibeStrengthEl ? parseFloat(vibeStrengthEl.value) : 0.6;
+                        }
+
+                        // 并发执行！
+                        const fetchPromises = auths.map(auth => engine.generate(params, auth));
+                        const results = await Promise.allSettled(fetchPromises);
+
+                        const successfulResults = [];
+                        for (const res of results) {
+                            if (res.status === 'fulfilled') {
+                                const result = res.value;
+                                if (result.userRole) {
+                                    ui.updateCreditDisplay(result.userRole);
+                                }
+                                successfulResults.push(result);
+
+                                // 转Base64存历史
+                                const reader = new FileReader();
+                                reader.readAsDataURL(result.blob);
+                                reader.onloadend = async () => {
+                                    await saveToHistory(reader.result, promptText, selectedVersion);
+                                }
+                            } else {
+                                console.error("Concurrent Gen Error:", res.reason);
+                            }
+                        }
+
+                        if (successfulResults.length === 0) {
+                            const firstError = results.find(r => r.status === 'rejected')?.reason || new Error("所有 API 请求均失败");
+                            throw firstError;
+                        }
+
+                        // 批量展示！
+                        ui.showResultImages(successfulResults, (selected) => {
+                            currentImageData = selected;
+                            // 为了兼容 downloadImage 等，我们需要一个全局的 currentImageUrl 或类似物
+                            window.lastSelectedImageUrl = selected.imageUrl;
+                        });
+
+                    } catch (err) {
+                        console.error(err);
+                        ui.setLoading(false);
+                        ui.toggleMobileControls(true);
+                        if (err.message.includes('429')) alert("⚠️ 并发生成,请稍候重试");
+                        else if (err.message.includes('403')) alert("后端账号已封禁");
+                        else alert("生成失败: " + err.message);
+                        break;
+                    }
+                }
+            } catch (globalErr) {
+                console.error("Global doGenerate Error:", globalErr);
+                alert("发生意外错误: " + globalErr.message);
+            } finally {
+                ui.setLoading(false);
             }
-            ui.setLoading(false);
         }
 
         els.deskBtn.addEventListener('click', doGenerate);
