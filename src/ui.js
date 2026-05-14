@@ -32,7 +32,7 @@ export class UIController {
             sampler: document.getElementById('sampler'),
             deskBtn: document.getElementById('desktopGenerateBtn'),
             floatBtn: document.getElementById('floatingGenerateBtn'),
-            resultImg: document.getElementById('resultImage'),
+            resultGrid: document.getElementById('resultGrid'), // 替换单个 resultImg
             placeholder: document.getElementById('placeholder'),
             imageActions: document.getElementById('imageActions'),
             stepsVal: document.getElementById('stepsValue'),
@@ -152,7 +152,7 @@ export class UIController {
     }
 
     setLoading(loading, text = "生成中...") {
-        const { deskBtn, floatBtn, resultImg } = this.els;
+        const { deskBtn, floatBtn, resultGrid } = this.els;
         // 桌面
         deskBtn.disabled = loading;
         if (loading) {
@@ -176,10 +176,10 @@ export class UIController {
             if (window.safeCreateIcons) window.safeCreateIcons();
         }
 
-        if (loading && !resultImg.classList.contains('hidden')) {
-            resultImg.classList.add('opacity-50', 'blur-sm');
+        if (loading && !resultGrid.classList.contains('hidden')) {
+            resultGrid.classList.add('opacity-50', 'blur-sm');
         } else if (!loading) {
-            resultImg.classList.remove('opacity-50', 'blur-sm');
+            resultGrid.classList.remove('opacity-50', 'blur-sm');
         }
     }
 
@@ -204,23 +204,61 @@ export class UIController {
     }
 
     resetPreview() {
-        const { resultImg, placeholder, dlBtn } = this.els;
-        resultImg.src = '';
-        resultImg.classList.add('hidden', 'scale-95', 'opacity-0');
+        const { resultGrid, placeholder, dlBtn } = this.els;
+        resultGrid.innerHTML = '';
+        resultGrid.classList.add('hidden');
         placeholder.classList.remove('hidden');
         dlBtn.disabled = true;
         dlBtn.classList.add('opacity-50', 'cursor-not-allowed');
         this.showImageActions(false);
     }
     
-    showResultImage(url) {
-        const { resultImg, placeholder, dlBtn } = this.els;
-        resultImg.src = url;
+    showResultImages(results, onSelect) {
+        const { resultGrid, placeholder, dlBtn } = this.els;
+        resultGrid.innerHTML = '';
         placeholder.classList.add('hidden');
-        resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
+        resultGrid.classList.remove('hidden');
+        
+        // 根据图片数量决定网格列数
+        const count = results.length;
+        let cols = 1;
+        if (count >= 5) cols = 3;
+        else if (count >= 2) cols = 2;
+        
+        resultGrid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+        
+        results.forEach((item, index) => {
+            const imgWrapper = document.createElement('div');
+            imgWrapper.className = 'relative group cursor-pointer transition-all duration-300 transform hover:scale-[1.02] active:scale-95';
+            
+            const img = document.createElement('img');
+            img.src = item.imageUrl;
+            img.className = 'max-w-full max-h-full object-contain shadow-2xl rounded-lg border-2 border-transparent transition-all';
+            
+            imgWrapper.appendChild(img);
+            
+            const select = () => {
+                // 清除其他选中状态
+                resultGrid.querySelectorAll('img').forEach(i => i.classList.remove('border-blue-500', 'ring-4', 'ring-blue-500/20'));
+                img.classList.add('border-blue-500', 'ring-4', 'ring-blue-500/20');
+                if (onSelect) onSelect(item);
+            };
+
+            imgWrapper.onclick = select;
+            resultGrid.appendChild(imgWrapper);
+
+            // 默认选中第一个
+            if (index === 0) select();
+        });
+
         dlBtn.disabled = false;
-        dlBtn.classList.remove('opacity-50');
-        dlBtn.classList.remove('cursor-not-allowed');
+        dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         dlBtn.classList.add('cursor-pointer');
     }
+
+    // 保持兼容性，虽然现在主要用 showResultImages
+    showResultImage(url) {
+        this.showResultImages([{ imageUrl: url }]);
+    }
+}
 }

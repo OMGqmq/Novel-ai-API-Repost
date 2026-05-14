@@ -535,9 +535,10 @@
                     class="md:hidden mt-3 text-[10px] font-bold text-gray-300 dark:text-slate-600 bg-white/50 dark:bg-slate-800/50 px-3 py-1 rounded-full border border-gray-100 dark:border-slate-700">
                     V3</div>
             </div>
-            <div class="relative w-full h-full flex items-center justify-center">
-                <img id="resultImage"
-                    class="hidden max-w-full max-h-full object-contain shadow-2xl rounded-lg img-transition opacity-0 transform scale-95">
+            <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+                <div id="resultGrid" class="hidden w-full h-full grid gap-4 p-2 place-items-center overflow-y-auto custom-scroll">
+                    <!-- 并发生成的图片将并排显示在这里 -->
+                </div>
             </div>
             <div id="imageActions"
                 class="absolute bottom-28 md:bottom-8 flex gap-3 opacity-0 transition-all duration-300 pointer-events-none transform translate-y-4 z-10">
@@ -819,7 +820,7 @@
             class="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 w-[90%] max-w-md p-6 space-y-5">
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <i data-lucide="globe" class="w-4 h-4 text-blue-500"></i> 自定义 NovelAI API Key
+                    <i data-lucide="globe" class="w-4 h-4 text-blue-500"></i> 自定义 NovelAI API Key(s)
                 </h3>
                 <button onclick="closeApiKeyModal()"
                     class="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400">
@@ -827,10 +828,10 @@
                 </button>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-400">输入你的 NovelAI API
-                Token(pst-开头),验证成功后将用你的账号生成图片,并解锁批量生成等管理员功能。</p>
+                Token(pst-开头)。支持输入多个(每行一个)，开启多重并发生成，体验速度的极致！</p>
             <div>
-                <input type="password" id="apiKeyInput" placeholder="pst-xxxxxxxxxxxxxxxx..."
-                    class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono">
+                <textarea id="apiKeyInput" placeholder="pst-xxxxxxxxxxxxxxxx...&#10;pst-yyyyyyyyyyyyyyyy..." rows="3"
+                    class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono resize-none"></textarea>
             </div>
             <div id="apiKeyStatus" class="hidden text-xs px-1"></div>
             <div class="flex gap-3">
@@ -838,7 +839,7 @@
                     class="hidden flex-1 py-3 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">清除
                     Key</button>
                 <button onclick="verifyCustomApiKey()" id="apiKeyVerifyBtn"
-                    class="flex-1 py-3 text-xs font-bold rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">验证并激活</button>
+                    class="flex-1 py-3 text-xs font-bold rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">验证并保存</button>
             </div>
         </div>
     </div>
@@ -1017,12 +1018,25 @@
 
             const selectedVersion = document.getElementById('modelValue').value;
             const [w, h] = els.resolution.value.split(',').map(Number);
-            const auth = {
+            
+            // 获取所有自定义 Key
+            const customApiKeyRaw = store.getSetting('nai_custom_api_key');
+            const customApiKeys = (customApiKeyRaw || "")
+                .split(/[\n,]/)
+                .map(k => k.trim())
+                .filter(k => k);
+
+            const authBase = {
                 adminToken: store.getSetting('nai_admin_token'),
-                userKey: store.getSetting('nai_user_key'),
-                customApiKey: store.getSetting('nai_custom_api_key')
+                userKey: store.getSetting('nai_user_key')
             };
-            const isAdmin = !!auth.adminToken || !!auth.customApiKey;
+
+            // 如果有多个 Key,构造多个 auth 对象用于并发
+            const auths = customApiKeys.length > 0 
+                ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
+                : [{ ...authBase, customApiKey: "" }];
+
+            const isAdmin = !!authBase.adminToken || customApiKeys.length > 0;
 
             let batchTotal = 1;
             if (isAdmin && els.batchCount) {
@@ -1053,21 +1067,46 @@
                         params.noise = parseFloat(document.getElementById('noise').value);
                     }
 
-                    const result = await engine.generate(params, auth);
+                    // 并发执行！
+                    const fetchPromises = auths.map(auth => engine.generate(params, auth));
+                    const results = await Promise.allSettled(fetchPromises);
 
-                    if (result.userRole) {
-                        ui.updateCreditDisplay(result.userRole);
+                    const successfulResults = [];
+                    for (const res of results) {
+                        if (res.status === 'fulfilled') {
+                            const result = res.value;
+                            if (result.userRole) {
+                                ui.updateCreditDisplay(result.userRole);
+                            }
+                            successfulResults.push(result);
+
+                            // 转Base64存历史
+                            const reader = new FileReader();
+                            reader.readAsDataURL(result.blob);
+                            reader.onloadend = async () => {
+                                await saveToHistory(reader.result, promptText, selectedVersion);
+                            }
+                        } else {
+                            console.error("Concurrent Gen Error:", res.reason);
+                        }
                     }
 
-                    const { imageUrl, blob } = result;
-                    ui.showResultImage(imageUrl);
-
-                    // 转Base64存历史
-                    const reader = new FileReader();
-                    reader.readAsDataURL(blob);
-                    reader.onloadend = async () => {
-                        await saveToHistory(reader.result, promptText, selectedVersion);
+                    if (successfulResults.length === 0) {
+                        const firstError = results.find(r => r.status === 'rejected')?.reason || new Error("所有 API 请求均失败");
+                        throw firstError;
                     }
+
+                    // 批量展示！
+                    ui.showResultImages(successfulResults, (selected) => {
+                        currentImageData = selected;
+                        // 为了兼容 downloadImage 等，我们需要一个全局的 currentImageUrl 或类似物
+                        window.lastSelectedImageUrl = selected.imageUrl;
+                    });
+                    
+                    // 默认选中第一个
+                    currentImageData = successfulResults[0];
+                    window.lastSelectedImageUrl = successfulResults[0].imageUrl;
+                    ui.showImageActions(true);
 
                 } catch (err) {
                     console.error(err);
@@ -1086,9 +1125,10 @@
         els.floatBtn.addEventListener('click', doGenerate);
 
         window.downloadImage = function() {
-            if (els.resultImg.src && !els.resultImg.classList.contains('hidden')) {
+            const url = window.lastSelectedImageUrl;
+            if (url) {
                 const a = document.createElement('a');
-                a.href = els.resultImg.src;
+                a.href = url;
                 a.download = `novelai-gen-${Date.now()}.png`;
                 a.click();
             }
@@ -1171,6 +1211,7 @@
             ui.showResultImage(item.image);
             currentImageId = item.id;
             currentImageData = item;
+            window.lastSelectedImageUrl = item.image;
             ui.showImageActions(true);
             ui.toggleMobileControls(false);
         }
@@ -1274,15 +1315,12 @@
 
         function loadPreviewFromShowcase(item) {
             switchRightView('preview');
-            els.resultImg.src = `images/${item.id}.png`;
-            els.placeholder.classList.add('hidden');
-            els.resultImg.classList.remove('hidden', 'scale-95', 'opacity-0');
-            els.dlBtn.disabled = false;
-            els.dlBtn.classList.remove('opacity-50');
-            els.dlBtn.classList.add('cursor-pointer');
+            const url = `images/${item.id}.png`;
+            ui.showResultImage(url);
             currentImageId = null;
-            currentImageData = { prompt: item.prompt, model: item.model, isShowcase: true };
-            showImageActions(true);
+            currentImageData = { prompt: item.prompt, model: item.model, isShowcase: true, imageUrl: url };
+            window.lastSelectedImageUrl = url;
+            ui.showImageActions(true);
             toggleMobileControls(false);
         }
 
@@ -1433,17 +1471,20 @@
             const input = document.getElementById('apiKeyInput');
             const statusEl = document.getElementById('apiKeyStatus');
             const verifyBtn = document.getElementById('apiKeyVerifyBtn');
-            const key = input.value.trim();
+            const keysRaw = input.value.trim();
 
-            if (!key) {
+            if (!keysRaw) {
                 statusEl.innerHTML = '<span class="text-red-500">✗ 请输入 API Key</span>';
                 statusEl.classList.remove('hidden');
                 return;
             }
 
+            const keys = keysRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k);
+            const keyToVerify = keys[0]; // 验证第一个 Key 作为代表
+
             verifyBtn.disabled = true;
             verifyBtn.textContent = '验证中...';
-            statusEl.innerHTML = '<span class="text-gray-400">⭮ 正在连接 NovelAI 验证...</span>';
+            statusEl.innerHTML = `<span class="text-gray-400">⭮ 正在连接 NovelAI 验证 (共 ${keys.length} 个 Key)...</span>`;
             statusEl.classList.remove('hidden');
 
             try {
@@ -1453,7 +1494,7 @@
                     const res = await fetch('/verify-key', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ apiKey: key })
+                        body: JSON.stringify({ apiKey: keyToVerify })
                     });
 
                     // 安全解析 JSON,防止空响应报错
@@ -1461,8 +1502,8 @@
                     if (text) {
                         const data = JSON.parse(text);
                         if (res.ok && data.valid) {
-                            localStorage.setItem('nai_custom_api_key', key);
-                            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功!订阅: <b>${data.tierName}</b>。已激活管理员模式。</span>`;
+                            localStorage.setItem('nai_custom_api_key', keysRaw); // 保存原始包含多个 Key 的字符串
+                            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 第一个 Key 订阅: <b>${data.tierName}</b>。已激活多 API 并发模式。</span>`;
                             document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                             checkAdminStatus();
                             setTimeout(() => closeApiKeyModal(), 1500);
@@ -1482,14 +1523,14 @@
                 try {
                     statusEl.innerHTML = '<span class="text-gray-400">⭮ 尝试直接连接 NovelAI...</span>';
                     const directRes = await fetch('https://api.novelai.net/user/subscription', {
-                        headers: { 'Authorization': `Bearer ${key}` }
+                        headers: { 'Authorization': `Bearer ${keyToVerify}` }
                     });
                     if (directRes.ok) {
                         const subData = await directRes.json();
                         const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
                         const tierName = tierNames[subData.tier] || `Tier ${subData.tier}`;
-                        localStorage.setItem('nai_custom_api_key', key);
-                        statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功!订阅: <b>${tierName}</b>。已激活管理员模式。</span>`;
+                        localStorage.setItem('nai_custom_api_key', keysRaw);
+                        statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 第一个 Key 订阅: <b>${tierName}</b>。已激活多 API 并发模式。</span>`;
                         document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                         checkAdminStatus();
                         setTimeout(() => closeApiKeyModal(), 1500);
@@ -1503,8 +1544,8 @@
                 }
 
                 // 尝试3: 两种在线验证都失败,本地保存 Key 并信任用户
-                localStorage.setItem('nai_custom_api_key', key);
-                statusEl.innerHTML = '<span class="text-yellow-500">⚠ 无法在线验证(后端不可用),已本地保存 Key 并激活管理员模式。生成时将直接使用此 Key。</span>';
+                localStorage.setItem('nai_custom_api_key', keysRaw);
+                statusEl.innerHTML = '<span class="text-yellow-500">⚠ 无法在线验证(后端不可用),已本地保存所有 Key 并激活并发模式。生成时将直接使用这些 Key。</span>';
                 document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                 checkAdminStatus();
                 setTimeout(() => closeApiKeyModal(), 2500);
