@@ -384,11 +384,16 @@ export class InpaintEditor {
         try {
             const imageB64 = await this._exportBaseImageAsBase64(targetW, targetH);
             const inpaintPromptText = document.getElementById('inpaintPrompt').value.trim() || document.getElementById('prompt').value.trim();
-            const auth = {
+            
+            const authBase = {
                 adminToken: this.store.getSetting('nai_admin_token'),
-                userKey: this.store.getSetting('nai_user_key'),
-                customApiKey: this.store.getSetting('nai_custom_api_key')
+                userKey: this.store.getSetting('nai_user_key')
             };
+            const customApiKeyRaw = this.store.getSetting('nai_custom_api_key');
+            const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
+            const auths = customApiKeys.length > 0 
+                ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
+                : [{ ...authBase, customApiKey: "" }];
 
             const params = {
                 version: selectedVersion,
@@ -406,17 +411,32 @@ export class InpaintEditor {
                 add_original_image: true
             };
 
-            const result = await this.engine.generate(params, auth);
+            const fetchPromises = auths.map(auth => this.engine.generate(params, auth));
+            const results = await Promise.allSettled(fetchPromises);
 
-            if (result.userRole) {
-                this.ui.updateCreditDisplay(result.userRole);
+            const successfulResults = [];
+            for (const res of results) {
+                if (res.status === 'fulfilled') {
+                    const result = res.value;
+                    if (result.userRole) {
+                        this.ui.updateCreditDisplay(result.userRole);
+                    }
+                    successfulResults.push(result);
+                } else {
+                    console.error("Concurrent Inpaint Error:", res.reason);
+                }
+            }
+
+            if (successfulResults.length === 0) {
+                const firstError = results.find(r => r.status === 'rejected')?.reason || new Error("所有 API 请求均失败");
+                throw firstError;
             }
 
             this.close();
             if (this.ui.currentRightView !== 'preview') this.ui.switchRightView('preview');
 
             if (this.onComplete) {
-                await this.onComplete(result, inpaintPromptText, selectedVersion);
+                await this.onComplete(successfulResults, inpaintPromptText, selectedVersion);
             }
 
         } catch (err) {

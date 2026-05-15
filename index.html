@@ -1676,9 +1676,9 @@
             };
             const customApiKeyRaw = store.getSetting('nai_custom_api_key');
             const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
-            const auths = customApiKeys.length > 0 
-                ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
-                : [{ ...authBase, customApiKey: "" }];
+            const auth = customApiKeys.length > 0 
+                ? { ...authBase, customApiKey: customApiKeys[0] } 
+                : { ...authBase, customApiKey: "" };
 
             ui.setLoading(true, "处理中...");
             try {
@@ -1724,37 +1724,20 @@
                     image: base64Data
                 };
 
-                // 并发执行！
-                const fetchPromises = auths.map(auth => engine.augment(params, auth));
-                const results = await Promise.allSettled(fetchPromises);
-
-                const successfulResults = [];
-                for (const res of results) {
-                    if (res.status === 'fulfilled') {
-                        const result = res.value;
-                        if (result.userRole) {
-                            ui.updateCreditDisplay(result.userRole);
-                        }
-                        successfulResults.push(result);
-
-                        // Save to history
-                        const reader2 = new FileReader();
-                        reader2.readAsDataURL(result.blob);
-                        reader2.onloadend = async () => {
-                            await saveToHistory(reader2.result, `[${reqType}] ` + (currentImageData.prompt || ""), currentImageData.model || "v3", result);
-                        };
-                    } else {
-                        console.error("Concurrent Augment Error:", res.reason);
-                    }
+                const result = await engine.augment(params, auth);
+                
+                if (result.userRole) {
+                    ui.updateCreditDisplay(result.userRole);
                 }
 
-                if (successfulResults.length === 0) {
-                    const firstError = results.find(r => r.status === 'rejected')?.reason || new Error("所有 API 请求均失败");
-                    throw firstError;
-                }
+                // Save to history
+                const reader2 = new FileReader();
+                reader2.readAsDataURL(result.blob);
+                reader2.onloadend = async () => {
+                    await saveToHistory(reader2.result, `[${reqType}] ` + (currentImageData.prompt || ""), currentImageData.model || "v3", result, true);
+                };
 
-                // 批量展示！
-                ui.showResultImages(successfulResults, (selected) => {
+                ui.showResultImages([result], (selected) => {
                     currentImageData = selected;
                     if (selected.id) currentImageId = selected.id;
                     window.lastSelectedImageUrl = selected.imageUrl;
@@ -2204,13 +2187,20 @@
             ui: ui,
             engine: engine,
             store: store,
-            onComplete: async (result, promptText, selectedVersion) => {
-                ui.showResultImage(result.imageUrl);
-                const reader = new FileReader();
-                reader.readAsDataURL(result.blob);
-                reader.onloadend = async () => {
-                    await saveToHistory(reader.result, promptText + ' [inpaint]', selectedVersion);
-                };
+            onComplete: async (successfulResults, promptText, selectedVersion) => {
+                for (const result of successfulResults) {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(result.blob);
+                    reader.onloadend = async () => {
+                        await saveToHistory(reader.result, promptText + ' [inpaint]', selectedVersion, result, true);
+                    };
+                }
+
+                ui.showResultImages(successfulResults, (selected) => {
+                    currentImageData = selected;
+                    if (selected.id) currentImageId = selected.id;
+                    window.lastSelectedImageUrl = selected.imageUrl;
+                });
             }
         });
 
