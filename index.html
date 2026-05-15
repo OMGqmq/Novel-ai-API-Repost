@@ -1548,7 +1548,7 @@
                                 const reader = new FileReader();
                                 reader.readAsDataURL(result.blob);
                                 reader.onloadend = async () => {
-                                    await saveToHistory(reader.result, promptText, selectedVersion);
+                                    await saveToHistory(reader.result, promptText, selectedVersion, result);
                                 }
                             } else {
                                 console.error("Concurrent Gen Error:", res.reason);
@@ -1563,6 +1563,7 @@
                         // 批量展示！
                         ui.showResultImages(successfulResults, (selected) => {
                             currentImageData = selected;
+                            if (selected.id) currentImageId = selected.id;
                             // 为了兼容 downloadImage 等，我们需要一个全局的 currentImageUrl 或类似物
                             window.lastSelectedImageUrl = selected.imageUrl;
                         });
@@ -1601,13 +1602,22 @@
         // --- Store Integration ---
         store.init().then(() => loadGallery());
 
-        async function saveToHistory(imgData, prompt, model) {
+        async function saveToHistory(imgData, prompt, model, resultObj = null, forceFocus = false) {
             try {
                 const savedItem = await store.saveImage(imgData, prompt, model);
-                currentImageId = savedItem.id;
-                currentImageData = savedItem;
-                ui.showImageActions(true);
+                if (resultObj) {
+                    resultObj.id = savedItem.id;
+                }
+                
+                // If it's a legacy call (no resultObj) or we force focus, OR if the newly saved result is what the user is currently viewing
+                if (forceFocus || (!resultObj && !forceFocus) || (resultObj && currentImageData === resultObj)) {
+                    currentImageId = savedItem.id;
+                    currentImageData = savedItem;
+                    ui.showImageActions(true);
+                }
+                
                 loadGallery();
+                return savedItem;
             } catch (e) {
                 console.error("Failed to save to history", e);
             }
