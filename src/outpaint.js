@@ -56,6 +56,7 @@ export class OutpaintEditor {
             this.els.selection.classList.remove('cursor-crosshair');
             this.els.selection.classList.add('cursor-move');
             this.els.maskCanvas.classList.add('pointer-events-none');
+            this.els.brushControl.classList.remove('flex');
             this.els.brushControl.classList.add('hidden');
             this.els.modeMoveBtn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
             this.els.modeMoveBtn.classList.remove('text-gray-500');
@@ -462,6 +463,7 @@ export class OutpaintEditor {
         const scaleX = (areaRect.width - padding) / contentW;
         const scaleY = (areaRect.height - padding) / contentH;
         this.transform.scale = Math.min(scaleX, scaleY, 1); // Don't scale up past 1x initially
+        if (isNaN(this.transform.scale) || this.transform.scale <= 0) this.transform.scale = 1;
 
         this.transform.x = (areaRect.width - contentW * this.transform.scale) / 2;
         this.transform.y = (areaRect.height - contentH * this.transform.scale) / 2;
@@ -484,8 +486,8 @@ export class OutpaintEditor {
             originY = rect.height / 2;
         }
 
-        const newScale = Math.max(0.1, Math.min(this.transform.scale * factor, 5));
-        const ratio = newScale / this.transform.scale;
+        const newScale = Math.max(0.05, Math.min(this.transform.scale * factor, 10));
+        const ratio = newScale / (this.transform.scale || 1);
 
         this.transform.x = originX - (originX - this.transform.x) * ratio;
         this.transform.y = originY - (originY - this.transform.y) * ratio;
