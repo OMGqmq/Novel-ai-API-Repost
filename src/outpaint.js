@@ -89,41 +89,36 @@ export class OutpaintEditor {
             // Draw background (transparent)
             cropCtx.drawImage(this.els.canvas, -x, -y);
 
-            // Generate mask based on alpha channel
-            const imgData = cropCtx.getImageData(0, 0, targetW, targetH);
+            // Generate Mask using pure Canvas API (simulating a soft brush)
+            // 1. Create a temp mask where the empty outpaint area is White, and image area is Transparent
+            const tempMask = document.createElement('canvas');
+            tempMask.width = targetW;
+            tempMask.height = targetH;
+            const tCtx = tempMask.getContext('2d');
+            tCtx.fillStyle = '#FFFFFF';
+            tCtx.fillRect(0, 0, targetW, targetH);
+            tCtx.globalCompositeOperation = 'destination-out';
+            tCtx.drawImage(cropCanvas, 0, 0);
+
+            // 2. Draw the final mask: Black background (Keep), then blurred White area (Generate)
             const maskCanvas = document.createElement('canvas');
             maskCanvas.width = targetW;
             maskCanvas.height = targetH;
             const maskCtx = maskCanvas.getContext('2d');
             
-            // Fill mask background with black (keep)
             maskCtx.fillStyle = '#000000';
             maskCtx.fillRect(0, 0, targetW, targetH);
-            const maskData = maskCtx.getImageData(0, 0, targetW, targetH);
+            
+            // Adding blur feathers the mask edge, creating an overlap with the original image.
+            // This completely eliminates the "black line" seam, exactly like using a soft brush in inpaint!
+            maskCtx.filter = 'blur(12px)';
+            maskCtx.drawImage(tempMask, 0, 0);
+            maskCtx.filter = 'none';
 
-            for (let i = 0; i < imgData.data.length; i += 4) {
-                const alpha = imgData.data[i + 3];
-                const isMasked = alpha < 128; // If transparent, we mask it
-                const color = isMasked ? 255 : 0; // White for masked (generate), Black for unmasked (keep)
-                
-                maskData.data[i] = color;
-                maskData.data[i + 1] = color;
-                maskData.data[i + 2] = color;
-                maskData.data[i + 3] = 255;
-                
-                // Set transparent pixels to a solid color in the image to send to API
-                if (isMasked) {
-                     // In inpaint, the masked area is whatever was on the canvas. 
-                     // Since outpaint has no canvas there, we make it black or white. 
-                     // Let's use black.
-                     imgData.data[i] = 0;
-                     imgData.data[i+1] = 0;
-                     imgData.data[i+2] = 0;
-                     imgData.data[i+3] = 255;
-                }
-            }
-            maskCtx.putImageData(maskData, 0, 0);
-            cropCtx.putImageData(imgData, 0, 0);
+            // 3. Fill the empty areas of the uploaded image with black to ensure it's a solid PNG
+            cropCtx.globalCompositeOperation = 'destination-over';
+            cropCtx.fillStyle = '#000000';
+            cropCtx.fillRect(0, 0, targetW, targetH);
 
             // Check model version
             const modelVersionEl = document.getElementById('modelValue');
