@@ -122,7 +122,7 @@ export class InpaintEditor {
     }
 
     open() {
-        const imgEl = document.getElementById('resultImage');
+        const imgEl = document.getElementById('singleResultImg');
         if (!imgEl || imgEl.classList.contains('hidden') || !imgEl.src) {
             alert('请先生成或选择一张图片');
             return;
