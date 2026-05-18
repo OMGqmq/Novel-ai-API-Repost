@@ -96,34 +96,24 @@ export class OutpaintEditor {
             maskCanvas.height = targetH;
             const maskCtx = maskCanvas.getContext('2d');
             
-            // Fill mask background with black (keep)
-            maskCtx.fillStyle = '#000000';
+            // Fill mask background with white (Generate/Redraw area)
+            maskCtx.fillStyle = '#FFFFFF';
             maskCtx.fillRect(0, 0, targetW, targetH);
             const maskData = maskCtx.getImageData(0, 0, targetW, targetH);
 
             for (let i = 0; i < imgData.data.length; i += 4) {
                 const alpha = imgData.data[i + 3];
-                const isMasked = alpha < 128; // If transparent, we mask it
-                const color = isMasked ? 255 : 0; // White for masked (generate), Black for unmasked (keep)
-                
-                maskData.data[i] = color;
-                maskData.data[i + 1] = color;
-                maskData.data[i + 2] = color;
-                maskData.data[i + 3] = 255;
-                
-                // Set transparent pixels to a solid color in the image to send to API
-                if (isMasked) {
-                     imgData.data[i] = 0;
-                     imgData.data[i+1] = 0;
-                     imgData.data[i+2] = 0;
-                     imgData.data[i+3] = 255;
+                if (alpha > 128) {
+                    // If pixel is opaque, we want to KEEP it, so Mask = Black
+                    maskData.data[i] = 0;
+                    maskData.data[i + 1] = 0;
+                    maskData.data[i + 2] = 0;
                 }
             }
             maskCtx.putImageData(maskData, 0, 0);
-            cropCtx.putImageData(imgData, 0, 0);
 
             // DILATE MASK: Expand the white area (generate) slightly into the black area (keep).
-            // This forces the AI to redraw a small strip of the original image, ensuring a seamless blend without black lines.
+            // This ensures a slight overlap so the AI seamlessly blends the seam.
             const expandedMask = document.createElement('canvas');
             expandedMask.width = targetW;
             expandedMask.height = targetH;
@@ -131,14 +121,25 @@ export class OutpaintEditor {
             eCtx.fillStyle = '#000000';
             eCtx.fillRect(0, 0, targetW, targetH);
             eCtx.globalCompositeOperation = 'lighten';
-            
-            // Shift mask in all directions by up to 12 pixels to expand it
-            const offset = 12;
-            for(let dx = -offset; dx <= offset; dx += 4) {
-                for(let dy = -offset; dy <= offset; dy += 4) {
+            for(let dx = -8; dx <= 8; dx += 8) {
+                for(let dy = -8; dy <= 8; dy += 8) {
                     eCtx.drawImage(maskCanvas, dx, dy);
                 }
             }
+
+            // SMEAR IMAGE EDGES: Pull the edge colors outward so the AI has context.
+            // Using destination-over only draws under the transparent pixels, bleeding the edge outward.
+            cropCtx.globalCompositeOperation = 'destination-over';
+            for (let dist = 1; dist <= 32; dist *= 2) {
+                cropCtx.drawImage(cropCanvas, dist, 0);
+                cropCtx.drawImage(cropCanvas, -dist, 0);
+                cropCtx.drawImage(cropCanvas, 0, dist);
+                cropCtx.drawImage(cropCanvas, 0, -dist);
+            }
+            
+            // Fill remaining transparent space with neutral gray (128,128,128) to prevent VAE NaN (Black images)
+            cropCtx.fillStyle = '#808080';
+            cropCtx.fillRect(0, 0, targetW, targetH);
 
             // Check model version
             const modelVersionEl = document.getElementById('modelValue');
