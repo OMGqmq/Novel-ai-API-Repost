@@ -106,18 +106,12 @@ export class OutpaintEditor {
                 maskData.data[i + 1] = color;
                 maskData.data[i + 2] = color;
                 maskData.data[i + 3] = 255;
-                
-                // Make transparent pixels solid black for generation to avoid edge artifacts
-                if (isMasked) {
-                     imgData.data[i] = 0;
-                     imgData.data[i+1] = 0;
-                     imgData.data[i+2] = 0;
-                     imgData.data[i+3] = 255;
-                }
             }
             maskCtx.putImageData(maskData, 0, 0);
-            cropCtx.putImageData(imgData, 0, 0);
 
+            // Do not mutate cropCtx image data; leave transparent areas transparent 
+            // so NovelAI can use the alpha channel for proper edge-padding.
+            
             // Check model version
             const modelVersionEl = document.getElementById('modelValue');
             const modelVersion = modelVersionEl ? modelVersionEl.value : 'v4.5';
