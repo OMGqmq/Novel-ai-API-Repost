@@ -337,17 +337,25 @@ export class OutpaintEditor {
             }
         }, { passive: false });
 
-        this.els.area.addEventListener('mousedown', (e) => {
+        const handlePanStart = (e) => {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             if (e.target === this.els.area || e.target === this.els.canvas) {
                 this.isPanning = true;
-                this.lastMouse = { x: e.clientX, y: e.clientY };
+                this.lastMouse = { x: clientX, y: clientY };
                 this.startTransform = { ...this.transform };
                 this.els.area.style.cursor = 'grabbing';
             }
-        });
+        };
+
+        this.els.area.addEventListener('mousedown', handlePanStart);
+        this.els.area.addEventListener('touchstart', handlePanStart, { passive: false });
 
         // --- Selection Interaction ---
-        this.els.selection.addEventListener('mousedown', (e) => {
+        const handleSelectionStart = (e) => {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
             if (e.target.classList.contains('resize-handle')) {
                 this.isResizing = true;
                 this.resizeHandle = e.target.dataset.handle;
@@ -355,29 +363,39 @@ export class OutpaintEditor {
                 this.isDraggingSelection = true;
             }
             
-            this.lastMouse = { x: e.clientX, y: e.clientY };
+            this.lastMouse = { x: clientX, y: clientY };
             this.startSelection = { ...this.selection };
             e.stopPropagation(); // Prevent panning
-        });
+            if(e.touches) e.preventDefault(); // Prevent scrolling on mobile
+        };
 
-        // --- Global Mouse Move & Up ---
-        window.addEventListener('mousemove', (e) => {
+        this.els.selection.addEventListener('mousedown', handleSelectionStart);
+        this.els.selection.addEventListener('touchstart', handleSelectionStart, { passive: false });
+
+        // --- Global Move & Up/End ---
+        const handleMove = (e) => {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
             if (this.isPanning) {
-                const dx = e.clientX - this.lastMouse.x;
-                const dy = e.clientY - this.lastMouse.y;
+                if(e.touches) e.preventDefault();
+                const dx = clientX - this.lastMouse.x;
+                const dy = clientY - this.lastMouse.y;
                 this.transform.x = this.startTransform.x + dx;
                 this.transform.y = this.startTransform.y + dy;
                 this._applyTransform();
             } else if (this.isDraggingSelection) {
-                const dx = (e.clientX - this.lastMouse.x) / this.transform.scale;
-                const dy = (e.clientY - this.lastMouse.y) / this.transform.scale;
+                if(e.touches) e.preventDefault();
+                const dx = (clientX - this.lastMouse.x) / this.transform.scale;
+                const dy = (clientY - this.lastMouse.y) / this.transform.scale;
                 
                 this.selection.x = this.startSelection.x + dx;
                 this.selection.y = this.startSelection.y + dy;
                 this._updateSelectionDOM();
             } else if (this.isResizing) {
-                const dx = (e.clientX - this.lastMouse.x) / this.transform.scale;
-                const dy = (e.clientY - this.lastMouse.y) / this.transform.scale;
+                if(e.touches) e.preventDefault();
+                const dx = (clientX - this.lastMouse.x) / this.transform.scale;
+                const dy = (clientY - this.lastMouse.y) / this.transform.scale;
                 
                 let newW = this.startSelection.w;
                 let newH = this.startSelection.h;
@@ -401,7 +419,6 @@ export class OutpaintEditor {
 
                 // Enforce max pixel area limit (1024x1024 = 1048576)
                 if (newW * newH > this.maxPixels) {
-                    // Try to maintain aspect ratio or constrain the resizing dimension
                     const maxAllowedArea = this.maxPixels;
                     if (this.resizeHandle === 'e' || this.resizeHandle === 'w') {
                          newW = maxAllowedArea / newH;
@@ -410,14 +427,11 @@ export class OutpaintEditor {
                          newH = maxAllowedArea / newW;
                          if (this.resizeHandle === 'n') newY = this.startSelection.y + (this.startSelection.h - newH);
                     } else {
-                         // Diagonal resize: scale down maintaining ratio
                          const ratio = Math.sqrt(maxAllowedArea / (newW * newH));
                          const adjustW = newW - (newW * ratio);
                          const adjustH = newH - (newH * ratio);
-                         
                          newW *= ratio;
                          newH *= ratio;
-                         
                          if (this.resizeHandle.includes('w')) newX += adjustW;
                          if (this.resizeHandle.includes('n')) newY += adjustH;
                     }
@@ -430,9 +444,9 @@ export class OutpaintEditor {
                 
                 this._updateSelectionDOM();
             }
-        });
+        };
 
-        window.addEventListener('mouseup', () => {
+        const handleUp = () => {
             if (this.isPanning) {
                 this.isPanning = false;
                 this.els.area.style.cursor = 'default';
@@ -460,6 +474,11 @@ export class OutpaintEditor {
                 }
                 this._updateSelectionDOM();
             }
-        });
+        };
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('touchmove', handleMove, { passive: false });
+        window.addEventListener('mouseup', handleUp);
+        window.addEventListener('touchend', handleUp);
     }
 }
