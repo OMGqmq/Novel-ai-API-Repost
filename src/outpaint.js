@@ -89,7 +89,7 @@ export class OutpaintEditor {
             // Draw background (transparent)
             cropCtx.drawImage(this.els.canvas, -x, -y);
 
-            // Generate mask based on alpha channel
+            // Generate mask based on alpha channel and apply Edge Padding to image data
             const imgData = cropCtx.getImageData(0, 0, targetW, targetH);
             const maskCanvas = document.createElement('canvas');
             maskCanvas.width = targetW;
@@ -97,20 +97,49 @@ export class OutpaintEditor {
             const maskCtx = maskCanvas.getContext('2d');
             const maskData = maskCtx.createImageData(targetW, targetH);
 
-            for (let i = 0; i < imgData.data.length; i += 4) {
-                const alpha = imgData.data[i + 3];
-                const isMasked = alpha < 128; // If transparent, we mask it
-                const color = isMasked ? 255 : 0; // White for masked (generate), Black for unmasked (keep)
-                
-                maskData.data[i] = color;
-                maskData.data[i + 1] = color;
-                maskData.data[i + 2] = color;
-                maskData.data[i + 3] = 255;
+            // 1. Find the bounding box of the opaque area
+            let minX = targetW, maxX = 0, minY = targetH, maxY = 0;
+            let hasOpaque = false;
+            for (let yy = 0; yy < targetH; yy++) {
+                for (let xx = 0; xx < targetW; xx++) {
+                    const idx = (yy * targetW + xx) * 4;
+                    if (imgData.data[idx + 3] >= 128) {
+                        hasOpaque = true;
+                        if (xx < minX) minX = xx;
+                        if (xx > maxX) maxX = xx;
+                        if (yy < minY) minY = yy;
+                        if (yy > maxY) maxY = yy;
+                    }
+                }
+            }
+
+            // 2. Generate Mask AND apply edge padding (clamp to opaque bounding box)
+            for (let yy = 0; yy < targetH; yy++) {
+                for (let xx = 0; xx < targetW; xx++) {
+                    const idx = (yy * targetW + xx) * 4;
+                    const isMasked = imgData.data[idx + 3] < 128;
+                    const color = isMasked ? 255 : 0; // White for generate, Black for keep
+                    
+                    maskData.data[idx] = color;
+                    maskData.data[idx + 1] = color;
+                    maskData.data[idx + 2] = color;
+                    maskData.data[idx + 3] = 255;
+                    
+                    if (isMasked && hasOpaque) {
+                        // Edge Padding: Extrapolate nearest opaque pixel from bounding box
+                        const clampX = Math.max(minX, Math.min(xx, maxX));
+                        const clampY = Math.max(minY, Math.min(yy, maxY));
+                        const srcIdx = (clampY * targetW + clampX) * 4;
+                        
+                        imgData.data[idx] = imgData.data[srcIdx];
+                        imgData.data[idx + 1] = imgData.data[srcIdx + 1];
+                        imgData.data[idx + 2] = imgData.data[srcIdx + 2];
+                        imgData.data[idx + 3] = 255; // Make fully opaque
+                    }
+                }
             }
             maskCtx.putImageData(maskData, 0, 0);
-
-            // Do not mutate cropCtx image data; leave transparent areas transparent 
-            // so NovelAI can use the alpha channel for proper edge-padding.
+            cropCtx.putImageData(imgData, 0, 0); // Apply padded image back
             
             // Check model version
             const modelVersionEl = document.getElementById('modelValue');
