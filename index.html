@@ -1621,7 +1621,8 @@
             if (url) {
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `novelai-gen-${Date.now()}.png`;
+                const isJpeg = url.startsWith('data:image/jpeg');
+                a.download = `novelai-gen-${Date.now()}.${isJpeg ? 'jpg' : 'png'}`;
                 a.click();
             }
         }
