@@ -7,12 +7,19 @@ export class OutpaintEditor {
             area: document.getElementById('outpaintArea'),
             container: document.getElementById('outpaintContainer'),
             canvas: document.getElementById('outpaintCanvas'),
+            maskCanvas: document.getElementById('outpaintMaskCanvas'),
             selection: document.getElementById('outpaintSelection'),
             sizeLabel: document.getElementById('outpaintSizeLabel'),
-            sourceImg: document.getElementById('singleResultImg')
+            sourceImg: document.getElementById('singleResultImg'),
+            brushControl: document.getElementById('outpaintBrushControl'),
+            brushSizeInput: document.getElementById('outpaintBrushSize'),
+            brushSizeVal: document.getElementById('outpaintBrushSizeVal'),
+            modeMoveBtn: document.getElementById('outpaintModeMove'),
+            modePaintBtn: document.getElementById('outpaintModePaint')
         };
 
         this.ctx = this.els.canvas.getContext('2d');
+        this.maskCtx = this.els.maskCanvas.getContext('2d');
 
         // Transform state
         this.transform = { x: 0, y: 0, scale: 1 };
@@ -20,6 +27,16 @@ export class OutpaintEditor {
         // Selection state
         this.selection = { x: 0, y: 0, w: 512, h: 512 };
         this.maxPixels = 1024 * 1024; // 1048576
+        
+        // Mode state
+        this.mode = 'move'; // 'move' or 'paint'
+        this.isPainting = false;
+        this.lastPos = null;
+
+        // History state
+        this.history = [];
+        this.maskHistory = [];
+        this.maxHistory = 10;
         
         // Interaction state
         this.isPanning = false;
@@ -33,7 +50,81 @@ export class OutpaintEditor {
         this._bindEvents();
     }
 
+    setMode(mode) {
+        this.mode = mode;
+        if (mode === 'move') {
+            this.els.selection.classList.remove('cursor-crosshair');
+            this.els.selection.classList.add('cursor-move');
+            this.els.maskCanvas.classList.add('pointer-events-none');
+            this.els.brushControl.classList.add('hidden');
+            this.els.modeMoveBtn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+            this.els.modeMoveBtn.classList.remove('text-gray-500');
+            this.els.modePaintBtn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+            this.els.modePaintBtn.classList.add('text-gray-500');
+        } else {
+            this.els.selection.classList.remove('cursor-move');
+            this.els.selection.classList.add('cursor-crosshair');
+            this.els.maskCanvas.classList.remove('pointer-events-none');
+            this.els.brushControl.classList.remove('hidden');
+            this.els.brushControl.classList.add('flex');
+            this.els.modePaintBtn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+            this.els.modePaintBtn.classList.remove('text-gray-500');
+            this.els.modeMoveBtn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+            this.els.modeMoveBtn.classList.add('text-gray-500');
+        }
+    }
+
+    _getBrushSize() {
+        return parseInt(this.els.brushSizeInput.value || 60);
+    }
+
+    _drawOnMask(pos, isStart = false) {
+        const r = this._getBrushSize();
+        this.maskCtx.globalCompositeOperation = 'source-over';
+        this.maskCtx.fillStyle = '#FFFFFF';
+        
+        if (isStart || !this.lastPos) {
+            this.maskCtx.beginPath();
+            this.maskCtx.arc(Math.round(pos.x), Math.round(pos.y), r / 2, 0, Math.PI * 2);
+            this.maskCtx.fill();
+        } else {
+            const dx = pos.x - this.lastPos.x;
+            const dy = pos.y - this.lastPos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const step = Math.max(1, Math.floor(r / 8));
+            const numSteps = Math.max(1, Math.ceil(dist / step));
+            for (let i = 0; i <= numSteps; i++) {
+                const t = i / numSteps;
+                const tx = this.lastPos.x + dx * t;
+                const ty = this.lastPos.y + dy * t;
+                this.maskCtx.beginPath();
+                this.maskCtx.arc(Math.round(tx), Math.round(ty), r / 2, 0, Math.PI * 2);
+                this.maskCtx.fill();
+            }
+        }
+        this.lastPos = pos;
+    }
+
+    _getMaskPos(e) {
+        const rect = this.els.maskCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const scaleX = this.els.maskCanvas.width / rect.width;
+        const scaleY = this.els.maskCanvas.height / rect.height;
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+
     open() {
+        this.history = [];
+        this.maskHistory = [];
+        this.setMode('move');
+        this.els.brushSizeInput.value = 60;
+        this.els.brushSizeVal.textContent = 60;
+        this.maskCtx.clearRect(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height);
+
         if (!this.els.sourceImg || !this.els.sourceImg.src) {
             alert('请先选择一张图片进行扩图');
             return;
@@ -67,6 +158,64 @@ export class OutpaintEditor {
         this.els.area.classList.add('hidden');
     }
 
+    saveState() {
+        // Save current canvas state and selection
+        const state = {
+            width: this.els.canvas.width,
+            height: this.els.canvas.height,
+            imageData: this.ctx.getImageData(0, 0, this.els.canvas.width, this.els.canvas.height),
+            selection: { ...this.selection },
+            transform: { ...this.transform }
+        };
+        this.history.push(state);
+        if (this.history.length > this.maxHistory) this.history.shift();
+    }
+
+    undo() {
+        if (this.mode === 'paint' && this.maskHistory.length > 0) {
+            const state = this.maskHistory.pop();
+            this.maskCtx.putImageData(state, 0, 0);
+            return;
+        }
+
+        if (this.history.length === 0) {
+            alert('没有可撤销的操作');
+            return;
+        }
+        const state = this.history.pop();
+        
+        this.els.canvas.width = state.width;
+        this.els.canvas.height = state.height;
+        this.ctx.putImageData(state.imageData, 0, 0);
+        
+        this.selection = { ...state.selection };
+        this.transform = { ...state.transform };
+        
+        this._applyTransform();
+        this._updateSelectionDOM();
+        
+        // Update UI preview if needed
+        const finalBase64 = this.els.canvas.toDataURL('image/jpeg', 0.95);
+        if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
+        window.lastSelectedImageUrl = finalBase64;
+    }
+
+    _hasPaintedMask() {
+        const data = this.maskCtx.getImageData(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height).data;
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] > 200 && data[i + 3] > 128) return true;
+        }
+        return false;
+    }
+
+    clearMask() {
+        if (this.maskHistory.length > 0 || this._hasPaintedMask()) {
+            this.maskHistory.push(this.maskCtx.getImageData(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height));
+            if (this.maskHistory.length > 20) this.maskHistory.shift();
+        }
+        this.maskCtx.clearRect(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height);
+    }
+
     async generate() {
         const btn = document.getElementById('outpaintGenerateBtn');
         if (!btn) return;
@@ -85,50 +234,62 @@ export class OutpaintEditor {
             cropCanvas.width = targetW;
             cropCanvas.height = targetH;
             const cropCtx = cropCanvas.getContext('2d');
-            
-            // Draw background (transparent)
             cropCtx.drawImage(this.els.canvas, -x, -y);
 
-            // Generate mask based on alpha channel
-            const imgData = cropCtx.getImageData(0, 0, targetW, targetH);
-            const maskCanvas = document.createElement('canvas');
-            maskCanvas.width = targetW;
-            maskCanvas.height = targetH;
-            const maskCtx = maskCanvas.getContext('2d');
-            
-            // Fill mask background with white (Generate/Redraw area)
-            maskCtx.fillStyle = '#FFFFFF';
-            maskCtx.fillRect(0, 0, targetW, targetH);
-            const maskData = maskCtx.getImageData(0, 0, targetW, targetH);
+            // Check if there is a painted mask
+            const hasPaintedMask = this._hasPaintedMask();
 
-            for (let i = 0; i < imgData.data.length; i += 4) {
-                const alpha = imgData.data[i + 3];
-                if (alpha > 128) {
-                    // If pixel is opaque, we want to KEEP it, so Mask = Black
-                    maskData.data[i] = 0;
-                    maskData.data[i + 1] = 0;
-                    maskData.data[i + 2] = 0;
+            let finalMaskCanvas;
+            let action = 'infill';
+
+            if (hasPaintedMask) {
+                // INPAINT MODE: Use the painted mask
+                finalMaskCanvas = document.createElement('canvas');
+                finalMaskCanvas.width = targetW;
+                finalMaskCanvas.height = targetH;
+                const fmcCtx = finalMaskCanvas.getContext('2d');
+                fmcCtx.drawImage(this.els.maskCanvas, 0, 0, targetW, targetH);
+                action = 'infill'; // NovelAI's inpaint action is often called 'infill' in their UI for legacy reasons, or handled by strength
+            } else {
+                // OUTPAINT MODE: Generate mask based on alpha channel
+                const imgData = cropCtx.getImageData(0, 0, targetW, targetH);
+                const maskCanvas = document.createElement('canvas');
+                maskCanvas.width = targetW;
+                maskCanvas.height = targetH;
+                const maskCtx = maskCanvas.getContext('2d');
+                
+                // Fill mask background with white (Generate/Redraw area)
+                maskCtx.fillStyle = '#FFFFFF';
+                maskCtx.fillRect(0, 0, targetW, targetH);
+                const maskData = maskCtx.getImageData(0, 0, targetW, targetH);
+
+                for (let i = 0; i < imgData.data.length; i += 4) {
+                    const alpha = imgData.data[i + 3];
+                    if (alpha > 128) {
+                        // If pixel is opaque, we want to KEEP it, so Mask = Black
+                        maskData.data[i] = 0;
+                        maskData.data[i + 1] = 0;
+                        maskData.data[i + 2] = 0;
+                    }
                 }
-            }
-            maskCtx.putImageData(maskData, 0, 0);
+                maskCtx.putImageData(maskData, 0, 0);
 
-            // DILATE MASK: Expand the white area (generate) slightly into the black area (keep).
-            // This ensures a slight overlap so the AI seamlessly blends the seam.
-            const expandedMask = document.createElement('canvas');
-            expandedMask.width = targetW;
-            expandedMask.height = targetH;
-            const eCtx = expandedMask.getContext('2d');
-            eCtx.fillStyle = '#000000';
-            eCtx.fillRect(0, 0, targetW, targetH);
-            eCtx.globalCompositeOperation = 'lighten';
-            for(let dx = -8; dx <= 8; dx += 8) {
-                for(let dy = -8; dy <= 8; dy += 8) {
-                    eCtx.drawImage(maskCanvas, dx, dy);
+                // DILATE MASK: Expand the white area (generate) slightly into the black area (keep).
+                finalMaskCanvas = document.createElement('canvas');
+                finalMaskCanvas.width = targetW;
+                finalMaskCanvas.height = targetH;
+                const eCtx = finalMaskCanvas.getContext('2d');
+                eCtx.fillStyle = '#000000';
+                eCtx.fillRect(0, 0, targetW, targetH);
+                eCtx.globalCompositeOperation = 'lighten';
+                for(let dx = -8; dx <= 8; dx += 8) {
+                    for(let dy = -8; dy <= 8; dy += 8) {
+                        eCtx.drawImage(maskCanvas, dx, dy);
+                    }
                 }
             }
 
             // SMEAR IMAGE EDGES: Pull the edge colors outward so the AI has context.
-            // Using destination-over only draws under the transparent pixels, bleeding the edge outward.
             cropCtx.globalCompositeOperation = 'destination-over';
             for (let dist = 1; dist <= 32; dist *= 2) {
                 cropCtx.drawImage(cropCanvas, dist, 0);
@@ -137,7 +298,7 @@ export class OutpaintEditor {
                 cropCtx.drawImage(cropCanvas, 0, -dist);
             }
             
-            // Fill remaining transparent space with neutral gray (128,128,128) to prevent VAE NaN (Black images)
+            // Fill remaining transparent space with neutral gray (128,128,128)
             cropCtx.fillStyle = '#808080';
             cropCtx.fillRect(0, 0, targetW, targetH);
 
@@ -156,16 +317,16 @@ export class OutpaintEditor {
             tempMaskCanvas.height = latentH;
             const tempCtx = tempMaskCanvas.getContext('2d');
             tempCtx.imageSmoothingEnabled = false;
-            tempCtx.drawImage(expandedMask, 0, 0, latentW, latentH);
+            tempCtx.drawImage(finalMaskCanvas, 0, 0, latentW, latentH);
 
             if (isV4) {
-                const finalMaskCanvas = document.createElement('canvas');
-                finalMaskCanvas.width = latentW * 8;
-                finalMaskCanvas.height = latentH * 8;
-                const finalCtx = finalMaskCanvas.getContext('2d');
+                const finalMaskCanvasV4 = document.createElement('canvas');
+                finalMaskCanvasV4.width = latentW * 8;
+                finalMaskCanvasV4.height = latentH * 8;
+                const finalCtx = finalMaskCanvasV4.getContext('2d');
                 finalCtx.imageSmoothingEnabled = false;
-                finalCtx.drawImage(tempMaskCanvas, 0, 0, finalMaskCanvas.width, finalMaskCanvas.height);
-                finalMaskBase64 = finalMaskCanvas.toDataURL('image/png').split(',')[1];
+                finalCtx.drawImage(tempMaskCanvas, 0, 0, finalMaskCanvasV4.width, finalMaskCanvasV4.height);
+                finalMaskBase64 = finalMaskCanvasV4.toDataURL('image/png').split(',')[1];
             } else {
                 finalMaskBase64 = tempMaskCanvas.toDataURL('image/png').split(',')[1];
             }
@@ -178,6 +339,7 @@ export class OutpaintEditor {
             const steps = parseInt(document.getElementById('steps')?.value || 28);
             const scale = parseFloat(document.getElementById('scale')?.value || 5);
             const sampler = document.getElementById('sampler')?.value || 'k_euler';
+            const strength = hasPaintedMask ? 0.7 : 1.0; // Use partial strength for inpaint if needed, though infill 1.0 is standard
 
             const params = {
                 version: modelVersion,
@@ -190,12 +352,13 @@ export class OutpaintEditor {
                 sampler,
                 image: imageBase64,
                 mask: finalMaskBase64,
-                strength: 1.0,
-                action: 'infill',
+                strength: strength,
+                action: action,
                 add_original_image: true
             };
 
-            // Handling Multi-API Keys gracefully (Fallback strategy)
+            // ... (Rest of the generate method for API call and stitching)
+            // Handling Multi-API Keys gracefully
             const adminToken = this.store.getSetting('nai_admin_token');
             const userKey = this.store.getSetting('nai_user_key');
             const customApiKeyRaw = this.store.getSetting('nai_custom_api_key', '');
@@ -212,9 +375,9 @@ export class OutpaintEditor {
             for (const auth of authsToTry) {
                 try {
                     result = await this.engine.generate(params, auth);
-                    break; // Success, exit fallback loop
+                    break;
                 } catch (err) {
-                    console.warn('API Key failed, trying next (if available)...', err);
+                    console.warn('API Key failed, trying next...', err);
                     lastError = err;
                 }
             }
@@ -226,6 +389,14 @@ export class OutpaintEditor {
             // Stitch the resulting image back
             const newImg = new Image();
             newImg.onload = () => {
+                this.saveState();
+                
+                // Clear the mask after successful generation if it was an inpaint
+                if (hasPaintedMask) {
+                    this.maskCtx.clearRect(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height);
+                    this.maskHistory = [];
+                }
+
                 const newCanvasW = Math.max(this.els.canvas.width, x + targetW);
                 const newCanvasH = Math.max(this.els.canvas.height, y + targetH);
                 const newCanvasX = Math.min(0, x);
@@ -256,10 +427,9 @@ export class OutpaintEditor {
                 this._applyTransform();
                 this._updateSelectionDOM();
 
-                // Save as JPEG to reduce IndexedDB bloat (Canvas PNGs get massive)
                 const finalBase64 = this.els.canvas.toDataURL('image/jpeg', 0.95);
                 this.store.saveImage(finalBase64, prompt, modelVersion).then(() => {
-                    alert("扩图成功并已保存到历史记录");
+                    alert(hasPaintedMask ? "局部重绘成功" : "扩图成功并已保存到历史记录");
                     if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
                     window.lastSelectedImageUrl = finalBase64;
                     if (window.switchGalleryTab) window.switchGalleryTab('history');
@@ -270,14 +440,12 @@ export class OutpaintEditor {
             if (result.userRole && document.getElementById('creditDisplayDesktop')) {
                 const text = result.userRole.replace(" (Limited)", "").replace(" (Unlimited)", "");
                 document.getElementById('creditDisplayDesktop').textContent = text;
-                document.getElementById('creditDisplayDesktop').classList.remove('hidden');
                 document.getElementById('creditDisplayMobile').textContent = text;
-                document.getElementById('creditDisplayMobile').classList.remove('hidden');
             }
 
         } catch (err) {
             console.error(err);
-            alert('扩图失败: ' + err.message);
+            alert('操作失败: ' + err.message);
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
@@ -331,12 +499,31 @@ export class OutpaintEditor {
     }
 
     _updateSelectionDOM() {
-        this.els.selection.style.width = `${this.selection.w}px`;
-        this.els.selection.style.height = `${this.selection.h}px`;
+        const w = Math.round(this.selection.w);
+        const h = Math.round(this.selection.h);
+        
+        // Update mask canvas resolution if selection size changed
+        if (this.els.maskCanvas.width !== w || this.els.maskCanvas.height !== h) {
+            // Backup current mask
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = this.els.maskCanvas.width;
+            tempCanvas.height = this.els.maskCanvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(this.els.maskCanvas, 0, 0);
+            
+            this.els.maskCanvas.width = w;
+            this.els.maskCanvas.height = h;
+            
+            // Rescale mask to new size
+            this.maskCtx.imageSmoothingEnabled = false;
+            this.maskCtx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, w, h);
+        }
+
+        this.els.selection.style.width = `${w}px`;
+        this.els.selection.style.height = `${h}px`;
         this.els.selection.style.transform = `translate(${this.selection.x}px, ${this.selection.y}px)`;
         
-        // Ensure snap to 64 for display label
-        this.els.sizeLabel.textContent = `${Math.round(this.selection.w)} x ${Math.round(this.selection.h)}`;
+        this.els.sizeLabel.textContent = `${w} x ${h}`;
         
         if (this.selection.w * this.selection.h > this.maxPixels) {
             this.els.sizeLabel.classList.add('text-red-400');
@@ -361,7 +548,19 @@ export class OutpaintEditor {
             }
         }, { passive: false });
 
+        this.els.brushSizeInput?.addEventListener('input', e => {
+            this.els.brushSizeVal.textContent = e.target.value;
+        });
+
         const handlePanStart = (e) => {
+            if (this.mode === 'paint' && (e.target === this.els.maskCanvas || e.target === this.els.selection)) {
+                this.isPainting = true;
+                this.maskHistory.push(this.maskCtx.getImageData(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height));
+                if (this.maskHistory.length > 20) this.maskHistory.shift();
+                this._drawOnMask(this._getMaskPos(e), true);
+                return;
+            }
+
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             if (e.target === this.els.area || e.target === this.els.canvas) {
@@ -377,6 +576,8 @@ export class OutpaintEditor {
 
         // --- Selection Interaction ---
         const handleSelectionStart = (e) => {
+            if (this.mode === 'paint') return; // Handled in handlePanStart for painting
+
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             
@@ -398,6 +599,11 @@ export class OutpaintEditor {
 
         // --- Global Move & Up/End ---
         const handleMove = (e) => {
+            if (this.isPainting) {
+                this._drawOnMask(this._getMaskPos(e), false);
+                return;
+            }
+
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
@@ -471,6 +677,10 @@ export class OutpaintEditor {
         };
 
         const handleUp = () => {
+            if (this.isPainting) {
+                this.isPainting = false;
+                this.lastPos = null;
+            }
             if (this.isPanning) {
                 this.isPanning = false;
                 this.els.area.style.cursor = 'default';
