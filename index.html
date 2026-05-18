@@ -548,7 +548,7 @@
                 </div>
             </div>
             <div id="imageActions"
-                class="absolute bottom-28 md:bottom-8 flex gap-3 opacity-0 transition-all duration-300 pointer-events-none transform translate-y-4 z-10">
+                class="absolute bottom-28 md:bottom-8 flex gap-3 opacity-0 transition-all duration-300 pointer-events-none transform translate-y-4 z-10 flex-wrap justify-center">
                 <button onclick="useCurrentPrompt()"
                     class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i
                         data-lucide="pen-tool" class="w-3 h-3"></i> 提示词</button>
@@ -558,6 +558,7 @@
                         <button onclick="toggleToolbox(); openInpaintEditor()" class="w-full px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"><i data-lucide="paintbrush" class="w-3 h-3"></i> 局部重绘</button>
                         <button onclick="toggleToolbox(); doAugment('lineart')" class="w-full px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"><i data-lucide="pen-line" class="w-3 h-3"></i> 转线稿</button>
                         <button onclick="toggleToolbox(); doAugment('sketch')" class="w-full px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"><i data-lucide="pencil" class="w-3 h-3"></i> 转草稿</button>
+                        <button onclick="toggleToolbox(); window.startOutpaint()" class="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-700 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"><i data-lucide="expand" class="w-3 h-3"></i> 无限扩图</button>
                     </div>
                     <button onclick="toggleToolbox()"
                         class="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-violet-500 backdrop-blur-md text-xs font-semibold text-white rounded-full shadow-float border border-white/20 hover:scale-105 transition-all flex items-center gap-2"><i
@@ -567,6 +568,31 @@
                 <button onclick="deleteCurrentImage()"
                     class="pointer-events-auto px-5 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-xs font-semibold text-red-500 rounded-full shadow-float border border-white/50 dark:border-slate-600 hover:scale-105 transition-all flex items-center gap-2"><i
                         data-lucide="trash" class="w-3 h-3"></i> 删除</button>
+            </div>
+
+            <!-- Outpaint Area -->
+            <div id="outpaintArea" class="hidden w-full h-full absolute inset-0 bg-gray-200 dark:bg-slate-900 touch-none overflow-hidden z-[60]">
+                <div id="outpaintContainer" class="absolute origin-top-left" style="transform: translate(0px, 0px) scale(1);">
+                    <canvas id="outpaintCanvas" class="block shadow-2xl"></canvas>
+                    <div id="outpaintSelection" class="absolute border-2 border-dashed border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] cursor-move box-border" style="width: 512px; height: 512px; top: 0; left: 0;">
+                        <!-- Resize handles -->
+                        <div class="resize-handle nw absolute w-4 h-4 bg-white border-2 border-black -top-2 -left-2 cursor-nwse-resize rounded-full" data-handle="nw"></div>
+                        <div class="resize-handle ne absolute w-4 h-4 bg-white border-2 border-black -top-2 -right-2 cursor-nesw-resize rounded-full" data-handle="ne"></div>
+                        <div class="resize-handle sw absolute w-4 h-4 bg-white border-2 border-black -bottom-2 -left-2 cursor-nesw-resize rounded-full" data-handle="sw"></div>
+                        <div class="resize-handle se absolute w-4 h-4 bg-white border-2 border-black -bottom-2 -right-2 cursor-nwse-resize rounded-full" data-handle="se"></div>
+                        <!-- Current selection size label -->
+                        <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-2 py-0.5 rounded shadow whitespace-nowrap" id="outpaintSizeLabel">512 x 512</div>
+                    </div>
+                </div>
+                <!-- Outpaint UI overlay -->
+                <div class="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur px-4 py-2 rounded-full shadow-lg z-50">
+                    <button onclick="window.outpaintEditor.zoomIn()" class="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-full"><i data-lucide="zoom-in" class="w-4 h-4"></i></button>
+                    <button onclick="window.outpaintEditor.zoomOut()" class="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-full"><i data-lucide="zoom-out" class="w-4 h-4"></i></button>
+                    <button onclick="window.outpaintEditor.resetView()" class="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-full"><i data-lucide="focus" class="w-4 h-4"></i></button>
+                    <div class="w-px h-4 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+                    <button id="outpaintGenerateBtn" onclick="window.outpaintEditor.generate()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full text-xs font-bold transition-colors flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3"></i> 生成</button>
+                    <button onclick="window.exitOutpaint()" class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs font-bold transition-colors">退出</button>
+                </div>
             </div>
         </div>
 
@@ -1039,6 +1065,7 @@
         import { GalleryStore } from './src/storage.js';
         import { UIController } from './src/ui.js';
         import { InpaintEditor } from './src/inpaint.js';
+        import { OutpaintEditor } from './src/outpaint.js';
 
         const engine = new ImageEngine();
         const store = new GalleryStore();
@@ -2204,19 +2231,26 @@
             }
         });
 
+        const outpaintEditor = new OutpaintEditor({
+            engine: engine,
+            store: store
+        });
+
         // --- 暴露局部重绘、主题、API Key和鉴权等所有函数到全局 ---
         Object.assign(window, {
             openInpaintEditor: () => inpaintEditor.open(),
             closeInpaintEditor: () => inpaintEditor.close(),
-            setInpaintTool: (t) => inpaintEditor.setTool(t), 
+            setInpaintTool: (t) => inpaintEditor.setTool(t),
             inpaintUndo: () => inpaintEditor.undo(),
             inpaintClearMask: () => inpaintEditor.clearMask(),
             toggleInpaintDrawer: () => inpaintEditor.toggleDrawer(),
             doInpaint: () => inpaintEditor.doInpaint(),
+            outpaintEditor,
+            startOutpaint: () => outpaintEditor.open(),
+            exitOutpaint: () => outpaintEditor.close(),
             enterCustomApiKey, closeApiKeyModal, verifyCustomApiKey, clearCustomApiKey,
             enterAdminToken, enterUserKey, toggleTheme, renderPresets
-        });
-    </script>
+        });    </script>
 </body>
 
 </html>
