@@ -444,7 +444,6 @@
             transform: translate(0, 0);
             will-change: left, top, width, height;
         }
-        }
     </style>
 </head>
 
@@ -2262,17 +2261,6 @@
             inpaintUndo: () => inpaintEditor.undo(),
             inpaintClearMask: () => inpaintEditor.clearMask(),
             toggleInpaintDrawer: () => inpaintEditor.toggleDrawer(),
-            doInpaint: () => inpaintEditor.doInpaint(),
-            outpaintEditor,
-            startOutpaint: () => outpaintEditor.open(),
-            exitOutpaint: () => outpaintEditor.close(),
-            enterCustomApiKey, closeApiKeyModal, verifyCustomApiKey, clearCustomApiKey,
-            enterAdminToken, enterUserKey, toggleTheme, renderPresets
-        });    </script>
-</body>
-
-</html>
-     toggleInpaintDrawer: () => inpaintEditor.toggleDrawer(),
             doInpaint: () => inpaintEditor.doInpaint(),
             outpaintEditor,
             startOutpaint: () => outpaintEditor.open(),
