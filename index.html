@@ -577,10 +577,10 @@
                     <div id="outpaintSelection" class="absolute border-2 border-dashed border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] cursor-move box-border" style="width: 512px; height: 512px; top: 0; left: 0;">
                         <canvas id="outpaintMaskCanvas" class="absolute inset-0 w-full h-full pointer-events-none opacity-50"></canvas>
                         <!-- Resize handles -->
-                        <div class="resize-handle nw absolute w-4 h-4 bg-white border-2 border-black -top-2 -left-2 cursor-nwse-resize rounded-full" data-handle="nw"></div>
-                        <div class="resize-handle ne absolute w-4 h-4 bg-white border-2 border-black -top-2 -right-2 cursor-nesw-resize rounded-full" data-handle="ne"></div>
-                        <div class="resize-handle sw absolute w-4 h-4 bg-white border-2 border-black -bottom-2 -left-2 cursor-nesw-resize rounded-full" data-handle="sw"></div>
-                        <div class="resize-handle se absolute w-4 h-4 bg-white border-2 border-black -bottom-2 -right-2 cursor-nwse-resize rounded-full" data-handle="se"></div>
+                        <div class="resize-handle nw absolute w-6 h-6 sm:w-4 sm:h-4 bg-white border-2 border-black -top-3 -left-3 sm:-top-2 sm:-left-2 cursor-nwse-resize rounded-full" data-handle="nw"></div>
+                        <div class="resize-handle ne absolute w-6 h-6 sm:w-4 sm:h-4 bg-white border-2 border-black -top-3 -right-3 sm:-top-2 sm:-right-2 cursor-nesw-resize rounded-full" data-handle="ne"></div>
+                        <div class="resize-handle sw absolute w-6 h-6 sm:w-4 sm:h-4 bg-white border-2 border-black -bottom-3 -left-3 sm:-bottom-2 sm:-left-2 cursor-nesw-resize rounded-full" data-handle="sw"></div>
+                        <div class="resize-handle se absolute w-6 h-6 sm:w-4 sm:h-4 bg-white border-2 border-black -bottom-3 -right-3 sm:-bottom-2 sm:-right-2 cursor-nwse-resize rounded-full" data-handle="se"></div>
                         <!-- Current selection size label -->
                         <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-2 py-0.5 rounded shadow whitespace-nowrap" id="outpaintSizeLabel">512 x 512</div>
                     </div>
@@ -2262,6 +2262,17 @@
             inpaintUndo: () => inpaintEditor.undo(),
             inpaintClearMask: () => inpaintEditor.clearMask(),
             toggleInpaintDrawer: () => inpaintEditor.toggleDrawer(),
+            doInpaint: () => inpaintEditor.doInpaint(),
+            outpaintEditor,
+            startOutpaint: () => outpaintEditor.open(),
+            exitOutpaint: () => outpaintEditor.close(),
+            enterCustomApiKey, closeApiKeyModal, verifyCustomApiKey, clearCustomApiKey,
+            enterAdminToken, enterUserKey, toggleTheme, renderPresets
+        });    </script>
+</body>
+
+</html>
+     toggleInpaintDrawer: () => inpaintEditor.toggleDrawer(),
             doInpaint: () => inpaintEditor.doInpaint(),
             outpaintEditor,
             startOutpaint: () => outpaintEditor.open(),
