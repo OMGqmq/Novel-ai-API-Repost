@@ -731,7 +731,7 @@ export class OutpaintEditor {
                 let newY = this.startSelection.y + dy;
 
                 if (this.isSnapEnabled) {
-                    const snapThreshold = 20 / this.transform.scale;
+                    const snapThreshold = 10 / this.transform.scale; // Reduced to 1/2 roughly
                     const canvasW = this.els.canvas.width;
                     const canvasH = this.els.canvas.height;
                     
@@ -766,7 +766,7 @@ export class OutpaintEditor {
                 }
 
                 if (this.isSnapEnabled) {
-                    const snapThreshold = 20 / this.transform.scale;
+                    const snapThreshold = 10 / this.transform.scale;
                     const canvasW = this.els.canvas.width;
                     const canvasH = this.els.canvas.height;
 
