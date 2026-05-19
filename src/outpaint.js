@@ -15,7 +15,8 @@ export class OutpaintEditor {
             brushSizeInput: document.getElementById('outpaintBrushSize'),
             brushSizeVal: document.getElementById('outpaintBrushSizeVal'),
             modeMoveBtn: document.getElementById('outpaintModeMove'),
-            modePaintBtn: document.getElementById('outpaintModePaint')
+            modePaintBtn: document.getElementById('outpaintModePaint'),
+            toolbar: document.getElementById('outpaintToolbar')
         };
 
         this.ctx = this.els.canvas.getContext('2d');
@@ -234,6 +235,21 @@ export class OutpaintEditor {
         this.maskCtx.clearRect(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height);
     }
 
+    async saveToHistory() {
+        const finalBase64 = this.els.canvas.toDataURL('image/jpeg', 0.95);
+        const modelVersionEl = document.getElementById('modelValue');
+        const modelVersion = modelVersionEl ? modelVersionEl.value : 'v3';
+        const prompt = document.getElementById('prompt')?.value || '';
+        
+        await this.store.saveImage(finalBase64, prompt, modelVersion);
+        alert("已保存到图库历史");
+        if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
+        window.lastSelectedImageUrl = finalBase64;
+        if (window.switchGalleryTab) window.switchGalleryTab('history');
+        // Let the global scope update the grid if needed
+        if (window.loadGallery) window.loadGallery();
+    }
+
     async generate() {
         const btn = document.getElementById('outpaintGenerateBtn');
         if (!btn) return;
@@ -446,12 +462,9 @@ export class OutpaintEditor {
                 this._updateSelectionDOM();
 
                 const finalBase64 = this.els.canvas.toDataURL('image/jpeg', 0.95);
-                this.store.saveImage(finalBase64, prompt, modelVersion).then(() => {
-                    alert(hasPaintedMask ? "局部重绘成功" : "扩图成功并已保存到历史记录");
-                    if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
-                    window.lastSelectedImageUrl = finalBase64;
-                    if (window.switchGalleryTab) window.switchGalleryTab('history');
-                });
+                alert(hasPaintedMask ? "局部重绘生成成功（请手动保存）" : "扩图生成成功（请手动保存）");
+                if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
+                window.lastSelectedImageUrl = finalBase64;
             };
             newImg.src = result.imageUrl;
 
@@ -552,6 +565,55 @@ export class OutpaintEditor {
     }
 
     _bindEvents() {
+        // --- Toolbar Dragging ---
+        let dragTimer = null;
+        let isDraggingToolbar = false;
+        let tbStartX = 0, tbStartY = 0;
+        let tbInitialLeft = 0, tbInitialTop = 0;
+
+        const startToolbarDrag = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            dragTimer = setTimeout(() => {
+                isDraggingToolbar = true;
+                const rect = this.els.toolbar.getBoundingClientRect();
+                const parentRect = this.els.area.getBoundingClientRect();
+                
+                this.els.toolbar.style.right = 'auto';
+                this.els.toolbar.style.bottom = 'auto';
+                this.els.toolbar.style.transform = 'none';
+                
+                tbInitialLeft = rect.left - parentRect.left;
+                tbInitialTop = rect.top - parentRect.top;
+                
+                this.els.toolbar.style.left = `${tbInitialLeft}px`;
+                this.els.toolbar.style.top = `${tbInitialTop}px`;
+                this.els.toolbar.style.transition = 'none';
+                this.els.toolbar.style.cursor = 'grabbing';
+                
+                tbStartX = clientX;
+                tbStartY = clientY;
+            }, 300); // 300ms long press to drag
+        };
+
+        const stopToolbarDrag = (e) => {
+            if (dragTimer) clearTimeout(dragTimer);
+            if (isDraggingToolbar) {
+                isDraggingToolbar = false;
+                this.els.toolbar.style.transition = '';
+                this.els.toolbar.style.cursor = 'move';
+                if (e) e.preventDefault();
+            }
+        };
+
+        if (this.els.toolbar) {
+            this.els.toolbar.addEventListener('mousedown', startToolbarDrag);
+            this.els.toolbar.addEventListener('touchstart', startToolbarDrag, { passive: true });
+            this.els.toolbar.style.cursor = 'move';
+        }
+
         // --- Panning & Zooming (Area) ---
         this.els.area.addEventListener('wheel', (e) => {
             e.preventDefault();
@@ -618,13 +680,40 @@ export class OutpaintEditor {
 
         // --- Global Move & Up/End ---
         const handleMove = (e) => {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            // Handle Toolbar dragging first
+            if (isDraggingToolbar) {
+                if(e.touches) e.preventDefault();
+                const dx = clientX - tbStartX;
+                const dy = clientY - tbStartY;
+                
+                // Restrict toolbar within the area
+                const rect = this.els.toolbar.getBoundingClientRect();
+                const parentRect = this.els.area.getBoundingClientRect();
+                
+                let newLeft = tbInitialLeft + dx;
+                let newTop = tbInitialTop + dy;
+                
+                newLeft = Math.max(0, Math.min(newLeft, parentRect.width - rect.width));
+                newTop = Math.max(0, Math.min(newTop, parentRect.height - rect.height));
+
+                this.els.toolbar.style.left = `${newLeft}px`;
+                this.els.toolbar.style.top = `${newTop}px`;
+                return; // Stop other interactions
+            }
+            
+            // Abort toolbar drag timer if moving too much before timeout
+            if (dragTimer && (Math.abs(clientX - tbStartX) > 10 || Math.abs(clientY - tbStartY) > 10)) {
+                clearTimeout(dragTimer);
+                dragTimer = null;
+            }
+
             if (this.isPainting) {
                 this._drawOnMask(this._getMaskPos(e), false);
                 return;
             }
-
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
             if (this.isPanning) {
                 if(e.touches) e.preventDefault();
@@ -734,7 +823,9 @@ export class OutpaintEditor {
             }
         };
 
-        const handleUp = () => {
+        const handleUp = (e) => {
+            stopToolbarDrag(e);
+            
             if (this.isPainting) {
                 this.isPainting = false;
                 this.lastPos = null;
