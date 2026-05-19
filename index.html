@@ -614,7 +614,7 @@
                         </div>
 
                         <div class="w-4 h-px bg-gray-300 dark:bg-slate-600 my-1"></div>
-                        <button id="outpaintGenerateBtn" onclick="window.outpaintEditor.generate()" class="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors shadow-md" title="生成"><i data-lucide="sparkles" class="w-5 h-5"></i></button>
+                        <button onclick="window.outpaintEditor.saveToHistory()" class="p-3 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-colors shadow-md" title="保存到图库"><i data-lucide="save" class="w-5 h-5"></i></button>
                         <button onclick="window.outpaintEditor.undo()" class="p-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors shadow-md" title="撤销"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
                         <button onclick="window.exitOutpaint()" class="p-2 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors shadow-md" title="退出"><i data-lucide="x" class="w-4 h-4"></i></button>
                     </div>
@@ -1507,6 +1507,15 @@
         };
 
         async function doGenerate() {
+            // Check if outpaint is active
+            const outpaintArea = document.getElementById('outpaintArea');
+            if (outpaintArea && !outpaintArea.classList.contains('hidden')) {
+                if (window.outpaintEditor) {
+                    window.outpaintEditor.generate();
+                }
+                return;
+            }
+
             try {
                 const promptText = els.prompt.value.trim();
                 if (!promptText) { els.prompt.focus(); ui.toggleMobileControls(true); return; }
