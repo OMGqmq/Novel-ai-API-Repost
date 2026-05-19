@@ -251,12 +251,20 @@ export class OutpaintEditor {
     }
 
     async generate() {
-        const btn = document.getElementById('outpaintGenerateBtn');
-        if (!btn) return;
-        
-        const originalHtml = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="loader w-3 h-3 border-white/50 border-t-transparent rounded-full animate-spin"></span>';
+        const deskBtn = document.getElementById('desktopGenerateBtn');
+        const floatBtn = document.getElementById('floatingGenerateBtn');
+        let originalDeskHtml = '', originalFloatHtml = '';
+
+        if (deskBtn) {
+            originalDeskHtml = deskBtn.innerHTML;
+            deskBtn.disabled = true;
+            deskBtn.innerHTML = '<span class="loader w-4 h-4 border-white/50 border-t-transparent rounded-full animate-spin"></span> 生成中...';
+        }
+        if (floatBtn) {
+            originalFloatHtml = floatBtn.innerHTML;
+            floatBtn.disabled = true;
+            floatBtn.innerHTML = '<span class="loader w-5 h-5 border-white/50 border-t-transparent rounded-full animate-spin"></span>';
+        }
 
         try {
             const { w, h, x, y } = this.selection;
@@ -478,8 +486,14 @@ export class OutpaintEditor {
             console.error(err);
             alert('操作失败: ' + err.message);
         } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
+            if (deskBtn) {
+                deskBtn.disabled = false;
+                deskBtn.innerHTML = originalDeskHtml;
+            }
+            if (floatBtn) {
+                floatBtn.disabled = false;
+                floatBtn.innerHTML = originalFloatHtml;
+            }
         }
     }
 
