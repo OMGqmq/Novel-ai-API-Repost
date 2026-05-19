@@ -242,7 +242,8 @@ export class OutpaintEditor {
         const prompt = document.getElementById('prompt')?.value || '';
         
         await this.store.saveImage(finalBase64, prompt, modelVersion);
-        alert("已保存到图库历史");
+        // 静默保存，控制台记录
+        console.log("Image saved to history");
         if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
         window.lastSelectedImageUrl = finalBase64;
         if (window.switchGalleryTab) window.switchGalleryTab('history');
@@ -470,7 +471,8 @@ export class OutpaintEditor {
                 this._updateSelectionDOM();
 
                 const finalBase64 = this.els.canvas.toDataURL('image/jpeg', 0.95);
-                alert(hasPaintedMask ? "局部重绘生成成功（请手动保存）" : "扩图生成成功（请手动保存）");
+                // 静默更新，不弹窗
+                console.log(hasPaintedMask ? "Inpaint generated" : "Outpaint generated");
                 if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
                 window.lastSelectedImageUrl = finalBase64;
             };
@@ -856,6 +858,11 @@ export class OutpaintEditor {
                 this._updateSelectionDOM();
             }
             if (this.isResizing) {
+                const isAtRight = this.isSnapEnabled && Math.abs(this.selection.x + this.selection.w - this.els.canvas.width) < 1;
+                const isAtBottom = this.isSnapEnabled && Math.abs(this.selection.y + this.selection.h - this.els.canvas.height) < 1;
+                const isAtLeft = this.isSnapEnabled && Math.abs(this.selection.x) < 1;
+                const isAtTop = this.isSnapEnabled && Math.abs(this.selection.y) < 1;
+
                 this.isResizing = false;
                 this.resizeHandle = null;
                 // Snap dimensions to 64px multiples on release for optimal NovelAI generation
@@ -869,6 +876,13 @@ export class OutpaintEditor {
                         this.selection.h -= 64;
                     }
                 }
+
+                // If we were snapped to an edge, adjust position after dimension rounding
+                if (isAtRight) this.selection.x = this.els.canvas.width - this.selection.w;
+                if (isAtBottom) this.selection.y = this.els.canvas.height - this.selection.h;
+                if (isAtLeft) this.selection.x = 0;
+                if (isAtTop) this.selection.y = 0;
+
                 this._updateSelectionDOM();
             }
         };
