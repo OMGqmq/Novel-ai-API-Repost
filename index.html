@@ -584,30 +584,40 @@
                         <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-2 py-0.5 rounded shadow whitespace-nowrap" id="outpaintSizeLabel">512 x 512</div>
                     </div>
                 </div>
-                <!-- Outpaint UI overlay -->
-                <div class="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur px-4 py-2 rounded-full shadow-lg z-50">
-                    <button onclick="window.outpaintEditor.zoomIn()" class="p-2.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-full"><i data-lucide="zoom-in" class="w-5 h-5"></i></button>
-                    <button onclick="window.outpaintEditor.zoomOut()" class="p-2.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-full"><i data-lucide="zoom-out" class="w-5 h-5"></i></button>
-                    <button onclick="window.outpaintEditor.resetView()" class="p-2.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-full"><i data-lucide="focus" class="w-5 h-5"></i></button>
-                    <div class="w-px h-4 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+                <!-- Outpaint UI overlay (Vertical) -->
+                <div id="outpaintToolbar" class="absolute top-1/2 right-4 -translate-y-1/2 flex flex-col items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur p-2 rounded-2xl shadow-lg z-50 transition-all">
+                    <!-- 收缩/展开按钮 -->
+                    <button onclick="document.getElementById('outpaintToolbarInner').classList.toggle('hidden')" class="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl text-gray-700 dark:text-gray-300" title="折叠/展开工具栏"><i data-lucide="menu" class="w-5 h-5"></i></button>
                     
-                    <!-- Mode Toggle -->
-                    <div class="flex bg-gray-100 dark:bg-slate-900 rounded-lg p-1">
-                        <button id="outpaintModeMove" onclick="window.outpaintEditor.setMode('move')" class="p-2 rounded-md bg-white dark:bg-slate-700 shadow-sm transition-all"><i data-lucide="move" class="w-5 h-5"></i></button>
-                        <button id="outpaintModePaint" onclick="window.outpaintEditor.setMode('paint')" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-800 transition-all"><i data-lucide="brush" class="w-5 h-5"></i></button>
-                    </div>
+                    <div id="outpaintToolbarInner" class="flex flex-col items-center gap-2">
+                        <button onclick="window.outpaintEditor.zoomIn()" class="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl text-gray-700 dark:text-gray-300"><i data-lucide="zoom-in" class="w-5 h-5"></i></button>
+                        <button onclick="window.outpaintEditor.zoomOut()" class="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl text-gray-700 dark:text-gray-300"><i data-lucide="zoom-out" class="w-5 h-5"></i></button>
+                        <button onclick="window.outpaintEditor.resetView()" class="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl text-gray-700 dark:text-gray-300"><i data-lucide="focus" class="w-5 h-5"></i></button>
+                        <div class="w-4 h-px bg-gray-300 dark:bg-slate-600 my-1"></div>
+                        
+                        <!-- Mode Toggle -->
+                        <div class="flex flex-col bg-gray-100 dark:bg-slate-900 rounded-lg p-1">
+                            <button id="outpaintModeMove" onclick="window.outpaintEditor.setMode('move')" class="p-2 rounded-md bg-white dark:bg-slate-700 shadow-sm transition-all text-gray-700 dark:text-gray-300" title="移动"><i data-lucide="move" class="w-5 h-5"></i></button>
+                            <button id="outpaintModePaint" onclick="window.outpaintEditor.setMode('paint')" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-800 transition-all" title="涂抹遮罩"><i data-lucide="brush" class="w-5 h-5"></i></button>
+                        </div>
 
-                    <!-- Brush Size (Hidden by default, shown in paint mode) -->
-                    <div id="outpaintBrushControl" class="hidden items-center gap-2 pl-2 border-l border-gray-300 dark:border-slate-600">
-                        <input type="range" id="outpaintBrushSize" min="5" max="300" value="60" class="w-24 accent-indigo-600 h-1 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
-                        <span id="outpaintBrushSizeVal" class="text-[10px] font-mono w-5">60</span>
-                        <button onclick="window.outpaintEditor.clearMask()" class="ml-1 p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-full text-red-500" title="清空遮罩"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
-                    </div>
+                        <!-- Snapping Toggle -->
+                        <button id="outpaintSnapToggle" onclick="window.outpaintEditor.toggleSnap()" class="p-2 rounded-xl text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-800 transition-all" title="边缘吸附: 关"><i data-lucide="magnet" class="w-5 h-5"></i></button>
 
-                    <div class="w-px h-4 bg-gray-300 dark:bg-slate-600 mx-1"></div>
-                    <button id="outpaintGenerateBtn" onclick="window.outpaintEditor.generate()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full text-xs font-bold transition-colors flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3"></i> 生成</button>
-                    <button onclick="window.outpaintEditor.undo()" class="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-full text-xs font-bold transition-colors flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> 撤销</button>
-                    <button onclick="window.exitOutpaint()" class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs font-bold transition-colors">退出</button>
+                        <!-- Brush Size (Hidden by default, shown in paint mode) -->
+                        <div id="outpaintBrushControl" class="hidden flex-col items-center gap-2 pt-2 border-t border-gray-300 dark:border-slate-600">
+                            <div class="relative w-8 h-24">
+                                <input type="range" id="outpaintBrushSize" min="5" max="300" value="60" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-1 accent-indigo-600 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer -rotate-90">
+                            </div>
+                            <span id="outpaintBrushSizeVal" class="text-[10px] font-mono text-gray-700 dark:text-gray-300">60</span>
+                            <button onclick="window.outpaintEditor.clearMask()" class="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl text-red-500" title="清空遮罩"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                        </div>
+
+                        <div class="w-4 h-px bg-gray-300 dark:bg-slate-600 my-1"></div>
+                        <button id="outpaintGenerateBtn" onclick="window.outpaintEditor.generate()" class="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors shadow-md" title="生成"><i data-lucide="sparkles" class="w-5 h-5"></i></button>
+                        <button onclick="window.outpaintEditor.undo()" class="p-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors shadow-md" title="撤销"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+                        <button onclick="window.exitOutpaint()" class="p-2 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors shadow-md" title="退出"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
                 </div>
             </div>
         </div>

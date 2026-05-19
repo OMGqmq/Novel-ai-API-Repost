@@ -46,8 +46,25 @@ export class OutpaintEditor {
         this.lastMouse = { x: 0, y: 0 };
         this.startTransform = null;
         this.startSelection = null;
+        this.isSnapEnabled = false;
 
         this._bindEvents();
+    }
+
+    toggleSnap() {
+        this.isSnapEnabled = !this.isSnapEnabled;
+        const btn = document.getElementById('outpaintSnapToggle');
+        if (btn) {
+            if (this.isSnapEnabled) {
+                btn.classList.remove('text-gray-500');
+                btn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm', 'text-gray-700', 'dark:text-gray-300');
+                btn.title = '边缘吸附: 开';
+            } else {
+                btn.classList.add('text-gray-500');
+                btn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm', 'text-gray-700', 'dark:text-gray-300');
+                btn.title = '边缘吸附: 关';
+            }
+        }
     }
 
     setMode(mode) {
@@ -621,8 +638,22 @@ export class OutpaintEditor {
                 const dx = (clientX - this.lastMouse.x) / this.transform.scale;
                 const dy = (clientY - this.lastMouse.y) / this.transform.scale;
                 
-                this.selection.x = this.startSelection.x + dx;
-                this.selection.y = this.startSelection.y + dy;
+                let newX = this.startSelection.x + dx;
+                let newY = this.startSelection.y + dy;
+
+                if (this.isSnapEnabled) {
+                    const snapThreshold = 20 / this.transform.scale;
+                    const canvasW = this.els.canvas.width;
+                    const canvasH = this.els.canvas.height;
+                    
+                    if (Math.abs(newX) < snapThreshold) newX = 0;
+                    if (Math.abs(newX + this.selection.w - canvasW) < snapThreshold) newX = canvasW - this.selection.w;
+                    if (Math.abs(newY) < snapThreshold) newY = 0;
+                    if (Math.abs(newY + this.selection.h - canvasH) < snapThreshold) newY = canvasH - this.selection.h;
+                }
+
+                this.selection.x = newX;
+                this.selection.y = newY;
                 this._updateSelectionDOM();
             } else if (this.isResizing) {
                 if(e.touches) e.preventDefault();
@@ -643,6 +674,31 @@ export class OutpaintEditor {
                 if (this.resizeHandle.includes('n')) {
                     newH -= dy;
                     newY += dy;
+                }
+
+                if (this.isSnapEnabled) {
+                    const snapThreshold = 20 / this.transform.scale;
+                    const canvasW = this.els.canvas.width;
+                    const canvasH = this.els.canvas.height;
+
+                    if (this.resizeHandle.includes('e')) {
+                        if (Math.abs(newX + newW - canvasW) < snapThreshold) newW = canvasW - newX;
+                    }
+                    if (this.resizeHandle.includes('w')) {
+                        if (Math.abs(newX) < snapThreshold) {
+                            newW = newW + newX;
+                            newX = 0;
+                        }
+                    }
+                    if (this.resizeHandle.includes('s')) {
+                        if (Math.abs(newY + newH - canvasH) < snapThreshold) newH = canvasH - newY;
+                    }
+                    if (this.resizeHandle.includes('n')) {
+                        if (Math.abs(newY) < snapThreshold) {
+                            newH = newH + newY;
+                            newY = 0;
+                        }
+                    }
                 }
 
                 // Snap to 64 increment optionally, but definitely min size limit
