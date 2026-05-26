@@ -891,7 +891,7 @@ Object.assign(window, {
     handleVibeImage, clearVibeImage,
     deleteCurrentImage, clearAllHistory, switchGalleryTab, downloadZip,
     backToGrid: () => ui.showGrid(),
-    doAugment, toggleToolbox
+    doAugment, toggleToolbox, toggleVibeEnabled
 });
 
 fetch('gallery_index.json').then(r => r.json()).then(d => {
