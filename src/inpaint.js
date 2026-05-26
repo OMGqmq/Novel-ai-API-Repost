@@ -138,8 +138,11 @@ export class InpaintEditor {
             this.imgNaturalH = img.naturalHeight;
             this._fitCanvasToContainer(img);
             this.history = [];
-            this.modal.classList.remove('modal-hidden');
-            this.modal.classList.add('modal-visible');
+            this.modal.style.display = 'flex';
+            setTimeout(() => {
+                this.modal.classList.remove('modal-hidden');
+                this.modal.classList.add('modal-visible');
+            }, 10);
             if (window.safeCreateIcons) window.safeCreateIcons();
         };
         img.src = this.originalImgSrc;
@@ -148,6 +151,9 @@ export class InpaintEditor {
     close() {
         this.modal.classList.add('modal-hidden');
         this.modal.classList.remove('modal-visible');
+        setTimeout(() => {
+            this.modal.style.display = 'none';
+        }, 300);
         if (this.brushCursor) this.brushCursor.style.display = 'none';
     }
 
