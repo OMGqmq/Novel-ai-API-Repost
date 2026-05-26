@@ -484,7 +484,6 @@ async function doGenerate() {
 
             try {
                 const nsEl = document.getElementById('noise_schedule');
-                const genSeed = Math.floor(Math.random() * 4294967295);
                 const params = {
                     version: selectedVersion,
                     prompt: promptText,
@@ -493,7 +492,6 @@ async function doGenerate() {
                     steps: parseInt(els.steps.value),
                     scale: parseFloat(els.scale.value),
                     sampler: els.sampler.value,
-                    seed: genSeed,
                     noise_schedule: nsEl ? nsEl.value : "exponential"
                 };
 
@@ -513,14 +511,23 @@ async function doGenerate() {
                     params.vibe_strength = vibeStrengthEl ? parseFloat(vibeStrengthEl.value) : 0.6;
                 }
 
+                // 为每个 API 实例生成独立的随机 seed，避免多 API 产生的图片完全相同
+                const localParamsList = auths.map(() => {
+                    return {
+                        ...params,
+                        seed: Math.floor(Math.random() * 4294967295)
+                    };
+                });
+
                 // 并发执行！
-                const fetchPromises = auths.map(auth => engine.generate(params, auth));
+                const fetchPromises = auths.map((auth, idx) => engine.generate(localParamsList[idx], auth));
                 const results = await Promise.allSettled(fetchPromises);
 
                 const successfulResults = [];
-                for (const res of results) {
+                results.forEach((res, idx) => {
                     if (res.status === 'fulfilled') {
                         const result = res.value;
+                        const localParams = localParamsList[idx];
                         if (result.userRole) {
                             ui.updateCreditDisplay(result.userRole);
                         }
@@ -528,15 +535,15 @@ async function doGenerate() {
 
                         // 组装元数据
                         const metaData = {
-                            negative_prompt: params.negative_prompt,
-                            width: params.width,
-                            height: params.height,
-                            steps: params.steps,
-                            scale: params.scale,
-                            sampler: params.sampler,
-                            seed: params.seed,
-                            strength: params.strength || null,
-                            noise: params.noise || null
+                            negative_prompt: localParams.negative_prompt,
+                            width: localParams.width,
+                            height: localParams.height,
+                            steps: localParams.steps,
+                            scale: localParams.scale,
+                            sampler: localParams.sampler,
+                            seed: localParams.seed,
+                            strength: localParams.strength || null,
+                            noise: localParams.noise || null
                         };
 
                         // 转Base64存历史
@@ -548,7 +555,7 @@ async function doGenerate() {
                     } else {
                         console.error("Concurrent Gen Error:", res.reason);
                     }
-                }
+                });
 
                 if (successfulResults.length === 0) {
                     const firstError = results.find(r => r.status === 'rejected')?.reason || new Error("所有 API 请求均失败");
@@ -815,7 +822,33 @@ async function loadMoreGallery(isFirstLoad = false) {
         pageData.forEach(item => {
             const el = document.createElement('div');
             el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:scale-[1.01] transition-transform duration-200';
-            el.innerHTML = `<img src="${item.image}" class="w-full h-full object-cover" loading="lazy">`;
+            
+            // Render image and delete button
+            el.innerHTML = `
+                <img src="${item.image}" class="w-full h-full object-cover" loading="lazy">
+                <button class="delete-item-btn" title="删除此图片">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            `;
+
+            // Bind click event for delete button with stopPropagation to prevent triggering lightbox
+            const delBtn = el.querySelector('.delete-item-btn');
+            if (delBtn) {
+                delBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    if (!(await window.showConfirm("您确定要从历史图库中删除这张图片吗？该操作不可撤销。", "删除图库图片", "trash-2"))) return;
+                    try {
+                        await store.deleteImage(item.id);
+                        if (currentImageId === item.id) {
+                            ui.resetPreview();
+                        }
+                        loadGallery();
+                    } catch (err) {
+                        console.error("Failed to delete history image", err);
+                    }
+                };
+            }
+
             el.onclick = () => openLightbox(item);
             fragment.appendChild(el);
         });
