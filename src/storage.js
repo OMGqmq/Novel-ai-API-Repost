@@ -35,12 +35,15 @@ export class GalleryStore {
     /**
      * Saves a generated image to history.
      */
-    async saveImage(imgData, prompt, model) {
+    async saveImage(imgData, prompt, model, meta = null) {
         if (!this.db) await this.init();
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction(this.storeName, 'readwrite');
             const store = transaction.objectStore(this.storeName);
             const entry = { image: imgData, prompt, model, date: Date.now() };
+            if (meta) {
+                entry.meta = meta;
+            }
             const request = store.add(entry);
 
             request.onsuccess = (e) => resolve({ id: e.target.result, ...entry });

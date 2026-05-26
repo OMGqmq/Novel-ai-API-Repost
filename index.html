@@ -444,6 +444,32 @@
             transform: translate(0, 0);
             will-change: left, top, width, height;
         }
+
+        /* --- Universal Modal & Lightbox Styles --- */
+        .custom-modal-backdrop {
+            transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .custom-modal-content {
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-active {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+        .modal-active .custom-modal-backdrop {
+            opacity: 1 !important;
+        }
+        .modal-active .custom-modal-content {
+            transform: scale(1) !important;
+            opacity: 1 !important;
+        }
+
+        /* Lightbox Sidebar Mobile bottom drawer behavior */
+        @media (max-width: 768px) {
+            #lightboxSidebar.expanded {
+                transform: translateY(0) !important;
+            }
+        }
     </style>
 </head>
 
@@ -947,32 +973,221 @@
     </button>
 
     <!-- 自定义 API Key 弹窗 -->
-    <div id="apiKeyModal" class="fixed inset-0 z-[100] hidden items-center justify-center" style="display:none">
-        <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onclick="closeApiKeyModal()"></div>
-        <div
-            class="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 w-[90%] max-w-md p-6 space-y-5">
+    <div id="apiKeyModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
+        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeApiKeyModal()"></div>
+        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[95%] max-w-lg p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
             <div class="flex items-center justify-between">
-                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <i data-lucide="globe" class="w-4 h-4 text-blue-500"></i> 自定义 NovelAI API Key(s)
+                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    <i data-lucide="globe" class="w-5 h-5 text-blue-500"></i> 自定义 API Key(s)
                 </h3>
-                <button onclick="closeApiKeyModal()"
-                    class="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400">
+                <button onclick="closeApiKeyModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400 transition-colors">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400">输入你的 NovelAI API
-                Token(pst-开头)。支持输入多个(每行一个)，开启多重并发生成，体验速度的极致！</p>
-            <div>
-                <textarea id="apiKeyInput" placeholder="pst-xxxxxxxxxxxxxxxx...&#10;pst-yyyyyyyyyyyyyyyy..." rows="3"
-                    class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono resize-none"></textarea>
+            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                输入您的 NovelAI API Token (以 <code>pst-</code> 开头)。可点击 “+” 添加多个 Key 开启多路并发生成，体验速度极致！
+            </p>
+            
+            <!-- 动态 Key 容器 -->
+            <div id="apiKeyList" class="space-y-3 max-h-[220px] overflow-y-auto pr-1 custom-scroll">
+                <!-- 动态生成 key 输入行 -->
             </div>
+
+            <!-- 添加 Key 按钮 -->
+            <button onclick="addApiKeyInputRow()" class="w-full py-2.5 border border-dashed border-gray-200 dark:border-slate-700 hover:border-gray-400 dark:hover:border-slate-500 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> 添加 API Key
+            </button>
+
             <div id="apiKeyStatus" class="hidden text-xs px-1"></div>
+            
             <div class="flex gap-3">
-                <button onclick="clearCustomApiKey()" id="apiKeyClearBtn"
-                    class="hidden flex-1 py-3 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">清除
-                    Key</button>
-                <button onclick="verifyCustomApiKey()" id="apiKeyVerifyBtn"
-                    class="flex-1 py-3 text-xs font-bold rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">验证并保存</button>
+                <button onclick="clearCustomApiKey()" id="apiKeyClearBtn" class="hidden flex-1 py-3.5 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+                    清除所有 Key
+                </button>
+                <button onclick="verifyCustomApiKey()" id="apiKeyVerifyBtn" class="flex-1 py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+                    验证并保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理员密码配置弹窗 -->
+    <div id="adminTokenModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
+        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeAdminTokenModal()"></div>
+        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[90%] max-w-md p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    <i data-lucide="lock" class="w-5 h-5 text-amber-500"></i> 管理员密码
+                </h3>
+                <button onclick="closeAdminTokenModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400 transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                输入您的管理员密码以解锁高级批量生成控制以及其他特权。
+            </p>
+            <div class="relative">
+                <input type="password" id="adminTokenInput" placeholder="输入管理员密码..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none tracking-widest font-mono">
+            </div>
+            <div id="adminTokenStatus" class="hidden text-xs px-1"></div>
+            <div class="flex gap-3">
+                <button onclick="clearAdminToken()" id="adminTokenClearBtn" class="hidden flex-1 py-3.5 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+                    清空并注销
+                </button>
+                <button onclick="saveAdminToken()" id="adminTokenSaveBtn" class="flex-1 py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+                    确认并保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIP 卡密输入弹窗 -->
+    <div id="userKeyModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
+        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeUserKeyModal()"></div>
+        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[90%] max-w-md p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    <i data-lucide="key" class="w-5 h-5 text-yellow-500"></i> 输入 VIP 卡密
+                </h3>
+                <button onclick="closeUserKeyModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400 transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                输入您的专属 VIP 兑换卡密 (例如 <code>vip_12345678</code>)，激活画图点数。
+            </p>
+            <div class="relative">
+                <input type="text" id="userKeyInput" placeholder="请输入 VIP 卡密..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono">
+            </div>
+            <div id="userKeyStatus" class="hidden text-xs px-1"></div>
+            <div class="flex gap-3">
+                <button onclick="clearUserKey()" id="userKeyClearBtn" class="hidden flex-1 py-3.5 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+                    注销卡密
+                </button>
+                <button onclick="saveUserKey()" id="userKeySaveBtn" class="flex-1 py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+                    激活卡密
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图库大图详情弹窗 (Lightbox) -->
+    <div id="imageLightboxModal" class="fixed inset-0 z-[250] flex flex-col md:flex-row opacity-0 pointer-events-none transition-all duration-300" style="display:none">
+        <!-- 遮罩背景 -->
+        <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-lg custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeLightbox()"></div>
+        
+        <!-- 左/上侧：图片大图区域 -->
+        <div class="relative flex-1 flex items-center justify-center p-4 md:p-8 z-10 select-none group">
+            <!-- 顶部返回/关闭按钮 -->
+            <button onclick="closeLightbox()" class="absolute top-4 left-4 w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-900/50 backdrop-blur border border-white/10 text-white/80 hover:text-white hover:bg-slate-900/80 active:scale-95 transition-all z-20">
+                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            
+            <!-- 上一张/下一张按钮 (仅桌面悬浮) -->
+            <button onclick="prevLightboxImage()" class="absolute left-6 w-12 h-12 hidden md:flex items-center justify-center rounded-full bg-slate-900/40 backdrop-blur border border-white/5 text-white/70 hover:text-white hover:bg-slate-900/80 hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100 z-20">
+                <i data-lucide="chevron-left" class="w-6 h-6"></i>
+            </button>
+            <button onclick="nextLightboxImage()" class="absolute right-6 w-12 h-12 hidden md:flex items-center justify-center rounded-full bg-slate-900/40 backdrop-blur border border-white/5 text-white/70 hover:text-white hover:bg-slate-900/80 hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100 z-20">
+                <i data-lucide="chevron-right" class="w-6 h-6"></i>
+            </button>
+
+            <!-- 主图显示 -->
+            <div class="w-full h-full flex items-center justify-center overflow-hidden">
+                <img id="lightboxMainImg" src="" class="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-all duration-300" style="-webkit-user-drag:none">
+            </div>
+        </div>
+
+        <!-- 右/下侧：元数据参数面板 -->
+        <div id="lightboxSidebar" class="relative z-10 w-full md:w-[380px] bg-slate-900/85 backdrop-blur-2xl border-t md:border-t-0 md:border-l border-white/10 text-slate-200 flex flex-col shrink-0 transform translate-y-full md:translate-y-0 md:translate-x-full transition-transform duration-350">
+            <!-- 手机端可拉动拖拽条 -->
+            <div class="md:hidden w-full flex justify-center py-2 cursor-pointer" onclick="toggleLightboxSidebarMobile()">
+                <div class="w-10 h-1 bg-white/20 rounded-full"></div>
+            </div>
+
+            <!-- 参数内容区域 -->
+            <div class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 custom-scroll">
+                <!-- 顶部基本信息 -->
+                <div>
+                    <h4 class="text-sm font-bold text-white tracking-wide uppercase flex items-center gap-1.5">
+                        <i data-lucide="info" class="w-4 h-4 text-blue-400"></i> 图片信息
+                    </h4>
+                    <div class="mt-3 text-xs text-slate-400 flex flex-wrap gap-2">
+                        <span id="lbInfoModel" class="px-2.5 py-1 bg-white/5 border border-white/10 rounded-full font-semibold">Model: --</span>
+                        <span id="lbInfoResolution" class="px-2.5 py-1 bg-white/5 border border-white/10 rounded-full font-semibold">Resolution: --</span>
+                    </div>
+                </div>
+
+                <!-- 提示词 (Prompt) -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">正向提示词</span>
+                        <button onclick="copyLightboxText('lightboxPrompt')" class="text-slate-400 hover:text-white flex items-center gap-1 text-[10px] transition-colors">
+                            <i data-lucide="copy" class="w-3 h-3"></i> 复制
+                        </button>
+                    </div>
+                    <div id="lightboxPrompt" class="p-3 bg-white/5 border border-white/10 rounded-xl text-xs leading-relaxed max-h-[120px] overflow-y-auto custom-scroll break-all font-light select-text">--</div>
+                </div>
+
+                <!-- 负向提示词 (Negative Prompt) -->
+                <div id="lightboxNegArea" class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">负向提示词</span>
+                        <button onclick="copyLightboxText('lightboxNeg')" class="text-slate-400 hover:text-white flex items-center gap-1 text-[10px] transition-colors">
+                            <i data-lucide="copy" class="w-3 h-3"></i> 复制
+                        </button>
+                    </div>
+                    <div id="lightboxNeg" class="p-3 bg-white/5 border border-white/10 rounded-xl text-xs leading-relaxed max-h-[80px] overflow-y-auto custom-scroll break-all font-light text-slate-400 select-text">--</div>
+                </div>
+
+                <!-- 详细元数据网格 -->
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="bg-white/5 border border-white/10 p-3 rounded-xl">
+                        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">生成步数 (Steps)</div>
+                        <div id="lbMetaSteps" class="mt-1 font-mono font-bold text-white text-sm">--</div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 p-3 rounded-xl">
+                        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">相关性 (CFG Scale)</div>
+                        <div id="lbMetaScale" class="mt-1 font-mono font-bold text-white text-sm">--</div>
+                    </div>
+                    <div id="lbMetaStrengthContainer" class="bg-white/5 border border-white/10 p-3 rounded-xl">
+                        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">重绘幅度 (Strength)</div>
+                        <div id="lbMetaStrength" class="mt-1 font-mono font-bold text-white text-sm">--</div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 p-3 rounded-xl col-span-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">随机种子 (Seed)</span>
+                            <button onclick="copyLightboxText('lbMetaSeed')" class="text-slate-400 hover:text-white flex items-center gap-1 text-[9px] transition-colors">
+                                <i data-lucide="copy" class="w-2.5 h-2.5"></i> 复制
+                            </button>
+                        </div>
+                        <div id="lbMetaSeed" class="mt-1 font-mono font-bold text-white text-sm break-all select-text">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部操作按钮栏 -->
+            <div class="p-6 border-t border-white/10 bg-slate-950/40 space-y-3 shrink-0">
+                <div class="flex gap-2">
+                    <button onclick="lightboxApplyParams()" class="flex-1 py-3 px-3 bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5">
+                        <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i> 套用参数
+                    </button>
+                    <button onclick="lightboxDownload()" class="py-3 px-3 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl text-slate-200 active:scale-95 transition-all" title="下载图片">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="lightboxDelete()" class="py-3 px-3 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 rounded-xl active:scale-95 transition-all" title="删除图片">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                
+                <!-- 二次创作跳转 -->
+                <div class="flex gap-2">
+                    <button onclick="lightboxCreate('inpaint')" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1">
+                        <i data-lucide="paintbrush" class="w-3 h-3"></i> 局部重绘
+                    </button>
+                    <button onclick="lightboxCreate('outpaint')" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1">
+                        <i data-lucide="expand" class="w-3 h-3"></i> 无限扩图
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1566,6 +1781,7 @@
 
                     try {
                         const nsEl = document.getElementById('noise_schedule');
+                        const genSeed = Math.floor(Math.random() * 4294967295);
                         const params = {
                             version: selectedVersion,
                             prompt: promptText,
@@ -1574,6 +1790,7 @@
                             steps: parseInt(els.steps.value),
                             scale: parseFloat(els.scale.value),
                             sampler: els.sampler.value,
+                            seed: genSeed,
                             noise_schedule: nsEl ? nsEl.value : "exponential"
                         };
 
@@ -1606,11 +1823,24 @@
                                 }
                                 successfulResults.push(result);
 
+                                // 组装元数据
+                                const metaData = {
+                                    negative_prompt: params.negative_prompt,
+                                    width: params.width,
+                                    height: params.height,
+                                    steps: params.steps,
+                                    scale: params.scale,
+                                    sampler: params.sampler,
+                                    seed: params.seed,
+                                    strength: params.strength || null,
+                                    noise: params.noise || null
+                                };
+
                                 // 转Base64存历史
                                 const reader = new FileReader();
                                 reader.readAsDataURL(result.blob);
                                 reader.onloadend = async () => {
-                                    await saveToHistory(reader.result, promptText, selectedVersion, result);
+                                    await saveToHistory(reader.result, promptText, selectedVersion, result, false, metaData);
                                 }
                             } else {
                                 console.error("Concurrent Gen Error:", res.reason);
@@ -1626,7 +1856,6 @@
                         ui.showResultImages(successfulResults, (selected) => {
                             currentImageData = selected;
                             if (selected.id) currentImageId = selected.id;
-                            // 为了兼容 downloadImage 等，我们需要一个全局的 currentImageUrl 或类似物
                             window.lastSelectedImageUrl = selected.imageUrl;
                         });
 
@@ -1665,9 +1894,9 @@
         // --- Store Integration ---
         store.init().then(() => loadGallery());
 
-        async function saveToHistory(imgData, prompt, model, resultObj = null, forceFocus = false) {
+        async function saveToHistory(imgData, prompt, model, resultObj = null, forceFocus = false, meta = null) {
             try {
-                const savedItem = await store.saveImage(imgData, prompt, model);
+                const savedItem = await store.saveImage(imgData, prompt, model, meta);
                 if (resultObj) {
                     resultObj.id = savedItem.id;
                 }
@@ -1852,7 +2081,7 @@
                         const el = document.createElement('div');
                         el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm';
                         el.innerHTML = `<img src="${item.image}" class="w-full h-full object-cover" loading="lazy">`;
-                        el.onclick = () => loadPreviewFromHistory(item);
+                        el.onclick = () => openLightbox(item);
                         fragment.appendChild(el);
                     }
                     els.galleryGrid.appendChild(fragment);
@@ -1979,7 +2208,7 @@
                     img.src = `images/${item.id}.png`;
                     img.alt = '';
                     el.appendChild(img);
-                    el.onclick = () => loadPreviewFromShowcase(item);
+                    el.onclick = () => { item.isShowcase = true; openLightbox(item); };
                     fragment.appendChild(el);
                 }
                 grid.appendChild(fragment);
@@ -2068,22 +2297,89 @@
             }
         }
         function enterAdminToken() {
+            openModal('adminTokenModal');
             const cur = localStorage.getItem('nai_admin_token');
-            const t = prompt(cur ? "清空以注销" : "输入管理员密码");
-            if (t !== null) {
-                if (!t.trim()) localStorage.removeItem('nai_admin_token');
-                else localStorage.setItem('nai_admin_token', t.trim());
-                checkAdminStatus();
+            const input = document.getElementById('adminTokenInput');
+            const clearBtn = document.getElementById('adminTokenClearBtn');
+            const statusEl = document.getElementById('adminTokenStatus');
+            statusEl.classList.add('hidden');
+            if (cur) {
+                input.value = cur;
+                clearBtn.classList.remove('hidden');
+            } else {
+                input.value = '';
+                clearBtn.classList.add('hidden');
             }
         }
-        function enterUserKey() {
-            const cur = localStorage.getItem('nai_user_key');
-            const t = prompt(cur ? "清空以注销卡密" : "请输入您的 VIP 卡密 (例: vip_12345)");
-            if (t !== null) {
-                if (!t.trim()) localStorage.removeItem('nai_user_key');
-                else localStorage.setItem('nai_user_key', t.trim());
-                // 这里其实可以不alert,而是静默保存
+        function closeAdminTokenModal() {
+            closeModal('adminTokenModal');
+        }
+        function saveAdminToken() {
+            const input = document.getElementById('adminTokenInput');
+            const statusEl = document.getElementById('adminTokenStatus');
+            const val = input.value.trim();
+            if (!val) {
+                statusEl.innerHTML = '<span class="text-red-500">✗ 请输入密码</span>';
+                statusEl.classList.remove('hidden');
+                return;
             }
+            localStorage.setItem('nai_admin_token', val);
+            statusEl.innerHTML = '<span class="text-green-500">✔ 管理员密码已保存</span>';
+            statusEl.classList.remove('hidden');
+            checkAdminStatus();
+            setTimeout(() => closeAdminTokenModal(), 1000);
+        }
+        function clearAdminToken() {
+            localStorage.removeItem('nai_admin_token');
+            document.getElementById('adminTokenInput').value = '';
+            document.getElementById('adminTokenClearBtn').classList.add('hidden');
+            const statusEl = document.getElementById('adminTokenStatus');
+            statusEl.innerHTML = '<span class="text-green-500">✔ 已注销管理员身份</span>';
+            statusEl.classList.remove('hidden');
+            checkAdminStatus();
+            setTimeout(() => closeAdminTokenModal(), 1000);
+        }
+
+        function enterUserKey() {
+            openModal('userKeyModal');
+            const cur = localStorage.getItem('nai_user_key');
+            const input = document.getElementById('userKeyInput');
+            const clearBtn = document.getElementById('userKeyClearBtn');
+            const statusEl = document.getElementById('userKeyStatus');
+            statusEl.classList.add('hidden');
+            if (cur) {
+                input.value = cur;
+                clearBtn.classList.remove('hidden');
+            } else {
+                input.value = '';
+                clearBtn.classList.add('hidden');
+            }
+        }
+        function closeUserKeyModal() {
+            closeModal('userKeyModal');
+        }
+        function saveUserKey() {
+            const input = document.getElementById('userKeyInput');
+            const statusEl = document.getElementById('userKeyStatus');
+            const val = input.value.trim();
+            if (!val) {
+                statusEl.innerHTML = '<span class="text-red-500">✗ 请输入卡密</span>';
+                statusEl.classList.remove('hidden');
+                return;
+            }
+            localStorage.setItem('nai_user_key', val);
+            statusEl.innerHTML = '<span class="text-green-500">✔ VIP 卡密已保存</span>';
+            statusEl.classList.remove('hidden');
+            setTimeout(() => closeUserKeyModal(), 1000);
+        }
+        function clearUserKey() {
+            localStorage.removeItem('nai_user_key');
+            document.getElementById('userKeyInput').value = '';
+            document.getElementById('userKeyClearBtn').classList.add('hidden');
+            const statusEl = document.getElementById('userKeyStatus');
+            statusEl.innerHTML = '<span class="text-green-500">✔ 已注销卡密</span>';
+            statusEl.classList.remove('hidden');
+            setTimeout(() => closeUserKeyModal(), 1000);
         }
         function checkAdminStatus() {
             const t = localStorage.getItem('nai_admin_token');
@@ -2119,45 +2415,94 @@
         checkAdminStatus();
 
         // --- 自定义 API Key ---
+        // --- 模态框通用开启/关闭 ---
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.display = 'flex';
+            setTimeout(() => {
+                el.classList.add('modal-active');
+            }, 10);
+        }
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('modal-active');
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 300);
+        }
+
+        // --- 自定义 API Key 管理 ---
+        function addApiKeyInputRow(val = '') {
+            const container = document.getElementById('apiKeyList');
+            if (!container) return;
+            
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 items-center api-key-row group';
+            div.innerHTML = `
+                <input type="text" value="${val}" placeholder="pst-xxxxxxxxxxxxxxxx..." class="art-input flex-1 px-4 py-3 rounded-xl text-xs outline-none font-mono tracking-tight" />
+                <button onclick="removeApiKeyInputRow(this)" class="p-3 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-xl transition-all" title="删除">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                </button>
+            `;
+            container.appendChild(div);
+        }
+
+        function removeApiKeyInputRow(button) {
+            const row = button.closest('.api-key-row');
+            if (row) {
+                row.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    row.remove();
+                    const container = document.getElementById('apiKeyList');
+                    if (container && container.children.length === 0) {
+                        addApiKeyInputRow();
+                    }
+                }, 200);
+            }
+        }
+
         function enterCustomApiKey() {
-            const modal = document.getElementById('apiKeyModal');
-            modal.classList.remove('hidden');
-            modal.style.display = 'flex';
+            openModal('apiKeyModal');
+            const container = document.getElementById('apiKeyList');
+            if (container) container.innerHTML = '';
+            
             const cur = localStorage.getItem('nai_custom_api_key');
-            const input = document.getElementById('apiKeyInput');
             const clearBtn = document.getElementById('apiKeyClearBtn');
             const statusEl = document.getElementById('apiKeyStatus');
             statusEl.classList.add('hidden');
+            
             if (cur) {
-                input.value = cur;
+                const keys = cur.split(/[\n,]/).map(k => k.trim()).filter(k => k);
+                keys.forEach(k => addApiKeyInputRow(k));
                 clearBtn.classList.remove('hidden');
             } else {
-                input.value = '';
+                addApiKeyInputRow();
                 clearBtn.classList.add('hidden');
             }
-        safeCreateIcons();
         }
 
         function closeApiKeyModal() {
-            const modal = document.getElementById('apiKeyModal');
-            modal.classList.add('hidden');
-            modal.style.display = 'none';
+            closeModal('apiKeyModal');
         }
 
         async function verifyCustomApiKey() {
-            const input = document.getElementById('apiKeyInput');
+            const container = document.getElementById('apiKeyList');
             const statusEl = document.getElementById('apiKeyStatus');
             const verifyBtn = document.getElementById('apiKeyVerifyBtn');
-            const keysRaw = input.value.trim();
-
-            if (!keysRaw) {
-                statusEl.innerHTML = '<span class="text-red-500">✗ 请输入 API Key</span>';
+            
+            const inputs = container.querySelectorAll('input');
+            const keys = Array.from(inputs).map(i => i.value.trim()).filter(k => k);
+            
+            if (keys.length === 0) {
+                statusEl.innerHTML = '<span class="text-red-500">✗ 请至少输入一个 API Key</span>';
                 statusEl.classList.remove('hidden');
                 return;
             }
 
-            const keys = keysRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k);
-            const keyToVerify = keys[0]; // 验证第一个 Key 作为代表
+            const keysRaw = keys.join('\n');
+            const keyToVerify = keys[0];
 
             verifyBtn.disabled = true;
             verifyBtn.textContent = '验证中...';
@@ -2165,7 +2510,6 @@
             statusEl.classList.remove('hidden');
 
             try {
-                // 尝试1: 通过后端 /verify-key 接口验证
                 let verified = false;
                 try {
                     const res = await fetch('/verify-key', {
@@ -2174,13 +2518,12 @@
                         body: JSON.stringify({ apiKey: keyToVerify })
                     });
 
-                    // 安全解析 JSON,防止空响应报错
                     const text = await res.text();
                     if (text) {
                         const data = JSON.parse(text);
                         if (res.ok && data.valid) {
-                            localStorage.setItem('nai_custom_api_key', keysRaw); // 保存原始包含多个 Key 的字符串
-                            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 第一个 Key 订阅: <b>${data.tierName}</b>。已激活多 API 并发模式。</span>`;
+                            localStorage.setItem('nai_custom_api_key', keysRaw);
+                            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${data.tierName}</b>。已激活 ${keys.length} 个 Key 并发模式。</span>`;
                             document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                             checkAdminStatus();
                             setTimeout(() => closeApiKeyModal(), 1500);
@@ -2191,12 +2534,11 @@
                         }
                     }
                 } catch (serverErr) {
-                    console.warn('后端验证接口不可用,尝试直接验证:', serverErr.message);
+                    console.warn('后端验证接口不可用, 尝试直接验证:', serverErr.message);
                 }
 
                 if (verified) return;
 
-                // 尝试2: 直接调用 NovelAI API 验证(可能受 CORS 限制)
                 try {
                     statusEl.innerHTML = '<span class="text-gray-400">⭮ 尝试直接连接 NovelAI...</span>';
                     const directRes = await fetch('https://api.novelai.net/user/subscription', {
@@ -2207,22 +2549,21 @@
                         const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
                         const tierName = tierNames[subData.tier] || `Tier ${subData.tier}`;
                         localStorage.setItem('nai_custom_api_key', keysRaw);
-                        statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 第一个 Key 订阅: <b>${tierName}</b>。已激活多 API 并发模式。</span>`;
+                        statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${tierName}</b>。已激活 ${keys.length} 个 Key 并发模式。</span>`;
                         document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                         checkAdminStatus();
                         setTimeout(() => closeApiKeyModal(), 1500);
                         return;
                     } else {
-                        statusEl.innerHTML = '<span class="text-red-500">✗ API Key 无效或已过期,请检查后重试。</span>';
+                        statusEl.innerHTML = '<span class="text-red-500">✗ 首个 API Key 无效或已过期，请检查后重试。</span>';
                         return;
                     }
                 } catch (directErr) {
-                    console.warn('直接验证也失败(可能 CORS),使用本地保存模式:', directErr.message);
+                    console.warn('直接验证也失败(可能 CORS), 使用本地保存模式:', directErr.message);
                 }
 
-                // 尝试3: 两种在线验证都失败,本地保存 Key 并信任用户
                 localStorage.setItem('nai_custom_api_key', keysRaw);
-                statusEl.innerHTML = '<span class="text-yellow-500">⚠ 无法在线验证(后端不可用),已本地保存所有 Key 并激活并发模式。生成时将直接使用这些 Key。</span>';
+                statusEl.innerHTML = `<span class="text-yellow-500">⚠ 无法在线验证(后端不可用)，已保存全部 ${keys.length} 个 Key 并激活并发。</span>`;
                 document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                 checkAdminStatus();
                 setTimeout(() => closeApiKeyModal(), 2500);
@@ -2231,13 +2572,17 @@
                 statusEl.innerHTML = `<span class="text-red-500">✗ 验证异常: ${e.message}</span>`;
             } finally {
                 verifyBtn.disabled = false;
-                verifyBtn.textContent = '验证并激活';
+                verifyBtn.textContent = '验证并保存';
             }
         }
 
         function clearCustomApiKey() {
             localStorage.removeItem('nai_custom_api_key');
-            document.getElementById('apiKeyInput').value = '';
+            const container = document.getElementById('apiKeyList');
+            if (container) {
+                container.innerHTML = '';
+                addApiKeyInputRow();
+            }
             document.getElementById('apiKeyClearBtn').classList.add('hidden');
             const statusEl = document.getElementById('apiKeyStatus');
             statusEl.innerHTML = '<span class="text-gray-500">✔ 已清除自定义 Key</span>';
@@ -2272,6 +2617,297 @@
             store: store
         });
 
+        // =================== 图库大图详情弹窗 (Lightbox) ===================
+        let lightboxItems = [];
+        let lightboxIndex = 0;
+
+        async function openLightbox(item) {
+            if (item.isShowcase) {
+                lightboxItems = showcaseData.map(s => ({
+                    id: s.id,
+                    image: `images/${s.id}.png`,
+                    prompt: s.prompt,
+                    model: s.model || 'v3',
+                    isShowcase: true,
+                    meta: null
+                }));
+                lightboxIndex = lightboxItems.findIndex(x => x.id === item.id);
+            } else {
+                try {
+                    const allHistory = await store.getAllImages();
+                    lightboxItems = allHistory;
+                    lightboxIndex = allHistory.findIndex(x => x.id === item.id);
+                } catch(e) {
+                    console.error("Failed to fetch history for lightbox", e);
+                    lightboxItems = [item];
+                    lightboxIndex = 0;
+                }
+            }
+
+            if (lightboxIndex === -1) {
+                lightboxItems = [item];
+                lightboxIndex = 0;
+            }
+
+            renderLightboxCurrent();
+            openModal('imageLightboxModal');
+            
+            const sidebar = document.getElementById('lightboxSidebar');
+            if (sidebar) sidebar.classList.remove('expanded');
+        }
+
+        function closeLightbox() {
+            closeModal('imageLightboxModal');
+        }
+
+        function renderLightboxCurrent() {
+            if (lightboxItems.length === 0 || lightboxIndex < 0 || lightboxIndex >= lightboxItems.length) return;
+            const item = lightboxItems[lightboxIndex];
+            
+            const mainImg = document.getElementById('lightboxMainImg');
+            if (mainImg) {
+                mainImg.style.opacity = 0;
+                setTimeout(() => {
+                    mainImg.src = item.image || item.imageUrl;
+                    mainImg.onload = () => { mainImg.style.opacity = 1; };
+                }, 100);
+            }
+
+            const modelEl = document.getElementById('lbInfoModel');
+            if (modelEl) modelEl.textContent = `Model: ${item.model || 'v3'}`;
+            
+            const meta = item.meta;
+            if (meta) {
+                const resEl = document.getElementById('lbInfoResolution');
+                if (resEl) resEl.textContent = `${meta.width || '--'} x ${meta.height || '--'}`;
+                
+                const promptEl = document.getElementById('lightboxPrompt');
+                if (promptEl) promptEl.textContent = item.prompt || '--';
+                
+                const negPrompt = meta.negative_prompt || '';
+                const negArea = document.getElementById('lightboxNegArea');
+                const negEl = document.getElementById('lightboxNeg');
+                if (negPrompt && negPrompt !== 'undefined') {
+                    if (negEl) negEl.textContent = negPrompt;
+                    if (negArea) negArea.style.display = 'block';
+                } else {
+                    if (negArea) negArea.style.display = 'none';
+                }
+                
+                const stepsEl = document.getElementById('lbMetaSteps');
+                if (stepsEl) stepsEl.textContent = meta.steps || '--';
+                
+                const scaleEl = document.getElementById('lbMetaScale');
+                if (scaleEl) scaleEl.textContent = meta.scale || '--';
+                
+                const seedEl = document.getElementById('lbMetaSeed');
+                if (seedEl) seedEl.textContent = meta.seed !== undefined && meta.seed !== null ? meta.seed : '--';
+                
+                const strengthContainer = document.getElementById('lbMetaStrengthContainer');
+                const strengthEl = document.getElementById('lbMetaStrength');
+                if (meta.strength !== undefined && meta.strength !== null) {
+                    if (strengthEl) strengthEl.textContent = meta.strength;
+                    if (strengthContainer) strengthContainer.style.display = 'block';
+                } else {
+                    if (strengthContainer) strengthContainer.style.display = 'none';
+                }
+            } else {
+                const resEl = document.getElementById('lbInfoResolution');
+                if (resEl) resEl.textContent = 'Resolution: --';
+                
+                const promptEl = document.getElementById('lightboxPrompt');
+                if (promptEl) promptEl.textContent = item.prompt || '--';
+                
+                const negArea = document.getElementById('lightboxNegArea');
+                if (negArea) negArea.style.display = 'none';
+                
+                const stepsEl = document.getElementById('lbMetaSteps');
+                if (stepsEl) stepsEl.textContent = '--';
+                
+                const scaleEl = document.getElementById('lbMetaScale');
+                if (scaleEl) scaleEl.textContent = '--';
+                
+                const seedEl = document.getElementById('lbMetaSeed');
+                if (seedEl) seedEl.textContent = '--';
+                
+                const strengthContainer = document.getElementById('lbMetaStrengthContainer');
+                if (strengthContainer) strengthContainer.style.display = 'none';
+            }
+            
+            const deleteBtn = document.querySelector('[onclick="lightboxDelete()"]');
+            if (item.isShowcase) {
+                if (deleteBtn) deleteBtn.classList.add('hidden');
+            } else {
+                if (deleteBtn) deleteBtn.classList.remove('hidden');
+            }
+        }
+
+        function prevLightboxImage() {
+            if (lightboxIndex > 0) {
+                lightboxIndex--;
+                renderLightboxCurrent();
+            }
+        }
+
+        function nextLightboxImage() {
+            if (lightboxIndex < lightboxItems.length - 1) {
+                lightboxIndex++;
+                renderLightboxCurrent();
+            }
+        }
+
+        function copyLightboxText(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const text = el.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("已复制到剪贴板！");
+            }).catch(err => {
+                console.error("复制失败", err);
+            });
+        }
+
+        function lightboxApplyParams() {
+            if (lightboxItems.length === 0) return;
+            const item = lightboxItems[lightboxIndex];
+            
+            els.prompt.value = item.prompt || '';
+            
+            const meta = item.meta;
+            if (meta) {
+                if (meta.negative_prompt) els.negative.value = meta.negative_prompt;
+                
+                const stepsEl = document.getElementById('steps');
+                if (stepsEl && meta.steps) {
+                    stepsEl.value = meta.steps;
+                    const stepsVal = document.getElementById('stepsValue');
+                    if (stepsVal) stepsVal.textContent = meta.steps;
+                }
+                
+                const scaleEl = document.getElementById('scale');
+                if (scaleEl && meta.scale) {
+                    scaleEl.value = meta.scale;
+                    const scaleVal = document.getElementById('scaleValue');
+                    if (scaleVal) scaleVal.textContent = parseFloat(meta.scale).toFixed(1);
+                }
+                
+                if (meta.width && meta.height) {
+                    const resEl = document.getElementById('resolution');
+                    if (resEl) {
+                        const val = `${meta.width},${meta.height}`;
+                        let found = false;
+                        for (let opt of resEl.options) {
+                            if (opt.value === val) { found = true; break; }
+                        }
+                        if (!found) {
+                            const newOpt = new Option(`${meta.width} x ${meta.height}`, val);
+                            resEl.add(newOpt);
+                        }
+                        resEl.value = val;
+                    }
+                }
+            }
+            
+            setModel(item.model || 'v3');
+            
+            alert("生成参数已载入主控制台！");
+            closeLightbox();
+            ui.toggleMobileControls(true);
+        }
+
+        function lightboxDownload() {
+            if (lightboxItems.length === 0) return;
+            const item = lightboxItems[lightboxIndex];
+            const a = document.createElement('a');
+            a.href = item.image;
+            a.download = `novelai-${item.id || Date.now()}.png`;
+            a.click();
+        }
+
+        async function lightboxDelete() {
+            if (lightboxItems.length === 0) return;
+            const item = lightboxItems[lightboxIndex];
+            if (item.isShowcase) return;
+            
+            if (!confirm("确定从图库删除此图片吗？")) return;
+            
+            try {
+                await store.deleteImage(item.id);
+                lightboxItems.splice(lightboxIndex, 1);
+                
+                if (lightboxItems.length === 0) {
+                    closeLightbox();
+                } else {
+                    if (lightboxIndex >= lightboxItems.length) {
+                        lightboxIndex = lightboxItems.length - 1;
+                    }
+                    renderLightboxCurrent();
+                }
+                loadGallery();
+            } catch(e) {
+                console.error("Failed to delete lightbox image", e);
+            }
+        }
+
+        function lightboxCreate(type) {
+            if (lightboxItems.length === 0) return;
+            const item = lightboxItems[lightboxIndex];
+            
+            closeLightbox();
+            
+            currentImageId = item.id;
+            currentImageData = item;
+            window.lastSelectedImageUrl = item.image;
+            ui.showImageActions(true);
+
+            if (type === 'inpaint') {
+                inpaintEditor.open();
+            } else if (type === 'outpaint') {
+                outpaintEditor.open();
+            }
+        }
+
+        function toggleLightboxSidebarMobile() {
+            const sidebar = document.getElementById('lightboxSidebar');
+            if (sidebar) {
+                sidebar.classList.toggle('expanded');
+            }
+        }
+
+        // 键盘翻页监听
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('imageLightboxModal');
+            if (modal && modal.classList.contains('modal-active')) {
+                if (e.key === 'ArrowLeft') {
+                    prevLightboxImage();
+                } else if (e.key === 'ArrowRight') {
+                    nextLightboxImage();
+                } else if (e.key === 'Escape') {
+                    closeLightbox();
+                }
+            }
+        });
+
+        // 移动端手势滑动监听
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const lightboxModal = document.getElementById('imageLightboxModal');
+        if (lightboxModal) {
+            lightboxModal.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+            
+            lightboxModal.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                const swipeThreshold = 50;
+                if (touchEndX < touchStartX - swipeThreshold) {
+                    nextLightboxImage();
+                } else if (touchEndX > touchStartX + swipeThreshold) {
+                    prevLightboxImage();
+                }
+            }, { passive: true });
+        }
+
         // --- 暴露局部重绘、主题、API Key和鉴权等所有函数到全局 ---
         Object.assign(window, {
             openInpaintEditor: () => inpaintEditor.open(),
@@ -2285,7 +2921,13 @@
             startOutpaint: () => outpaintEditor.open(),
             exitOutpaint: () => outpaintEditor.close(),
             enterCustomApiKey, closeApiKeyModal, verifyCustomApiKey, clearCustomApiKey,
-            enterAdminToken, enterUserKey, toggleTheme, renderPresets
+            enterAdminToken, enterUserKey, toggleTheme, renderPresets,
+            openLightbox, closeLightbox, prevLightboxImage, nextLightboxImage,
+            copyLightboxText, lightboxApplyParams, lightboxDownload, lightboxDelete,
+            lightboxCreate, toggleLightboxSidebarMobile,
+            saveAdminToken, closeAdminTokenModal, clearAdminToken,
+            saveUserKey, closeUserKeyModal, clearUserKey,
+            addApiKeyInputRow, removeApiKeyInputRow
         });    </script>
 </body>
 
