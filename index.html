@@ -2060,53 +2060,96 @@
             }
         }
 
+        // --- 历史图库分页流式加载与滚动渲染 ---
+        let galleryPage = 0;
+        let galleryHasMore = true;
+        let galleryLoading = false;
+        let galleryItems = [];
+
         async function loadGallery() {
-            try {
-                const items = await store.getAllImages();
-                renderGallery(items);
-                if (currentGalleryTab === 'history' && items.length === 0) {
-                    els.emptyGallery.classList.remove('hidden');
-                }
-            } catch (e) {
-                console.error("Failed to load gallery", e);
-            }
+            galleryPage = 0;
+            galleryHasMore = true;
+            galleryLoading = false;
+            galleryItems = [];
+            els.galleryGrid.innerHTML = '';
+            
+            await loadMoreGallery(true);
         }
 
-        function renderGallery(items) {
-            els.galleryGrid.innerHTML = '';
-            if (items.length === 0) {
-                els.emptyGallery.classList.remove('hidden');
-                els.zipBtn.classList.add('hidden');
-                els.clearBtn.classList.add('hidden');
-            } else {
+        async function loadMoreGallery(isFirstLoad = false) {
+            if (galleryLoading || (!galleryHasMore && !isFirstLoad)) return;
+            galleryLoading = true;
+
+            let loaderEl = document.getElementById('galleryLoader');
+            if (!loaderEl) {
+                loaderEl = document.createElement('div');
+                loaderEl.id = 'galleryLoader';
+                loaderEl.className = 'col-span-full py-4 flex justify-center text-gray-400 text-xs font-semibold';
+                loaderEl.innerHTML = '<span class="loader w-4 h-4 mr-2"></span> 正在加载历史图片...';
+                els.galleryGrid.appendChild(loaderEl);
+            }
+
+            try {
+                const limit = 24;
+                const pageData = await store.getImagesPage(galleryPage, limit);
+                
+                loaderEl = document.getElementById('galleryLoader');
+                if (loaderEl && loaderEl.parentNode) {
+                    loaderEl.parentNode.removeChild(loaderEl);
+                }
+
+                if (pageData.length < limit) {
+                    galleryHasMore = false;
+                }
+
+                if (isFirstLoad) {
+                    els.galleryGrid.innerHTML = '';
+                    galleryItems = [];
+                }
+
+                if (pageData.length === 0) {
+                    if (galleryPage === 0) {
+                        els.emptyGallery.classList.remove('hidden');
+                        els.zipBtn.classList.add('hidden');
+                        els.clearBtn.classList.add('hidden');
+                    }
+                    return;
+                }
+
                 els.emptyGallery.classList.add('hidden');
                 if (ui.currentRightView === 'history') {
                     els.zipBtn.classList.remove('hidden');
                     els.clearBtn.classList.remove('hidden');
                 }
-                
-                // 分批渲染，每批 20 个，防止卡死
-                const chunkSize = 20;
-                let index = 0;
 
-                function renderChunk() {
-                    const fragment = document.createDocumentFragment();
-                    const end = Math.min(index + chunkSize, items.length);
-                    for (; index < end; index++) {
-                        const item = items[index];
-                        const el = document.createElement('div');
-                        el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm';
-                        el.innerHTML = `<img src="${item.image}" class="w-full h-full object-cover" loading="lazy">`;
-                        el.onclick = () => openLightbox(item);
-                        fragment.appendChild(el);
-                    }
-                    els.galleryGrid.appendChild(fragment);
-                    if (index < items.length) {
-                        requestAnimationFrame(renderChunk);
-                    }
-                }
-                renderChunk();
+                galleryItems = galleryItems.concat(pageData);
+
+                const fragment = document.createDocumentFragment();
+                pageData.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:scale-[1.01] transition-transform duration-200';
+                    el.innerHTML = `<img src="${item.image}" class="w-full h-full object-cover" loading="lazy">`;
+                    el.onclick = () => openLightbox(item);
+                    fragment.appendChild(el);
+                });
+                els.galleryGrid.appendChild(fragment);
+
+                galleryPage++;
+            } catch (e) {
+                console.error("Failed to load gallery page", e);
+            } finally {
+                galleryLoading = false;
             }
+        }
+
+        // 监听图库容器滚动事件以实现无限滚动加载
+        const historyArea = document.getElementById('historyArea');
+        if (historyArea) {
+            historyArea.addEventListener('scroll', () => {
+                if (historyArea.scrollTop + historyArea.clientHeight >= historyArea.scrollHeight - 100) {
+                    loadMoreGallery();
+                }
+            });
         }
 
         function loadPreviewFromHistory(item) {
@@ -2649,15 +2692,8 @@
                 }));
                 lightboxIndex = lightboxItems.findIndex(x => x.id === item.id);
             } else {
-                try {
-                    const allHistory = await store.getAllImages();
-                    lightboxItems = allHistory;
-                    lightboxIndex = allHistory.findIndex(x => x.id === item.id);
-                } catch(e) {
-                    console.error("Failed to fetch history for lightbox", e);
-                    lightboxItems = [item];
-                    lightboxIndex = 0;
-                }
+                lightboxItems = galleryItems;
+                lightboxIndex = galleryItems.findIndex(x => x.id === item.id);
             }
 
             if (lightboxIndex === -1) {
@@ -2765,10 +2801,18 @@
             }
         }
 
-        function nextLightboxImage() {
+        async function nextLightboxImage() {
             if (lightboxIndex < lightboxItems.length - 1) {
                 lightboxIndex++;
                 renderLightboxCurrent();
+            } else if (lightboxItems.length > 0 && !lightboxItems[0].isShowcase && galleryHasMore) {
+                const prevLength = lightboxItems.length;
+                await loadMoreGallery();
+                lightboxItems = galleryItems;
+                if (lightboxItems.length > prevLength) {
+                    lightboxIndex = prevLength;
+                    renderLightboxCurrent();
+                }
             }
         }
 

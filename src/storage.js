@@ -96,6 +96,47 @@ export class GalleryStore {
         });
     }
 
+    /**
+     * Loads a page of images from history, reversed (newest first).
+     * Uses cursors to efficiently skip entries without full deserialization.
+     */
+    async getImagesPage(page, pageSize = 24) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(this.storeName, 'readonly');
+            const store = transaction.objectStore(this.storeName);
+            const request = store.openCursor(null, 'prev');
+            const results = [];
+            let advanced = false;
+            let counter = 0;
+
+            request.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (!cursor) {
+                    resolve(results);
+                    return;
+                }
+
+                if (page > 0 && !advanced) {
+                    advanced = true;
+                    cursor.advance(page * pageSize);
+                    return;
+                }
+
+                results.push(cursor.value);
+                counter++;
+
+                if (counter < pageSize) {
+                    cursor.continue();
+                } else {
+                    resolve(results);
+                }
+            };
+
+            request.onerror = (e) => reject(e.target.error);
+        });
+    }
+
     // --- LocalStorage Helpers ---
     getSetting(key, defaultValue = '') {
         return localStorage.getItem(key) || defaultValue;
