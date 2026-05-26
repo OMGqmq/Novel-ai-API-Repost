@@ -261,15 +261,17 @@ html.dark .view-toggle-bg {
 
 /* --- Inpaint Editor --- */
 #inpaintModal {
-    transition: opacity 0.3s;
+    transition: opacity 0.3s, visibility 0.3s;
     background: #000;
 }
 #inpaintModal.modal-visible {
     opacity: 1;
+    visibility: visible;
 }
 #inpaintModal.modal-hidden {
     opacity: 0;
     pointer-events: none;
+    visibility: hidden;
 }
 .inpaint-canvas-wrap {
     position: relative;
