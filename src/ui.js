@@ -128,10 +128,11 @@ export class UIController {
     toggleDrawer() {
         this.els.sideDrawer.classList.toggle('drawer-open');
         this.els.sideDrawer.classList.toggle('drawer-closed');
-        this.els.drawerOverlay.classList.toggle('hidden');
+        this.els.drawerOverlay.classList.toggle('opacity-0');
+        this.els.drawerOverlay.classList.toggle('pointer-events-none');
     }
 
-    switchDrawerTab(tab, renderPresetsCallback = null) {
+    switchDrawerTab(tab, renderPresetsCallback = null, isOpening = false) {
         const activeClass = "active flex-1 py-2 text-xs font-medium rounded-lg transition-all border shadow-sm text-gray-900 bg-white border-gray-200 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-200";
         const inactiveClass = "flex-1 py-2 text-xs font-medium rounded-lg transition-all border border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white";
 
@@ -145,13 +146,20 @@ export class UIController {
             this.els.tabPreset.className = activeClass;
             this.els.viewSearch.classList.add('hidden');
             this.els.viewPreset.classList.remove('hidden');
-            if (renderPresetsCallback) renderPresetsCallback();
+            if (renderPresetsCallback) {
+                if (isOpening) {
+                    setTimeout(renderPresetsCallback, 300);
+                } else {
+                    renderPresetsCallback();
+                }
+            }
         }
     }
 
     openPresets(renderPresetsCallback = null) {
-        if (!this.els.sideDrawer.classList.contains('drawer-open')) this.toggleDrawer();
-        this.switchDrawerTab('preset', renderPresetsCallback);
+        const isOpening = !this.els.sideDrawer.classList.contains('drawer-open');
+        if (isOpening) this.toggleDrawer();
+        this.switchDrawerTab('preset', renderPresetsCallback, isOpening);
     }
 
     setLoading(loading, text = "生成中...") {
