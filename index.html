@@ -486,6 +486,39 @@
                 transform: translateY(0) !important;
             }
         }
+
+        /* --- Low Performance Mode (低性能模式) Override Rules --- */
+        html.low-perf body {
+            background-image: none !important;
+            background-color: #f8fafc !important;
+        }
+        html.low-perf.dark body {
+            background-image: none !important;
+            background-color: #0f172a !important;
+        }
+        html.low-perf * {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+            transition-duration: 0s !important;
+            animation-duration: 0s !important;
+            will-change: auto !important;
+        }
+        html.low-perf .glass-panel,
+        html.low-perf .custom-modal-content {
+            background: rgba(255, 255, 255, 0.98) !important;
+            border-color: rgba(0, 0, 0, 0.1) !important;
+        }
+        html.low-perf.dark .glass-panel,
+        html.low-perf.dark .custom-modal-content {
+            background: rgba(30, 41, 59, 0.98) !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        html.low-perf #mobileControls,
+        html.low-perf #lightboxSidebar {
+            transition: none !important;
+        }
     </style>
 </head>
 
@@ -719,6 +752,9 @@
                     </div>
                 </div>
                 <div class="flex gap-2">
+                    <button onclick="toggleLowPerf()" id="lowPerfBtn"
+                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"
+                        title="低性能模式"><i data-lucide="zap" class="w-4 h-4 text-amber-500"></i></button>
                     <button onclick="toggleTheme()"
                         class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"><i
                             data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun"
@@ -753,6 +789,9 @@
             <div class="md:hidden flex justify-between items-center px-1 pb-1">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">配置</span>
                 <div class="flex gap-2">
+                    <button onclick="toggleLowPerf()" id="lowPerfBtnMobile"
+                        class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"
+                        title="低性能模式"><i data-lucide="zap" class="w-4 h-4 text-amber-500"></i></button>
                     <button onclick="toggleTheme()"
                         class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="moon"
                             class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun"
@@ -1317,6 +1356,31 @@
     </div>
     <div class="brush-cursor hidden" id="brushCursor"></div>
 
+    <!-- Toast 提示容器 -->
+    <div id="toastContainer" class="fixed top-5 left-1/2 -translate-x-1/2 z-[300] flex flex-col gap-3 pointer-events-none w-[90%] max-w-md"></div>
+
+    <!-- 自定义确认与提示弹窗 (Confirm Modal) -->
+    <div id="confirmModal" class="fixed inset-0 z-[280] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
+        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" id="confirmModalBackdrop"></div>
+        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[90%] max-w-md p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center text-amber-500 flex-shrink-0">
+                    <i data-lucide="help-circle" class="w-5 h-5" id="confirmModalIcon"></i>
+                </div>
+                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100" id="confirmModalTitle">确认操作</h3>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed" id="confirmModalMessage">您确定要执行此操作吗？</p>
+            <div class="flex gap-3">
+                <button id="confirmCancelBtn" class="flex-1 py-3.5 text-xs font-semibold rounded-2xl border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800/50 text-gray-500 dark:text-gray-400 transition-all">
+                    取消
+                </button>
+                <button id="confirmConfirmBtn" class="flex-1 py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+                    确认
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { ImageEngine } from './src/engine.js';
         import { GalleryStore } from './src/storage.js';
@@ -1463,6 +1527,13 @@
 
             // Restore Vibe settings from storage
             loadVibeState(savedModel);
+
+            // Restore low performance mode
+            const savedLowPerf = store.getSetting('low_perf') === 'true';
+            if (savedLowPerf) {
+                document.documentElement.classList.add('low-perf');
+                updateLowPerfUI(true);
+            }
         } catch (e) {
             console.error("Initialization error (from cache):", e);
         }
@@ -1933,7 +2004,7 @@
 
         async function deleteCurrentImage() {
             if (currentImageData && currentImageData.isShowcase) return;
-            if (!currentImageId || !confirm("删除此图片?")) return;
+            if (!currentImageId || !(await window.showConfirm("您确定要从历史记录中删除这张图片吗？", "删除图片", "trash-2"))) return;
             try {
                 await store.deleteImage(currentImageId);
                 ui.resetPreview();
@@ -1944,7 +2015,7 @@
         }
 
         async function clearAllHistory() {
-            if (!confirm("清空所有历史?")) return;
+            if (!(await window.showConfirm("清空历史将永久删除所有已生成的本地图片，确定要继续吗？", "清空历史记录", "alert-triangle"))) return;
             try {
                 await store.clearAll();
                 loadGallery();
@@ -2355,6 +2426,42 @@
                 document.documentElement.classList.add('dark'); localStorage.setItem('color-theme', 'dark');
             }
         }
+
+        // --- Low Performance Mode (低性能模式) Logic ---
+        function updateLowPerfUI(enabled) {
+            const btn = document.getElementById('lowPerfBtn');
+            const btnMobile = document.getElementById('lowPerfBtnMobile');
+            
+            const iconHtml = enabled 
+                ? `<i data-lucide="zap-off" class="w-4 h-4 text-gray-400"></i>` 
+                : `<i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>`;
+                
+            if (btn) {
+                btn.innerHTML = iconHtml;
+                btn.title = enabled ? "高性能模式" : "低性能模式";
+            }
+            if (btnMobile) {
+                btnMobile.innerHTML = iconHtml;
+                btnMobile.title = enabled ? "高性能模式" : "低性能模式";
+            }
+            if (window.safeCreateIcons) window.safeCreateIcons();
+        }
+
+        function toggleLowPerf() {
+            const html = document.documentElement;
+            const enabled = !html.classList.contains('low-perf');
+            
+            if (enabled) {
+                html.classList.add('low-perf');
+                store.setSetting('low_perf', 'true');
+                window.showToast("已开启低性能模式 (无动画与模糊)", "success");
+            } else {
+                html.classList.remove('low-perf');
+                store.setSetting('low_perf', 'false');
+                window.showToast("已恢复高性能视觉模式", "success");
+            }
+            updateLowPerfUI(enabled);
+        }
         function enterAdminToken() {
             openModal('adminTokenModal');
             const cur = localStorage.getItem('nai_admin_token');
@@ -2491,6 +2598,165 @@
                 el.style.display = 'none';
             }, 300);
         }
+
+        // --- Custom Toast, Alert, and Confirm System ---
+        window.showToast = function(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            // Glassmorphism styling
+            toast.className = `flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-lg border backdrop-blur-md transition-all duration-300 translate-y-2 opacity-0 max-w-sm pointer-events-auto w-[90%] md:w-auto`;
+            
+            let iconName = 'info';
+            let bgClass = 'bg-white/90 dark:bg-slate-900/90 border-gray-200/50 dark:border-slate-800/80 text-gray-700 dark:text-gray-200';
+            if (type === 'success') {
+                iconName = 'check-circle';
+                bgClass = 'bg-emerald-50/90 dark:bg-emerald-950/90 border-emerald-200/50 dark:border-emerald-800/30 text-emerald-800 dark:text-emerald-200';
+            } else if (type === 'error') {
+                iconName = 'alert-triangle';
+                bgClass = 'bg-rose-50/90 dark:bg-rose-950/90 border-rose-200/50 dark:border-rose-800/30 text-rose-800 dark:text-rose-200';
+            } else if (type === 'warning') {
+                iconName = 'alert-circle';
+                bgClass = 'bg-amber-50/90 dark:bg-amber-950/90 border-amber-200/50 dark:border-amber-800/30 text-amber-800 dark:text-amber-200';
+            }
+
+            toast.className += ` ${bgClass}`;
+            toast.innerHTML = `
+                <div class="flex-shrink-0">
+                    <i data-lucide="${iconName}" class="w-4 h-4"></i>
+                </div>
+                <div class="text-xs font-semibold select-none leading-relaxed">${message}</div>
+            `;
+
+            container.appendChild(toast);
+            if (window.safeCreateIcons) window.safeCreateIcons();
+
+            // Force reflow and animate in
+            toast.offsetHeight;
+            toast.classList.remove('translate-y-2', 'opacity-0');
+
+            const dismiss = () => {
+                toast.classList.add('opacity-0', 'translate-y-[-8px]');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            };
+
+            const timeoutId = setTimeout(dismiss, duration);
+            toast.addEventListener('click', () => {
+                clearTimeout(timeoutId);
+                dismiss();
+            });
+        };
+
+        window.showAlert = function(message, title = '系统提示', iconType = 'alert-circle') {
+            return new Promise((resolve) => {
+                const msgEl = document.getElementById('confirmModalMessage');
+                const titleEl = document.getElementById('confirmModalTitle');
+                const iconEl = document.getElementById('confirmModalIcon');
+                const confirmBtn = document.getElementById('confirmConfirmBtn');
+                const cancelBtn = document.getElementById('confirmCancelBtn');
+                const backdrop = document.getElementById('confirmModalBackdrop');
+
+                if (msgEl) msgEl.textContent = message;
+                if (titleEl) titleEl.textContent = title;
+                
+                if (iconEl) {
+                    iconEl.setAttribute('data-lucide', iconType);
+                    if (window.safeCreateIcons) window.safeCreateIcons();
+                }
+
+                // Hide cancel button for alert
+                if (cancelBtn) cancelBtn.classList.add('hidden');
+
+                // Clone nodes to remove old event listeners cleanly
+                const newConfirmBtn = confirmBtn.cloneNode(true);
+                const newBackdrop = backdrop.cloneNode(true);
+                confirmBtn.replaceWith(newConfirmBtn);
+                backdrop.replaceWith(newBackdrop);
+
+                function cleanup() {
+                    closeModal('confirmModal');
+                    setTimeout(() => {
+                        if (cancelBtn) cancelBtn.classList.remove('hidden');
+                    }, 300);
+                    resolve();
+                }
+
+                openModal('confirmModal');
+
+                newConfirmBtn.addEventListener('click', cleanup);
+                newBackdrop.addEventListener('click', cleanup);
+            });
+        };
+
+        window.showConfirm = function(message, title = '确认操作', iconType = 'help-circle') {
+            return new Promise((resolve) => {
+                const msgEl = document.getElementById('confirmModalMessage');
+                const titleEl = document.getElementById('confirmModalTitle');
+                const iconEl = document.getElementById('confirmModalIcon');
+                const confirmBtn = document.getElementById('confirmConfirmBtn');
+                const cancelBtn = document.getElementById('confirmCancelBtn');
+                const backdrop = document.getElementById('confirmModalBackdrop');
+
+                if (msgEl) msgEl.textContent = message;
+                if (titleEl) titleEl.textContent = title;
+                
+                if (iconEl) {
+                    iconEl.setAttribute('data-lucide', iconType);
+                    if (window.safeCreateIcons) window.safeCreateIcons();
+                }
+
+                // Ensure cancel button is visible
+                if (cancelBtn) cancelBtn.classList.remove('hidden');
+
+                // Clone nodes to remove old event listeners cleanly
+                const newConfirmBtn = confirmBtn.cloneNode(true);
+                const newCancelBtn = cancelBtn.cloneNode(true);
+                const newBackdrop = backdrop.cloneNode(true);
+                confirmBtn.replaceWith(newConfirmBtn);
+                cancelBtn.replaceWith(newCancelBtn);
+                backdrop.replaceWith(newBackdrop);
+
+                function cleanup(value) {
+                    closeModal('confirmModal');
+                    resolve(value);
+                }
+
+                openModal('confirmModal');
+
+                newConfirmBtn.addEventListener('click', () => cleanup(true));
+                newCancelBtn.addEventListener('click', () => cleanup(false));
+                newBackdrop.addEventListener('click', () => cleanup(false));
+            });
+        };
+
+        // Override default window.alert with custom toast/alert
+        window.alert = function(message) {
+            if (message === undefined || message === null) return;
+            const msgStr = String(message);
+            const isShort = msgStr.length < 18;
+            const isStatus = msgStr.includes('复制') || msgStr.includes('载入') || msgStr.includes('保存') || msgStr.includes('成功');
+            
+            if (isShort || isStatus) {
+                let type = 'info';
+                if (isStatus || msgStr.includes('成功') || msgStr.includes('复制') || msgStr.includes('载入')) {
+                    type = 'success';
+                } else if (msgStr.includes('失败') || msgStr.includes('错误') || msgStr.includes('⚠️')) {
+                    type = 'error';
+                }
+                window.showToast(msgStr, type);
+            } else {
+                let icon = 'alert-circle';
+                let title = '系统提示';
+                if (msgStr.includes('失败') || msgStr.includes('错误') || msgStr.includes('封禁') || msgStr.includes('⚠️')) {
+                    icon = 'alert-triangle';
+                    title = '操作失败';
+                }
+                window.showAlert(msgStr, title, icon);
+            }
+        };
 
         // --- 自定义 API Key 管理 ---
         function addApiKeyInputRow(val = '') {
@@ -2889,7 +3155,7 @@
             const item = lightboxItems[lightboxIndex];
             if (item.isShowcase) return;
             
-            if (!confirm("确定从图库删除此图片吗？")) return;
+            if (!(await window.showConfirm("您确定要从历史图库中删除这张图片吗？该操作不可撤销。", "删除图库图片", "trash-2"))) return;
             
             try {
                 await store.deleteImage(item.id);
@@ -2987,7 +3253,7 @@
             lightboxCreate, toggleLightboxSidebarMobile,
             saveAdminToken, closeAdminTokenModal, clearAdminToken,
             saveUserKey, closeUserKeyModal, clearUserKey,
-            addApiKeyInputRow, removeApiKeyInputRow
+            addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf
         });    </script>
 </body>
 
