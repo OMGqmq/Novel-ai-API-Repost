@@ -82,19 +82,19 @@
         <div
             class="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-4 md:px-8 z-[50] pointer-events-none select-none">
             <div
-                class="pointer-events-auto shadow-sm rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur p-0.5 border border-gray-100 dark:border-gray-700/50">
+                class="pointer-events-auto shadow-sm rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur p-0.5 border border-gray-100 dark:border-gray-700/50 relative z-10">
                 <div class="view-toggle" id="viewToggle" data-state="preview">
                     <div class="view-toggle-bg"></div>
                     <button onclick="switchRightView('preview')" id="viewBtnPreview" class="active">画布</button>
                     <button onclick="switchRightView('history')" id="viewBtnHistory">图库</button>
                 </div>
             </div>
-            <div class="pointer-events-auto flex gap-2">
+            <div class="pointer-events-auto flex gap-2 relative z-10">
                 <button onclick="clearAllHistory()" id="clearBtn"
-                    class="hidden p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 shadow-sm transition-all"><i
+                    class="hidden p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 shadow-sm transition-all cursor-pointer"><i
                         data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i></button>
                 <button onclick="downloadZip()" id="zipBtn"
-                    class="hidden p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 shadow-sm transition-all"><i
+                    class="hidden p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 shadow-sm transition-all cursor-pointer"><i
                         data-lucide="archive" class="w-4 h-4 pointer-events-none"></i></button>
                 <button onclick="window.downloadImage()" id="dlBtn"
                     class="p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-100 dark:border-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 shadow-sm transition-all opacity-50 cursor-pointer"
@@ -206,7 +206,7 @@
         </div>
 
         <div id="historyArea"
-            class="flex-1 hidden w-full h-full overflow-y-auto p-4 pt-20 pb-32 md:pb-10 custom-scroll">
+            class="relative flex-1 hidden w-full h-full overflow-y-auto p-4 pt-20 pb-32 md:pb-10 custom-scroll">
             <div class="flex items-center justify-center mb-4">
                 <div class="inline-flex bg-gray-100/80 dark:bg-slate-800/80 rounded-full p-1 border border-gray-200/60 dark:border-gray-700/50"
                     id="galleryTabToggle">
