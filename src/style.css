@@ -568,3 +568,89 @@ html.low-perf.dark .custom-select-options {
     background: #1e293b !important;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
 }
+
+/* --- 统一控制台滑动条 (Range Slider) 美化 --- */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #e2e8f0; /* Light Mode track */
+    border-radius: 9999px;
+    height: 6px;
+    outline: none;
+    transition: background 0.3s;
+}
+
+html.dark input[type="range"] {
+    background: #334155; /* Dark Mode track */
+}
+
+/* Chrome/Safari/Webkit 滑块 (Thumb) 样式 */
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 9999px;
+    background: #0f172a; /* Light Mode: Dark thumb */
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.15s;
+}
+
+html.dark input[type="range"]::-webkit-slider-thumb {
+    background: #f8fafc; /* Dark Mode: Light thumb */
+    border: 2px solid #1e293b;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+/* 悬停与拖拽微动缩放动画 */
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.25);
+    background-color: #3b82f6 !important; /* Hover highlight to blue */
+}
+
+html.dark input[type="range"]::-webkit-slider-thumb:hover {
+    background-color: #fbbf24 !important; /* Dark mode hover highlight to gold */
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+    transform: scale(1.1);
+}
+
+/* Firefox 滑块 (Thumb) 样式 */
+input[type="range"]::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+    border-radius: 9999px;
+    background: #0f172a;
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    transition: transform 0.15s ease, background-color 0.15s;
+}
+
+html.dark input[type="range"]::-moz-range-thumb {
+    background: #f8fafc;
+    border: 2px solid #1e293b;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+    transform: scale(1.25);
+    background-color: #3b82f6 !important;
+}
+
+html.dark input[type="range"]::-moz-range-thumb:hover {
+    background-color: #fbbf24 !important;
+}
+
+/* 兼容低性能模式下的滑块特效 */
+html.low-perf input[type="range"]::-webkit-slider-thumb {
+    transition: none !important;
+    transform: none !important;
+}
+html.low-perf input[type="range"]::-moz-range-thumb {
+    transition: none !important;
+    transform: none !important;
+}

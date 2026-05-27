@@ -1045,8 +1045,15 @@ let tagData = {};
 fetch('all_tags.txt').then(r => r.json()).then(d => tagData = d).catch(() => { });
 els.tagSearchBtn.onclick = () => {
     const q = els.tagSearchInput.value.toLowerCase().trim();
-    if (!q) return;
-    const res = Object.entries(tagData).filter(([e, c]) => e.includes(q) || c.includes(q));
+    if (!q) {
+        els.tagResults.innerHTML = '';
+        return;
+    }
+    // Limit to top 100 results to prevent massive DOM rendering lag
+    const res = Object.entries(tagData)
+        .filter(([e, c]) => e.includes(q) || c.includes(q))
+        .slice(0, 100);
+
     els.tagResults.innerHTML = '';
     res.forEach(([en, cn]) => {
         const d = document.createElement('div');
@@ -1054,10 +1061,32 @@ els.tagSearchBtn.onclick = () => {
         d.innerHTML = `<div class="text-sm font-medium text-gray-800 dark:text-gray-200">${en}</div><div class="text-xs text-gray-400 dark:text-gray-500">${cn}</div>`;
         d.onclick = () => {
             els.prompt.value += (els.prompt.value ? ', ' : '') + en;
+            // Notify prompt input listeners so that it auto-saves to LocalStorage
+            els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
+            if (window.showToast) {
+                window.showToast(`已添加标签: ${en}`, 'success', 1500);
+            }
         };
         els.tagResults.appendChild(d);
     });
 };
+
+// Enter key search and debounced search-as-you-type support
+if (els.tagSearchInput) {
+    els.tagSearchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            els.tagSearchBtn.click();
+        }
+    });
+
+    let tagSearchTimeout = null;
+    els.tagSearchInput.addEventListener('input', () => {
+        clearTimeout(tagSearchTimeout);
+        tagSearchTimeout = setTimeout(() => {
+            els.tagSearchBtn.click();
+        }, 300);
+    });
+}
 
 // --- 主题/鉴权 ---
 function initTheme() {
