@@ -10,6 +10,7 @@ export class UIController {
         this.currentGalleryTab = 'showcase';
 
         this._initBasicBindings();
+        this._initCustomSelects();
     }
 
     _getElements() {
@@ -71,6 +72,108 @@ export class UIController {
         if (steps) steps.addEventListener('input', e => stepsVal.textContent = e.target.value);
         if (scale) scale.addEventListener('input', e => scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
         if (batchCount) batchCount.addEventListener('input', e => batchValue.textContent = e.target.value);
+    }
+
+    _initCustomSelects() {
+        const selectIds = ['resolution', 'sampler', 'noise_schedule'];
+        selectIds.forEach(id => {
+            const selectEl = document.getElementById(id);
+            if (!selectEl) return;
+
+            // Hide original select
+            selectEl.classList.add('hidden');
+
+            // Create custom select container
+            const container = document.createElement('div');
+            container.className = 'custom-select-container relative w-full';
+            container.setAttribute('data-select-id', id);
+
+            // Get selected option
+            const selectedOpt = selectEl.options[selectEl.selectedIndex] || selectEl.options[0];
+            const selectedText = selectedOpt ? selectedOpt.textContent : '';
+
+            // Create trigger button
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = 'custom-select-trigger art-input w-full px-4 py-3 rounded-xl text-xs font-medium outline-none shadow-sm flex items-center justify-between cursor-pointer';
+            trigger.innerHTML = `
+                <span class="custom-select-label">${selectedText}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-gray-400 custom-select-arrow transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+            `;
+
+            // Create options panel
+            const optionsPanel = document.createElement('div');
+            optionsPanel.className = 'custom-select-options absolute left-0 right-0 mt-1.5 py-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-slate-800 rounded-xl shadow-art z-[60] opacity-0 scale-95 pointer-events-none transition-all duration-150 origin-top custom-scroll overflow-y-auto max-h-60';
+
+            const syncOptions = () => {
+                optionsPanel.innerHTML = '';
+                Array.from(selectEl.options).forEach(opt => {
+                    const optEl = document.createElement('div');
+                    optEl.className = 'custom-option px-4 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800/80 flex items-center justify-between cursor-pointer transition-colors duration-150';
+                    optEl.setAttribute('data-value', opt.value);
+                    
+                    const isSelected = opt.value === selectEl.value;
+                    optEl.innerHTML = `
+                        <span>${opt.textContent}</span>
+                        <svg class="w-3.5 h-3.5 text-yellow-500 custom-option-check ${isSelected ? '' : 'hidden'}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                    `;
+
+                    optEl.onclick = (e) => {
+                        e.stopPropagation();
+                        selectEl.value = opt.value;
+                        // Fire change event to notify other modules
+                        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        container.classList.remove('open');
+                    };
+
+                    optionsPanel.appendChild(optEl);
+                });
+            };
+
+            // Initial options render
+            syncOptions();
+
+            // Handle dropdown toggle click
+            trigger.onclick = (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-select-container').forEach(c => {
+                    if (c !== container) c.classList.remove('open');
+                });
+                container.classList.toggle('open');
+            };
+
+            // Sync custom UI when the native select's value changes externally
+            selectEl.addEventListener('change', () => {
+                const updatedOpt = selectEl.options[selectEl.selectedIndex];
+                if (updatedOpt) {
+                    trigger.querySelector('.custom-select-label').textContent = updatedOpt.textContent;
+                }
+                syncOptions();
+            });
+
+            container.appendChild(trigger);
+            container.appendChild(optionsPanel);
+
+            // Hide select's sibling elements inside parent (like native chevron icon) and append custom select
+            const wrapper = selectEl.parentElement;
+            if (wrapper) {
+                Array.from(wrapper.children).forEach(child => {
+                    if (child !== selectEl) {
+                        child.classList.add('hidden');
+                    }
+                });
+                wrapper.appendChild(container);
+            }
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.custom-select-container').forEach(c => c.classList.remove('open'));
+        });
     }
 
     toggleMobileControls(forceState) {

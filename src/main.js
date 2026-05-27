@@ -1777,6 +1777,7 @@ function lightboxApplyParams() {
                     resEl.add(newOpt);
                 }
                 resEl.value = val;
+                resEl.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
     }

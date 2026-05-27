@@ -534,3 +534,37 @@ html.low-perf #lightboxSidebar {
         pointer-events: auto;
     }
 }
+
+/* --- 自定义下拉选择器 (Custom Select) 样式 --- */
+.custom-select-container.open .custom-select-arrow {
+    transform: rotate(180deg);
+}
+
+.custom-select-container.open .custom-select-options {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
+}
+
+.custom-select-trigger:hover {
+    background: #ffffff !important;
+    border-color: #9ca3af !important;
+}
+
+html.dark .custom-select-trigger:hover {
+    background: #1e293b !important;
+    border-color: #64748b !important;
+}
+
+/* 低性能模式兼容性重写 */
+html.low-perf .custom-select-options {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+html.low-perf.dark .custom-select-options {
+    background: #1e293b !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+}
