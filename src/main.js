@@ -4,10 +4,20 @@ import { UIController } from './ui.js';
 import { InpaintEditor } from './inpaint.js';
 import { OutpaintEditor } from './outpaint.js';
 
+// 防抖函数，用于降低高频触发事件（如打字输入）的执行频率
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
 class PromptHelper {
     constructor(promptEl, tagData) {
         this.promptEl = promptEl;
         this.tagData = tagData;
+        this.tagArray = Object.entries(tagData); // 预先生成 entries 数组，省去输入时高频 Object.entries 带来的巨大 GC 卡顿
         this.isTranslationExpanded = localStorage.getItem('nai_translation_expanded') !== 'false';
         
         this.initUI();
@@ -145,9 +155,13 @@ class PromptHelper {
             }
         });
 
+        // 采用防抖以极大降低 16 万项大数据匹配与 DOM 更新的 CPU 消耗和输入卡顿
+        const debouncedUpdateSuggestions = debounce(() => this.updateSuggestions(), 150);
+        const debouncedUpdateTranslations = debounce(() => this.updateTranslations(), 250);
+
         const handleInput = () => {
-            this.updateSuggestions();
-            this.updateTranslations();
+            debouncedUpdateSuggestions();
+            debouncedUpdateTranslations();
         };
 
         this.promptEl.addEventListener('input', handleInput);
@@ -172,7 +186,9 @@ class PromptHelper {
         }
 
         const matches = [];
-        for (const [en, cn] of Object.entries(this.tagData)) {
+        const len = this.tagArray.length;
+        for (let i = 0; i < len; i++) {
+            const [en, cn] = this.tagArray[i];
             if (en.toLowerCase().includes(query) || cn.includes(query)) {
                 matches.push({ en, cn });
             }
@@ -1210,7 +1226,15 @@ async function downloadZip() {
         if (!items.length) return;
         const zip = new JSZip();
         const folder = zip.folder("novelai_gallery");
-        items.forEach((item, idx) => folder.file(`image_${idx}.png`, item.image.split(',')[1], { base64: true }));
+        items.forEach((item, idx) => {
+            // 清洗提示词以生成安全的文件名，并截取前 30 个字符
+            const safePrompt = item.prompt 
+                ? item.prompt.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '_').replace(/_+/g, '_').substring(0, 30) 
+                : '';
+            const cleanPrompt = safePrompt.trim().replace(/^_+|_+$/g, '');
+            const filename = `${idx}_${cleanPrompt || 'untitled'}.png`;
+            folder.file(filename, item.image.split(',')[1], { base64: true });
+        });
         const content = await zip.generateAsync({ type: "blob" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(content);
@@ -1357,15 +1381,71 @@ function renderPresets(model) {
 
 let tagData = {};
 let promptHelper = null;
-fetch('all_tags.txt')
-    .then(r => r.json())
-    .then(d => {
-        tagData = d;
+
+async function loadTags() {
+    const TAGS_URL = 'all_tags.txt';
+    const CACHE_NAME = 'nai-tags-cache-v1';
+    let data = null;
+
+    try {
+        if ('caches' in window) {
+            const cache = await caches.open(CACHE_NAME);
+            const cachedResponse = await cache.match(TAGS_URL);
+            
+            if (cachedResponse) {
+                // 缓存命中的情况下，直接返回缓存数据进行毫秒级秒开
+                data = await cachedResponse.json();
+                
+                // 异步后台拉取最新标签数据并写入缓存进行静默热更新 (Stale-While-Revalidate)
+                fetch(TAGS_URL)
+                    .then(response => {
+                        if (response.ok) {
+                            cache.put(TAGS_URL, response.clone());
+                            response.json().then(freshData => {
+                                tagData = freshData;
+                                if (promptHelper) {
+                                    promptHelper.tagData = freshData;
+                                    promptHelper.tagArray = Object.entries(freshData); // 同步更新 entries 缓存
+                                    promptHelper.updateTranslations();
+                                }
+                            }).catch(() => {});
+                        }
+                    })
+                    .catch(() => {});
+            } else {
+                // 缓存未命中的情况，fetch 后写入缓存并返回数据
+                const response = await fetch(TAGS_URL);
+                if (response.ok) {
+                    await cache.put(TAGS_URL, response.clone());
+                    data = await response.clone().json();
+                } else {
+                    data = await response.json();
+                }
+            }
+        } else {
+            // 浏览器不支持 caches API，直接请求
+            const r = await fetch(TAGS_URL);
+            data = await r.json();
+        }
+    } catch (e) {
+        console.error("Failed to load tags from cache:", e);
+        try {
+            const r = await fetch(TAGS_URL);
+            data = await r.json();
+        } catch (err) {
+            console.error("Tags fetch fallback failed:", err);
+        }
+    }
+    
+    if (data) {
+        tagData = data;
         if (els.prompt) {
             promptHelper = new PromptHelper(els.prompt, tagData);
         }
-    })
-    .catch(() => { });
+    }
+}
+
+loadTags();
 els.tagSearchBtn.onclick = () => {
     const q = els.tagSearchInput.value.toLowerCase().trim();
     if (!q) {
@@ -2086,7 +2166,7 @@ function copyLightboxText(id) {
     if (!el) return;
     const text = el.textContent;
     navigator.clipboard.writeText(text).then(() => {
-        alert("已复制到剪贴板！");
+        window.showToast("已复制到剪贴板！", "success");
     }).catch(err => {
         console.error("复制失败", err);
     });
@@ -2136,8 +2216,7 @@ function lightboxApplyParams() {
     }
     
     setModel(item.model || 'v3');
-    
-    alert("生成参数已载入主控制台！");
+    window.showToast("生成参数已载入主控制台！", "success");
     closeLightbox();
     ui.toggleMobileControls(true);
 }

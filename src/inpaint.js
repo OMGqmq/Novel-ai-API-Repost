@@ -84,7 +84,7 @@ export class InpaintEditor {
             this.brushCursor.style.left = e.clientX + 'px';
             this.brushCursor.style.top = e.clientY + 'px';
             this.brushCursor.style.transform = 'translate(-50%, -50%)';
-            this.brushCursor.style.display = 'block';
+            this.brushCursor.classList.remove('hidden');
 
             if (!this.drawing) return;
             this._drawOnMask(this._getCanvasPos(e), false);
@@ -154,7 +154,7 @@ export class InpaintEditor {
         setTimeout(() => {
             this.modal.style.display = 'none';
         }, 300);
-        if (this.brushCursor) this.brushCursor.style.display = 'none';
+        if (this.brushCursor) this.brushCursor.classList.add('hidden');
     }
 
     setTool(tool) {
