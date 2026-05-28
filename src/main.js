@@ -42,9 +42,9 @@ class PromptHelper {
                     <i data-lucide="languages" class="w-3.5 h-3.5 text-gray-400 dark:text-slate-500"></i>
                     实时翻译 (Translation) <span id="translateCount" class="ml-1 text-[9px] bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-1.5 py-0.2 rounded-full">0</span>
                 </span>
-                <i data-lucide="chevron-down" id="translateToggleIcon" class="w-3.5 h-3.5 transition-transform duration-200 text-gray-400 \${this.isTranslationExpanded ? 'rotate-180' : ''}"></i>
+                <i data-lucide="chevron-down" id="translateToggleIcon" class="w-3.5 h-3.5 transition-transform duration-200 text-gray-400 ${this.isTranslationExpanded ? 'rotate-180' : ''}"></i>
             </button>
-            <div id="tagTranslateContent" class="\${this.isTranslationExpanded ? '' : 'hidden'} p-3 border-t border-gray-100 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/20">
+            <div id="tagTranslateContent" class="${this.isTranslationExpanded ? '' : 'hidden'} p-3 border-t border-gray-100 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/20">
                 <div id="tagTranslateList" class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scroll">
                     <div class="text-xs text-gray-400 dark:text-slate-500 italic select-none">输入提示词以查看实时翻译...</div>
                 </div>
@@ -207,8 +207,8 @@ class PromptHelper {
             btn.type = 'button';
             btn.className = 'px-3 py-1.5 text-xs bg-white dark:bg-slate-700/60 hover:bg-yellow-50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-600 hover:border-yellow-200 dark:hover:border-yellow-500/50 rounded-lg text-gray-700 dark:text-gray-200 flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-left';
             btn.innerHTML = `
-                <span class="font-mono font-medium text-gray-900 dark:text-white">\${en}</span>
-                <span class="text-[10px] text-gray-400 dark:text-slate-400 border-l border-gray-100 dark:border-slate-600/80 pl-1.5">\${cn}</span>
+                <span class="font-mono font-medium text-gray-900 dark:text-white">${en}</span>
+                <span class="text-[10px] text-gray-400 dark:text-slate-400 border-l border-gray-100 dark:border-slate-600/80 pl-1.5">${cn}</span>
             `;
             
             btn.addEventListener('mousedown', (e) => {
@@ -298,18 +298,18 @@ class PromptHelper {
             
             if (weight > 1.01) {
                 badgeClass = 'px-2.5 py-1 text-xs bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-lg text-amber-800 dark:text-amber-300 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.2 rounded font-bold font-mono">x\${weight.toFixed(2)}</span>`;
+                weightBadgeHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.2 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
             } else if (weight < 0.99) {
                 badgeClass = 'px-2.5 py-1 text-xs bg-blue-50/50 dark:bg-slate-800/60 border border-blue-200/50 dark:border-slate-700/60 rounded-lg text-blue-800 dark:text-slate-400 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-blue-100 dark:bg-blue-950/50 px-1.5 py-0.2 rounded font-bold font-mono">x\${weight.toFixed(2)}</span>`;
+                weightBadgeHtml = `<span class="text-[9px] bg-blue-100 dark:bg-blue-950/50 px-1.5 py-0.2 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
             }
 
             badge.className = badgeClass;
             badge.innerHTML = `
-                <span class="font-mono text-gray-500 dark:text-gray-400">\${item.clean}</span>
+                <span class="font-mono text-gray-500 dark:text-gray-400">${item.clean}</span>
                 <span class="text-gray-400 dark:text-slate-600">➔</span>
-                <span class="font-medium">\${item.cn}</span>
-                \${weightBadgeHtml}
+                <span class="font-medium">${item.cn}</span>
+                ${weightBadgeHtml}
             `;
             this.translateListEl.appendChild(badge);
         });
