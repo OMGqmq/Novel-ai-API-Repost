@@ -2261,9 +2261,14 @@ function lightboxCreate(type) {
     
     closeLightbox();
     
+    const imgUrl = item.image || item.imageUrl;
+    if (imgUrl) {
+        ui.showResultImage(imgUrl);
+    }
+    
     currentImageId = item.id;
     currentImageData = item;
-    window.lastSelectedImageUrl = item.image;
+    window.lastSelectedImageUrl = imgUrl;
     ui.showImageActions(true);
 
     if (type === 'inpaint') {
