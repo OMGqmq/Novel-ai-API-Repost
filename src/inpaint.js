@@ -325,6 +325,14 @@ export class InpaintEditor {
         this.maskCtx.clearRect(0, 0, this.imgNaturalW, this.imgNaturalH);
     }
 
+    _hasPaintedMask() {
+        const data = this.maskCtx.getImageData(0, 0, this.maskCanvas.width, this.maskCanvas.height).data;
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i + 3] > 10) return true;
+        }
+        return false;
+    }
+
     _exportMaskAsBase64(targetW, targetH, isV4) {
         const latentW = Math.ceil(targetW / 64) * 8;
         const latentH = Math.ceil(targetH / 64) * 8;
@@ -370,14 +378,17 @@ export class InpaintEditor {
     }
 
     async doInpaint() {
+        if (!this._hasPaintedMask()) {
+            window.showToast('请先在图片上绘制需要重绘的区域', 'warning');
+            return;
+        }
+
         const targetW = Math.ceil(this.imgNaturalW / 64) * 64;
         const targetH = Math.ceil(this.imgNaturalH / 64) * 64;
         
         const selectedVersion = document.getElementById('modelValue').value;
         const isV4 = selectedVersion.includes('v4');
         const maskB64 = this._exportMaskAsBase64(targetW, targetH, isV4);
-        
-        if (!maskB64) { alert('请先在图片上绘制需要重绘的区域'); return; }
 
         const submitBtn = document.getElementById('inpaintSubmitBtn');
         const submitBtnMobile = document.getElementById('inpaintSubmitBtnMobile');
@@ -449,7 +460,7 @@ export class InpaintEditor {
 
         } catch (err) {
             console.error(err);
-            alert('重绘失败: ' + err.message);
+            window.showToast('重绘失败: ' + err.message, 'error');
         } finally {
             const normalHtml = '<i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘';
             submitBtn.disabled = false;
