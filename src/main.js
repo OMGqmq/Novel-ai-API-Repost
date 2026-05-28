@@ -67,8 +67,15 @@ class PromptHelper {
 
     calculateWeight(rawTag) {
         let t = rawTag.trim();
+
+        // 1. 优先匹配 v4.5 的权重格式 xx::tag:: (或切开后的 xx::tag)
+        const vibeMatch = t.match(/^(-?[0-9.]+)\s*::/);
+        if (vibeMatch) {
+            return parseFloat(vibeMatch[1]);
+        }
+
+        // 2. 原有的 NovelAI 括号叠乘加权/降权规则
         let weight = 1.0;
-        
         let modified = true;
         while (modified) {
             modified = false;
@@ -92,8 +99,12 @@ class PromptHelper {
 
     cleanTag(tag) {
         let t = tag.trim();
+        // 1. 清除 v4.5 的 xx:: 前缀和 :: 后缀
+        t = t.replace(/^-?[0-9.]+\s*::\s*/, '');
+        t = t.replace(/\s*::\s*$/, '');
+        
+        // 2. 清除首尾的括号和多余空格
         t = t.replace(/^[\(\{\[\s]+/, '');
-        t = t.split(':')[0];
         t = t.replace(/[\)\}\]\s]+$/, '');
         return t.trim();
     }
@@ -226,7 +237,10 @@ class PromptHelper {
             suffix = raw.substring(queryIndex + info.query.length);
         }
         
-        const replacement = prefix + suggestionEn + suffix;
+        let replacement = prefix + suggestionEn + suffix;
+        if (/^-?[0-9.]+\s*::/.test(prefix) && !replacement.endsWith('::')) {
+            replacement += '::';
+        }
         const newText = text.substring(0, info.start) + replacement + text.substring(info.end);
         
         textarea.value = newText;
