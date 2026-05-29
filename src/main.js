@@ -1,8 +1,8 @@
-import { ImageEngine } from './engine.js';
-import { GalleryStore } from './storage.js';
-import { UIController } from './ui.js';
-import { InpaintEditor } from './inpaint.js';
-import { OutpaintEditor } from './outpaint.js';
+import { ImageEngine } from './engine.js?v=202605292130';
+import { GalleryStore } from './storage.js?v=202605292130';
+import { UIController } from './ui.js?v=202605292130';
+import { InpaintEditor } from './inpaint.js?v=202605292130';
+import { OutpaintEditor } from './outpaint.js?v=202605292130';
 
 // 防抖函数，用于降低高频触发事件（如打字输入）的执行频率
 function debounce(func, wait) {
@@ -1260,7 +1260,10 @@ let currentNotebookModel = 'v3';
 function getNotebookNotes(model) {
     const key = `nai_notebook_${model}`;
     try {
-        return JSON.parse(localStorage.getItem(key) || '[]');
+        const val = localStorage.getItem(key);
+        if (!val) return [];
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : [];
     } catch {
         return [];
     }
