@@ -1,8 +1,8 @@
-import { ImageEngine } from './engine.js?v=202605292155';
-import { GalleryStore } from './storage.js?v=202605292155';
-import { UIController } from './ui.js?v=202605292155';
-import { InpaintEditor } from './inpaint.js?v=202605292155';
-import { OutpaintEditor } from './outpaint.js?v=202605292155';
+import { ImageEngine } from './engine.js?v=202605292218';
+import { GalleryStore } from './storage.js?v=202605292218';
+import { UIController } from './ui.js?v=202605292218';
+import { InpaintEditor } from './inpaint.js?v=202605292218';
+import { OutpaintEditor } from './outpaint.js?v=202605292218';
 
 // 防抖函数，用于降低高频触发事件（如打字输入）的执行频率
 function debounce(func, wait) {
@@ -1313,6 +1313,37 @@ async function getPreviewThumbnail(imgSrc) {
     });
 }
 
+function getActiveCanvasImage() {
+    // 1. 如果单图聚焦区域可见且有 src
+    if (ui.els.singleResultImg && !ui.els.singleResultArea.classList.contains('hidden') && ui.els.singleResultImg.src) {
+        const src = ui.els.singleResultImg.src;
+        if (src && !src.startsWith('chrome-extension') && src !== window.location.href) {
+            return src;
+        }
+    }
+    
+    // 2. 如果网格显示，寻找被选中的（带蓝色边框的）图片
+    if (ui.els.resultGrid && !ui.els.resultGrid.classList.contains('hidden')) {
+        const selectedImg = ui.els.resultGrid.querySelector('img.border-blue-500');
+        if (selectedImg && selectedImg.src) {
+            return selectedImg.src;
+        }
+        
+        // 3. 取网格中的第一张图片
+        const firstImg = ui.els.resultGrid.querySelector('img');
+        if (firstImg && firstImg.src) {
+            return firstImg.src;
+        }
+    }
+    
+    // 4. 兜底使用 window.lastSelectedImageUrl
+    if (window.lastSelectedImageUrl) {
+        return window.lastSelectedImageUrl;
+    }
+    
+    return null;
+}
+
 async function saveCurrentPromptToNotebook() {
     const prompt = els.prompt.value.trim();
     const negative = els.negative.value.trim();
@@ -1332,9 +1363,7 @@ async function saveCurrentPromptToNotebook() {
 
     // Capture current canvas image preview
     let preview = null;
-    const activeImageSrc = (ui.els.singleResultImg && !ui.els.singleResultArea.classList.contains('hidden')) 
-        ? ui.els.singleResultImg.src 
-        : (window.lastSelectedImageUrl || null);
+    const activeImageSrc = getActiveCanvasImage();
     
     if (activeImageSrc) {
         window.showToast('正在生成缩略图...', 'info', 1000);
@@ -1532,9 +1561,7 @@ async function deleteNotebookNote(model, noteId) {
 }
 
 async function bindCurrentCanvasToNote(model, noteId) {
-    const activeImageSrc = (ui.els.singleResultImg && !ui.els.singleResultArea.classList.contains('hidden')) 
-        ? ui.els.singleResultImg.src 
-        : (window.lastSelectedImageUrl || null);
+    const activeImageSrc = getActiveCanvasImage();
         
     if (!activeImageSrc) {
         window.showToast('当前画布无生成图片', 'warning');
