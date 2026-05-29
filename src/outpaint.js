@@ -332,13 +332,30 @@ export class OutpaintEditor {
                 }
             }
 
-            // SMEAR IMAGE EDGES: Pull the edge colors outward so the AI has context.
+            // SMEAR IMAGE EDGES: 精准的边缘像素 Clamp-to-Edge 拉伸，为 AI 提供自然的上下文，消除接缝割裂感
             cropCtx.globalCompositeOperation = 'destination-over';
-            for (let dist = 1; dist <= 32; dist *= 2) {
-                cropCtx.drawImage(cropCanvas, dist, 0);
-                cropCtx.drawImage(cropCanvas, -dist, 0);
-                cropCtx.drawImage(cropCanvas, 0, dist);
-                cropCtx.drawImage(cropCanvas, 0, -dist);
+            const left = Math.max(0, -x);
+            const right = Math.min(targetW, -x + this.els.canvas.width);
+            const top = Math.max(0, -y);
+            const bottom = Math.min(targetH, -y + this.els.canvas.height);
+
+            if (right > left && bottom > top) {
+                // 1. 向上拉伸
+                if (top > 0) {
+                    cropCtx.drawImage(cropCanvas, left, top, right - left, 1, left, 0, right - left, top);
+                }
+                // 2. 向下拉伸
+                if (bottom < targetH) {
+                    cropCtx.drawImage(cropCanvas, left, bottom - 1, right - left, 1, left, bottom, right - left, targetH - bottom);
+                }
+                // 3. 向左拉伸（包含已拉伸的上下边缘）
+                if (left > 0) {
+                    cropCtx.drawImage(cropCanvas, left, 0, 1, targetH, 0, 0, left, targetH);
+                }
+                // 4. 向右拉伸（包含已拉伸的上下边缘）
+                if (right < targetW) {
+                    cropCtx.drawImage(cropCanvas, right - 1, 0, 1, targetH, right, 0, targetW - right, targetH);
+                }
             }
             
             // Fill remaining transparent space with neutral gray (128,128,128)
