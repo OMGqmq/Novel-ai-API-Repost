@@ -218,7 +218,7 @@ export class OutpaintEditor {
         this._updateSelectionDOM();
         
         // Update UI preview if needed
-        const finalBase64 = this.els.canvas.toDataURL('image/jpeg', 0.95);
+        const finalBase64 = this.els.canvas.toDataURL('image/png');
         if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
         window.lastSelectedImageUrl = finalBase64;
     }
@@ -240,7 +240,7 @@ export class OutpaintEditor {
     }
 
     async saveToHistory() {
-        const finalBase64 = this.els.canvas.toDataURL('image/jpeg', 0.95);
+        const finalBase64 = this.els.canvas.toDataURL('image/png');
         const modelVersionEl = document.getElementById('modelValue');
         const modelVersion = modelVersionEl ? modelVersionEl.value : 'v3';
         const prompt = document.getElementById('prompt')?.value || '';
@@ -503,7 +503,7 @@ export class OutpaintEditor {
                 this._applyTransform();
                 this._updateSelectionDOM();
 
-                const finalBase64 = this.els.canvas.toDataURL('image/jpeg', 0.95);
+                const finalBase64 = this.els.canvas.toDataURL('image/png');
                 // 静默更新，不弹窗
                 console.log(hasPaintedMask ? "Inpaint generated" : "Outpaint generated");
                 if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
