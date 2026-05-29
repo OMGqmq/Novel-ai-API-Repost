@@ -288,6 +288,7 @@ export class OutpaintEditor {
 
             let finalMaskCanvas;
             let action = 'infill';
+            let isPureGeneration = false;
 
             if (hasPaintedMask) {
                 // INPAINT MODE: Use the painted mask
@@ -310,9 +311,11 @@ export class OutpaintEditor {
                 maskCtx.fillRect(0, 0, targetW, targetH);
                 const maskData = maskCtx.getImageData(0, 0, targetW, targetH);
 
+                let hasOpaquePixels = false;
                 for (let i = 0; i < imgData.data.length; i += 4) {
                     const alpha = imgData.data[i + 3];
                     if (alpha > 128) {
+                        hasOpaquePixels = true;
                         // If pixel is opaque, we want to KEEP it, so Mask = Black
                         maskData.data[i] = 0;
                         maskData.data[i + 1] = 0;
@@ -320,6 +323,10 @@ export class OutpaintEditor {
                     }
                 }
                 maskCtx.putImageData(maskData, 0, 0);
+
+                if (!hasOpaquePixels) {
+                    isPureGeneration = true;
+                }
 
                 // DILATE MASK: Expand the white area (generate) slightly into the black area (keep).
                 finalMaskCanvas = document.createElement('canvas');
@@ -414,12 +421,17 @@ export class OutpaintEditor {
                 steps,
                 scale,
                 sampler,
-                image: imageBase64,
-                mask: finalMaskBase64,
-                strength: strength,
-                action: action,
                 add_original_image: true
             };
+
+            if (isPureGeneration) {
+                params.action = 'generate';
+            } else {
+                params.image = imageBase64;
+                params.mask = finalMaskBase64;
+                params.strength = strength;
+                params.action = action;
+            }
 
             // ... (Rest of the generate method for API call and stitching)
             // Handling Multi-API Keys gracefully
