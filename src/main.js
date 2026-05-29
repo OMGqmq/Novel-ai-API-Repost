@@ -478,6 +478,14 @@ try {
         document.documentElement.classList.add('low-perf');
         updateLowPerfUI(true);
     }
+
+    // Restore bypass limits settings
+    const savedBypass = store.getSetting('nai_bypass_limits') === 'true';
+    const checkbox = document.getElementById('bypassLimitsEnabled');
+    if (checkbox) {
+        checkbox.checked = savedBypass;
+        toggleBypassLimitsEnabled(savedBypass);
+    }
 } catch (e) {
     console.error("Initialization error (from cache):", e);
 }
@@ -1626,6 +1634,74 @@ function clearUserKey() {
     statusEl.classList.remove('hidden');
     setTimeout(() => closeUserKeyModal(), 1000);
 }
+
+function updateResolutionOptions(bypass) {
+    const resEl = document.getElementById('resolution');
+    if (!resEl) return;
+    
+    const standardResolutions = [
+        { name: 'Portrait (832 x 1216)', value: '832,1216' },
+        { name: 'Landscape (1216 x 832)', value: '1216,832' },
+        { name: 'Square (1024 x 1024)', value: '1024,1024' }
+    ];
+    
+    const xlResolutions = [
+        { name: 'Portrait XL (1024 x 1536)', value: '1024,1536' },
+        { name: 'Landscape XL (1536 x 1024)', value: '1536,1024' },
+        { name: 'Square XL (1216 x 1216)', value: '1216,1216' }
+    ];
+    
+    const currentVal = resEl.value;
+    
+    resEl.innerHTML = '';
+    standardResolutions.forEach(r => {
+        resEl.add(new Option(r.name, r.value));
+    });
+    
+    if (bypass) {
+        xlResolutions.forEach(r => {
+            resEl.add(new Option(r.name, r.value));
+        });
+    }
+    
+    let valueToSet = currentVal;
+    if (!bypass && xlResolutions.some(r => r.value === currentVal)) {
+        valueToSet = '832,1216';
+    }
+    
+    resEl.value = valueToSet;
+    resEl.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function toggleBypassLimitsEnabled(forceState) {
+    const checkbox = document.getElementById('bypassLimitsEnabled');
+    if (!checkbox) return;
+    
+    let enabled = checkbox.checked;
+    if (forceState !== undefined) {
+        enabled = forceState;
+        checkbox.checked = enabled;
+    }
+    
+    store.setSetting('nai_bypass_limits', enabled.toString());
+    
+    const stepsEl = document.getElementById('steps');
+    const stepsVal = document.getElementById('stepsValue');
+    if (stepsEl) {
+        if (enabled) {
+            stepsEl.max = '50';
+        } else {
+            stepsEl.max = '28';
+            if (parseInt(stepsEl.value) > 28) {
+                stepsEl.value = '28';
+                if (stepsVal) stepsVal.textContent = '28';
+            }
+        }
+    }
+    
+    updateResolutionOptions(enabled);
+}
+
 function checkAdminStatus() {
     const t = localStorage.getItem('nai_admin_token');
     const customKey = localStorage.getItem('nai_custom_api_key');
@@ -1641,6 +1717,21 @@ function checkAdminStatus() {
     };
     if (els.adminLockBtn) updateLock(els.adminLockBtn);
     if (els.adminLockBtnMobile) updateLock(els.adminLockBtnMobile);
+
+    // 显示/隐藏解除限制开关
+    const bypassContainer = document.getElementById('bypassLimitsContainer');
+    if (bypassContainer) {
+        if (isAdmin) {
+            bypassContainer.classList.remove('hidden');
+        } else {
+            bypassContainer.classList.add('hidden');
+            const checkbox = document.getElementById('bypassLimitsEnabled');
+            if (checkbox && checkbox.checked) {
+                checkbox.checked = false;
+                toggleBypassLimitsEnabled(false);
+            }
+        }
+    }
 
     // 更新 API 按钮状态
     const updateApiBtn = (btn) => {
@@ -2343,5 +2434,5 @@ Object.assign(window, {
     lightboxCreate, toggleLightboxSidebarMobile,
     saveAdminToken, closeAdminTokenModal, clearAdminToken,
     saveUserKey, closeUserKeyModal, clearUserKey,
-    addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf
+    addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleBypassLimitsEnabled
 });
