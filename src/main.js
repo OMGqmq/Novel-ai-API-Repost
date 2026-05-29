@@ -1,8 +1,8 @@
-import { ImageEngine } from './engine.js?v=202605292130';
-import { GalleryStore } from './storage.js?v=202605292130';
-import { UIController } from './ui.js?v=202605292130';
-import { InpaintEditor } from './inpaint.js?v=202605292130';
-import { OutpaintEditor } from './outpaint.js?v=202605292130';
+import { ImageEngine } from './engine.js?v=202605292155';
+import { GalleryStore } from './storage.js?v=202605292155';
+import { UIController } from './ui.js?v=202605292155';
+import { InpaintEditor } from './inpaint.js?v=202605292155';
+import { OutpaintEditor } from './outpaint.js?v=202605292155';
 
 // 防抖函数，用于降低高频触发事件（如打字输入）的执行频率
 function debounce(func, wait) {
@@ -1273,7 +1273,47 @@ function saveNotebookNotes(model, notes) {
     localStorage.setItem(`nai_notebook_${model}`, JSON.stringify(notes));
 }
 
-function saveCurrentPromptToNotebook() {
+async function getPreviewThumbnail(imgSrc) {
+    if (!imgSrc || imgSrc === window.location.href || imgSrc.startsWith('chrome-extension')) {
+        return null;
+    }
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const maxDim = 160;
+                let w = img.width;
+                let h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) {
+                        h = Math.round((h * maxDim) / w);
+                        w = maxDim;
+                    } else {
+                        w = Math.round((w * maxDim) / h);
+                        h = maxDim;
+                    }
+                }
+                canvas.width = w;
+                canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            } catch (e) {
+                console.error('Failed to generate notebook thumbnail:', e);
+                resolve(null);
+            }
+        };
+        img.onerror = (err) => {
+            console.error('Failed to load image for thumbnail:', err);
+            resolve(null);
+        };
+        img.src = imgSrc;
+    });
+}
+
+async function saveCurrentPromptToNotebook() {
     const prompt = els.prompt.value.trim();
     const negative = els.negative.value.trim();
     if (!prompt) {
@@ -1290,11 +1330,22 @@ function saveCurrentPromptToNotebook() {
         return;
     }
 
+    // Capture current canvas image preview
+    let preview = null;
+    const activeImageSrc = (ui.els.singleResultImg && !ui.els.singleResultArea.classList.contains('hidden')) 
+        ? ui.els.singleResultImg.src 
+        : (window.lastSelectedImageUrl || null);
+    
+    if (activeImageSrc) {
+        window.showToast('正在生成缩略图...', 'info', 1000);
+        preview = await getPreviewThumbnail(activeImageSrc);
+    }
+
     const note = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
         prompt,
         negative,
-        title: prompt.substring(0, 40) + (prompt.length > 40 ? '...' : ''),
+        preview,
         createdAt: Date.now()
     };
 
@@ -1345,6 +1396,9 @@ function renderNotebookNotes(model) {
             <div class="flex items-start justify-between gap-2 mb-1.5">
                 <span class="text-[9px] text-gray-400 dark:text-slate-500 font-mono">${formatNoteDate(note.createdAt)}</span>
                 <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="bindCurrentCanvasToNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all" title="绑定当前画布图片">
+                        <i data-lucide="image" class="w-3 h-3"></i>
+                    </button>
                     <button onclick="editNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all" title="编辑">
                         <i data-lucide="pencil" class="w-3 h-3"></i>
                     </button>
@@ -1353,8 +1407,21 @@ function renderNotebookNotes(model) {
                     </button>
                 </div>
             </div>
-            <div class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed mb-1.5 line-clamp-3 break-all">${escapeHtml(note.prompt)}</div>
-            ${note.negative ? `<div class="text-[10px] text-gray-400 dark:text-slate-500 leading-relaxed line-clamp-1 break-all mb-2"><span class="text-gray-300 dark:text-slate-600">neg:</span> ${escapeHtml(note.negative)}</div>` : '<div class="mb-2"></div>'}
+            <div class="flex gap-2.5 mb-2">
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed line-clamp-3 break-all">${escapeHtml(note.prompt)}</div>
+                    ${note.negative ? `<div class="text-[10px] text-gray-400 dark:text-slate-500 leading-relaxed line-clamp-1 break-all mt-1"><span class="text-gray-300 dark:text-slate-600">neg:</span> ${escapeHtml(note.negative)}</div>` : ''}
+                </div>
+                ${note.preview ? `
+                <div class="shrink-0 relative group/preview">
+                    <img src="${note.preview}" class="w-14 h-20 object-cover rounded-lg shadow-sm border border-gray-200/50 dark:border-slate-700 cursor-zoom-in" onclick="event.stopPropagation(); viewNotebookNotePreview('${model}', '${note.id}')">
+                    <button onclick="event.stopPropagation(); removeNotePreview('${model}', '${note.id}')" 
+                        class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px] hover:bg-red-600 shadow-md transition-all opacity-0 group-hover/preview:opacity-100" title="移除预览图">
+                        ✕
+                    </button>
+                </div>
+                ` : ''}
+            </div>
             <button onclick="applyNotebookNote('${model}','${note.id}')"
                 class="w-full py-2 bg-gray-900/90 dark:bg-white/90 text-white dark:text-gray-900 text-[10px] font-bold rounded-lg hover:shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-1.5">
                 <i data-lucide="send" class="w-3 h-3"></i> 一键使用
@@ -1462,6 +1529,171 @@ async function deleteNotebookNote(model, noteId) {
     saveNotebookNotes(model, filtered);
     renderNotebookNotes(model);
     window.showToast('笔记已删除', 'success', 1500);
+}
+
+async function bindCurrentCanvasToNote(model, noteId) {
+    const activeImageSrc = (ui.els.singleResultImg && !ui.els.singleResultArea.classList.contains('hidden')) 
+        ? ui.els.singleResultImg.src 
+        : (window.lastSelectedImageUrl || null);
+        
+    if (!activeImageSrc) {
+        window.showToast('当前画布无生成图片', 'warning');
+        return;
+    }
+
+    const notes = getNotebookNotes(model);
+    const noteIdx = notes.findIndex(n => n.id === noteId);
+    if (noteIdx === -1) return;
+
+    window.showToast('正在生成缩略图...', 'info', 1000);
+    const preview = await getPreviewThumbnail(activeImageSrc);
+    if (!preview) {
+        window.showToast('无法从当前画布生成缩略图', 'error');
+        return;
+    }
+
+    notes[noteIdx].preview = preview;
+    saveNotebookNotes(model, notes);
+    renderNotebookNotes(model);
+    window.showToast('已绑定当前画布图片为预览', 'success');
+}
+
+function removeNotePreview(model, noteId) {
+    const notes = getNotebookNotes(model);
+    const noteIdx = notes.findIndex(n => n.id === noteId);
+    if (noteIdx === -1) return;
+
+    notes[noteIdx].preview = null;
+    saveNotebookNotes(model, notes);
+    renderNotebookNotes(model);
+    window.showToast('已移除预览图', 'success');
+}
+
+function viewNotebookNotePreview(model, noteId) {
+    const notes = getNotebookNotes(model);
+    const note = notes.find(n => n.id === noteId);
+    if (!note || !note.preview) return;
+    openLightbox({
+        image: note.preview,
+        prompt: note.prompt,
+        negative: note.negative,
+        model: model
+    });
+}
+
+function exportNotebook() {
+    const v3Notes = getNotebookNotes('v3');
+    const v45Notes = getNotebookNotes('v4.5');
+    
+    if (v3Notes.length === 0 && v45Notes.length === 0) {
+        window.showToast('笔记本为空，无需导出', 'warning');
+        return;
+    }
+
+    const backup = {
+        type: 'nai_notebook_backup',
+        version: 1,
+        v3: v3Notes,
+        'v4.5': v45Notes
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `novelai-notebook-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    window.showToast('导出备份成功', 'success');
+}
+
+function triggerImportNotebook() {
+    const input = document.getElementById('notebookImportInput');
+    if (input) {
+        input.value = ''; // Reset
+        input.click();
+    }
+}
+
+async function importNotebook(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (data.type !== 'nai_notebook_backup' || !data.version) {
+                window.showToast('无效的备份文件格式', 'error');
+                return;
+            }
+
+            const v3Import = Array.isArray(data.v3) ? data.v3 : [];
+            const v45Import = Array.isArray(data['v4.5']) ? data['v4.5'] : [];
+
+            if (v3Import.length === 0 && v45Import.length === 0) {
+                window.showToast('备份文件中没有笔记数据', 'warning');
+                return;
+            }
+
+            const confirmMsg = `确定要导入备份吗？将合并导入 ${v3Import.length} 条 V3 笔记和 ${v45Import.length} 条 V4.5 笔记（自动过滤重复项）。`;
+            if (!(await window.showConfirm(confirmMsg, '导入备份', 'upload-cloud'))) {
+                return;
+            }
+
+            // Merge V3
+            let v3Added = 0;
+            if (v3Import.length > 0) {
+                const currentV3 = getNotebookNotes('v3');
+                const mergedV3 = [...currentV3];
+                v3Import.forEach(imp => {
+                    const isDup = mergedV3.some(n => n.prompt === imp.prompt && n.negative === imp.negative);
+                    if (!isDup) {
+                        mergedV3.push({
+                            id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+                            prompt: imp.prompt,
+                            negative: imp.negative || '',
+                            preview: imp.preview || null,
+                            createdAt: imp.createdAt || Date.now()
+                        });
+                        v3Added++;
+                    }
+                });
+                mergedV3.sort((a, b) => b.createdAt - a.createdAt);
+                saveNotebookNotes('v3', mergedV3);
+            }
+
+            // Merge V4.5
+            let v45Added = 0;
+            if (v45Import.length > 0) {
+                const currentV45 = getNotebookNotes('v4.5');
+                const mergedV45 = [...currentV45];
+                v45Import.forEach(imp => {
+                    const isDup = mergedV45.some(n => n.prompt === imp.prompt && n.negative === imp.negative);
+                    if (!isDup) {
+                        mergedV45.push({
+                            id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+                            prompt: imp.prompt,
+                            negative: imp.negative || '',
+                            preview: imp.preview || null,
+                            createdAt: imp.createdAt || Date.now()
+                        });
+                        v45Added++;
+                    }
+                });
+                mergedV45.sort((a, b) => b.createdAt - a.createdAt);
+                saveNotebookNotes('v4.5', mergedV45);
+            }
+
+            window.showToast(`导入成功！新增 V3: ${v3Added}条, V4.5: ${v45Added}条`, 'success');
+            renderNotebookNotes(currentNotebookModel);
+
+        } catch (err) {
+            console.error('Failed to import notebook:', err);
+            window.showToast('解析备份文件失败: ' + err.message, 'error');
+        }
+    };
+    reader.readAsText(file);
 }
 
 // ======================== End 笔记本功能 ========================
@@ -2676,5 +2908,7 @@ Object.assign(window, {
     saveUserKey, closeUserKeyModal, clearUserKey,
     addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleBypassLimitsEnabled,
     saveCurrentPromptToNotebook, switchNotebookModel, renderNotebookNotes,
-    applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote
+    applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote,
+    bindCurrentCanvasToNote, removeNotePreview, viewNotebookNotePreview,
+    exportNotebook, triggerImportNotebook, importNotebook
 });
