@@ -484,19 +484,20 @@
                 </div>
             </div>
 
-            <!-- 解除限制开关 (仅自定义 Key / 管理员可见) -->
-            <div id="bypassLimitsContainer" class="hidden pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
+            <!-- 解除限制开关 -->
+            <div id="bypassLimitsContainer" class="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
                 <div class="flex justify-between items-center px-1">
                     <div class="flex items-center gap-2">
-                        <i data-lucide="unlock" class="w-4 h-4 text-indigo-500"></i>
+                        <i id="bypassLimitsIcon" data-lucide="lock" class="w-4 h-4 text-gray-400"></i>
                         <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">解除画幅与步数限制</span>
+                        <span id="bypassLimitsBadge" class="text-[9px] bg-gray-100 dark:bg-slate-800 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700">锁定</span>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                        <input type="checkbox" id="bypassLimitsEnabled" class="sr-only peer" onchange="toggleBypassLimitsEnabled()">
+                        <input type="checkbox" id="bypassLimitsEnabled" class="sr-only peer" onchange="toggleBypassLimitsEnabled()" disabled>
                         <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                     </label>
                 </div>
-                <p class="text-[10px] text-gray-400 px-1">开启后，可选用 1.5M 像素超大画幅与最高 50 步生成（仅限使用自有 Key 时有效）。</p>
+                <p id="bypassLimitsHint" class="text-[10px] text-gray-400 px-1">需在顶部工具栏配置您的自定义 API Key 或管理员密码以解锁此选项。</p>
             </div>
 
             <div id="adminControls" class="hidden pt-4 border-t border-gray-100 dark:border-gray-800 space-y-4">
@@ -904,7 +905,7 @@
         </div>
     </div>
 
-    <script type="module" src="src/main.js?v=202605262356"></script>
+    <script type="module" src="src/main.js?v=202605291942"></script>
 </body>
 
 </html>

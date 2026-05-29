@@ -1718,17 +1718,40 @@ function checkAdminStatus() {
     if (els.adminLockBtn) updateLock(els.adminLockBtn);
     if (els.adminLockBtnMobile) updateLock(els.adminLockBtnMobile);
 
-    // 显示/隐藏解除限制开关
-    const bypassContainer = document.getElementById('bypassLimitsContainer');
-    if (bypassContainer) {
+    // 更新解除限制开关的启用状态和视觉指示
+    const checkbox = document.getElementById('bypassLimitsEnabled');
+    const icon = document.getElementById('bypassLimitsIcon');
+    const badge = document.getElementById('bypassLimitsBadge');
+    const hint = document.getElementById('bypassLimitsHint');
+    
+    if (checkbox) {
         if (isAdmin) {
-            bypassContainer.classList.remove('hidden');
+            checkbox.disabled = false;
+            if (icon) {
+                icon.setAttribute('data-lucide', 'unlock');
+                icon.className = 'w-4 h-4 text-green-500';
+            }
+            if (badge) {
+                badge.textContent = '已解锁';
+                badge.className = 'text-[9px] bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded border border-green-200/50 dark:border-green-900/30';
+            }
+            if (hint) {
+                hint.textContent = '开启后，可选用 1.5M 像素超大画幅与最高 50 步生成（将消耗您的 Anlas）。';
+            }
         } else {
-            bypassContainer.classList.add('hidden');
-            const checkbox = document.getElementById('bypassLimitsEnabled');
-            if (checkbox && checkbox.checked) {
-                checkbox.checked = false;
-                toggleBypassLimitsEnabled(false);
+            checkbox.disabled = true;
+            checkbox.checked = false;
+            toggleBypassLimitsEnabled(false);
+            if (icon) {
+                icon.setAttribute('data-lucide', 'lock');
+                icon.className = 'w-4 h-4 text-gray-400';
+            }
+            if (badge) {
+                badge.textContent = '锁定';
+                badge.className = 'text-[9px] bg-gray-100 dark:bg-slate-800 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700';
+            }
+            if (hint) {
+                hint.textContent = '需在顶部工具栏配置您的自定义 API Key 或管理员密码以解锁此选项。';
             }
         }
     }
