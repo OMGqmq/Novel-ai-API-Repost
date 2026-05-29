@@ -1096,7 +1096,9 @@ document.addEventListener('click', (e) => {
 });
 
 async function doAugment(reqType) {
-    if (!currentImageData || !currentImageData.imageUrl) return;
+    if (!currentImageData || !(currentImageData.imageUrl || currentImageData.image)) return;
+    
+    const imageUrl = currentImageData.imageUrl || currentImageData.image;
     
     const authBase = {
         adminToken: store.getSetting('nai_admin_token'),
@@ -1111,7 +1113,7 @@ async function doAugment(reqType) {
     ui.setLoading(true, "处理中...");
     try {
         // Fetch the current image to convert it to base64
-        const response = await fetch(currentImageData.imageUrl);
+        const response = await fetch(imageUrl);
         const blob = await response.blob();
         
         // create an Image to get width/height, and to draw to canvas if resizing is needed, but for simplicity let's just use it as is if it's not too big. 
@@ -1302,7 +1304,7 @@ function loadPreviewFromHistory(item) {
     ui.switchRightView('preview');
     ui.showResultImage(item.image);
     currentImageId = item.id;
-    currentImageData = item;
+    currentImageData = { ...item, imageUrl: item.image };
     window.lastSelectedImageUrl = item.image;
     ui.showImageActions(true);
     ui.toggleMobileControls(false);
@@ -2946,13 +2948,16 @@ function lightboxCreate(type) {
     
     closeLightbox();
     
+    // 切换到画布视图以确保二次创作时主界面也是画布模式
+    ui.switchRightView('preview');
+    
     const imgUrl = item.image || item.imageUrl;
     if (imgUrl) {
         ui.showResultImage(imgUrl);
     }
     
     currentImageId = item.id;
-    currentImageData = item;
+    currentImageData = { ...item, imageUrl: imgUrl };
     window.lastSelectedImageUrl = imgUrl;
     ui.showImageActions(true);
 

@@ -123,9 +123,8 @@ export class InpaintEditor {
 
     open() {
         const imgEl = document.getElementById('singleResultImg');
-        const areaEl = document.getElementById('singleResultArea');
         
-        if (!imgEl || !imgEl.getAttribute('src') || (areaEl && areaEl.classList.contains('hidden'))) {
+        if (!imgEl || !imgEl.src) {
             alert('请先生成或选择一张图片');
             return;
         }
