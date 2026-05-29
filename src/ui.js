@@ -205,6 +205,16 @@ export class UIController {
         if (badge) badge.innerText = (ver === 'v4.5' ? 'V4.5' : 'V3') + ' MODE';
         const mini = document.getElementById('modelStatusMini');
         if (mini) mini.innerText = ver === 'v4.5' ? 'V4.5' : 'V3';
+
+        // 控制 V4.5 专属参数面板的显示/隐藏
+        const skipCfgContainer = document.getElementById('skipCfgContainer');
+        if (skipCfgContainer) {
+            if (ver === 'v4.5') {
+                skipCfgContainer.classList.remove('hidden');
+            } else {
+                skipCfgContainer.classList.add('hidden');
+            }
+        }
     }
 
     switchRightView(view, updateGalleryTabCallback = null) {

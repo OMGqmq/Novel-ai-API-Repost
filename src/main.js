@@ -486,9 +486,81 @@ try {
         checkbox.checked = savedBypass;
         toggleBypassLimitsEnabled(savedBypass);
     }
+
+    // Restore advanced settings
+    const savedSm = store.getSetting('nai_sm', 'true') === 'true';
+    const savedSmDyn = store.getSetting('nai_sm_dyn', 'true') === 'true';
+    const savedQuality = store.getSetting('nai_quality_toggle', 'false') === 'true';
+    const savedDynThreshold = store.getSetting('nai_dyn_threshold', 'false') === 'true';
+    const savedCfgRescale = store.getSetting('nai_cfg_rescale', '0.00');
+    const savedUncondScale = store.getSetting('nai_uncond_scale', '1.00');
+    const savedSkipCfg = store.getSetting('nai_skip_cfg', '19');
+
+    const smEl = document.getElementById('smEnabled');
+    const smDynEl = document.getElementById('smDynEnabled');
+    const qualityEl = document.getElementById('qualityToggleEnabled');
+    const dynThresholdEl = document.getElementById('dynThresholdEnabled');
+    const cfgRescaleEl = document.getElementById('cfgRescale');
+    const uncondScaleEl = document.getElementById('uncondScale');
+    const skipCfgEl = document.getElementById('skipCfg');
+
+    if (smEl) smEl.checked = savedSm;
+    if (smDynEl) smDynEl.checked = savedSmDyn;
+    if (qualityEl) qualityEl.checked = savedQuality;
+    if (dynThresholdEl) dynThresholdEl.checked = savedDynThreshold;
+    if (cfgRescaleEl) {
+        cfgRescaleEl.value = savedCfgRescale;
+        const vEl = document.getElementById('cfgRescaleValue');
+        if (vEl) vEl.textContent = parseFloat(savedCfgRescale).toFixed(2);
+    }
+    if (uncondScaleEl) {
+        uncondScaleEl.value = savedUncondScale;
+        const vEl = document.getElementById('uncondScaleValue');
+        if (vEl) vEl.textContent = parseFloat(savedUncondScale).toFixed(2);
+    }
+    if (skipCfgEl) {
+        skipCfgEl.value = savedSkipCfg;
+        const vEl = document.getElementById('skipCfgValue');
+        if (vEl) vEl.textContent = savedSkipCfg;
+    }
+
+    // Save on change & update value label
+    smEl?.addEventListener('change', e => store.setSetting('nai_sm', e.target.checked.toString()));
+    smDynEl?.addEventListener('change', e => store.setSetting('nai_sm_dyn', e.target.checked.toString()));
+    qualityEl?.addEventListener('change', e => store.setSetting('nai_quality_toggle', e.target.checked.toString()));
+    dynThresholdEl?.addEventListener('change', e => store.setSetting('nai_dyn_threshold', e.target.checked.toString()));
+    cfgRescaleEl?.addEventListener('input', e => {
+        const vEl = document.getElementById('cfgRescaleValue');
+        if (vEl) vEl.textContent = parseFloat(e.target.value).toFixed(2);
+        store.setSetting('nai_cfg_rescale', e.target.value);
+    });
+    uncondScaleEl?.addEventListener('input', e => {
+        const vEl = document.getElementById('uncondScaleValue');
+        if (vEl) vEl.textContent = parseFloat(e.target.value).toFixed(2);
+        store.setSetting('nai_uncond_scale', e.target.value);
+    });
+    skipCfgEl?.addEventListener('input', e => {
+        const vEl = document.getElementById('skipCfgValue');
+        if (vEl) vEl.textContent = e.target.value;
+        store.setSetting('nai_skip_cfg', e.target.value);
+    });
 } catch (e) {
     console.error("Initialization error (from cache):", e);
 }
+
+window.toggleAdvancedSettings = function() {
+    const panel = document.getElementById('advancedSettingsPanel');
+    const chevron = document.getElementById('advChevron');
+    if (panel) {
+        if (panel.classList.contains('hidden')) {
+            panel.classList.remove('hidden');
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+        } else {
+            panel.classList.add('hidden');
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+        }
+    }
+};
 
 // Helper function to compress image
 async function compressImage(file, maxPixels = 1024 * 1024) {
@@ -820,6 +892,14 @@ async function doGenerate() {
 
             try {
                 const nsEl = document.getElementById('noise_schedule');
+                const smEl = document.getElementById('smEnabled');
+                const smDynEl = document.getElementById('smDynEnabled');
+                const qualityEl = document.getElementById('qualityToggleEnabled');
+                const dynThresholdEl = document.getElementById('dynThresholdEnabled');
+                const cfgRescaleEl = document.getElementById('cfgRescale');
+                const uncondScaleEl = document.getElementById('uncondScale');
+                const skipCfgEl = document.getElementById('skipCfg');
+
                 const params = {
                     version: selectedVersion,
                     prompt: promptText,
@@ -828,8 +908,18 @@ async function doGenerate() {
                     steps: parseInt(els.steps.value),
                     scale: parseFloat(els.scale.value),
                     sampler: els.sampler.value,
-                    noise_schedule: nsEl ? nsEl.value : "exponential"
+                    noise_schedule: nsEl ? nsEl.value : "exponential",
+                    sm: smEl ? smEl.checked : (selectedVersion !== 'v4.5'),
+                    sm_dyn: smDynEl ? smDynEl.checked : (selectedVersion !== 'v4.5'),
+                    qualityToggle: qualityEl ? qualityEl.checked : false,
+                    dynamic_thresholding: dynThresholdEl ? dynThresholdEl.checked : false,
+                    cfg_rescale: cfgRescaleEl ? parseFloat(cfgRescaleEl.value) : 0.0,
+                    uncond_scale: uncondScaleEl ? parseFloat(uncondScaleEl.value) : 1.0
                 };
+
+                if (selectedVersion === 'v4.5' && skipCfgEl) {
+                    params.skip_cfg_above_sigma = parseInt(skipCfgEl.value);
+                }
 
                 if (currentInitImageBase64) {
                     const strEl = document.getElementById('strength');

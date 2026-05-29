@@ -523,6 +523,78 @@
                 </div>
             </div>
 
+            <!-- 高级参数微调折叠面板 -->
+            <div class="border-t border-gray-100 dark:border-gray-800 pt-4 space-y-2">
+                <button type="button" onclick="window.toggleAdvancedSettings()" class="w-full flex items-center justify-between py-2 text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer select-none">
+                    <span class="flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i> 高级参数微调</span>
+                    <i data-lucide="chevron-down" id="advChevron" class="w-4 h-4 transition-transform duration-200"></i>
+                </button>
+                <div id="advancedSettingsPanel" class="hidden space-y-4 pt-2 pb-4">
+                    <!-- SMEA & SMEA DYN -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <span class="text-[11px] text-gray-500">SMEA 采样增强</span>
+                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
+                                <input type="checkbox" id="smEnabled" class="sr-only peer" checked>
+                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
+                        </div>
+                        <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <span class="text-[11px] text-gray-500">SMEA 动态增强</span>
+                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
+                                <input type="checkbox" id="smDynEnabled" class="sr-only peer" checked>
+                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Quality Toggle & Dynamic Thresholding -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <span class="text-[11px] text-gray-500" title="开启后会自动在正向词后追加高画质修饰词">添加质量词</span>
+                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
+                                <input type="checkbox" id="qualityToggleEnabled" class="sr-only peer">
+                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
+                        </div>
+                        <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <span class="text-[11px] text-gray-500" title="防止在高 CFG 下图片过饱和或线条崩坏">动态阈值化</span>
+                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
+                                <input type="checkbox" id="dynThresholdEnabled" class="sr-only peer">
+                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- CFG Rescale -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between text-xs px-1">
+                            <span class="text-gray-500" title="推荐范围：0.0 - 0.2。用于配合高 CFG 控制色散">CFG 效果比例 (Rescale)</span>
+                            <span id="cfgRescaleValue" class="font-mono font-bold text-gray-900 dark:text-gray-100">0.00</span>
+                        </div>
+                        <input type="range" id="cfgRescale" min="0.0" max="1.0" value="0.0" step="0.02" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
+                    </div>
+
+                    <!-- Uncond Scale (UC Scale) -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between text-xs px-1">
+                            <span class="text-gray-500" title="推荐范围：1.0。调节负面提示词强度比例">无条件缩放权重 (UC Scale)</span>
+                            <span id="uncondScaleValue" class="font-mono font-bold text-gray-900 dark:text-gray-100">1.00</span>
+                        </div>
+                        <input type="range" id="uncondScale" min="0.0" max="2.5" value="1.0" step="0.05" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
+                    </div>
+
+                    <!-- Skip CFG Above Sigma -->
+                    <div id="skipCfgContainer" class="space-y-3 hidden">
+                        <div class="flex justify-between text-xs px-1">
+                            <span class="text-gray-500" title="仅 V4.5/V4 支持。在该 Sigma 阶段跳过 CFG 以优化质量，默认 19">跳过 CFG 阶段 (Skip CFG)</span>
+                            <span id="skipCfgValue" class="font-mono font-bold text-gray-900 dark:text-gray-100">19</span>
+                        </div>
+                        <input type="range" id="skipCfg" min="0" max="20" value="19" step="1" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
             <!-- 解除限制开关 -->
             <div id="bypassLimitsContainer" class="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
                 <div class="flex justify-between items-center px-1">
