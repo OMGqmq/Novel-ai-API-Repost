@@ -27,7 +27,6 @@ export class OutpaintEditor {
         
         // Selection state
         this.selection = { x: 0, y: 0, w: 512, h: 512 };
-        this.maxPixels = 1024 * 1024; // 1048576
         
         // Mode state
         this.mode = 'move'; // 'move' or 'paint'
@@ -50,6 +49,11 @@ export class OutpaintEditor {
         this.isSnapEnabled = false;
 
         this._bindEvents();
+    }
+
+    get maxPixels() {
+        const bypass = this.store.getSetting('nai_bypass_limits') === 'true';
+        return bypass ? 1024 * 1024 * 1.5 : 1024 * 1024; // 解锁限制后放宽至 1.5M 像素，否则限制在 1M 像素
     }
 
     toggleSnap() {
