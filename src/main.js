@@ -2965,6 +2965,10 @@ function lightboxCreate(type) {
         inpaintEditor.open();
     } else if (type === 'outpaint') {
         outpaintEditor.open();
+    } else if (type === 'lineart') {
+        doAugment('lineart');
+    } else if (type === 'sketch') {
+        doAugment('sketch');
     }
 }
 

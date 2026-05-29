@@ -870,12 +870,18 @@
                 </div>
                 
                 <!-- 二次创作跳转 -->
-                <div class="flex gap-2">
-                    <button onclick="lightboxCreate('inpaint')" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1">
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="lightboxCreate('inpaint')" class="py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1">
                         <i data-lucide="paintbrush" class="w-3 h-3"></i> 局部重绘
                     </button>
-                    <button onclick="lightboxCreate('outpaint')" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1">
+                    <button onclick="lightboxCreate('outpaint')" class="py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1">
                         <i data-lucide="expand" class="w-3 h-3"></i> 无限扩图
+                    </button>
+                    <button onclick="lightboxCreate('lineart')" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1">
+                        <i data-lucide="pen-line" class="w-3 h-3"></i> 转线稿
+                    </button>
+                    <button onclick="lightboxCreate('sketch')" class="py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-[10px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1">
+                        <i data-lucide="pencil" class="w-3 h-3"></i> 转草稿
                     </button>
                 </div>
             </div>
