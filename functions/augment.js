@@ -29,7 +29,9 @@ export async function onRequest(context) {
       throw new Error("Missing req_type or image parameter");
     }
 
-    if (width * height > 1048576 + 50000) {
+    const allowBypass = env.ALLOW_CUSTOM_LIMITS !== 'false';
+    const isRestricted = (userRole !== 'CustomAPI' && userRole !== 'Admin') || !allowBypass;
+    if (isRestricted && (width * height > 1048576 + 50000)) {
       throw new Error("分辨率超出 Opus 免费限制");
     }
 

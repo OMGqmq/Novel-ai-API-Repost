@@ -20,13 +20,17 @@ export async function onRequest(context) {
     // 2. 获取请求数据
     const data = await request.json();
 
-    // 3. 安全防护：步数和分辨率限制
+    // 3. 安全防护：步数和分辨率限制 (自定义 Key 与管理员在 ALLOW_CUSTOM_LIMITS !== 'false' 时放行，以便其能支付 Anlas 选用更高画幅与步数)
+    const allowBypass = env.ALLOW_CUSTOM_LIMITS !== 'false';
+    const isRestricted = (userRole !== 'CustomAPI' && userRole !== 'Admin') || !allowBypass;
     const MAX_STEPS = 28;
-    const steps = Math.min(parseInt(data.steps) || 28, MAX_STEPS);
+    const steps = isRestricted 
+      ? Math.min(parseInt(data.steps) || 28, MAX_STEPS)
+      : (parseInt(data.steps) || 28);
     const width = parseInt(data.width) || 832;
     const height = parseInt(data.height) || 1216;
 
-    if (width * height > 1048576 + 50000) {
+    if (isRestricted && (width * height > 1048576 + 50000)) {
       throw new Error("分辨率超出 Opus 免费限制");
     }
 

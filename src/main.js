@@ -1919,7 +1919,7 @@ async function verifyCustomApiKey() {
             const res = await fetch('/verify-key', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiKey: keyToVerify })
+                body: JSON.stringify({ apiKey: keyToVerify, apiKeys: keys })
             });
 
             const text = await res.text();
@@ -1944,26 +1944,31 @@ async function verifyCustomApiKey() {
         if (verified) return;
 
         try {
-            statusEl.innerHTML = '<span class="text-gray-400">⭮ 尝试直接连接 NovelAI...</span>';
-            const directRes = await fetch('https://api.novelai.net/user/subscription', {
-                headers: { 'Authorization': `Bearer ${keyToVerify}` }
+            statusEl.innerHTML = '<span class="text-gray-400">⭮ 尝试直接连接 NovelAI 批量验证...</span>';
+            const directPromises = keys.map(async (key) => {
+                const directRes = await fetch('https://api.novelai.net/user/subscription', {
+                    headers: { 'Authorization': `Bearer ${key}` }
+                });
+                if (!directRes.ok) {
+                    throw new Error(`Key (${key.substring(0, 10)}...) 验证失败或已过期`);
+                }
+                return await directRes.json();
             });
-            if (directRes.ok) {
-                const subData = await directRes.json();
-                const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
-                const tierName = tierNames[subData.tier] || `Tier ${subData.tier}`;
-                localStorage.setItem('nai_custom_api_key', keysRaw);
-                statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${tierName}</b>。已激活 ${keys.length} 个 Key 并发模式。</span>`;
-                document.getElementById('apiKeyClearBtn').classList.remove('hidden');
-                checkAdminStatus();
-                setTimeout(() => closeApiKeyModal(), 1500);
-                return;
-            } else {
-                statusEl.innerHTML = '<span class="text-red-500">✗ 首个 API Key 无效或已过期，请检查后重试。</span>';
-                return;
-            }
+
+            const subDatas = await Promise.all(directPromises);
+            const subData = subDatas[0];
+            const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
+            const tierName = tierNames[subData.tier] || `Tier ${subData.tier}`;
+            localStorage.setItem('nai_custom_api_key', keysRaw);
+            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${tierName}</b>。已激活 ${keys.length} 个 Key 并发模式。</span>`;
+            document.getElementById('apiKeyClearBtn').classList.remove('hidden');
+            checkAdminStatus();
+            setTimeout(() => closeApiKeyModal(), 1500);
+            return;
         } catch (directErr) {
-            console.warn('直接验证也失败(可能 CORS), 使用本地保存模式:', directErr.message);
+            console.warn('直接验证失败(可能 CORS 或存在无效 Key), 使用本地保存模式:', directErr.message);
+            statusEl.innerHTML = `<span class="text-red-500">✗ 验证失败: ${directErr.message}</span>`;
+            return;
         }
 
         localStorage.setItem('nai_custom_api_key', keysRaw);
