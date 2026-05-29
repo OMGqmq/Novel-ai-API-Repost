@@ -60,8 +60,11 @@ export class UIController {
             drawerOverlay: document.getElementById('drawerOverlay'),
             tabSearch: document.getElementById('tab-search'),
             tabPreset: document.getElementById('tab-preset'),
+            tabNotebook: document.getElementById('tab-notebook'),
             viewSearch: document.getElementById('view-search'),
             viewPreset: document.getElementById('view-preset'),
+            viewNotebook: document.getElementById('view-notebook'),
+            notebookList: document.getElementById('notebookList'),
             creditDisplayMobile: document.getElementById('creditDisplayMobile'),
             creditDisplayDesktop: document.getElementById('creditDisplayDesktop')
         };
@@ -235,19 +238,25 @@ export class UIController {
         this.els.drawerOverlay.classList.toggle('pointer-events-none');
     }
 
-    switchDrawerTab(tab, renderPresetsCallback = null, isOpening = false) {
+    switchDrawerTab(tab, renderPresetsCallback = null, renderNotebookCallback = null, isOpening = false) {
         const activeClass = "active flex-1 py-2 text-xs font-medium rounded-lg transition-all border shadow-sm text-gray-900 bg-white border-gray-200 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-200";
         const inactiveClass = "flex-1 py-2 text-xs font-medium rounded-lg transition-all border border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white";
 
+        // Reset all tabs to inactive
+        this.els.tabSearch.className = inactiveClass;
+        this.els.tabPreset.className = inactiveClass;
+        if (this.els.tabNotebook) this.els.tabNotebook.className = inactiveClass;
+
+        // Hide all views
+        this.els.viewSearch.classList.add('hidden');
+        this.els.viewPreset.classList.add('hidden');
+        if (this.els.viewNotebook) this.els.viewNotebook.classList.add('hidden');
+
         if (tab === 'search') {
             this.els.tabSearch.className = activeClass;
-            this.els.tabPreset.className = inactiveClass;
             this.els.viewSearch.classList.remove('hidden');
-            this.els.viewPreset.classList.add('hidden');
-        } else {
-            this.els.tabSearch.className = inactiveClass;
+        } else if (tab === 'preset') {
             this.els.tabPreset.className = activeClass;
-            this.els.viewSearch.classList.add('hidden');
             this.els.viewPreset.classList.remove('hidden');
             if (renderPresetsCallback) {
                 if (isOpening) {
@@ -256,13 +265,29 @@ export class UIController {
                     renderPresetsCallback();
                 }
             }
+        } else if (tab === 'notebook') {
+            if (this.els.tabNotebook) this.els.tabNotebook.className = activeClass;
+            if (this.els.viewNotebook) this.els.viewNotebook.classList.remove('hidden');
+            if (renderNotebookCallback) {
+                if (isOpening) {
+                    setTimeout(renderNotebookCallback, 300);
+                } else {
+                    renderNotebookCallback();
+                }
+            }
         }
     }
 
     openPresets(renderPresetsCallback = null) {
         const isOpening = !this.els.sideDrawer.classList.contains('drawer-open');
         if (isOpening) this.toggleDrawer();
-        this.switchDrawerTab('preset', renderPresetsCallback, isOpening);
+        this.switchDrawerTab('preset', renderPresetsCallback, null, isOpening);
+    }
+
+    openNotebook(renderNotebookCallback = null) {
+        const isOpening = !this.els.sideDrawer.classList.contains('drawer-open');
+        if (isOpening) this.toggleDrawer();
+        this.switchDrawerTab('notebook', null, renderNotebookCallback, isOpening);
     }
 
     setLoading(loading, text = "生成中...") {

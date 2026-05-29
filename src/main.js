@@ -1253,7 +1253,220 @@ async function downloadZip() {
     }
 }
 
+// ======================== 笔记本 (Notebook) 功能 ========================
+
+let currentNotebookModel = 'v3';
+
+function getNotebookNotes(model) {
+    const key = `nai_notebook_${model}`;
+    try {
+        return JSON.parse(localStorage.getItem(key) || '[]');
+    } catch {
+        return [];
+    }
+}
+
+function saveNotebookNotes(model, notes) {
+    localStorage.setItem(`nai_notebook_${model}`, JSON.stringify(notes));
+}
+
+function saveCurrentPromptToNotebook() {
+    const prompt = els.prompt.value.trim();
+    const negative = els.negative.value.trim();
+    if (!prompt) {
+        window.showToast('提示词为空，无法保存', 'warning');
+        return;
+    }
+
+    const model = document.getElementById('modelValue').value || 'v3';
+    const notes = getNotebookNotes(model);
+
+    // Check for duplicates
+    if (notes.some(n => n.prompt === prompt && n.negative === negative)) {
+        window.showToast('该提示词已存在于笔记本中', 'warning');
+        return;
+    }
+
+    const note = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        prompt,
+        negative,
+        title: prompt.substring(0, 40) + (prompt.length > 40 ? '...' : ''),
+        createdAt: Date.now()
+    };
+
+    notes.unshift(note);
+    saveNotebookNotes(model, notes);
+    window.showToast(`已保存到 ${model === 'v4.5' ? 'V4.5' : 'V3'} 笔记本`, 'success');
+
+    // If notebook view is currently open, refresh it
+    if (currentNotebookModel === model) {
+        renderNotebookNotes(model);
+    }
+}
+
+function switchNotebookModel(model) {
+    currentNotebookModel = model;
+    const active = "px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-gray-900 text-white dark:bg-slate-100 dark:text-gray-900 border-transparent shadow-md";
+    const inactive = "px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-white text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-gray-700";
+    
+    const btnV3 = document.getElementById('btn-nb-v3');
+    const btnV4 = document.getElementById('btn-nb-v4');
+    if (btnV3) btnV3.className = model === 'v3' ? active : inactive;
+    if (btnV4) btnV4.className = model !== 'v3' ? active : inactive;
+
+    renderNotebookNotes(model);
+}
+
+function renderNotebookNotes(model) {
+    model = model || currentNotebookModel;
+    const container = document.getElementById('notebookList');
+    if (!container) return;
+
+    const notes = getNotebookNotes(model);
+
+    if (notes.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full text-gray-300 dark:text-slate-600">
+                <i data-lucide="notebook-pen" class="w-8 h-8 mb-2 opacity-50"></i>
+                <span class="text-xs font-medium">还没有笔记</span>
+                <span class="text-[10px] text-gray-400 dark:text-slate-600 mt-1">点击上方按钮收藏当前提示词</span>
+            </div>
+        `;
+        safeCreateIcons();
+        return;
+    }
+
+    container.innerHTML = notes.map((note, idx) => `
+        <div class="group bg-gray-50/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl border border-gray-100/80 dark:border-slate-700/50 p-3 hover:border-indigo-200 dark:hover:border-indigo-800/50 transition-all" data-note-id="${note.id}">
+            <div class="flex items-start justify-between gap-2 mb-1.5">
+                <span class="text-[9px] text-gray-400 dark:text-slate-500 font-mono">${formatNoteDate(note.createdAt)}</span>
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="editNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all" title="编辑">
+                        <i data-lucide="pencil" class="w-3 h-3"></i>
+                    </button>
+                    <button onclick="deleteNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-red-100 dark:hover:bg-red-950/30 rounded-md text-gray-400 hover:text-red-500 transition-all" title="删除">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed mb-1.5 line-clamp-3 break-all">${escapeHtml(note.prompt)}</div>
+            ${note.negative ? `<div class="text-[10px] text-gray-400 dark:text-slate-500 leading-relaxed line-clamp-1 break-all mb-2"><span class="text-gray-300 dark:text-slate-600">neg:</span> ${escapeHtml(note.negative)}</div>` : '<div class="mb-2"></div>'}
+            <button onclick="applyNotebookNote('${model}','${note.id}')"
+                class="w-full py-2 bg-gray-900/90 dark:bg-white/90 text-white dark:text-gray-900 text-[10px] font-bold rounded-lg hover:shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="send" class="w-3 h-3"></i> 一键使用
+            </button>
+        </div>
+    `).join('');
+
+    safeCreateIcons();
+}
+
+function formatNoteDate(ts) {
+    const d = new Date(ts);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function applyNotebookNote(model, noteId) {
+    const notes = getNotebookNotes(model);
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+
+    // Set the prompt
+    els.prompt.value = note.prompt;
+    els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // Set negative prompt if present
+    if (note.negative) {
+        els.negative.value = note.negative;
+        els.negative.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // Switch to the correct model
+    setModel(model);
+
+    // Close drawer on mobile
+    if (window.innerWidth < 768) ui.toggleDrawer();
+    ui.toggleMobileControls(true);
+
+    window.showToast('已应用笔记提示词', 'success', 1500);
+}
+
+async function editNotebookNote(model, noteId) {
+    const notes = getNotebookNotes(model);
+    const noteIdx = notes.findIndex(n => n.id === noteId);
+    if (noteIdx === -1) return;
+    const note = notes[noteIdx];
+
+    // Create inline editing UI
+    const container = document.querySelector(`[data-note-id="${noteId}"]`);
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="space-y-2">
+            <label class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">正向提示词</label>
+            <textarea id="editNotePrompt" rows="4" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-gray-700 dark:text-gray-200">${escapeHtml(note.prompt)}</textarea>
+            <label class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">负向提示词</label>
+            <textarea id="editNoteNeg" rows="2" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-gray-600 dark:text-gray-300">${escapeHtml(note.negative || '')}</textarea>
+            <div class="flex gap-2 pt-1">
+                <button onclick="cancelEditNote('${model}')" class="flex-1 py-2 text-[10px] font-semibold rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">取消</button>
+                <button onclick="confirmEditNote('${model}','${noteId}')" class="flex-1 py-2 text-[10px] font-bold rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md hover:shadow-lg transition-all active:scale-[0.98]">保存</button>
+            </div>
+        </div>
+    `;
+}
+
+function confirmEditNote(model, noteId) {
+    const promptEl = document.getElementById('editNotePrompt');
+    const negEl = document.getElementById('editNoteNeg');
+    if (!promptEl) return;
+
+    const newPrompt = promptEl.value.trim();
+    if (!newPrompt) {
+        window.showToast('提示词不能为空', 'warning');
+        return;
+    }
+
+    const notes = getNotebookNotes(model);
+    const noteIdx = notes.findIndex(n => n.id === noteId);
+    if (noteIdx === -1) return;
+
+    notes[noteIdx].prompt = newPrompt;
+    notes[noteIdx].negative = negEl ? negEl.value.trim() : '';
+    notes[noteIdx].title = newPrompt.substring(0, 40) + (newPrompt.length > 40 ? '...' : '');
+
+    saveNotebookNotes(model, notes);
+    renderNotebookNotes(model);
+    window.showToast('笔记已更新', 'success', 1500);
+}
+
+function cancelEditNote(model) {
+    renderNotebookNotes(model);
+}
+
+async function deleteNotebookNote(model, noteId) {
+    if (!(await window.showConfirm('确定要删除这条笔记吗？', '删除笔记', 'trash-2'))) return;
+
+    const notes = getNotebookNotes(model);
+    const filtered = notes.filter(n => n.id !== noteId);
+    saveNotebookNotes(model, filtered);
+    renderNotebookNotes(model);
+    window.showToast('笔记已删除', 'success', 1500);
+}
+
+// ======================== End 笔记本功能 ========================
+
 // --- 暴露给 Window 的代理方法 ---
+const renderPresetsCallback = () => renderPresets(document.getElementById('modelValue').value);
+const renderNotebookCallback = () => renderNotebookNotes(currentNotebookModel);
+
 Object.assign(window, {
     toggleMobileControls: (s) => ui.toggleMobileControls(s),
     setModel: (v) => {
@@ -1263,8 +1476,9 @@ Object.assign(window, {
     },
     switchRightView: (v) => ui.switchRightView(v, (tab) => switchGalleryTab(tab)),
     toggleDrawer: () => ui.toggleDrawer(),
-    switchDrawerTab: (t) => ui.switchDrawerTab(t, () => renderPresets(document.getElementById('modelValue').value)),
-    openPresets: () => ui.openPresets(() => renderPresets(document.getElementById('modelValue').value)),
+    switchDrawerTab: (t) => ui.switchDrawerTab(t, renderPresetsCallback, renderNotebookCallback),
+    openPresets: () => ui.openPresets(renderPresetsCallback),
+    openNotebook: () => ui.openNotebook(renderNotebookCallback),
     handleInitImage, clearInitImage, doGenerate, useCurrentPrompt,
     handleVibeImage, clearVibeImage,
     deleteCurrentImage, clearAllHistory, switchGalleryTab, downloadZip,
@@ -2457,5 +2671,7 @@ Object.assign(window, {
     lightboxCreate, toggleLightboxSidebarMobile,
     saveAdminToken, closeAdminTokenModal, clearAdminToken,
     saveUserKey, closeUserKeyModal, clearUserKey,
-    addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleBypassLimitsEnabled
+    addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleBypassLimitsEnabled,
+    saveCurrentPromptToNotebook, switchNotebookModel, renderNotebookNotes,
+    applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote
 });
