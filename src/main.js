@@ -13,6 +13,41 @@ function debounce(func, wait) {
     };
 }
 
+function triggerDownload(url, filename) {
+    const a = document.createElement('a');
+    let blobUrl = null;
+    
+    if (url.startsWith('data:')) {
+        try {
+            const parts = url.split(',');
+            const mime = parts[0].match(/:(.*?);/)[1];
+            const binary = atob(parts[1]);
+            const array = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                array[i] = binary.charCodeAt(i);
+            }
+            const blob = new Blob([array], { type: mime });
+            blobUrl = URL.createObjectURL(blob);
+            a.href = blobUrl;
+        } catch (e) {
+            console.error('Failed to convert dataURL to blob', e);
+            a.href = url;
+        }
+    } else {
+        a.href = url;
+    }
+    
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    if (blobUrl) {
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    }
+}
+
 class PromptHelper {
     constructor(promptEl, tagData) {
         this.promptEl = promptEl;
@@ -1019,11 +1054,9 @@ els.floatBtn.addEventListener('click', doGenerate);
 window.downloadImage = function() {
     const url = window.lastSelectedImageUrl;
     if (url) {
-        const a = document.createElement('a');
-        a.href = url;
         const isJpeg = url.startsWith('data:image/jpeg');
-        a.download = `novelai-gen-${Date.now()}.${isJpeg ? 'jpg' : 'png'}`;
-        a.click();
+        const filename = `novelai-gen-${Date.now()}.${isJpeg ? 'jpg' : 'png'}`;
+        triggerDownload(url, filename);
     }
 }
 
@@ -1336,10 +1369,9 @@ async function downloadZip() {
             folder.file(filename, item.image.split(',')[1], { base64: true });
         });
         const content = await zip.generateAsync({ type: "blob" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(content);
-        a.download = `history_${Date.now()}.zip`;
-        a.click();
+        const url = URL.createObjectURL(content);
+        const filename = `history_${Date.now()}.zip`;
+        triggerDownload(url, filename);
     } catch (e) {
         console.error("Failed to generate zip", e);
     }
@@ -1718,11 +1750,8 @@ function exportNotebook() {
 
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `novelai-notebook-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const filename = `novelai-notebook-backup-${new Date().toISOString().split('T')[0]}.json`;
+    triggerDownload(url, filename);
     window.showToast('导出备份成功', 'success');
 }
 
@@ -2911,10 +2940,8 @@ function lightboxApplyParams() {
 function lightboxDownload() {
     if (lightboxItems.length === 0) return;
     const item = lightboxItems[lightboxIndex];
-    const a = document.createElement('a');
-    a.href = item.image;
-    a.download = `novelai-${item.id || Date.now()}.png`;
-    a.click();
+    const filename = `novelai-${item.id || Date.now()}.png`;
+    triggerDownload(item.image, filename);
 }
 
 async function lightboxDelete() {
