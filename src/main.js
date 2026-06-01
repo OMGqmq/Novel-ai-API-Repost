@@ -14,10 +14,25 @@ function debounce(func, wait) {
 }
 
 function triggerDownload(url, filename) {
+    console.log('[DEBUG-dl] triggerDownload called with filename:', filename);
+    
+    // 检测是否在微信浏览器中
+    const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+    if (isWeChat) {
+        console.warn('[DEBUG-dl] Blocked due to WeChat environment.');
+        if (window.showToast) {
+            window.showToast('微信内无法直接下载，请长按图片选择“保存图片”，或在右上角选择在浏览器中打开。', 'warning');
+        } else {
+            alert('微信内无法直接下载，请长按图片选择“保存图片”，或在右上角选择在浏览器中打开。');
+        }
+        return;
+    }
+
     const a = document.createElement('a');
     let blobUrl = null;
     
     if (url.startsWith('data:')) {
+        console.log('[DEBUG-dl] Detecting data URL, converting to blob...');
         try {
             const parts = url.split(',');
             const mime = parts[0].match(/:(.*?);/)[1];
@@ -29,22 +44,33 @@ function triggerDownload(url, filename) {
             const blob = new Blob([array], { type: mime });
             blobUrl = URL.createObjectURL(blob);
             a.href = blobUrl;
+            console.log('[DEBUG-dl] Data URL successfully converted to Blob URL:', blobUrl);
         } catch (e) {
-            console.error('Failed to convert dataURL to blob', e);
+            console.error('[DEBUG-dl] Failed to convert dataURL to blob, falling back to data URL', e);
             a.href = url;
         }
     } else {
+        console.log('[DEBUG-dl] Direct/Blob URL used:', url.substring(0, 120));
         a.href = url;
     }
     
     a.download = filename;
     a.style.display = 'none';
     document.body.appendChild(a);
+    console.log('[DEBUG-dl] Anchor element appended to DOM. Triggering click...');
     a.click();
-    document.body.removeChild(a);
+    
+    // 异步延迟 200ms 移除，让浏览器后台有足够时间拉起保存会话
+    setTimeout(() => {
+        document.body.removeChild(a);
+        console.log('[DEBUG-dl] Anchor element removed from DOM.');
+    }, 200);
     
     if (blobUrl) {
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+            console.log('[DEBUG-dl] Revoked blob URL:', blobUrl);
+        }, 1500);
     }
 }
 

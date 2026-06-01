@@ -418,6 +418,12 @@ export class UIController {
             img.src = item.imageUrl;
             img.className = 'max-w-full max-h-full object-contain shadow-2xl rounded-lg border-2 border-transparent transition-all';
             
+            // 如果是第一张图，默认高亮选中并初始化选择回调（但不进入聚焦单图模式以保留网格）
+            if (index === 0) {
+                img.classList.add('border-blue-500', 'ring-4', 'ring-blue-500/20');
+                if (onSelect) onSelect(item);
+            }
+            
             // 聚焦按钮叠加层
             const focusOverlay = document.createElement('div');
             focusOverlay.className = 'absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg z-10';
