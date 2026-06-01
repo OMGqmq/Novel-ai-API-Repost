@@ -609,9 +609,9 @@ try {
     console.error("Initialization error (from cache):", e);
 }
 
-window.toggleAdvancedSettings = function() {
-    const panel = document.getElementById('advancedSettingsPanel');
-    const chevron = document.getElementById('advChevron');
+window.togglePanel = function(panelId, chevronId) {
+    const panel = document.getElementById(panelId);
+    const chevron = document.getElementById(chevronId);
     if (panel) {
         if (panel.classList.contains('hidden')) {
             panel.classList.remove('hidden');
@@ -621,6 +621,10 @@ window.toggleAdvancedSettings = function() {
             if (chevron) chevron.style.transform = 'rotate(0deg)';
         }
     }
+};
+
+window.toggleAdvancedSettings = function() {
+    window.togglePanel('advancedSettingsPanel', 'advChevron');
 };
 
 // Helper function to compress image
