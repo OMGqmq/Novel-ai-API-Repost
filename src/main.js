@@ -1877,7 +1877,6 @@ async function importNotebook(event) {
 // ======================== End 笔记本功能 ========================
 
 // --- 暴露给 Window 的代理方法 ---
-const renderPresetsCallback = () => renderPresets(document.getElementById('modelValue').value);
 const renderNotebookCallback = () => renderNotebookNotes(currentNotebookModel);
 
 Object.assign(window, {
@@ -1889,8 +1888,7 @@ Object.assign(window, {
     },
     switchRightView: (v) => ui.switchRightView(v, (tab) => switchGalleryTab(tab)),
     toggleDrawer: () => ui.toggleDrawer(),
-    switchDrawerTab: (t) => ui.switchDrawerTab(t, renderPresetsCallback, renderNotebookCallback),
-    openPresets: () => ui.openPresets(renderPresetsCallback),
+    switchDrawerTab: (t) => ui.switchDrawerTab(t, renderNotebookCallback),
     openNotebook: () => ui.openNotebook(renderNotebookCallback),
     handleInitImage, clearInitImage, doGenerate, useCurrentPrompt,
     handleVibeImage, clearVibeImage,
@@ -1979,40 +1977,6 @@ function loadPreviewFromShowcase(item) {
     ui.toggleMobileControls(false);
 }
 
-// --- 预设与搜词 ---
-const presetFiles = [
-    { id: '1_v3', model: 'v3', name: '未知' }, { id: '2_v3', model: 'v3', name: '未知' },
-    { id: '1_v4.5', model: 'v4.5', name: '铃兰' }, { id: '2_v4.5', model: 'v4.5', name: '未知' }
-];
-function renderPresets(model) {
-    const active = "px-3 py-1 rounded-full text-[10px] font-bold transition-all border bg-gray-900 text-white dark:bg-slate-100 dark:text-gray-900 border-transparent shadow-md";
-    const inactive = "px-3 py-1 rounded-full text-[10px] font-bold transition-all border bg-white text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-gray-700";
-
-    if (model === 'v3') { els.btnPreV3.className = active; els.btnPreV4.className = inactive; }
-    else { els.btnPreV3.className = inactive; els.btnPreV4.className = active; }
-
-    els.presetGrid.innerHTML = '';
-    const filtered = presetFiles.filter(p => p.model === model);
-    if (filtered.length === 0) { els.presetGrid.innerHTML = '<div class="col-span-2 text-center text-xs text-gray-400">暂无预设</div>'; return; }
-    filtered.forEach(p => {
-        const d = document.createElement('div');
-        d.className = "group cursor-pointer flex flex-col gap-2";
-        d.innerHTML = `<div class="aspect-[2/3] w-full rounded-lg bg-gray-100 dark:bg-slate-700 relative overflow-hidden group-hover:shadow-lg transition-all"><img src="presets/${p.id}.png" class="w-full h-full object-cover"></div><span class="text-xs text-center text-gray-500 dark:text-gray-400">${p.name}</span>`;
-        d.onclick = async () => {
-            try {
-                const res = await fetch(`presets/${p.id}.txt`);
-                if (res.ok) {
-                    els.prompt.value = (await res.text()).trim();
-                    els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
-                    setModel(model);
-                    ui.toggleMobileControls(true);
-                    if (window.innerWidth < 768) toggleDrawer();
-                }
-            } catch (e) { }
-        };
-        els.presetGrid.appendChild(d);
-    });
-}
 
 let tagData = {};
 let promptHelper = null;
@@ -3083,7 +3047,7 @@ Object.assign(window, {
     startOutpaint: () => outpaintEditor.open(),
     exitOutpaint: () => outpaintEditor.close(),
     enterCustomApiKey, closeApiKeyModal, verifyCustomApiKey, clearCustomApiKey,
-    enterAdminToken, enterUserKey, toggleTheme, renderPresets,
+    enterAdminToken, enterUserKey, toggleTheme,
     openLightbox, closeLightbox, prevLightboxImage, nextLightboxImage,
     copyLightboxText, lightboxApplyParams, lightboxDownload, lightboxDelete,
     lightboxCreate, toggleLightboxSidebarMobile,
