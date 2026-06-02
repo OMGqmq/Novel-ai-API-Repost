@@ -499,7 +499,10 @@ class PromptHelper {
             let weightBadgeHtml = '';
             let badgeClass = 'px-2.5 py-1 text-xs bg-white dark:bg-slate-800/40 border border-gray-100 dark:border-slate-700/60 rounded-lg text-gray-700 dark:text-gray-300 flex items-center gap-1.5 shadow-sm select-none';
             
-            if (weight > 1.01) {
+            if (weight < 0) {
+                badgeClass = 'px-2.5 py-1 text-xs bg-red-50/50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-900/40 rounded-lg text-red-800 dark:text-red-300 flex items-center gap-1.5 shadow-sm select-none';
+                weightBadgeHtml = `<span class="text-[9px] bg-red-100 dark:bg-red-950/50 px-1.5 py-0.2 rounded font-bold font-mono">${weight.toFixed(2)}</span>`;
+            } else if (weight > 1.01) {
                 badgeClass = 'px-2.5 py-1 text-xs bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-lg text-amber-800 dark:text-amber-300 flex items-center gap-1.5 shadow-sm select-none';
                 weightBadgeHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.2 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
             } else if (weight < 0.99) {
