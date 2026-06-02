@@ -2136,7 +2136,7 @@ Object.assign(window, {
     openUserModal, closeUserModal, switchAuthTab, submitAuth, submitRecharge, logoutUser, fetchUserProfile,
 
     // 管理员后台方法
-    openAdminPanel, closeAdminPanel, switchAdminTab, fetchAdminUsers, updateUserStatus, adjustUserCredits, generateVipCards, copyGeneratedCards
+    openAdminPanel, closeAdminPanel, switchAdminTab, fetchAdminUsers, updateUserStatus, saveAdjustedCredits, generateVipCards, copyGeneratedCards
 });
 
 // --- 用户系统 (User System) JS Logic ---
