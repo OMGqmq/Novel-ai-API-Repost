@@ -15,7 +15,7 @@ export async function onRequest(context) {
 
     // 🛡️ 1. 鉴权与限流 (由 AuthManager 处理)
     const auth = await authenticate(request, env);
-    const { apiKey, userRole, isVip, userKey, remainingCredits, recordUsage } = auth;
+    const { apiKey, userRole, isVip, userKey, remainingCredits, recordUsage, userId, authType } = auth;
 
     // 2. 获取请求数据
     const data = await request.json();
@@ -62,7 +62,12 @@ export async function onRequest(context) {
     }
 
     // 6. 成功出图后的副作用 (扣费或记录限流)
-    if (isVip && userKey && remainingCredits > 0 && userRole.startsWith("VIP")) {
+    if (isVip && authType === 'JWT' && userId && remainingCredits > 0) {
+      // 注册用户扣点 + 记录日志
+      const updateStmt = env.DB.prepare("UPDATE users SET credits = credits - 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND credits > 0");
+      const logStmt = env.DB.prepare("INSERT INTO credit_logs (user_id, action, amount, description) VALUES (?, 'generate', -1, '生成图画消费')");
+      waitUntil(env.DB.batch([updateStmt.bind(userId), logStmt.bind(userId)]));
+    } else if (isVip && userKey && remainingCredits > 0 && userRole.startsWith("VIP")) {
       // VIP 扣费
       waitUntil(env.DB.prepare("UPDATE cards SET credits = credits - 1, updated_at = CURRENT_TIMESTAMP WHERE card_key = ? AND credits > 0").bind(userKey).run());
     } else if (!isVip && recordUsage) {

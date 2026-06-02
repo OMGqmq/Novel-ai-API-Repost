@@ -5,9 +5,18 @@ describe('AuthManager', () => {
   const mockEnv = {
     NOVELAI_API_KEY: 'server-key',
     ADMIN_TOKEN: 'admin-secret',
-    NAI_LIMIT: {
-      get: vi.fn(),
-      put: vi.fn()
+    DB: {
+      prepare: vi.fn().mockImplementation((sql) => {
+        return {
+          bind: vi.fn().mockImplementation((...args) => {
+            return {
+              first: vi.fn().mockResolvedValue(null),
+              run: vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
+            };
+          }),
+          run: vi.fn().mockResolvedValue({ success: true })
+        };
+      })
     }
   };
 
@@ -32,7 +41,6 @@ describe('AuthManager', () => {
   });
 
   it('should handle guest rate limiting', async () => {
-    mockEnv.NAI_LIMIT.get.mockResolvedValue("0"); // No usage yet
     const req = { headers: new Map([['CF-Connecting-IP', '1.2.3.4']]) };
     const result = await authenticate(req, mockEnv);
     expect(result.userRole).toBe('Free');
@@ -41,6 +49,6 @@ describe('AuthManager', () => {
     const waitUntil = vi.fn();
     await result.recordUsage(waitUntil);
     expect(waitUntil).toHaveBeenCalled();
-    expect(mockEnv.NAI_LIMIT.put).toHaveBeenCalled();
+    expect(mockEnv.DB.prepare).toHaveBeenCalled();
   });
 });

@@ -1,7 +1,9 @@
 /**
  * Auth Manager for NovelAI Proxy
- * Handles authentication, VIP card verification, and rate limiting.
+ * Handles authentication, JWT users, VIP card verification, and rate limiting.
  */
+
+import { verifyJwt } from './_crypto-helper.js';
 
 export async function authenticate(request, env) {
   const SERVER_API_KEY = env.NOVELAI_API_KEY;
@@ -11,6 +13,7 @@ export async function authenticate(request, env) {
   const customApiKey = (request.headers.get('x-custom-api-key') || "").trim();
   const adminToken = (request.headers.get('x-admin-token') || "").trim();
   const userKey = (request.headers.get('x-user-key') || "").trim();
+  const authHeader = (request.headers.get('Authorization') || "").trim();
   const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
   const serverAdminToken = (env.ADMIN_TOKEN || "").trim();
 
@@ -33,7 +36,37 @@ export async function authenticate(request, env) {
     return { apiKey, isVip: true, userRole: "Admin", remainingCredits: -1 };
   }
 
-  // C. VIP Card User
+  // C. Registered JWT User
+  if (authHeader.startsWith('Bearer ') && db) {
+    const token = authHeader.substring(7);
+    const jwtSecret = env.JWT_SECRET || "novelai-default-jwt-secret-key-987654";
+    const payload = await verifyJwt(token, jwtSecret);
+    
+    if (payload) {
+      const user = await db.prepare("SELECT id, username, role, credits FROM users WHERE id = ?").bind(payload.id).first();
+      if (!user) {
+        throw new AuthError("用户不存在，请重新登录。", 403);
+      }
+
+      remainingCredits = user.credits;
+      if (isNaN(remainingCredits) || remainingCredits <= 0) {
+        throw new AuthError("您的账户余额已用尽，请充值后使用。", 402);
+      }
+
+      return {
+        apiKey,
+        isVip: true,
+        userRole: `用户:${user.username} (余:${remainingCredits - 1})`,
+        remainingCredits,
+        userId: user.id,
+        authType: 'JWT'
+      };
+    } else {
+      throw new AuthError("登录状态已过期，请重新登录。", 401);
+    }
+  }
+
+  // D. Legacy VIP Card User
   if (userKey && db) {
     const card = await db.prepare("SELECT credits FROM cards WHERE card_key = ?").bind(userKey).first();
     if (card === null) {
@@ -54,7 +87,7 @@ export async function authenticate(request, env) {
     };
   }
 
-  // D. Free Guest
+  // E. Free Guest
   if (db) {
     const today = new Date().toISOString().split('T')[0];
     const globalKey = `global:${today}`;
@@ -104,3 +137,4 @@ export class AuthError extends Error {
     this.status = status;
   }
 }
+

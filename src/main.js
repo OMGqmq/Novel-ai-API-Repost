@@ -359,7 +359,8 @@ async function doGenerate() {
 
         const authBase = {
             adminToken: store.getSetting('nai_admin_token'),
-            userKey: store.getSetting('nai_user_key')
+            userKey: store.getSetting('nai_user_key'),
+            userToken: localStorage.getItem('nai_user_token') || ""
         };
 
         // 如果有多个 Key,构造多个 auth 对象用于并发
@@ -594,7 +595,8 @@ async function doAugment(reqType) {
     
     const authBase = {
         adminToken: store.getSetting('nai_admin_token'),
-        userKey: store.getSetting('nai_user_key')
+        userKey: store.getSetting('nai_user_key'),
+        userToken: localStorage.getItem('nai_user_token') || ""
     };
     const customApiKeyRaw = store.getSetting('nai_custom_api_key');
     const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
@@ -1367,6 +1369,19 @@ function checkAdminStatus() {
     if (els.adminLockBtn) updateLock(els.adminLockBtn);
     if (els.adminLockBtnMobile) updateLock(els.adminLockBtnMobile);
 
+    const adminPanelBtn = document.getElementById('adminPanelBtn');
+    const adminPanelBtnMobile = document.getElementById('adminPanelBtnMobile');
+    const hasAdminToken = !!t;
+
+    if (adminPanelBtn) {
+        if (hasAdminToken) adminPanelBtn.classList.remove('hidden');
+        else adminPanelBtn.classList.add('hidden');
+    }
+    if (adminPanelBtnMobile) {
+        if (hasAdminToken) adminPanelBtnMobile.classList.remove('hidden');
+        else adminPanelBtnMobile.classList.add('hidden');
+    }
+
     // 更新解除限制开关的启用状态和视觉指示
     const checkbox = document.getElementById('bypassLimitsEnabled');
     const icon = document.getElementById('bypassLimitsIcon');
@@ -2115,5 +2130,501 @@ Object.assign(window, {
     saveCurrentPromptToNotebook, switchNotebookModel, renderNotebookNotes,
     applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote,
     bindCurrentCanvasToNote, removeNotePreview, viewNotebookNotePreview,
-    exportNotebook, triggerImportNotebook, importNotebook
+    exportNotebook, triggerImportNotebook, importNotebook,
+
+    // 用户系统方法
+    openUserModal, closeUserModal, switchAuthTab, submitAuth, submitRecharge, logoutUser, fetchUserProfile,
+
+    // 管理员后台方法
+    openAdminPanel, closeAdminPanel, switchAdminTab, fetchAdminUsers, updateUserStatus, adjustUserCredits, generateVipCards, copyGeneratedCards
 });
+
+// --- 用户系统 (User System) JS Logic ---
+async function fetchUserProfile() {
+    const token = localStorage.getItem('nai_user_token');
+    if (!token) return;
+
+    try {
+        const res = await fetch('/api/auth/profile', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!res.ok) {
+            if (res.status === 401) {
+                logoutUser();
+            }
+            throw new Error('获取用户信息失败');
+        }
+        const data = await res.json();
+        if (data.success && data.user) {
+            updateUserCreditsUI(data.user);
+        }
+    } catch (err) {
+        console.error('Fetch profile error:', err);
+    }
+}
+
+function updateUserCreditsUI(user) {
+    const desktopDisplay = document.getElementById('userCreditsDisplay');
+    const mobileDisplay = document.getElementById('userCreditsDisplayMobile');
+    
+    const text = `${user.username} (余:${user.credits})`;
+    
+    if (desktopDisplay) {
+        desktopDisplay.textContent = text;
+        desktopDisplay.classList.remove('hidden');
+    }
+    if (mobileDisplay) {
+        mobileDisplay.textContent = text;
+        mobileDisplay.classList.remove('hidden');
+    }
+    
+    const oldDesktop = document.getElementById('creditDisplayDesktop');
+    const oldMobile = document.getElementById('creditDisplayMobile');
+    if (oldDesktop) oldDesktop.classList.add('hidden');
+    if (oldMobile) oldMobile.classList.add('hidden');
+    
+    const profileUsername = document.getElementById('profileUsername');
+    const profileCredits = document.getElementById('profileCredits');
+    if (profileUsername) profileUsername.textContent = user.username;
+    if (profileCredits) profileCredits.textContent = `${user.credits} 点`;
+    
+    const authPanel = document.getElementById('userAuthPanel');
+    const profilePanel = document.getElementById('userProfilePanel');
+    if (authPanel) authPanel.classList.add('hidden');
+    if (profilePanel) profilePanel.classList.remove('hidden');
+}
+
+function openUserModal() {
+    openModal('userModal');
+    
+    const authStatus = document.getElementById('authStatus');
+    const rechargeStatus = document.getElementById('rechargeStatus');
+    if (authStatus) { authStatus.classList.add('hidden'); authStatus.innerHTML = ''; }
+    if (rechargeStatus) { rechargeStatus.classList.add('hidden'); rechargeStatus.innerHTML = ''; }
+    
+    const token = localStorage.getItem('nai_user_token');
+    if (token) {
+        fetchUserProfile();
+    } else {
+        const authPanel = document.getElementById('userAuthPanel');
+        const profilePanel = document.getElementById('userProfilePanel');
+        if (authPanel) authPanel.classList.remove('hidden');
+        if (profilePanel) profilePanel.classList.add('hidden');
+        switchAuthTab('login');
+    }
+}
+
+function closeUserModal() {
+    closeModal('userModal');
+}
+
+function switchAuthTab(tab) {
+    const tabLogin = document.getElementById('authTabLogin');
+    const tabRegister = document.getElementById('authTabRegister');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    const authPanel = document.getElementById('userAuthPanel');
+    
+    const activeClass = 'flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 shadow-sm transition-all';
+    const inactiveClass = 'flex-1 text-center py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-250 transition-all';
+    
+    if (tab === 'login') {
+        if (tabLogin) tabLogin.className = activeClass;
+        if (tabRegister) tabRegister.className = inactiveClass;
+        if (submitBtn) submitBtn.textContent = '登录';
+        if (authPanel) authPanel.dataset.tab = 'login';
+    } else {
+        if (tabLogin) tabLogin.className = inactiveClass;
+        if (tabRegister) tabRegister.className = activeClass;
+        if (submitBtn) submitBtn.textContent = '注册 (赠送10点)';
+        if (authPanel) authPanel.dataset.tab = 'register';
+    }
+}
+
+async function submitAuth() {
+    const authPanel = document.getElementById('userAuthPanel');
+    const statusEl = document.getElementById('authStatus');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    
+    const usernameEl = document.getElementById('authUsername');
+    const passwordEl = document.getElementById('authPassword');
+    
+    const username = usernameEl.value.trim();
+    const password = passwordEl.value.trim();
+    
+    if (!username || !password) {
+        statusEl.innerHTML = '<span class="text-red-500">✗ 用户名和密码不能为空</span>';
+        statusEl.classList.remove('hidden');
+        return;
+    }
+    
+    const isLogin = authPanel.dataset.tab !== 'register';
+    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+    
+    statusEl.innerHTML = '<span class="text-gray-500"><span class="loader inline-block w-3 h-3 border-gray-500 border-t-transparent rounded-full animate-spin"></span> 处理中...</span>';
+    statusEl.classList.remove('hidden');
+    submitBtn.disabled = true;
+    
+    try {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.error || '请求失败');
+        }
+        
+        if (isLogin) {
+            localStorage.setItem('nai_user_token', data.token);
+            statusEl.innerHTML = '<span class="text-green-500">✔ 登录成功！</span>';
+            updateUserCreditsUI(data.user);
+            setTimeout(() => {
+                closeUserModal();
+                usernameEl.value = '';
+                passwordEl.value = '';
+            }, 800);
+        } else {
+            statusEl.innerHTML = '<span class="text-green-500">✔ 注册成功，正在切换到登录...</span>';
+            setTimeout(() => {
+                passwordEl.value = '';
+                switchAuthTab('login');
+                statusEl.classList.add('hidden');
+            }, 1200);
+        }
+    } catch (err) {
+        statusEl.innerHTML = `<span class="text-red-500">✗ ${err.message}</span>`;
+    } finally {
+        submitBtn.disabled = false;
+    }
+}
+
+async function submitRecharge() {
+    const statusEl = document.getElementById('rechargeStatus');
+    const submitBtn = document.getElementById('rechargeSubmitBtn');
+    const cardKeyEl = document.getElementById('rechargeCardKey');
+    const token = localStorage.getItem('nai_user_token');
+    
+    if (!token) {
+        statusEl.innerHTML = '<span class="text-red-500">✗ 登录已失效，请重新登录</span>';
+        statusEl.classList.remove('hidden');
+        return;
+    }
+    
+    const cardKey = cardKeyEl.value.trim();
+    if (!cardKey) {
+        statusEl.innerHTML = '<span class="text-red-500">✗ 请输入卡密</span>';
+        statusEl.classList.remove('hidden');
+        return;
+    }
+    
+    statusEl.innerHTML = '<span class="text-gray-500"><span class="loader inline-block w-3 h-3 border-gray-500 border-t-transparent rounded-full animate-spin"></span> 充值中...</span>';
+    statusEl.classList.remove('hidden');
+    submitBtn.disabled = true;
+    
+    try {
+        const res = await fetch('/api/auth/recharge', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ cardKey })
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.error || '充值失败');
+        }
+        
+        statusEl.innerHTML = `<span class="text-green-500">✔ ${data.message}</span>`;
+        cardKeyEl.value = '';
+        fetchUserProfile();
+    } catch (err) {
+        statusEl.innerHTML = `<span class="text-red-500">✗ ${err.message}</span>`;
+    } finally {
+        submitBtn.disabled = false;
+    }
+}
+
+function logoutUser() {
+    localStorage.removeItem('nai_user_token');
+    
+    const desktopDisplay = document.getElementById('userCreditsDisplay');
+    const mobileDisplay = document.getElementById('userCreditsDisplayMobile');
+    if (desktopDisplay) desktopDisplay.classList.add('hidden');
+    if (mobileDisplay) mobileDisplay.classList.add('hidden');
+    
+    const authPanel = document.getElementById('userAuthPanel');
+    const profilePanel = document.getElementById('userProfilePanel');
+    if (authPanel) authPanel.classList.remove('hidden');
+    if (profilePanel) profilePanel.classList.add('hidden');
+    switchAuthTab('login');
+    
+    closeUserModal();
+    window.showToast("已退出登录", "info");
+}
+
+// On page load, fetch user profile if token exists
+if (localStorage.getItem('nai_user_token')) {
+    fetchUserProfile();
+}
+
+// --- 管理员后台 (Admin Panel) JS Logic ---
+function openAdminPanel() {
+    const adminToken = localStorage.getItem('nai_admin_token');
+    if (!adminToken) {
+        window.showToast("未检测到管理员凭证，请先在锁形图标处登录。", "error");
+        return;
+    }
+    openModal('adminPanelModal');
+    switchAdminTab('users');
+    fetchAdminUsers();
+}
+
+function closeAdminPanel() {
+    closeModal('adminPanelModal');
+}
+
+function switchAdminTab(tab) {
+    const tabUsers = document.getElementById('adminTabUsers');
+    const tabCards = document.getElementById('adminTabCards');
+    const panelUsers = document.getElementById('adminUsersPanel');
+    const panelCards = document.getElementById('adminCardsPanel');
+
+    const activeClass = 'flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 shadow-sm transition-all';
+    const inactiveClass = 'flex-1 text-center py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-all';
+
+    if (tab === 'users') {
+        if (tabUsers) tabUsers.className = activeClass;
+        if (tabCards) tabCards.className = inactiveClass;
+        if (panelUsers) panelUsers.classList.remove('hidden');
+        if (panelCards) panelCards.classList.add('hidden');
+    } else {
+        if (tabUsers) tabUsers.className = inactiveClass;
+        if (tabCards) tabCards.className = activeClass;
+        if (panelUsers) panelUsers.classList.add('hidden');
+        if (panelCards) panelCards.classList.remove('hidden');
+    }
+}
+
+async function fetchAdminUsers() {
+    const adminToken = localStorage.getItem('nai_admin_token');
+    const tbody = document.getElementById('adminUsersTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5" class="text-center py-8 text-gray-400">
+                <span class="loader inline-block w-4 h-4 border-gray-400 border-t-transparent rounded-full animate-spin mr-2"></span> 正在获取用户列表...
+            </td>
+        </tr>
+    `;
+
+    try {
+        const res = await fetch('/api/admin/users', {
+            headers: {
+                'x-admin-token': adminToken
+            }
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '获取用户列表失败');
+
+        tbody.innerHTML = '';
+        const users = data.users || [];
+
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400">暂无注册用户</td></tr>';
+            return;
+        }
+
+        users.forEach(user => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50/50 dark:hover:bg-slate-800/20 transition-colors';
+
+            // 状态徽章样式
+            let statusBadge = '';
+            if (user.status === 'Approved') {
+                statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 border border-green-100 dark:border-green-900/30">已激活</span>';
+            } else if (user.status === 'Banned') {
+                statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/30">已禁用</span>';
+            } else {
+                statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/30">待审核</span>';
+            }
+
+            // 操作按钮
+            let actionButtons = '';
+            if (user.status === 'Pending') {
+                actionButtons = `
+                    <button onclick="updateUserStatus(${user.id}, 'Approved')" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all mr-1.5">批准通过</button>
+                    <button onclick="updateUserStatus(${user.id}, 'Banned')" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">禁用</button>
+                `;
+            } else if (user.status === 'Approved') {
+                actionButtons = `
+                    <button onclick="updateUserStatus(${user.id}, 'Banned')" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">禁用</button>
+                `;
+            } else if (user.status === 'Banned') {
+                actionButtons = `
+                    <button onclick="updateUserStatus(${user.id}, 'Approved')" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all">恢复激活</button>
+                `;
+            }
+
+            tr.innerHTML = `
+                <td class="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">${user.username}</td>
+                <td class="px-4 py-3 text-gray-500">${user.role}</td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" value="${user.credits}" id="adjustCreditsInput-${user.id}" class="w-14 px-1.5 py-1 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-center font-mono text-xs outline-none">
+                        <button onclick="saveAdjustedCredits(${user.id})" class="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded text-emerald-600 dark:text-emerald-400" title="保存额度修改">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        </button>
+                    </div>
+                </td>
+                <td class="px-4 py-3">${statusBadge}</td>
+                <td class="px-4 py-3 text-right">${actionButtons}</td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-red-500">✗ 加载失败: ${err.message}</td></tr>`;
+    }
+}
+
+async function updateUserStatus(userId, newStatus) {
+    const adminToken = localStorage.getItem('nai_admin_token');
+    
+    try {
+        const res = await fetch('/api/admin/users/approve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-admin-token': adminToken
+            },
+            body: JSON.stringify({ userId, status: newStatus })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '操作失败');
+
+        window.showToast("操作成功！", "success");
+        fetchAdminUsers();
+    } catch (err) {
+        window.showToast(err.message, "error");
+    }
+}
+
+async function saveAdjustedCredits(userId) {
+    const input = document.getElementById(`adjustCreditsInput-${userId}`);
+    if (!input) return;
+    
+    const credits = parseInt(input.value);
+    if (isNaN(credits) || credits < 0) {
+        window.showToast("请输入大于或等于 0 的整数", "warning");
+        return;
+    }
+
+    const adminToken = localStorage.getItem('nai_admin_token');
+    
+    try {
+        const res = await fetch('/api/admin/users/approve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-admin-token': adminToken
+            },
+            body: JSON.stringify({ userId, credits })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '操作失败');
+
+        window.showToast("点数修改成功！", "success");
+        fetchAdminUsers();
+        // 顺便触发一下前台余额刷新，以防当前登录的就是被修改的管理员账号
+        fetchUserProfile();
+    } catch (err) {
+        window.showToast(err.message, "error");
+    }
+}
+
+async function generateVipCards() {
+    const btn = document.getElementById('genCardsBtn');
+    const countInput = document.getElementById('genCardCount');
+    const creditsInput = document.getElementById('genCardCredits');
+    
+    const count = parseInt(countInput.value);
+    const credits = parseInt(creditsInput.value);
+
+    if (isNaN(count) || count < 1 || count > 100) {
+        window.showToast("单次生成数量建议在 1 到 100 之间", "warning");
+        return;
+    }
+    if (isNaN(credits) || credits < 1) {
+        window.showToast("卡密点数必须大于 0", "warning");
+        return;
+    }
+
+    const adminToken = localStorage.getItem('nai_admin_token');
+    
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.innerHTML = '<span class="loader inline-block w-4 h-4 border-gray-800 dark:border-white border-t-transparent rounded-full animate-spin mr-2"></span> 正在批量写入...';
+
+    try {
+        const res = await fetch('/api/admin/cards/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-admin-token': adminToken
+            },
+            body: JSON.stringify({ count, credits })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '生成卡密失败');
+
+        // 显示生成的卡密列表
+        const wrapper = document.getElementById('genCardsResultWrapper');
+        const textarea = document.getElementById('genCardsTextarea');
+        
+        if (wrapper && textarea) {
+            textarea.value = (data.cards || []).join('\n');
+            wrapper.classList.remove('hidden');
+        }
+
+        window.showToast(data.message, "success");
+    } catch (err) {
+        window.showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = oldText;
+    }
+}
+
+function copyGeneratedCards() {
+    const textarea = document.getElementById('genCardsTextarea');
+    if (!textarea || !textarea.value) return;
+
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        window.showToast("已成功复制全部卡密到剪贴板！", "success");
+    } catch (err) {
+        // Fallback for newer browser APIs
+        navigator.clipboard.writeText(textarea.value)
+            .then(() => window.showToast("已成功复制全部卡密到剪贴板！", "success"))
+            .catch(() => window.showToast("复制失败，请手动选择复制", "error"));
+    }
+}
+
+

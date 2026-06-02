@@ -405,7 +405,8 @@ export class InpaintEditor {
             
             const authBase = {
                 adminToken: this.store.getSetting('nai_admin_token'),
-                userKey: this.store.getSetting('nai_user_key')
+                userKey: this.store.getSetting('nai_user_key'),
+                userToken: localStorage.getItem('nai_user_token') || ""
             };
             const customApiKeyRaw = this.store.getSetting('nai_custom_api_key');
             const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);

@@ -20,7 +20,7 @@ export class ImageEngine {
             throw new Error("JSZip library not found. Please ensure it is loaded.");
         }
 
-        const { adminToken, userKey, customApiKey } = auth;
+        const { adminToken, userKey, customApiKey, userToken } = auth;
 
         const response = await fetch(`${this.baseUrl}/generate`, {
             method: 'POST',
@@ -28,7 +28,8 @@ export class ImageEngine {
                 'Content-Type': 'application/json',
                 'x-admin-token': adminToken || "",
                 'x-user-key': userKey || "",
-                'x-custom-api-key': customApiKey || ""
+                'x-custom-api-key': customApiKey || "",
+                ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {})
             },
             body: JSON.stringify(params)
         });
@@ -58,7 +59,7 @@ export class ImageEngine {
             throw new Error("JSZip library not found. Please ensure it is loaded.");
         }
 
-        const { adminToken, userKey, customApiKey } = auth;
+        const { adminToken, userKey, customApiKey, userToken } = auth;
 
         const response = await fetch(`${this.baseUrl}/augment`, {
             method: 'POST',
@@ -66,7 +67,8 @@ export class ImageEngine {
                 'Content-Type': 'application/json',
                 'x-admin-token': adminToken || "",
                 'x-user-key': userKey || "",
-                'x-custom-api-key': customApiKey || ""
+                'x-custom-api-key': customApiKey || "",
+                ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {})
             },
             body: JSON.stringify(params)
         });

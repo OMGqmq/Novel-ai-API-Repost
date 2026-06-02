@@ -440,7 +440,7 @@ export class OutpaintEditor {
             const customApiKeyRaw = this.store.getSetting('nai_custom_api_key', '');
             const customKeys = customApiKeyRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k);
             
-            const authBase = { adminToken, userKey };
+            const authBase = { adminToken, userKey, userToken: localStorage.getItem('nai_user_token') || "" };
             const authsToTry = customKeys.length > 0 
                 ? customKeys.map(key => ({ ...authBase, customApiKey: key }))
                 : [{ ...authBase, customApiKey: "" }];
