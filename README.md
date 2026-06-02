@@ -1,7 +1,7 @@
 # NovelAI API Proxy & Client
 
 这是一个部署在 Cloudflare Pages 上的 NovelAI API 代理与前端客户端项目。它不仅提供美观的高级出图界面，更搭载了**无限扩图（Outpainting）**、**局部重绘（Inpainting）**、**氛围/角色参考（Vibe/Char Ref）**以及**高性能 D1 数据库计费限流系统**。
-
+<img width="1272" height="2194" alt="Image" src="https://github.com/user-attachments/assets/1e29ca5a-86f0-4223-9622-08c51189d327" />
 ---
 
 ## 🌟 核心功能一览
