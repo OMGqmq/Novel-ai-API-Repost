@@ -476,6 +476,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error(404, "Not Found")
 
+socketserver.TCPServer.allow_reuse_address = True
 with socketserver.TCPServer(("", PORT), Handler) as httpd:
     print(f"本地测试服务器已启动: http://localhost:{PORT}")
     print("请在浏览器中打开这个地址，然后在新弹出的页面里按 F12 打开开发者工具。")

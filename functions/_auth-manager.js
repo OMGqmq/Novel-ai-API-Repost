@@ -5,7 +5,7 @@
 
 export async function authenticate(request, env) {
   const SERVER_API_KEY = env.NOVELAI_API_KEY;
-  const kv = env.NAI_LIMIT;
+  const db = env.DB;
 
   // 1. Get identifiers from headers
   const customApiKey = (request.headers.get('x-custom-api-key') || "").trim();
@@ -34,13 +34,13 @@ export async function authenticate(request, env) {
   }
 
   // C. VIP Card User
-  if (userKey && kv) {
-    const creditsStr = await kv.get(`card:${userKey}`);
-    if (creditsStr === null) {
+  if (userKey && db) {
+    const card = await db.prepare("SELECT credits FROM cards WHERE card_key = ?").bind(userKey).first();
+    if (card === null) {
       throw new AuthError("无效的卡密，请检查输入或联系卖家。", 403);
     }
 
-    remainingCredits = parseInt(creditsStr);
+    remainingCredits = card.credits;
     if (isNaN(remainingCredits) || remainingCredits <= 0) {
       throw new AuthError("您的卡密余额已耗尽，请购买新卡密。", 402);
     }
@@ -55,15 +55,18 @@ export async function authenticate(request, env) {
   }
 
   // D. Free Guest
-  if (kv) {
+  if (db) {
     const today = new Date().toISOString().split('T')[0];
     const globalKey = `global:${today}`;
     const ipKey = `limit:${today}:${clientIP}`;
 
-    const [globalCount, ipCount] = await Promise.all([
-      kv.get(globalKey).then(v => parseInt(v || "0")),
-      kv.get(ipKey).then(v => parseInt(v || "0"))
+    const [globalRow, ipRow] = await Promise.all([
+      db.prepare("SELECT count FROM free_limits WHERE key = ?").bind(globalKey).first(),
+      db.prepare("SELECT count FROM free_limits WHERE key = ?").bind(ipKey).first()
     ]);
+
+    const globalCount = globalRow ? globalRow.count : 0;
+    const ipCount = ipRow ? ipRow.count : 0;
 
     if (globalCount >= 200) {
       throw new AuthError("今日全站免费算力已耗尽，请使用卡密或明天再来。", 429);
@@ -79,9 +82,14 @@ export async function authenticate(request, env) {
       userRole: "Free",
       remainingCredits: 0,
       async recordUsage(waitUntil) {
+        const sql = `
+          INSERT INTO free_limits (key, count, updated_at) 
+          VALUES (?, 1, CURRENT_TIMESTAMP)
+          ON CONFLICT(key) DO UPDATE SET count = count + 1, updated_at = CURRENT_TIMESTAMP
+        `;
         waitUntil(Promise.all([
-          kv.put(globalKey, (globalCount + 1).toString(), { expirationTtl: 86400 }),
-          kv.put(ipKey, (ipCount + 1).toString(), { expirationTtl: 86400 })
+          db.prepare(sql).bind(globalKey).run(),
+          db.prepare(sql).bind(ipKey).run()
         ]));
       }
     };
