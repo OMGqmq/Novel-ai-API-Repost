@@ -2136,7 +2136,7 @@ Object.assign(window, {
     openUserModal, closeUserModal, switchAuthTab, submitAuth, submitRecharge, logoutUser, fetchUserProfile,
 
     // 管理员后台方法
-    openAdminPanel, closeAdminPanel, switchAdminTab, fetchAdminUsers, updateUserStatus, saveAdjustedCredits, generateVipCards, copyGeneratedCards
+    openAdminPanel, closeAdminPanel, switchAdminTab, fetchAdminUsers, updateUserStatus, saveAdjustedCredits, deleteUserAccount, generateVipCards, copyGeneratedCards
 });
 
 // --- 用户系统 (User System) JS Logic ---
@@ -2464,23 +2464,27 @@ async function fetchAdminUsers() {
             let actionButtons = '';
             if (user.status === 'Pending') {
                 actionButtons = `
-                    <button onclick="updateUserStatus(${user.id}, 'Approved')" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all mr-1.5">批准通过</button>
-                    <button onclick="updateUserStatus(${user.id}, 'Banned')" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">禁用</button>
+                    <button onclick="updateUserStatus(${user.id}, 'Approved')" class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all mr-1 whitespace-nowrap">批准</button>
+                    <button onclick="updateUserStatus(${user.id}, 'Banned')" class="px-2 py-0.5 text-[10px] font-semibold rounded border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all mr-1 whitespace-nowrap">禁用</button>
                 `;
             } else if (user.status === 'Approved') {
                 actionButtons = `
-                    <button onclick="updateUserStatus(${user.id}, 'Banned')" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">禁用</button>
+                    <button onclick="updateUserStatus(${user.id}, 'Banned')" class="px-2 py-0.5 text-[10px] font-semibold rounded border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all mr-1 whitespace-nowrap">禁用</button>
                 `;
             } else if (user.status === 'Banned') {
                 actionButtons = `
-                    <button onclick="updateUserStatus(${user.id}, 'Approved')" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all">恢复激活</button>
+                    <button onclick="updateUserStatus(${user.id}, 'Approved')" class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all mr-1 whitespace-nowrap">激活</button>
                 `;
             }
+            // 无论任何状态，管理员都可以彻底删除该账号
+            actionButtons += `
+                <button onclick="deleteUserAccount(${user.id}, '${user.username}')" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-red-500 hover:bg-red-600 text-white transition-all whitespace-nowrap">删除</button>
+            `;
 
             tr.innerHTML = `
-                <td class="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">${user.username}</td>
-                <td class="px-4 py-3 text-gray-500">${user.role}</td>
-                <td class="px-4 py-3">
+                <td class="px-4 py-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">${user.username}</td>
+                <td class="px-4 py-3 text-gray-500 whitespace-nowrap">${user.role}</td>
+                <td class="px-4 py-3 whitespace-nowrap">
                     <div class="flex items-center gap-1.5">
                         <input type="number" value="${user.credits}" id="adjustCreditsInput-${user.id}" class="w-14 px-1.5 py-1 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-center font-mono text-xs outline-none">
                         <button onclick="saveAdjustedCredits(${user.id})" class="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded text-emerald-600 dark:text-emerald-400" title="保存额度修改">
@@ -2488,8 +2492,8 @@ async function fetchAdminUsers() {
                         </button>
                     </div>
                 </td>
-                <td class="px-4 py-3">${statusBadge}</td>
-                <td class="px-4 py-3 text-right">${actionButtons}</td>
+                <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
+                <td class="px-4 py-3 text-right whitespace-nowrap">${actionButtons}</td>
             `;
 
             tbody.appendChild(tr);
@@ -2517,6 +2521,31 @@ async function updateUserStatus(userId, newStatus) {
         if (!res.ok) throw new Error(data.error || '操作失败');
 
         window.showToast("操作成功！", "success");
+        fetchAdminUsers();
+    } catch (err) {
+        window.showToast(err.message, "error");
+    }
+}
+
+async function deleteUserAccount(userId, username) {
+    if (!userId || !(await window.showConfirm(`您确定要彻底删除用户 "${username}" 吗？此操作不可逆，将清除该用户的所有额度及记录。`, "删除账号", "trash-2"))) return;
+    
+    const adminToken = localStorage.getItem('nai_admin_token');
+    
+    try {
+        const res = await fetch('/api/admin/users/approve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-admin-token': adminToken
+            },
+            body: JSON.stringify({ userId, action: 'delete' })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '删除用户失败');
+
+        window.showToast(`已成功删除用户 ${username}`, "success");
         fetchAdminUsers();
     } catch (err) {
         window.showToast(err.message, "error");

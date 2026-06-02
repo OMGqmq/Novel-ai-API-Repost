@@ -29,7 +29,7 @@ export async function onRequest(context) {
   }
 
   try {
-    const { userId, status, credits } = await request.json();
+    const { userId, status, credits, action } = await request.json();
 
     if (!userId) {
       return new Response(JSON.stringify({ error: '用户 ID 不能为空' }), {
@@ -43,6 +43,22 @@ export async function onRequest(context) {
     if (!user) {
       return new Response(JSON.stringify({ error: '找不到指定的用户' }), {
         status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 处理彻底删除用户操作
+    if (action === 'delete') {
+      const batchStmts = [
+        db.prepare("DELETE FROM users WHERE id = ?").bind(userId),
+        db.prepare("DELETE FROM credit_logs WHERE user_id = ?").bind(userId)
+      ];
+      await db.batch(batchStmts);
+      return new Response(JSON.stringify({
+        success: true,
+        message: '用户已被成功删除'
+      }), {
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
