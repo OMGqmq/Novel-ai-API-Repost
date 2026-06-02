@@ -5,6 +5,7 @@ import { InpaintEditor } from './inpaint.js?v=202605292218';
 import { OutpaintEditor } from './outpaint.js?v=202605292218';
 import { PromptHelper } from './prompt-helper.js?v=202605292218';
 import { NotebookManager } from './notebook.js?v=202605292218';
+import { VibeManager } from './vibe-manager.js?v=202605292218';
 
 // 防抖函数，用于降低高频触发事件（如打字输入）的执行频率
 function debounce(func, wait) {
@@ -102,103 +103,20 @@ const notebookManager = new NotebookManager({
     onOpenLightbox: (item) => window.openLightbox ? window.openLightbox(item) : console.log('Open lightbox', item)
 });
 
-let currentInitImageBase64 = null;
-let currentVibeImageBase64 = null;
-let currentVibeIsJson = false;
-let availableVibeEncodings = []; 
+const vibeManager = new VibeManager({
+    store: store,
+    compressImage: compressImage,
+    onShowToast: (msg, type) => window.showToast ? window.showToast(msg, type) : console.log(msg)
+});
+
+let currentInitImageBase64 = null; 
 let currentImageId = null;
 let currentImageData = null;
 let showcaseData = [];
 let currentGalleryTab = 'showcase';
 
-function getVibeKey(key, model) {
-    const m = model || document.getElementById('modelValue').value;
-    return `${key}_${m}`;
-}
-
 function loadVibeState(model) {
-    const savedVibeData = store.getSetting(getVibeKey('nai_vibe_image', model));
-    const savedVibeIsJson = store.getSetting(getVibeKey('nai_vibe_is_json', model)) === 'true';
-    const savedVibeEnabled = store.getSetting(getVibeKey('nai_vibe_enabled', model)) !== 'false';
-    const savedVibeInfo = store.getSetting(getVibeKey('nai_vibe_info', model));
-    const savedVibeStrength = store.getSetting(getVibeKey('nai_vibe_strength', model));
-    const savedVibePreview = store.getSetting(getVibeKey('nai_vibe_preview', model));
-    const savedVibeEncodings = store.getSetting(getVibeKey('nai_vibe_encodings', model));
-
-    document.getElementById('vibeEnabled').checked = savedVibeEnabled;
-
-    if (savedVibeData) {
-        currentVibeImageBase64 = savedVibeData;
-        currentVibeIsJson = savedVibeIsJson;
-        if (savedVibeEncodings) {
-            try {
-                availableVibeEncodings = JSON.parse(savedVibeEncodings);
-            } catch(e) {
-                availableVibeEncodings = [];
-            }
-        } else {
-            availableVibeEncodings = [];
-        }
-        
-        const previewImg = document.getElementById('vibeImagePreview');
-        if (savedVibePreview) {
-            previewImg.src = savedVibePreview;
-            if (savedVibePreview.includes('svg')) previewImg.classList.add('p-4');
-            else previewImg.classList.remove('p-4');
-        } else {
-            // Legacy fallback
-            if (currentVibeIsJson) {
-                previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
-                previewImg.classList.add('p-4');
-            } else {
-                previewImg.src = 'data:image/jpeg;base64,' + savedVibeData;
-                previewImg.classList.remove('p-4');
-            }
-        }
-        
-        previewImg.classList.remove('hidden');
-        document.getElementById('vibeImagePlaceholder').classList.add('hidden');
-        document.getElementById('clearVibeImageBtn').classList.remove('hidden');
-        document.getElementById('vibeControls').classList.remove('hidden');
-        
-        updateVibeInfoUI(currentVibeIsJson);
-        
-        // Restore selection if multiple
-        if (currentVibeIsJson && availableVibeEncodings.length > 1) {
-            const savedIndex = store.getSetting(getVibeKey('nai_vibe_selected_index', model));
-            if (savedIndex !== null) {
-                document.getElementById('vibeInfoSelect').value = savedIndex;
-                onVibeStrengthSelect(savedIndex);
-            }
-        } else if (!currentVibeIsJson && savedVibeInfo) {
-            const slider = document.getElementById('vibeInfo');
-            if (slider) {
-                slider.value = savedVibeInfo;
-            }
-            document.getElementById('vibeInfoValue').textContent = parseFloat(savedVibeInfo || 1.0).toFixed(2);
-        }
-    } else {
-        // Clear UI if no data for this model
-        currentVibeImageBase64 = null;
-        currentVibeIsJson = false;
-        availableVibeEncodings = [];
-        const previewImg = document.getElementById('vibeImagePreview');
-        previewImg.src = '';
-        previewImg.classList.add('hidden');
-        document.getElementById('vibeImagePlaceholder').classList.remove('hidden');
-        document.getElementById('clearVibeImageBtn').classList.add('hidden');
-        document.getElementById('vibeControls').classList.add('hidden');
-        updateVibeInfoUI(false);
-    }
-    
-    if (savedVibeStrength) {
-        document.getElementById('vibeStrength').value = savedVibeStrength;
-        document.getElementById('vibeStrengthValue').textContent = parseFloat(savedVibeStrength).toFixed(2);
-    } else {
-        document.getElementById('vibeStrength').value = 0.6;
-        document.getElementById('vibeStrengthValue').textContent = '0.60';
-    }
-    toggleVibeEnabled();
+    vibeManager.loadState(model);
 }
 
 function safeCreateIcons() {
@@ -387,206 +305,18 @@ function clearInitImage() {
     document.getElementById('img2imgControls').classList.add('hidden');
 }
 
-async function handleVibeImage(event) {
-    const file = event.target.files[0];
-    if (file) {
-        try {
-            const isJson = file.name.endsWith('.json') || file.name.endsWith('.nai4vibe') || file.type === 'application/json';
-            currentVibeIsJson = isJson;
-            availableVibeEncodings = [];
-
-            if (isJson) {
-                const text = await file.text();
-                const obj = JSON.parse(text);
-                
-                // Handle multiple formats (single object, NAI export with 'images' array, etc.)
-                const extractEncoding = (item) => {
-                    if (!item || typeof item !== 'object') return null;
-                    
-                    // Try common image/latent field names
-                    const img = item.image || item.latent || item.vibe_image || item.encoded_image;
-                    
-                    // Try common info/strength field names
-                    let info = undefined;
-                    if (item.params && item.params.information_extracted !== undefined) {
-                        info = item.params.information_extracted;
-                    } else {
-                        info = item.information_extracted ?? item.info ?? item.strength ?? item.extract_strength;
-                    }
-                    
-                    if (img && info !== undefined) {
-                        return { base64: img, info: parseFloat(info) };
-                    }
-                    return null;
-                };
-
-                const items = [];
-                if (Array.isArray(obj)) {
-                    items.push(...obj);
-                } else if (obj.images && Array.isArray(obj.images)) {
-                    items.push(...obj.images);
-                } else if (obj.encodings) {
-                    // Official .nai4vibe format
-                    const section = obj.encodings['v4-5full'] || obj.encodings['v4full'];
-                    if (section) {
-                        Object.values(section).forEach(item => {
-                            if (item.encoding) {
-                                let info = 0.35;
-                                if (item.params && item.params.information_extracted !== undefined) {
-                                    info = item.params.information_extracted;
-                                }
-                                availableVibeEncodings.push({ base64: item.encoding, info: parseFloat(info) });
-                            }
-                        });
-                    }
-                    // Also check the root object for a preview image
-                    items.push(obj);
-                } else {
-                    items.push(obj);
-                }
-
-                items.forEach(item => {
-                    const enc = extractEncoding(item);
-                    if (enc) {
-                        availableVibeEncodings.push(enc);
-                    } else if (item.vibe && typeof item.vibe === 'object') {
-                        // Try nested 'vibe' object
-                        const nestedEnc = extractEncoding(item.vibe);
-                        if (nestedEnc) availableVibeEncodings.push(nestedEnc);
-                    }
-                });
-
-                if (availableVibeEncodings.length === 0) {
-                    console.error("Vibe JSON structure unrecognized:", obj);
-                    throw new Error("未在文件中找到有效的 Vibe 编码数据 (识别到的字段不全)");
-                }
-
-                // Use source image, thumbnail or root image for preview
-                const firstItem = items[0];
-                let sourceImg = obj.source_image || firstItem?.source_image || obj.thumbnail || firstItem?.thumbnail || obj.image || firstItem?.image;
-                
-                const previewImg = document.getElementById('vibeImagePreview');
-                if (sourceImg && (sourceImg.startsWith('data:image') || sourceImg.length > 1000)) {
-                     previewImg.src = sourceImg.startsWith('data:image') ? sourceImg : ('data:image/png;base64,' + sourceImg);
-                     previewImg.classList.remove('p-4');
-                } else {
-                     previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
-                     previewImg.classList.add('p-4');
-                }
-                previewImg.classList.remove('hidden');
-                
-                updateVibeInfoUI(true);
-            } else {
-                const compressedDataUrl = await compressImage(file);
-                currentVibeImageBase64 = compressedDataUrl.split(',')[1];
-                document.getElementById('vibeImagePreview').src = compressedDataUrl;
-                document.getElementById('vibeImagePreview').classList.remove('hidden', 'p-4');
-                updateVibeInfoUI(false);
-            }
-            
-            saveVibeState();
-            document.getElementById('vibeImagePlaceholder').classList.add('hidden');
-            document.getElementById('clearVibeImageBtn').classList.remove('hidden');
-            document.getElementById('vibeControls').classList.remove('hidden');
-            toggleVibeEnabled(); 
-        } catch (e) {
-            console.error("Failed to process vibe file", e);
-            alert("文件处理失败: " + e.message);
-        }
-    }
-}
-
-function updateVibeInfoUI(isJson) {
-    const container = document.getElementById('vibeInfoContainer');
-    const infoVal = document.getElementById('vibeInfoValue');
-    
-    if (isJson && availableVibeEncodings.length > 0) {
-        if (availableVibeEncodings.length === 1) {
-            const enc = availableVibeEncodings[0];
-            currentVibeImageBase64 = enc.base64;
-            container.innerHTML = `<div class="text-[10px] text-gray-400 bg-gray-100 dark:bg-slate-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700 italic">固定强度: ${enc.info.toFixed(2)} (已锁定)</div>`;
-            infoVal.textContent = enc.info.toFixed(2);
-        } else {
-            // Create selector
-            let html = `<select id="vibeInfoSelect" onchange="onVibeStrengthSelect(this.value)" class="art-input w-full px-3 py-2 rounded-xl text-xs font-medium outline-none shadow-sm appearance-none cursor-pointer text-gray-700 dark:text-gray-200">`;
-            availableVibeEncodings.forEach((enc, index) => {
-                html += `<option value="${index}">强度: ${enc.info.toFixed(2)}</option>`;
-            });
-            html += `</select>`;
-            container.innerHTML = html;
-            onVibeStrengthSelect(0);
-        }
-    } else {
-        container.innerHTML = `<input type="range" id="vibeInfo" min="0.01" max="1.0" value="1.0" step="0.01" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">`;
-        const slider = document.getElementById('vibeInfo');
-        slider.addEventListener('input', (e) => {
-            infoVal.textContent = parseFloat(e.target.value).toFixed(2);
-            store.setSetting(getVibeKey('nai_vibe_info'), e.target.value);
-        });
-        infoVal.textContent = parseFloat(slider.value).toFixed(2);
-    }
-}
-
-window.onVibeStrengthSelect = function(index) {
-    const enc = availableVibeEncodings[index];
-    if (enc) {
-        currentVibeImageBase64 = enc.base64;
-        document.getElementById('vibeInfoValue').textContent = enc.info.toFixed(2);
-        store.setSetting(getVibeKey('nai_vibe_selected_index'), index);
-        store.setSetting(getVibeKey('nai_vibe_image'), currentVibeImageBase64);
-    }
-};
-
-function saveVibeState() {
-    store.setSetting(getVibeKey('nai_vibe_image'), currentVibeImageBase64);
-    store.setSetting(getVibeKey('nai_vibe_is_json'), currentVibeIsJson.toString());
-    store.setSetting(getVibeKey('nai_vibe_encodings'), JSON.stringify(availableVibeEncodings));
-    store.setSetting(getVibeKey('nai_vibe_preview'), document.getElementById('vibeImagePreview').src);
-}
-
-function clearVibeImage() {
-    currentVibeImageBase64 = null;
-    currentVibeIsJson = false;
-    availableVibeEncodings = [];
-    store.setSetting(getVibeKey('nai_vibe_image'), '');
-    store.setSetting(getVibeKey('nai_vibe_is_json'), 'false');
-    store.setSetting(getVibeKey('nai_vibe_encodings'), '[]');
-    store.setSetting(getVibeKey('nai_vibe_preview'), '');
-    document.getElementById('vibeImageInput').value = '';
-    document.getElementById('vibeImagePreview').src = '';
-    document.getElementById('vibeImagePreview').classList.remove('p-4');
-    document.getElementById('vibeImagePreview').classList.add('hidden');
-    document.getElementById('vibeImagePlaceholder').classList.remove('hidden');
-    document.getElementById('clearVibeImageBtn').classList.add('hidden');
-    document.getElementById('vibeControls').classList.add('hidden');
-    updateVibeInfoUI(false);
-}
-
-function toggleVibeEnabled() {
-    const enabled = document.getElementById('vibeEnabled').checked;
-    store.setSetting(getVibeKey('nai_vibe_enabled'), enabled.toString());
-    const previewContainer = document.getElementById('vibeImagePreviewContainer');
-    const controls = document.getElementById('vibeControls');
-    if (enabled) {
-        previewContainer.classList.remove('opacity-40', 'grayscale-[0.5]');
-        if (currentVibeImageBase64) controls.classList.remove('hidden');
-    } else {
-        previewContainer.classList.add('opacity-40', 'grayscale-[0.5]');
-        controls.classList.add('hidden');
-    }
-}
+window.handleVibeImage = (event) => vibeManager.handleVibeImage(event, document.getElementById('modelValue').value);
+window.clearVibeImage = () => vibeManager.clearVibeImage(document.getElementById('modelValue').value);
+window.toggleVibeEnabled = () => vibeManager.toggleVibeEnabled(document.getElementById('modelValue').value);
+window.onVibeStrengthSelect = (index) => vibeManager.selectVibeStrength(index, document.getElementById('modelValue').value);
 
 document.getElementById('strength')?.addEventListener('input', e => document.getElementById('strengthValue').textContent = e.target.value);
 document.getElementById('noise')?.addEventListener('input', e => document.getElementById('noiseValue').textContent = e.target.value);
-document.getElementById('vibeInfo')?.addEventListener('input', (e) => {
-    const val = e.target.value;
-    document.getElementById('vibeInfoValue').textContent = parseFloat(val).toFixed(2);
-    store.setSetting(getVibeKey('nai_vibe_info'), val);
-});
 document.getElementById('vibeStrength')?.addEventListener('input', (e) => {
     const val = e.target.value;
+    const model = document.getElementById('modelValue').value;
     document.getElementById('vibeStrengthValue').textContent = parseFloat(val).toFixed(2);
-    store.setSetting(getVibeKey('nai_vibe_strength'), val);
+    store.setSetting(vibeManager.getVibeKey('nai_vibe_strength', model), val);
 });
 
 // 全局错误捕获，防止界面卡死
@@ -647,9 +377,9 @@ async function doGenerate() {
         if (ui.currentRightView !== 'preview') ui.switchRightView('preview');
         ui.toggleMobileControls(false);
         
-        const vibeEnabled = document.getElementById('vibeEnabled')?.checked;
-        if (vibeEnabled && selectedVersion === 'v4.5' && currentVibeImageBase64 && !currentVibeIsJson) {
-            alert("V4.5 模型氛围传输需要上传官方提取的 .nai4vibe 或 .json 编码文件。\n由于直接上传图片会重复消耗 Anlas 去编码，为了您的账号安全，请先在官方获取编码文件后再使用此功能。");
+        const vibeVal = vibeManager.isValidForModel(selectedVersion);
+        if (!vibeVal.isValid) {
+            alert(vibeVal.error);
             ui.setLoading(false);
             ui.toggleMobileControls(true);
             return;
@@ -698,13 +428,8 @@ async function doGenerate() {
                     params.noise = noiEl ? parseFloat(noiEl.value) : 0;
                 }
                 
-                if (vibeEnabled && currentVibeImageBase64) {
-                    params.vibe_image = currentVibeImageBase64;
-                    const vibeInfoEl = document.getElementById('vibeInfo');
-                    const vibeStrengthEl = document.getElementById('vibeStrength');
-                    params.vibe_info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : parseFloat(document.getElementById('vibeInfoValue')?.textContent || "1.0");
-                    params.vibe_strength = vibeStrengthEl ? parseFloat(vibeStrengthEl.value) : 0.6;
-                }
+                const vibeParams = vibeManager.getPayloadParams(selectedVersion);
+                Object.assign(params, vibeParams);
 
                 // 为每个 API 实例生成独立的随机 seed，避免多 API 产生的图片完全相同
                 const localParamsList = auths.map(() => {
@@ -1217,10 +942,9 @@ Object.assign(window, {
     switchDrawerTab: (t) => ui.switchDrawerTab(t, renderNotebookCallback),
     openNotebook: () => ui.openNotebook(renderNotebookCallback),
     handleInitImage, clearInitImage, doGenerate, useCurrentPrompt,
-    handleVibeImage, clearVibeImage,
     deleteCurrentImage, clearAllHistory, switchGalleryTab, downloadZip,
     backToGrid: () => ui.showGrid(),
-    doAugment, toggleToolbox, toggleVibeEnabled
+    doAugment, toggleToolbox
 });
 
 fetch('gallery_index.json').then(r => r.json()).then(d => {
