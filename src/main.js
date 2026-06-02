@@ -180,6 +180,85 @@ class PromptHelper {
         return t.trim();
     }
 
+    expandPromptTags(str) {
+        str = str.trim();
+        if (!str) return [];
+
+        const splitOuterCommas = (s) => {
+            const parts = [];
+            let current = "";
+            let depth = 0;
+            for (let i = 0; i < s.length; i++) {
+                const char = s[i];
+                if (char === '(' || char === '{' || char === '[') {
+                    depth++;
+                } else if (char === ')' || char === '}' || char === ']') {
+                    depth = Math.max(0, depth - 1);
+                }
+                
+                if (char === ',' && depth === 0) {
+                    parts.push(current.trim());
+                    current = "";
+                } else {
+                    current += char;
+                }
+            }
+            if (current.trim()) {
+                parts.push(current.trim());
+            }
+            return parts;
+        };
+
+        const isOuterWrapped = (s) => {
+            if (s.length < 3) return false;
+            const first = s[0];
+            const last = s[s.length - 1];
+            
+            let matchChar = '';
+            if (first === '(' && last === ')') matchChar = ')';
+            else if (first === '{' && last === '}') matchChar = '}';
+            else if (first === '[' && last === ']') matchChar = ']';
+            
+            if (!matchChar) return false;
+            
+            let depth = 0;
+            for (let i = 0; i < s.length; i++) {
+                const char = s[i];
+                if (char === '(' || char === '{' || char === '[') {
+                    depth++;
+                } else if (char === ')' || char === '}' || char === ']') {
+                    depth--;
+                    if (depth === 0 && i < s.length - 1) {
+                        return false;
+                    }
+                }
+            }
+            
+            const inner = s.substring(1, s.length - 1);
+            return inner.includes(',');
+        };
+
+        if (isOuterWrapped(str)) {
+            const first = str[0];
+            const last = str[str.length - 1];
+            const inner = str.substring(1, str.length - 1);
+            
+            const innerTags = this.expandPromptTags(inner);
+            return innerTags.map(tag => first + tag + last);
+        }
+
+        const outerParts = splitOuterCommas(str);
+        if (outerParts.length > 1) {
+            let result = [];
+            for (const part of outerParts) {
+                result = result.concat(this.expandPromptTags(part));
+            }
+            return result;
+        }
+
+        return [str];
+    }
+
     getActiveTagInfo() {
         const textarea = this.promptEl;
         const text = textarea.value;
@@ -339,7 +418,7 @@ class PromptHelper {
             return;
         }
 
-        const rawTags = text.split(',');
+        const rawTags = this.expandPromptTags(text);
         const translatedItems = [];
         
         rawTags.forEach(rawTag => {
