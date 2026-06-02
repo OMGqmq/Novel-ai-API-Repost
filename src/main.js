@@ -3,6 +3,8 @@ import { GalleryStore } from './storage.js?v=202605292218';
 import { UIController } from './ui.js?v=202605292218';
 import { InpaintEditor } from './inpaint.js?v=202605292218';
 import { OutpaintEditor } from './outpaint.js?v=202605292218';
+import { PromptHelper } from './prompt-helper.js?v=202605292218';
+import { NotebookManager } from './notebook.js?v=202605292218';
 
 // 防抖函数，用于降低高频触发事件（如打字输入）的执行频率
 function debounce(func, wait) {
@@ -74,458 +76,31 @@ function triggerDownload(url, filename) {
     }
 }
 
-class PromptHelper {
-    constructor(promptEl, tagData) {
-        this.promptEl = promptEl;
-        this.tagData = tagData;
-        this.tagArray = Object.entries(tagData); // 预先生成 entries 数组，省去输入时高频 Object.entries 带来的巨大 GC 卡顿
-        this.isTranslationExpanded = localStorage.getItem('nai_translation_expanded') !== 'false';
-        
-        this.initUI();
-        this.bindEvents();
-        this.updateTranslations();
-    }
-
-    initUI() {
-        const container = this.promptEl.parentElement;
-        if (!container) return;
-
-        this.helperContainer = document.createElement('div');
-        this.helperContainer.className = 'mt-2 space-y-2';
-
-        this.suggestPanel = document.createElement('div');
-        this.suggestPanel.id = 'tagSuggestPanel';
-        this.suggestPanel.className = 'hidden bg-gray-50/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl p-3 border border-gray-200/50 dark:border-slate-700/50 shadow-sm';
-        this.suggestPanel.innerHTML = `
-            <div class="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-1 mb-2 flex items-center justify-between select-none">
-                <span>联想推荐 (Suggestions)</span>
-                <span class="text-[9px] lowercase font-normal">点击填入</span>
-            </div>
-            <div id="tagSuggestList" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scroll p-0.5"></div>
-        `;
-
-        this.translatePanel = document.createElement('div');
-        this.translatePanel.id = 'tagTranslatePanel';
-        this.translatePanel.className = 'bg-gray-50/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-sm overflow-hidden';
-        this.translatePanel.innerHTML = `
-            <button id="tagTranslateToggle" type="button" class="w-full px-3 py-2 flex items-center justify-between text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest hover:bg-gray-100/50 dark:hover:bg-slate-700/30 transition-colors select-none">
-                <span class="flex items-center gap-1.5">
-                    <i data-lucide="languages" class="w-3.5 h-3.5 text-gray-400 dark:text-slate-500"></i>
-                    实时翻译 (Translation) <span id="translateCount" class="ml-1 text-[9px] bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-1.5 py-0.2 rounded-full">0</span>
-                </span>
-                <i data-lucide="chevron-down" id="translateToggleIcon" class="w-3.5 h-3.5 transition-transform duration-200 text-gray-400 ${this.isTranslationExpanded ? 'rotate-180' : ''}"></i>
-            </button>
-            <div id="tagTranslateContent" class="${this.isTranslationExpanded ? '' : 'hidden'} p-3 border-t border-gray-100 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/20">
-                <div id="tagTranslateList" class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scroll">
-                    <div class="text-xs text-gray-400 dark:text-slate-500 italic select-none">输入提示词以查看实时翻译...</div>
-                </div>
-            </div>
-        `;
-
-        this.helperContainer.appendChild(this.suggestPanel);
-        this.helperContainer.appendChild(this.translatePanel);
-        
-        container.insertBefore(this.helperContainer, this.promptEl.nextSibling);
-
-        this.suggestListEl = this.suggestPanel.querySelector('#tagSuggestList');
-        this.translateContentEl = this.translatePanel.querySelector('#tagTranslateContent');
-        this.translateListEl = this.translatePanel.querySelector('#tagTranslateList');
-        this.translateCountEl = this.translatePanel.querySelector('#translateCount');
-        this.translateToggleIcon = this.translatePanel.querySelector('#translateToggleIcon');
-        
-        if (window.safeCreateIcons) window.safeCreateIcons();
-    }
-
-    calculateWeight(rawTag) {
-        let t = rawTag.trim();
-
-        // 1. 优先匹配 v4.5 的权重格式 xx::tag:: (或切开后的 xx::tag)
-        const vibeMatch = t.match(/^(-?[0-9.]+)\s*::/);
-        if (vibeMatch) {
-            return parseFloat(vibeMatch[1]);
-        }
-
-        // 2. 原有的 NovelAI 括号叠乘加权/降权规则
-        let weight = 1.0;
-        let modified = true;
-        while (modified) {
-            modified = false;
-            t = t.trim();
-            if (t.startsWith('(') && t.endsWith(')')) {
-                weight *= 1.1;
-                t = t.slice(1, -1);
-                modified = true;
-            } else if (t.startsWith('{') && t.endsWith('}')) {
-                weight *= 1.05;
-                t = t.slice(1, -1);
-                modified = true;
-            } else if (t.startsWith('[') && t.endsWith(']')) {
-                weight /= 1.05;
-                t = t.slice(1, -1);
-                modified = true;
-            }
-        }
-        return weight;
-    }
-
-    cleanTag(tag) {
-        let t = tag.trim();
-        // 1. 清除 v4.5 的 xx:: 前缀和 :: 后缀
-        t = t.replace(/^-?[0-9.]+\s*::\s*/, '');
-        t = t.replace(/\s*::\s*$/, '');
-        
-        // 2. 清除首尾的括号和多余空格
-        t = t.replace(/^[\(\{\[\s]+/, '');
-        t = t.replace(/[\)\}\]\s]+$/, '');
-        return t.trim();
-    }
-
-    expandPromptTags(str) {
-        str = str.trim();
-        if (!str) return [];
-
-        const splitOuterCommas = (s) => {
-            const parts = [];
-            let current = "";
-            let depth = 0;
-            for (let i = 0; i < s.length; i++) {
-                const char = s[i];
-                if (char === '(' || char === '{' || char === '[') {
-                    depth++;
-                } else if (char === ')' || char === '}' || char === ']') {
-                    depth = Math.max(0, depth - 1);
-                }
-                
-                if (char === ',' && depth === 0) {
-                    parts.push(current.trim());
-                    current = "";
-                } else {
-                    current += char;
-                }
-            }
-            if (current.trim()) {
-                parts.push(current.trim());
-            }
-            return parts;
-        };
-
-        const isOuterWrapped = (s) => {
-            if (s.length < 3) return false;
-            const first = s[0];
-            const last = s[s.length - 1];
-            
-            let matchChar = '';
-            if (first === '(' && last === ')') matchChar = ')';
-            else if (first === '{' && last === '}') matchChar = '}';
-            else if (first === '[' && last === ']') matchChar = ']';
-            
-            if (!matchChar) return false;
-            
-            let depth = 0;
-            for (let i = 0; i < s.length; i++) {
-                const char = s[i];
-                if (char === '(' || char === '{' || char === '[') {
-                    depth++;
-                } else if (char === ')' || char === '}' || char === ']') {
-                    depth--;
-                    if (depth === 0 && i < s.length - 1) {
-                        return false;
-                    }
-                }
-            }
-            
-            const inner = s.substring(1, s.length - 1);
-            return inner.includes(',');
-        };
-
-        const isVibeWrapped = (s) => {
-            const matchStart = s.match(/^(-?[0-9.]+)\s*::/);
-            if (!matchStart) return false;
-            if (!s.endsWith('::')) return false;
-
-            const startLen = matchStart[0].length;
-            const inner = s.substring(startLen, s.length - 2);
-            if (!inner.includes(',')) return false;
-
-            let depth = 0;
-            let vibeDepth = 1;
-
-            for (let i = startLen; i < s.length - 2; i++) {
-                const char = s[i];
-                if (char === '(' || char === '{' || char === '[') {
-                    depth++;
-                } else if (char === ')' || char === '}' || char === ']') {
-                    depth = Math.max(0, depth - 1);
-                }
-
-                if (depth === 0) {
-                    const sub = s.substring(i);
-                    const subVibeStart = sub.match(/^(-?[0-9.]+)\s*::/);
-                    if (subVibeStart) {
-                        vibeDepth++;
-                        i += subVibeStart[0].length - 1;
-                    } else if (sub.startsWith('::')) {
-                        vibeDepth--;
-                        i += 1;
-                        if (vibeDepth === 0) {
-                            return false;
-                        }
-                    }
-                }
-            }
-            return vibeDepth === 1;
-        };
-
-        if (isOuterWrapped(str)) {
-            const first = str[0];
-            const last = str[str.length - 1];
-            const inner = str.substring(1, str.length - 1);
-            
-            const innerTags = this.expandPromptTags(inner);
-            return innerTags.map(tag => first + tag + last);
-        }
-
-        if (isVibeWrapped(str)) {
-            const matchStart = str.match(/^(-?[0-9.]+)\s*::/);
-            const prefix = matchStart[0];
-            const inner = str.substring(prefix.length, str.length - 2);
-
-            const innerTags = this.expandPromptTags(inner);
-            return innerTags.map(tag => prefix + tag + '::');
-        }
-
-        const outerParts = splitOuterCommas(str);
-        if (outerParts.length > 1) {
-            let result = [];
-            for (const part of outerParts) {
-                result = result.concat(this.expandPromptTags(part));
-            }
-            return result;
-        }
-
-        return [str];
-    }
-
-    getActiveTagInfo() {
-        const textarea = this.promptEl;
-        const text = textarea.value;
-        const pos = textarea.selectionStart;
-        
-        const lastComma = text.lastIndexOf(',', pos - 1);
-        const nextComma = text.indexOf(',', pos);
-        
-        const start = lastComma === -1 ? 0 : lastComma + 1;
-        const end = nextComma === -1 ? text.length : nextComma;
-        
-        const rawQuery = text.substring(start, end);
-        const query = this.cleanTag(rawQuery).trim();
-        return {
-            query,
-            rawQuery,
-            start,
-            end
-        };
-    }
-
-    bindEvents() {
-        const toggleBtn = this.translatePanel.querySelector('#tagTranslateToggle');
-        toggleBtn.addEventListener('click', () => {
-            this.isTranslationExpanded = !this.isTranslationExpanded;
-            localStorage.setItem('nai_translation_expanded', this.isTranslationExpanded.toString());
-            
-            if (this.isTranslationExpanded) {
-                this.translateContentEl.classList.remove('hidden');
-                this.translateToggleIcon.classList.add('rotate-180');
-            } else {
-                this.translateContentEl.classList.add('hidden');
-                this.translateToggleIcon.classList.remove('rotate-180');
-            }
-        });
-
-        // 采用防抖以极大降低 16 万项大数据匹配与 DOM 更新的 CPU 消耗和输入卡顿
-        const debouncedUpdateSuggestions = debounce(() => this.updateSuggestions(), 150);
-        const debouncedUpdateTranslations = debounce(() => this.updateTranslations(), 250);
-
-        const handleInput = () => {
-            debouncedUpdateSuggestions();
-            debouncedUpdateTranslations();
-        };
-
-        this.promptEl.addEventListener('input', handleInput);
-        this.promptEl.addEventListener('keyup', handleInput);
-        this.promptEl.addEventListener('click', handleInput);
-        this.promptEl.addEventListener('focus', handleInput);
-
-        this.promptEl.addEventListener('blur', () => {
-            setTimeout(() => {
-                this.suggestPanel.classList.add('hidden');
-            }, 250);
-        });
-    }
-
-    updateSuggestions() {
-        const info = this.getActiveTagInfo();
-        const query = info.query.toLowerCase().trim();
-
-        if (!query) {
-            this.suggestPanel.classList.add('hidden');
-            return;
-        }
-
-        const matches = [];
-        const len = this.tagArray.length;
-        for (let i = 0; i < len; i++) {
-            const [en, cn] = this.tagArray[i];
-            if (en.toLowerCase().includes(query) || cn.includes(query)) {
-                matches.push({ en, cn });
-            }
-        }
-
-        if (matches.length === 0) {
-            this.suggestPanel.classList.add('hidden');
-            return;
-        }
-
-        matches.sort((a, b) => {
-            const aEnLower = a.en.toLowerCase();
-            const bEnLower = b.en.toLowerCase();
-            const aStartEn = aEnLower.startsWith(query);
-            const bStartEn = bEnLower.startsWith(query);
-            if (aStartEn && !bStartEn) return -1;
-            if (!aStartEn && bStartEn) return 1;
-            
-            const aStartCn = a.cn.startsWith(query);
-            const bStartCn = b.cn.startsWith(query);
-            if (aStartCn && !bStartCn) return -1;
-            if (!aStartCn && bStartCn) return 1;
-
-            return a.en.length - b.en.length;
-        });
-
-        const topMatches = matches.slice(0, 15);
-        
-        this.suggestListEl.innerHTML = '';
-        topMatches.forEach(({ en, cn }) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'px-3 py-1.5 text-xs bg-white dark:bg-slate-700/60 hover:bg-yellow-50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-600 hover:border-yellow-200 dark:hover:border-yellow-500/50 rounded-lg text-gray-700 dark:text-gray-200 flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-left';
-            btn.innerHTML = `
-                <span class="font-mono font-medium text-gray-900 dark:text-white">${en}</span>
-                <span class="text-[10px] text-gray-400 dark:text-slate-400 border-l border-gray-100 dark:border-slate-600/80 pl-1.5">${cn}</span>
-            `;
-            
-            btn.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.selectSuggestion(en);
-            });
-            
-            this.suggestListEl.appendChild(btn);
-        });
-
-        this.suggestPanel.classList.remove('hidden');
-    }
-
-    selectSuggestion(suggestionEn) {
-        const textarea = this.promptEl;
-        const text = textarea.value;
-        const info = this.getActiveTagInfo();
-        
-        const raw = info.rawQuery;
-        const queryIndex = raw.toLowerCase().indexOf(info.query.toLowerCase());
-        let prefix = '';
-        let suffix = '';
-        if (queryIndex !== -1) {
-            prefix = raw.substring(0, queryIndex);
-            suffix = raw.substring(queryIndex + info.query.length);
-        }
-        
-        let replacement = prefix + suggestionEn + suffix;
-        if (/^-?[0-9.]+\s*::/.test(prefix) && !replacement.endsWith('::')) {
-            replacement += '::';
-        }
-        const newText = text.substring(0, info.start) + replacement + text.substring(info.end);
-        
-        textarea.value = newText;
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-        
-        const newCursorPos = info.start + replacement.length;
-        textarea.focus();
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-        
-        this.suggestPanel.classList.add('hidden');
-        this.updateTranslations();
-    }
-
-    updateTranslations() {
-        const text = this.promptEl.value;
-        if (!text.trim()) {
-            this.translateListEl.innerHTML = '<div class="text-xs text-gray-400 dark:text-slate-500 italic select-none">输入提示词以查看实时翻译...</div>';
-            this.translateCountEl.textContent = '0';
-            return;
-        }
-
-        const rawTags = this.expandPromptTags(text);
-        const translatedItems = [];
-        
-        rawTags.forEach(rawTag => {
-            const cleaned = this.cleanTag(rawTag);
-            if (!cleaned) return;
-            
-            const lowerCleaned = cleaned.toLowerCase();
-            const matchedCn = this.tagData[lowerCleaned];
-            
-            if (matchedCn) {
-                translatedItems.push({
-                    raw: rawTag.trim(),
-                    clean: cleaned,
-                    cn: matchedCn
-                });
-            }
-        });
-
-        this.translateCountEl.textContent = translatedItems.length.toString();
-
-        if (translatedItems.length === 0) {
-            this.translateListEl.innerHTML = '<div class="text-xs text-gray-400 dark:text-slate-500 italic select-none">未找到匹配的词汇翻译。</div>';
-            return;
-        }
-
-        this.translateListEl.innerHTML = '';
-        translatedItems.forEach(item => {
-            const badge = document.createElement('div');
-            
-            const weight = this.calculateWeight(item.raw);
-            let weightBadgeHtml = '';
-            let badgeClass = 'px-2.5 py-1 text-xs bg-white dark:bg-slate-800/40 border border-gray-100 dark:border-slate-700/60 rounded-lg text-gray-700 dark:text-gray-300 flex items-center gap-1.5 shadow-sm select-none';
-            
-            if (weight < 0) {
-                badgeClass = 'px-2.5 py-1 text-xs bg-red-50/50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-900/40 rounded-lg text-red-800 dark:text-red-300 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-red-100 dark:bg-red-950/50 px-1.5 py-0.2 rounded font-bold font-mono">${weight.toFixed(2)}</span>`;
-            } else if (weight > 1.01) {
-                badgeClass = 'px-2.5 py-1 text-xs bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-lg text-amber-800 dark:text-amber-300 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.2 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
-            } else if (weight < 0.99) {
-                badgeClass = 'px-2.5 py-1 text-xs bg-blue-50/50 dark:bg-slate-800/60 border border-blue-200/50 dark:border-slate-700/60 rounded-lg text-blue-800 dark:text-slate-400 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-blue-100 dark:bg-blue-950/50 px-1.5 py-0.2 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
-            }
-
-            badge.className = badgeClass;
-            badge.innerHTML = `
-                <span class="font-mono text-gray-500 dark:text-gray-400">${item.clean}</span>
-                <span class="text-gray-400 dark:text-slate-600">➔</span>
-                <span class="font-medium">${item.cn}</span>
-                ${weightBadgeHtml}
-            `;
-            this.translateListEl.appendChild(badge);
-        });
-    }
-}
+// PromptHelper is now imported from './prompt-helper.js'
 
 const engine = new ImageEngine();
 const store = new GalleryStore();
 const ui = new UIController();
 const els = ui.els;
+
+const notebookManager = new NotebookManager({
+    listContainerEl: document.getElementById('notebookList'),
+    onApplyNote: ({ prompt, negative, model }) => {
+        els.prompt.value = prompt;
+        els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
+        if (negative) {
+            els.negative.value = negative;
+            els.negative.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        window.setModel(model);
+        if (window.innerWidth < 768) ui.toggleDrawer();
+        ui.toggleMobileControls(true);
+        window.showToast('已应用笔记提示词', 'success', 1500);
+    },
+    onShowToast: (msg, type, duration) => window.showToast ? window.showToast(msg, type, duration) : console.log(msg),
+    onConfirm: (msg, title, icon) => window.showConfirm ? window.showConfirm(msg, title, icon) : Promise.resolve(window.confirm(msg)),
+    onOpenLightbox: (item) => window.openLightbox ? window.openLightbox(item) : console.log('Open lightbox', item)
+});
 
 let currentInitImageBase64 = null;
 let currentVibeImageBase64 = null;
@@ -1536,66 +1111,6 @@ async function downloadZip() {
     }
 }
 
-// ======================== 笔记本 (Notebook) 功能 ========================
-
-let currentNotebookModel = 'v3';
-
-function getNotebookNotes(model) {
-    const key = `nai_notebook_${model}`;
-    try {
-        const val = localStorage.getItem(key);
-        if (!val) return [];
-        const parsed = JSON.parse(val);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
-    }
-}
-
-function saveNotebookNotes(model, notes) {
-    localStorage.setItem(`nai_notebook_${model}`, JSON.stringify(notes));
-}
-
-async function getPreviewThumbnail(imgSrc) {
-    if (!imgSrc || imgSrc === window.location.href || imgSrc.startsWith('chrome-extension')) {
-        return null;
-    }
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-            try {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const maxDim = 160;
-                let w = img.width;
-                let h = img.height;
-                if (w > maxDim || h > maxDim) {
-                    if (w > h) {
-                        h = Math.round((h * maxDim) / w);
-                        w = maxDim;
-                    } else {
-                        w = Math.round((w * maxDim) / h);
-                        h = maxDim;
-                    }
-                }
-                canvas.width = w;
-                canvas.height = h;
-                ctx.drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
-            } catch (e) {
-                console.error('Failed to generate notebook thumbnail:', e);
-                resolve(null);
-            }
-        };
-        img.onerror = (err) => {
-            console.error('Failed to load image for thumbnail:', err);
-            resolve(null);
-        };
-        img.src = imgSrc;
-    });
-}
-
 function getActiveCanvasImage() {
     // 1. 如果单图聚焦区域可见且有 src
     if (ui.els.singleResultImg && !ui.els.singleResultArea.classList.contains('hidden') && ui.els.singleResultImg.src) {
@@ -1627,386 +1142,68 @@ function getActiveCanvasImage() {
     return null;
 }
 
-async function saveCurrentPromptToNotebook() {
+function saveCurrentPromptToNotebook() {
     const prompt = els.prompt.value.trim();
     const negative = els.negative.value.trim();
-    if (!prompt) {
-        window.showToast('提示词为空，无法保存', 'warning');
-        return;
-    }
-
-    const model = document.getElementById('modelValue').value || 'v3';
-    const notes = getNotebookNotes(model);
-
-    // Check for duplicates
-    if (notes.some(n => n.prompt === prompt && n.negative === negative)) {
-        window.showToast('该提示词已存在于笔记本中', 'warning');
-        return;
-    }
-
-    // Capture current canvas image preview
-    let preview = null;
-    const activeImageSrc = getActiveCanvasImage();
-    
-    if (activeImageSrc) {
-        window.showToast('正在生成缩略图...', 'info', 1000);
-        preview = await getPreviewThumbnail(activeImageSrc);
-    }
-
-    const note = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        prompt,
-        negative,
-        preview,
-        createdAt: Date.now()
-    };
-
-    notes.unshift(note);
-    saveNotebookNotes(model, notes);
-    window.showToast(`已保存到 ${model === 'v4.5' ? 'V4.5' : 'V3'} 笔记本`, 'success');
-
-    // If notebook view is currently open, refresh it
-    if (currentNotebookModel === model) {
-        renderNotebookNotes(model);
-    }
+    const imageSrc = getActiveCanvasImage();
+    notebookManager.saveNote({ prompt, negative, imageSrc });
 }
 
 function switchNotebookModel(model) {
-    currentNotebookModel = model;
-    const active = "px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-gray-900 text-white dark:bg-slate-100 dark:text-gray-900 border-transparent shadow-md";
-    const inactive = "px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-white text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-gray-700";
-    
-    const btnV3 = document.getElementById('btn-nb-v3');
-    const btnV4 = document.getElementById('btn-nb-v4');
-    if (btnV3) btnV3.className = model === 'v3' ? active : inactive;
-    if (btnV4) btnV4.className = model !== 'v3' ? active : inactive;
-
-    renderNotebookNotes(model);
+    notebookManager.switchModel(model);
 }
 
 function renderNotebookNotes(model) {
-    model = model || currentNotebookModel;
-    const container = document.getElementById('notebookList');
-    if (!container) return;
-
-    const notes = getNotebookNotes(model);
-
-    if (notes.length === 0) {
-        container.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-full text-gray-300 dark:text-slate-600">
-                <i data-lucide="notebook-pen" class="w-8 h-8 mb-2 opacity-50"></i>
-                <span class="text-xs font-medium">还没有笔记</span>
-                <span class="text-[10px] text-gray-400 dark:text-slate-600 mt-1">点击上方按钮收藏当前提示词</span>
-            </div>
-        `;
-        safeCreateIcons();
-        return;
-    }
-
-    container.innerHTML = notes.map((note, idx) => `
-        <div class="group bg-gray-50/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl border border-gray-100/80 dark:border-slate-700/50 p-3 hover:border-indigo-200 dark:hover:border-indigo-800/50 transition-all" data-note-id="${note.id}">
-            <div class="flex items-start justify-between gap-2 mb-1.5">
-                <span class="text-[9px] text-gray-400 dark:text-slate-500 font-mono">${formatNoteDate(note.createdAt)}</span>
-                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onclick="bindCurrentCanvasToNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all" title="绑定当前画布图片">
-                        <i data-lucide="image" class="w-3 h-3"></i>
-                    </button>
-                    <button onclick="editNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all" title="编辑">
-                        <i data-lucide="pencil" class="w-3 h-3"></i>
-                    </button>
-                    <button onclick="deleteNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-red-100 dark:hover:bg-red-950/30 rounded-md text-gray-400 hover:text-red-500 transition-all" title="删除">
-                        <i data-lucide="trash-2" class="w-3 h-3"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="flex gap-2.5 mb-2">
-                <div class="flex-1 min-w-0">
-                    <div class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed line-clamp-3 break-all">${escapeHtml(note.prompt)}</div>
-                    ${note.negative ? `<div class="text-[10px] text-gray-400 dark:text-slate-500 leading-relaxed line-clamp-1 break-all mt-1"><span class="text-gray-300 dark:text-slate-600">neg:</span> ${escapeHtml(note.negative)}</div>` : ''}
-                </div>
-                ${note.preview ? `
-                <div class="shrink-0 relative group/preview">
-                    <img src="${note.preview}" class="w-14 h-20 object-cover rounded-lg shadow-sm border border-gray-200/50 dark:border-slate-700 cursor-zoom-in" onclick="event.stopPropagation(); viewNotebookNotePreview('${model}', '${note.id}')">
-                    <button onclick="event.stopPropagation(); removeNotePreview('${model}', '${note.id}')" 
-                        class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px] hover:bg-red-600 shadow-md transition-all opacity-0 group-hover/preview:opacity-100" title="移除预览图">
-                        ✕
-                    </button>
-                </div>
-                ` : ''}
-            </div>
-            <button onclick="applyNotebookNote('${model}','${note.id}')"
-                class="w-full py-2 bg-gray-900/90 dark:bg-white/90 text-white dark:text-gray-900 text-[10px] font-bold rounded-lg hover:shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-1.5">
-                <i data-lucide="send" class="w-3 h-3"></i> 一键使用
-            </button>
-        </div>
-    `).join('');
-
-    safeCreateIcons();
-}
-
-function formatNoteDate(ts) {
-    const d = new Date(ts);
-    const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    notebookManager.render(model);
 }
 
 function applyNotebookNote(model, noteId) {
-    const notes = getNotebookNotes(model);
-    const note = notes.find(n => n.id === noteId);
-    if (!note) return;
-
-    // Set the prompt
-    els.prompt.value = note.prompt;
-    els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
-
-    // Set negative prompt if present
-    if (note.negative) {
-        els.negative.value = note.negative;
-        els.negative.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    // Switch to the correct model
-    setModel(model);
-
-    // Close drawer on mobile
-    if (window.innerWidth < 768) ui.toggleDrawer();
-    ui.toggleMobileControls(true);
-
-    window.showToast('已应用笔记提示词', 'success', 1500);
+    notebookManager.applyNote(model, noteId);
 }
 
-async function editNotebookNote(model, noteId) {
-    const notes = getNotebookNotes(model);
-    const noteIdx = notes.findIndex(n => n.id === noteId);
-    if (noteIdx === -1) return;
-    const note = notes[noteIdx];
-
-    // Create inline editing UI
-    const container = document.querySelector(`[data-note-id="${noteId}"]`);
-    if (!container) return;
-
-    container.innerHTML = `
-        <div class="space-y-2">
-            <label class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">正向提示词</label>
-            <textarea id="editNotePrompt" rows="4" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-gray-700 dark:text-gray-200">${escapeHtml(note.prompt)}</textarea>
-            <label class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">负向提示词</label>
-            <textarea id="editNoteNeg" rows="2" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-gray-600 dark:text-gray-300">${escapeHtml(note.negative || '')}</textarea>
-            <div class="flex gap-2 pt-1">
-                <button onclick="cancelEditNote('${model}')" class="flex-1 py-2 text-[10px] font-semibold rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">取消</button>
-                <button onclick="confirmEditNote('${model}','${noteId}')" class="flex-1 py-2 text-[10px] font-bold rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md hover:shadow-lg transition-all active:scale-[0.98]">保存</button>
-            </div>
-        </div>
-    `;
+function editNotebookNote(model, noteId) {
+    notebookManager.editNote(model, noteId);
 }
 
 function confirmEditNote(model, noteId) {
-    const promptEl = document.getElementById('editNotePrompt');
-    const negEl = document.getElementById('editNoteNeg');
-    if (!promptEl) return;
-
-    const newPrompt = promptEl.value.trim();
-    if (!newPrompt) {
-        window.showToast('提示词不能为空', 'warning');
-        return;
-    }
-
-    const notes = getNotebookNotes(model);
-    const noteIdx = notes.findIndex(n => n.id === noteId);
-    if (noteIdx === -1) return;
-
-    notes[noteIdx].prompt = newPrompt;
-    notes[noteIdx].negative = negEl ? negEl.value.trim() : '';
-    notes[noteIdx].title = newPrompt.substring(0, 40) + (newPrompt.length > 40 ? '...' : '');
-
-    saveNotebookNotes(model, notes);
-    renderNotebookNotes(model);
-    window.showToast('笔记已更新', 'success', 1500);
+    notebookManager.confirmEditNote(model, noteId);
 }
 
 function cancelEditNote(model) {
-    renderNotebookNotes(model);
+    notebookManager.cancelEditNote(model);
 }
 
-async function deleteNotebookNote(model, noteId) {
-    if (!(await window.showConfirm('确定要删除这条笔记吗？', '删除笔记', 'trash-2'))) return;
-
-    const notes = getNotebookNotes(model);
-    const filtered = notes.filter(n => n.id !== noteId);
-    saveNotebookNotes(model, filtered);
-    renderNotebookNotes(model);
-    window.showToast('笔记已删除', 'success', 1500);
+function deleteNotebookNote(model, noteId) {
+    notebookManager.deleteNote(model, noteId);
 }
 
-async function bindCurrentCanvasToNote(model, noteId) {
-    const activeImageSrc = getActiveCanvasImage();
-        
-    if (!activeImageSrc) {
-        window.showToast('当前画布无生成图片', 'warning');
-        return;
-    }
-
-    const notes = getNotebookNotes(model);
-    const noteIdx = notes.findIndex(n => n.id === noteId);
-    if (noteIdx === -1) return;
-
-    window.showToast('正在生成缩略图...', 'info', 1000);
-    const preview = await getPreviewThumbnail(activeImageSrc);
-    if (!preview) {
-        window.showToast('无法从当前画布生成缩略图', 'error');
-        return;
-    }
-
-    notes[noteIdx].preview = preview;
-    saveNotebookNotes(model, notes);
-    renderNotebookNotes(model);
-    window.showToast('已绑定当前画布图片为预览', 'success');
+function bindCurrentCanvasToNote(model, noteId) {
+    const imageSrc = getActiveCanvasImage();
+    notebookManager.bindCurrentCanvasToNote(model, noteId, imageSrc);
 }
 
 function removeNotePreview(model, noteId) {
-    const notes = getNotebookNotes(model);
-    const noteIdx = notes.findIndex(n => n.id === noteId);
-    if (noteIdx === -1) return;
-
-    notes[noteIdx].preview = null;
-    saveNotebookNotes(model, notes);
-    renderNotebookNotes(model);
-    window.showToast('已移除预览图', 'success');
+    notebookManager.removeNotePreview(model, noteId);
 }
 
 function viewNotebookNotePreview(model, noteId) {
-    const notes = getNotebookNotes(model);
-    const note = notes.find(n => n.id === noteId);
-    if (!note || !note.preview) return;
-    openLightbox({
-        image: note.preview,
-        prompt: note.prompt,
-        negative: note.negative,
-        model: model
-    });
+    notebookManager.viewNotebookNotePreview(model, noteId);
 }
 
 function exportNotebook() {
-    const v3Notes = getNotebookNotes('v3');
-    const v45Notes = getNotebookNotes('v4.5');
-    
-    if (v3Notes.length === 0 && v45Notes.length === 0) {
-        window.showToast('笔记本为空，无需导出', 'warning');
-        return;
-    }
-
-    const backup = {
-        type: 'nai_notebook_backup',
-        version: 1,
-        v3: v3Notes,
-        'v4.5': v45Notes
-    };
-
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const filename = `novelai-notebook-backup-${new Date().toISOString().split('T')[0]}.json`;
-    triggerDownload(url, filename);
-    window.showToast('导出备份成功', 'success');
+    notebookManager.exportNotebook();
 }
 
 function triggerImportNotebook() {
-    const input = document.getElementById('notebookImportInput');
-    if (input) {
-        input.value = ''; // Reset
-        input.click();
-    }
+    notebookManager.triggerImportNotebook();
 }
 
-async function importNotebook(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        try {
-            const data = JSON.parse(e.target.result);
-            if (data.type !== 'nai_notebook_backup' || !data.version) {
-                window.showToast('无效的备份文件格式', 'error');
-                return;
-            }
-
-            const v3Import = Array.isArray(data.v3) ? data.v3 : [];
-            const v45Import = Array.isArray(data['v4.5']) ? data['v4.5'] : [];
-
-            if (v3Import.length === 0 && v45Import.length === 0) {
-                window.showToast('备份文件中没有笔记数据', 'warning');
-                return;
-            }
-
-            const confirmMsg = `确定要导入备份吗？将合并导入 ${v3Import.length} 条 V3 笔记和 ${v45Import.length} 条 V4.5 笔记（自动过滤重复项）。`;
-            if (!(await window.showConfirm(confirmMsg, '导入备份', 'upload-cloud'))) {
-                return;
-            }
-
-            // Merge V3
-            let v3Added = 0;
-            if (v3Import.length > 0) {
-                const currentV3 = getNotebookNotes('v3');
-                const mergedV3 = [...currentV3];
-                v3Import.forEach(imp => {
-                    const isDup = mergedV3.some(n => n.prompt === imp.prompt && n.negative === imp.negative);
-                    if (!isDup) {
-                        mergedV3.push({
-                            id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
-                            prompt: imp.prompt,
-                            negative: imp.negative || '',
-                            preview: imp.preview || null,
-                            createdAt: imp.createdAt || Date.now()
-                        });
-                        v3Added++;
-                    }
-                });
-                mergedV3.sort((a, b) => b.createdAt - a.createdAt);
-                saveNotebookNotes('v3', mergedV3);
-            }
-
-            // Merge V4.5
-            let v45Added = 0;
-            if (v45Import.length > 0) {
-                const currentV45 = getNotebookNotes('v4.5');
-                const mergedV45 = [...currentV45];
-                v45Import.forEach(imp => {
-                    const isDup = mergedV45.some(n => n.prompt === imp.prompt && n.negative === imp.negative);
-                    if (!isDup) {
-                        mergedV45.push({
-                            id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
-                            prompt: imp.prompt,
-                            negative: imp.negative || '',
-                            preview: imp.preview || null,
-                            createdAt: imp.createdAt || Date.now()
-                        });
-                        v45Added++;
-                    }
-                });
-                mergedV45.sort((a, b) => b.createdAt - a.createdAt);
-                saveNotebookNotes('v4.5', mergedV45);
-            }
-
-            window.showToast(`导入成功！新增 V3: ${v3Added}条, V4.5: ${v45Added}条`, 'success');
-            renderNotebookNotes(currentNotebookModel);
-
-        } catch (err) {
-            console.error('Failed to import notebook:', err);
-            window.showToast('解析备份文件失败: ' + err.message, 'error');
-        }
-    };
-    reader.readAsText(file);
+function importNotebook(event) {
+    notebookManager.importNotebook(event);
 }
-
-// ======================== End 笔记本功能 ========================
 
 // --- 暴露给 Window 的代理方法 ---
-const renderNotebookCallback = () => renderNotebookNotes(currentNotebookModel);
+const renderNotebookCallback = () => notebookManager.render();
 
 Object.assign(window, {
     toggleMobileControls: (s) => ui.toggleMobileControls(s),
@@ -2132,9 +1329,7 @@ async function loadTags() {
                             response.json().then(freshData => {
                                 tagData = freshData;
                                 if (promptHelper) {
-                                    promptHelper.tagData = freshData;
-                                    promptHelper.tagArray = Object.entries(freshData); // 同步更新 entries 缓存
-                                    promptHelper.updateTranslations();
+                                    promptHelper.updateTagData(freshData);
                                 }
                             }).catch(() => {});
                         }
@@ -2168,7 +1363,17 @@ async function loadTags() {
     if (data) {
         tagData = data;
         if (els.prompt) {
-            promptHelper = new PromptHelper(els.prompt, tagData);
+            promptHelper = new PromptHelper({
+                promptEl: els.prompt,
+                containerEl: document.getElementById('promptHelperContainer'),
+                tagData: tagData,
+                onTagSelected: (newText, newCursorPos) => {
+                    els.prompt.value = newText;
+                    els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
+                    els.prompt.focus();
+                    els.prompt.setSelectionRange(newCursorPos, newCursorPos);
+                }
+            });
         }
     }
 }
