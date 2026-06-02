@@ -238,6 +238,44 @@ class PromptHelper {
             return inner.includes(',');
         };
 
+        const isVibeWrapped = (s) => {
+            const matchStart = s.match(/^(-?[0-9.]+)\s*::/);
+            if (!matchStart) return false;
+            if (!s.endsWith('::')) return false;
+
+            const startLen = matchStart[0].length;
+            const inner = s.substring(startLen, s.length - 2);
+            if (!inner.includes(',')) return false;
+
+            let depth = 0;
+            let vibeDepth = 1;
+
+            for (let i = startLen; i < s.length - 2; i++) {
+                const char = s[i];
+                if (char === '(' || char === '{' || char === '[') {
+                    depth++;
+                } else if (char === ')' || char === '}' || char === ']') {
+                    depth = Math.max(0, depth - 1);
+                }
+
+                if (depth === 0) {
+                    const sub = s.substring(i);
+                    const subVibeStart = sub.match(/^(-?[0-9.]+)\s*::/);
+                    if (subVibeStart) {
+                        vibeDepth++;
+                        i += subVibeStart[0].length - 1;
+                    } else if (sub.startsWith('::')) {
+                        vibeDepth--;
+                        i += 1;
+                        if (vibeDepth === 0) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return vibeDepth === 1;
+        };
+
         if (isOuterWrapped(str)) {
             const first = str[0];
             const last = str[str.length - 1];
@@ -245,6 +283,15 @@ class PromptHelper {
             
             const innerTags = this.expandPromptTags(inner);
             return innerTags.map(tag => first + tag + last);
+        }
+
+        if (isVibeWrapped(str)) {
+            const matchStart = str.match(/^(-?[0-9.]+)\s*::/);
+            const prefix = matchStart[0];
+            const inner = str.substring(prefix.length, str.length - 2);
+
+            const innerTags = this.expandPromptTags(inner);
+            return innerTags.map(tag => prefix + tag + '::');
         }
 
         const outerParts = splitOuterCommas(str);
