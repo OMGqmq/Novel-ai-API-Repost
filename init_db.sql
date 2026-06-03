@@ -38,3 +38,9 @@ CREATE TABLE IF NOT EXISTS credit_logs (
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 5. 索引优化 (用于加速关联查询与状态过滤)
+CREATE INDEX IF NOT EXISTS idx_credit_logs_user_id ON credit_logs (user_id);
+CREATE INDEX IF NOT EXISTS idx_cards_used_by_id ON cards (used_by_id);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users (status);
+
