@@ -1672,12 +1672,15 @@ function addApiKeyInputRow(val = '') {
     if (!container) return;
     
     const div = document.createElement('div');
-    div.className = 'flex gap-2 items-center api-key-row group';
+    div.className = 'flex flex-col gap-1.5 api-key-row group w-full border border-gray-100/50 dark:border-slate-800/50 p-2.5 rounded-2xl bg-gray-50/30 dark:bg-slate-950/20 transition-all';
     div.innerHTML = `
-        <input type="text" value="${val}" placeholder="pst-xxxxxxxxxxxxxxxx..." class="art-input flex-1 px-4 py-3 rounded-xl text-xs outline-none font-mono tracking-tight" />
-        <button onclick="removeApiKeyInputRow(this)" class="p-3 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-xl transition-all" title="删除">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-        </button>
+        <div class="flex gap-2 items-center w-full">
+            <input type="text" value="${val}" placeholder="pst-xxxxxxxxxxxxxxxx..." class="art-input flex-1 px-4 py-3 rounded-xl text-xs outline-none font-mono tracking-tight" />
+            <button onclick="removeApiKeyInputRow(this)" class="p-3 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-xl transition-all" title="删除">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+            </button>
+        </div>
+        <div class="api-key-balance text-[10px] text-gray-400 px-3 hidden"></div>
     `;
     container.appendChild(div);
 }
@@ -1710,11 +1713,54 @@ function enterCustomApiKey() {
         const keys = cur.split(/[\n,]/).map(k => k.trim()).filter(k => k);
         keys.forEach(k => addApiKeyInputRow(k));
         clearBtn.classList.remove('hidden');
+        
+        // 异步后台拉取每个 Key 的单独余额
+        window.fetchAndShowAllKeysBalances(keys);
     } else {
         addApiKeyInputRow();
         clearBtn.classList.add('hidden');
     }
 }
+
+window.fetchAndShowAllKeysBalances = async function(keys) {
+    const container = document.getElementById('apiKeyList');
+    if (!container) return;
+    
+    const rows = container.querySelectorAll('.api-key-row');
+    
+    keys.forEach(async (key, idx) => {
+        const row = rows[idx];
+        if (!row) return;
+        const balanceEl = row.querySelector('.api-key-balance');
+        if (!balanceEl) return;
+        
+        balanceEl.classList.remove('hidden');
+        balanceEl.innerHTML = '<span class="text-gray-400">⭮ 正在查询余额...</span>';
+        
+        try {
+            const res = await fetch('/verify-key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiKey: key })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.valid) {
+                    balanceEl.innerHTML = `<span class="text-emerald-500 font-semibold">✔ 订阅: ${data.tierName} | 余额: ${data.anlas} Anlas</span>`;
+                } else {
+                    balanceEl.innerHTML = `<span class="text-red-500">✗ ${data.error || '验证失败'}</span>`;
+                }
+            } else {
+                const text = await res.text();
+                let errMsg = '查询失败';
+                try { errMsg = JSON.parse(text).error || errMsg; } catch(_) {}
+                balanceEl.innerHTML = `<span class="text-red-500">✗ ${errMsg}</span>`;
+            }
+        } catch (e) {
+            balanceEl.innerHTML = `<span class="text-red-500">✗ 查询异常: ${e.message}</span>`;
+        }
+    });
+};
 
 function closeApiKeyModal() {
     closeModal('apiKeyModal');
@@ -1759,7 +1805,10 @@ async function verifyCustomApiKey() {
                     statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${data.tierName}</b>。已激活 ${keys.length} 个 Key 并发模式。</span>`;
                     document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                     checkAdminStatus();
-                    setTimeout(() => closeApiKeyModal(), 1500);
+                    if (window.fetchAndShowAllKeysBalances) {
+                        window.fetchAndShowAllKeysBalances(keys);
+                    }
+                    setTimeout(() => closeApiKeyModal(), 2000);
                     verified = true;
                 } else if (data.error) {
                     statusEl.innerHTML = `<span class="text-red-500">✗ ${data.error}</span>`;
@@ -1792,7 +1841,10 @@ async function verifyCustomApiKey() {
             statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${tierName}</b>。已激活 ${keys.length} 个 Key 并发模式。</span>`;
             document.getElementById('apiKeyClearBtn').classList.remove('hidden');
             checkAdminStatus();
-            setTimeout(() => closeApiKeyModal(), 1500);
+            if (window.fetchAndShowAllKeysBalances) {
+                window.fetchAndShowAllKeysBalances(keys);
+            }
+            setTimeout(() => closeApiKeyModal(), 2000);
             return;
         } catch (directErr) {
             console.warn('直接验证失败(可能 CORS 或存在无效 Key), 使用本地保存模式:', directErr.message);
