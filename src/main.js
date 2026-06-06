@@ -1694,6 +1694,43 @@ function removeApiKeyInputRow(button) {
     }
 }
 
+async function forceReloadApp() {
+    if (window.showToast) window.showToast("正在清理页面离线缓存...", "info");
+    
+    // 1. 注销所有已注册的 Service Workers
+    if ('serviceWorker' in navigator) {
+        try {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (let registration of registrations) {
+                await registration.unregister();
+            }
+        } catch (e) {
+            console.warn('Service Worker unregister failed:', e);
+        }
+    }
+    
+    // 2. 清除网页缓存数据库 (Cache Storage)
+    if ('caches' in window) {
+        try {
+            const keys = await caches.keys();
+            for (let key of keys) {
+                await caches.delete(key);
+            }
+        } catch (e) {
+            console.warn('Cache Storage delete failed:', e);
+        }
+    }
+    
+    if (window.showToast) window.showToast("缓存清理成功，正在重新加载页面...", "success");
+    
+    setTimeout(() => {
+        // 3. 追加当前时间戳参数，强制跳过任何可能残留的 index.html 强缓存并重新加载
+        const url = new URL(window.location.href);
+        url.searchParams.set('force_update', Date.now().toString());
+        window.location.replace(url.toString());
+    }, 800);
+}
+
 // --- 设置中心 (Settings Center) JS Logic ---
 let currentSettingsTab = 'api';
 
@@ -2422,7 +2459,7 @@ Object.assign(window, {
     exportNotebook, triggerImportNotebook, importNotebook,
 
     // 设置中心方法
-    openSettingsModal, closeSettingsModal, switchSettingsTab, openUserModalFromSettings, openAdminPanelFromSettings, updateSettingsUserCard,
+    openSettingsModal, closeSettingsModal, switchSettingsTab, openUserModalFromSettings, openAdminPanelFromSettings, updateSettingsUserCard, forceReloadApp,
 
     // 用户系统方法
     openUserModal, closeUserModal, switchAuthTab, submitAuth, submitRecharge, logoutUser, fetchUserProfile,
