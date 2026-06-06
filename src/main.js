@@ -1790,11 +1790,8 @@ function clearCustomApiKey() {
 }
 
 function updateAnlasUI(data) {
-    const isOpus = data.tier === 3;
     const anlasVal = typeof data.anlas === 'number' ? data.anlas : 0;
-    // Opus 且 Anlas 为 0 时说明是无限点数
-    const displayVal = (isOpus && anlasVal === 0) ? '无限' : anlasVal;
-    const text = `CustomAPI (Anlas: ${displayVal})`;
+    const text = `CustomAPI (Anlas: ${anlasVal})`;
 
     const desktopDisplay = document.getElementById('creditDisplayDesktop');
     const mobileDisplay = document.getElementById('creditDisplayMobile');
