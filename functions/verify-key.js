@@ -2,7 +2,7 @@
 // 验证用户自定义的 NovelAI API Key 是否有效
 
 export async function onRequest(context) {
-  // CORS 响应头定义
+  // CORS 响应头定义，支持预检和跨域
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
