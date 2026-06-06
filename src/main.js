@@ -1754,7 +1754,9 @@ window.fetchAndShowAllKeysBalances = async function(keys) {
                         }
                         if (detail.accountCreatedAt) {
                             try {
-                                const createdDate = new Date(detail.accountCreatedAt).toLocaleDateString();
+                                // NovelAI 返回的 accountCreatedAt 是以秒为单位的 Unix 时间戳，而 JS 的 Date 构造函数需要毫秒
+                                const timestamp = detail.accountCreatedAt < 10000000000 ? detail.accountCreatedAt * 1000 : detail.accountCreatedAt;
+                                const createdDate = new Date(timestamp).toLocaleDateString();
                                 detailText += ` | 创建: ${createdDate}`;
                             } catch (_) {}
                         }
