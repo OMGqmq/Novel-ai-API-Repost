@@ -654,3 +654,64 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     transition: none !important;
     transform: none !important;
 }
+
+/* --- settingsModal Styles (设置中心双栏样式) --- */
+.settings-tab-btn {
+    text-align: left;
+    color: #64748b; /* text-gray-500 */
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+.settings-tab-btn:hover {
+    color: #0f172a; /* dark text */
+    background: rgba(15, 23, 42, 0.04);
+}
+.dark .settings-tab-btn:hover {
+    color: #f8fafc;
+    background: rgba(248, 250, 252, 0.05);
+}
+.settings-tab-btn.active {
+    color: #10b981 !important; /* emerald-500 */
+    background: rgba(16, 185, 129, 0.08) !important;
+}
+.dark .settings-tab-btn.active {
+    color: #34d399 !important; /* emerald-400 */
+    background: rgba(52, 211, 153, 0.08) !important;
+}
+
+/* 移动端适配设置中心双栏 */
+@media (max-width: 640px) {
+    #settingsModal .custom-modal-content {
+        flex-direction: column !important;
+        height: 90vh !important;
+        max-height: none !important;
+    }
+    #settingsModal .w-1/3 {
+        width: 100% !important;
+        max-width: none !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 1.25rem !important;
+    }
+    .dark #settingsModal .w-1/3 {
+        border-bottom-color: rgba(255, 255, 255, 0.06);
+    }
+    #settingsModal #settingsTabs {
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    #settingsModal .settings-tab-btn {
+        width: auto !important;
+        flex: 1 1 calc(50% - 0.25rem);
+        padding: 6px 10px !important;
+        justify-content: center;
+    }
+    #settingsModal #settingsUserCard {
+        display: none !important; /* 移动端左下角就不放这个卡片了，高度有限 */
+    }
+    #settingsModal .flex-1 {
+        overflow-y: auto;
+    }
+}

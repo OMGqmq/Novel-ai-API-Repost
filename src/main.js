@@ -1185,38 +1185,30 @@ function updateLowPerfUI(enabled) {
     if (window.safeCreateIcons) window.safeCreateIcons();
 }
 
-function toggleLowPerf() {
+function toggleLowPerf(forceState) {
     const html = document.documentElement;
-    const enabled = !html.classList.contains('low-perf');
+    const enabled = typeof forceState === 'boolean' ? forceState : !html.classList.contains('low-perf');
     
     if (enabled) {
         html.classList.add('low-perf');
         store.setSetting('low_perf', 'true');
-        window.showToast("已开启低性能模式 (无动画与模糊)", "success");
+        if (typeof forceState !== 'boolean') window.showToast("已开启低性能模式 (无动画与模糊)", "success");
     } else {
         html.classList.remove('low-perf');
         store.setSetting('low_perf', 'false');
-        window.showToast("已恢复高性能视觉模式", "success");
+        if (typeof forceState !== 'boolean') window.showToast("已恢复高性能视觉模式", "success");
     }
     updateLowPerfUI(enabled);
+    
+    const checkbox = document.getElementById('settingsLowPerfCheckbox');
+    if (checkbox) checkbox.checked = enabled;
 }
 function enterAdminToken() {
-    openModal('adminTokenModal');
-    const cur = localStorage.getItem('nai_admin_token');
-    const input = document.getElementById('adminTokenInput');
-    const clearBtn = document.getElementById('adminTokenClearBtn');
-    const statusEl = document.getElementById('adminTokenStatus');
-    statusEl.classList.add('hidden');
-    if (cur) {
-        input.value = cur;
-        clearBtn.classList.remove('hidden');
-    } else {
-        input.value = '';
-        clearBtn.classList.add('hidden');
-    }
+    openSettingsModal();
+    switchSettingsTab('advanced');
 }
 function closeAdminTokenModal() {
-    closeModal('adminTokenModal');
+    closeSettingsModal();
 }
 function saveAdminToken() {
     const input = document.getElementById('adminTokenInput');
@@ -1230,6 +1222,10 @@ function saveAdminToken() {
     localStorage.setItem('nai_admin_token', val);
     statusEl.innerHTML = '<span class="text-green-500">✔ 密码已保存</span>';
     statusEl.classList.remove('hidden');
+    
+    const clearBtn = document.getElementById('adminTokenClearBtn');
+    if (clearBtn) clearBtn.classList.remove('hidden');
+    
     checkAdminStatus();
     setTimeout(() => closeAdminTokenModal(), 1000);
 }
@@ -1245,22 +1241,11 @@ function clearAdminToken() {
 }
 
 function enterUserKey() {
-    openModal('userKeyModal');
-    const cur = localStorage.getItem('nai_user_key');
-    const input = document.getElementById('userKeyInput');
-    const clearBtn = document.getElementById('userKeyClearBtn');
-    const statusEl = document.getElementById('userKeyStatus');
-    statusEl.classList.add('hidden');
-    if (cur) {
-        input.value = cur;
-        clearBtn.classList.remove('hidden');
-    } else {
-        input.value = '';
-        clearBtn.classList.add('hidden');
-    }
+    openSettingsModal();
+    switchSettingsTab('card');
 }
 function closeUserKeyModal() {
-    closeModal('userKeyModal');
+    closeSettingsModal();
 }
 function saveUserKey() {
     const input = document.getElementById('userKeyInput');
@@ -1274,6 +1259,10 @@ function saveUserKey() {
     localStorage.setItem('nai_user_key', val);
     statusEl.innerHTML = '<span class="text-green-500">✔ VIP 卡密已保存</span>';
     statusEl.classList.remove('hidden');
+    
+    const clearBtn = document.getElementById('userKeyClearBtn');
+    if (clearBtn) clearBtn.classList.remove('hidden');
+    
     setTimeout(() => closeUserKeyModal(), 1000);
 }
 function clearUserKey() {
@@ -1427,6 +1416,13 @@ function checkAdminStatus() {
         if (hasAdminToken) adminPanelBtnMobile.classList.remove('hidden');
         else adminPanelBtnMobile.classList.add('hidden');
     }
+
+    const adminPanelEntrance = document.getElementById('adminPanelEntrance');
+    if (adminPanelEntrance) {
+        if (hasAdminToken) adminPanelEntrance.classList.remove('hidden');
+        else adminPanelEntrance.classList.add('hidden');
+    }
+}
 
     // 更新解除限制开关的启用状态和视觉指示
     const checkbox = document.getElementById('bypassLimitsEnabled');
@@ -1699,27 +1695,180 @@ function removeApiKeyInputRow(button) {
     }
 }
 
-function enterCustomApiKey() {
-    openModal('apiKeyModal');
+// --- 设置中心 (Settings Center) JS Logic ---
+let currentSettingsTab = 'api';
+
+function openSettingsModal() {
+    openModal('settingsModal');
+    
+    // 初始化时，载入 API Key 列表
     const container = document.getElementById('apiKeyList');
-    if (container) container.innerHTML = '';
-    
-    const cur = localStorage.getItem('nai_custom_api_key');
-    const clearBtn = document.getElementById('apiKeyClearBtn');
-    const statusEl = document.getElementById('apiKeyStatus');
-    statusEl.classList.add('hidden');
-    
-    if (cur) {
-        const keys = cur.split(/[\n,]/).map(k => k.trim()).filter(k => k);
-        keys.forEach(k => addApiKeyInputRow(k));
-        clearBtn.classList.remove('hidden');
+    if (container) {
+        container.innerHTML = '';
+        const cur = localStorage.getItem('nai_custom_api_key');
+        const clearBtn = document.getElementById('apiKeyClearBtn');
+        const statusEl = document.getElementById('apiKeyStatus');
+        if (statusEl) statusEl.classList.add('hidden');
         
-        // 异步后台拉取每个 Key 的单独余额
-        window.fetchAndShowAllKeysBalances(keys);
-    } else {
-        addApiKeyInputRow();
-        clearBtn.classList.add('hidden');
+        if (cur) {
+            const keys = cur.split(/[\n,]/).map(k => k.trim()).filter(k => k);
+            keys.forEach(k => addApiKeyInputRow(k));
+            if (clearBtn) clearBtn.classList.remove('hidden');
+            if (window.fetchAndShowAllKeysBalances) {
+                window.fetchAndShowAllKeysBalances(keys);
+            }
+        } else {
+            addApiKeyInputRow();
+            if (clearBtn) clearBtn.classList.add('hidden');
+        }
     }
+
+    // 载入卡密兑换状态
+    const userKeyInput = document.getElementById('userKeyInput');
+    const userKeyClearBtn = document.getElementById('userKeyClearBtn');
+    const userKeyStatus = document.getElementById('userKeyStatus');
+    if (userKeyStatus) userKeyStatus.classList.add('hidden');
+    const curUserKey = localStorage.getItem('nai_user_key');
+    if (curUserKey) {
+        if (userKeyInput) userKeyInput.value = curUserKey;
+        if (userKeyClearBtn) userKeyClearBtn.classList.remove('hidden');
+    } else {
+        if (userKeyInput) userKeyInput.value = '';
+        if (userKeyClearBtn) userKeyClearBtn.classList.add('hidden');
+    }
+
+    // 载入管理员密码状态
+    const adminTokenInput = document.getElementById('adminTokenInput');
+    const adminTokenClearBtn = document.getElementById('adminTokenClearBtn');
+    const adminTokenStatus = document.getElementById('adminTokenStatus');
+    if (adminTokenStatus) adminTokenStatus.classList.add('hidden');
+    const curAdminToken = localStorage.getItem('nai_admin_token');
+    if (curAdminToken) {
+        if (adminTokenInput) adminTokenInput.value = curAdminToken;
+        if (adminTokenClearBtn) adminTokenClearBtn.classList.remove('hidden');
+    } else {
+        if (adminTokenInput) adminTokenInput.value = '';
+        if (adminTokenClearBtn) adminTokenClearBtn.classList.add('hidden');
+    }
+
+    // 同步低性能优化开关状态
+    const lowPerfCheckbox = document.getElementById('settingsLowPerfCheckbox');
+    if (lowPerfCheckbox) {
+        lowPerfCheckbox.checked = document.documentElement.classList.contains('low-perf');
+    }
+
+    // 同步更新管理员特权入口
+    checkAdminStatus();
+
+    // 更新左下角用户卡片
+    updateSettingsUserCard();
+
+    // 渲染切换到当前的 Tab
+    switchSettingsTab(currentSettingsTab);
+}
+
+function closeSettingsModal() {
+    closeModal('settingsModal');
+}
+
+function switchSettingsTab(tabName) {
+    currentSettingsTab = tabName;
+    
+    // 1. 切换 Tab 按钮高亮
+    const tabContainer = document.getElementById('settingsTabs');
+    if (tabContainer) {
+        const btns = tabContainer.querySelectorAll('.settings-tab-btn');
+        btns.forEach(btn => {
+            if (btn.id === `settingsTab-${tabName}`) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    // 2. 切换右侧面板显隐
+    const panels = document.querySelectorAll('.settings-panel');
+    panels.forEach(panel => {
+        if (panel.id === `settingsPanel-${tabName}`) {
+            panel.classList.remove('hidden');
+        } else {
+            panel.classList.add('hidden');
+        }
+    });
+}
+
+function openUserModalFromSettings() {
+    closeSettingsModal();
+    openUserModal();
+}
+
+function openAdminPanelFromSettings() {
+    closeSettingsModal();
+    openAdminPanel();
+}
+
+function updateSettingsUserCard() {
+    const cardContainer = document.getElementById('settingsUserCard');
+    if (!cardContainer) return;
+
+    const token = localStorage.getItem('nai_user_token');
+    if (!token) {
+        cardContainer.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                    <i data-lucide="user" class="w-4 h-4 text-gray-400"></i>
+                </div>
+                <div class="flex flex-col min-w-0">
+                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium">商业计费系统</span>
+                    <span class="text-[11px] font-bold text-gray-600 dark:text-gray-300 truncate">未登录账户</span>
+                </div>
+            </div>
+            <button onclick="openUserModalFromSettings()" class="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 注册 / 登录账户
+            </button>
+        `;
+    } else {
+        const desktopDisplay = document.getElementById('userCreditsDisplay');
+        let username = "已登录";
+        let credits = "--";
+        if (desktopDisplay && desktopDisplay.textContent) {
+            const match = desktopDisplay.textContent.match(/^(.*)\s*\(余:(.*)\)$/);
+            if (match) {
+                username = match[1].trim();
+                credits = match[2].trim();
+            }
+        }
+        cardContainer.innerHTML = `
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                    <i data-lucide="user" class="w-4 h-4 text-emerald-500"></i>
+                </div>
+                <div class="flex flex-col min-w-0 flex-1">
+                    <span class="text-[11px] font-bold text-gray-800 dark:text-gray-100 truncate block w-full max-w-[120px]">${username}</span>
+                    <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">余额: ${credits} 点</span>
+                </div>
+            </div>
+            <button onclick="logoutUser()" class="w-full py-1.5 bg-gray-150 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-gray-500 dark:text-gray-400 rounded-xl text-[10px] font-bold transition-all">
+                退出登录
+            </button>
+        `;
+    }
+
+    if (window.safeCreateIcons) {
+        window.safeCreateIcons();
+    } else if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
+
+// 重新实现 API Key 面板的快捷入口
+function enterCustomApiKey() {
+    openSettingsModal();
+    switchSettingsTab('api');
+}
+function closeApiKeyModal() {
+    closeSettingsModal();
 }
 
 window.fetchAndShowAllKeysBalances = async function(keys) {
@@ -2276,6 +2425,9 @@ Object.assign(window, {
     bindCurrentCanvasToNote, removeNotePreview, viewNotebookNotePreview,
     exportNotebook, triggerImportNotebook, importNotebook,
 
+    // 设置中心方法
+    openSettingsModal, closeSettingsModal, switchSettingsTab, openUserModalFromSettings, openAdminPanelFromSettings, updateSettingsUserCard,
+
     // 用户系统方法
     openUserModal, closeUserModal, switchAuthTab, submitAuth, submitRecharge, logoutUser, fetchUserProfile,
 
@@ -2338,6 +2490,10 @@ function updateUserCreditsUI(user) {
     const profilePanel = document.getElementById('userProfilePanel');
     if (authPanel) authPanel.classList.add('hidden');
     if (profilePanel) profilePanel.classList.remove('hidden');
+    
+    if (window.updateSettingsUserCard) {
+        updateSettingsUserCard();
+    }
 }
 
 function openUserModal() {
@@ -2514,11 +2670,19 @@ function logoutUser() {
     
     closeUserModal();
     window.showToast("已退出登录", "info");
+    
+    if (window.updateSettingsUserCard) {
+        updateSettingsUserCard();
+    }
 }
 
 // On page load, fetch user profile if token exists
 if (localStorage.getItem('nai_user_token')) {
     fetchUserProfile();
+}
+// 无论是否拥有 token，在页面加载时都初始化一次设置里的用户卡片
+if (window.updateSettingsUserCard) {
+    updateSettingsUserCard();
 }
 
 // --- 管理员后台 (Admin Panel) JS Logic ---

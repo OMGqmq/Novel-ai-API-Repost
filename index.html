@@ -287,28 +287,16 @@
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="toggleLowPerf()" id="lowPerfBtn"
-                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"
-                        title="低性能模式"><i data-lucide="zap" class="w-4 h-4 text-amber-500"></i></button>
                     <button onclick="toggleTheme()"
-                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"><i
-                            data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun"
-                            class="w-4 h-4 hidden dark:block"></i></button>
-                    <button onclick="enterCustomApiKey()" id="apiBtn"
                         class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"
-                        title="自定义 API Key"><i data-lucide="globe" class="w-4 h-4"></i></button>
+                        title="切换主题"><i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun"
+                            class="w-4 h-4 hidden dark:block"></i></button>
+                    <button onclick="openSettingsModal()" id="settingsBtn"
+                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"
+                        title="设置中心"><i data-lucide="settings" class="w-4 h-4"></i></button>
                     <button onclick="openUserModal()" id="userBtn"
                         class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"
                         title="用户中心"><i data-lucide="user" class="w-4 h-4"></i></button>
-                    <button onclick="openAdminPanel()" id="adminPanelBtn"
-                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 hover:text-red-500 transition-colors hidden"
-                        title="管理后台"><i data-lucide="settings" class="w-4 h-4"></i></button>
-                    <button onclick="enterUserKey()" id="keyBtn"
-                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"
-                        title="兑换/输入卡密"><i data-lucide="key" class="w-4 h-4"></i></button>
-                    <button onclick="enterAdminToken()" id="adminLockBtn"
-                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"><i
-                            data-lucide="lock" class="w-4 h-4"></i></button>
                 </div>
             </div>
             <div class="relative bg-gray-100/50 dark:bg-slate-800/50 p-1 rounded-xl flex border border-gray-200/50 dark:border-gray-700/50"
@@ -330,27 +318,15 @@
             <div class="md:hidden flex justify-between items-center px-1 pb-1">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">配置</span>
                 <div class="flex gap-2">
-                    <button onclick="toggleLowPerf()" id="lowPerfBtnMobile"
-                        class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"
-                        title="低性能模式"><i data-lucide="zap" class="w-4 h-4 text-amber-500"></i></button>
                     <button onclick="toggleTheme()"
                         class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="moon"
                             class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun"
                             class="w-4 h-4 hidden dark:block"></i></button>
-                    <button onclick="enterCustomApiKey()" id="apiBtnMobile"
-                        class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="globe"
-                            class="w-4 h-4"></i></button>
+                    <button onclick="openSettingsModal()" id="settingsBtnMobile"
+                        class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"
+                        title="设置中心"><i data-lucide="settings" class="w-4 h-4"></i></button>
                     <button onclick="openUserModal()" id="userBtnMobile"
                         class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="user"
-                            class="w-4 h-4"></i></button>
-                    <button onclick="openAdminPanel()" id="adminPanelBtnMobile"
-                        class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-red-500 hidden"
-                        title="管理后台"><i data-lucide="settings" class="w-4 h-4"></i></button>
-                    <button onclick="enterUserKey()" id="keyBtnMobile"
-                        class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="key"
-                            class="w-4 h-4"></i></button>
-                    <button onclick="enterAdminToken()" id="adminLockBtnMobile"
-                        class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="lock"
                             class="w-4 h-4"></i></button>
                 </div>
             </div>
@@ -702,102 +678,217 @@
         <i data-lucide="sparkles" class="w-7 h-7 text-yellow-300 dark:text-yellow-600"></i>
     </button>
 
-    <!-- 自定义 API Key 弹窗 -->
-    <div id="apiKeyModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
-        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeApiKeyModal()"></div>
-        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[95%] max-w-lg p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <i data-lucide="globe" class="w-5 h-5 text-blue-500"></i> 自定义 API Key(s)
-                </h3>
-                <button onclick="closeApiKeyModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400 transition-colors">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                输入您的 NovelAI API Token (以 <code>pst-</code> 开头)。可点击 “+” 添加多个 Key 开启多路并发生成，体验速度极致！
-            </p>
+    <!-- 统一设置中心弹窗 -->
+    <div id="settingsModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
+        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeSettingsModal()"></div>
+        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[95%] max-w-4xl h-[80vh] max-h-[680px] flex overflow-hidden transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
             
-            <!-- 动态 Key 容器 -->
-            <div id="apiKeyList" class="space-y-3 max-h-[220px] overflow-y-auto pr-1 custom-scroll">
-                <!-- 动态生成 key 输入行 -->
+            <!-- 左侧边栏 (Sidebar) -->
+            <div class="w-1/3 max-w-[240px] border-r border-gray-100 dark:border-slate-800/80 p-5 flex flex-col justify-between shrink-0 bg-gray-50/50 dark:bg-slate-950/30">
+                <div class="space-y-6">
+                    <div class="flex items-center gap-2 px-1">
+                        <i data-lucide="settings" class="w-5 h-5 text-gray-500 dark:text-gray-400"></i>
+                        <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">设置中心</h3>
+                    </div>
+                    <!-- 导航 Tab 列表 -->
+                    <nav class="space-y-1" id="settingsTabs">
+                        <button onclick="switchSettingsTab('api')" id="settingsTab-api" class="settings-tab-btn active w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all">
+                            <i data-lucide="globe" class="w-4 h-4"></i> API 密钥
+                        </button>
+                        <button onclick="switchSettingsTab('card')" id="settingsTab-card" class="settings-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all">
+                            <i data-lucide="key" class="w-4 h-4"></i> 卡密兑换
+                        </button>
+                        <button onclick="switchSettingsTab('guide')" id="settingsTab-guide" class="settings-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all">
+                            <i data-lucide="book-open" class="w-4 h-4"></i> 参数指南
+                        </button>
+                        <button onclick="switchSettingsTab('advanced')" id="settingsTab-advanced" class="settings-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all">
+                            <i data-lucide="lock" class="w-4 h-4"></i> 进阶设置
+                        </button>
+                    </nav>
+                </div>
+                
+                <!-- 左下角商业化用户卡片 -->
+                <div id="settingsUserCard" class="p-3 bg-gray-100/50 dark:bg-slate-800/40 border border-gray-200/50 dark:border-slate-850 rounded-2xl flex flex-col gap-2 transition-all">
+                    <!-- JS动态填充内容 -->
+                </div>
             </div>
 
-            <!-- 添加 Key 按钮 -->
-            <button onclick="addApiKeyInputRow()" class="w-full py-2.5 border border-dashed border-gray-200 dark:border-slate-700 hover:border-gray-400 dark:hover:border-slate-500 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all">
-                <i data-lucide="plus" class="w-3.5 h-3.5"></i> 添加 API Key
-            </button>
+            <!-- 右侧主内容区 (Main Panel) -->
+            <div class="flex-1 flex flex-col overflow-hidden bg-white/40 dark:bg-slate-900/40">
+                <!-- 右上角关闭按钮 -->
+                <div class="flex justify-end p-4 shrink-0">
+                    <button onclick="closeSettingsModal()" class="p-2 hover:bg-gray-150 dark:hover:bg-slate-800 rounded-full text-gray-400 hover:text-gray-650 transition-colors">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
 
-            <div id="apiKeyStatus" class="hidden text-xs px-1"></div>
-            
-            <div class="flex gap-3">
-                <button onclick="clearCustomApiKey()" id="apiKeyClearBtn" class="hidden flex-1 py-3.5 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
-                    清除所有 Key
-                </button>
-                <button onclick="verifyCustomApiKey()" id="apiKeyVerifyBtn" class="flex-1 py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
-                    验证并保存
-                </button>
-            </div>
-        </div>
-    </div>
+                <!-- 滚动内容容器 -->
+                <div class="flex-1 overflow-y-auto px-6 pb-8 custom-scroll space-y-6">
+                    
+                    <!-- 面板 1: API 密钥 -->
+                    <div id="settingsPanel-api" class="settings-panel space-y-4">
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                                <i data-lucide="globe" class="w-4 h-4 text-blue-500"></i> 自定义 API Key (密钥)
+                            </h4>
+                            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-relaxed">
+                                输入您的 NovelAI API Token (以 <code>pst-</code> 开头)。支持配置多个 Key 自动并发轮询与容灾切换，体验极致渲染速度！
+                            </p>
+                        </div>
+                        
+                        <!-- 动态 Key 容器 -->
+                        <div id="apiKeyList" class="space-y-3 max-h-[240px] overflow-y-auto pr-1 custom-scroll">
+                            <!-- 动态生成 key 输入行 -->
+                        </div>
 
-    <!-- 管理员密码配置弹窗 -->
-    <div id="adminTokenModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
-        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeAdminTokenModal()"></div>
-        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[90%] max-w-md p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <i data-lucide="lock" class="w-5 h-5 text-amber-500"></i> 管理员密码
-                </h3>
-                <button onclick="closeAdminTokenModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400 transition-colors">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                输入您的管理员密码以解锁高级批量生成控制以及其他特权。
-            </p>
-            <div class="relative">
-                <input type="password" id="adminTokenInput" placeholder="输入管理员密码..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none tracking-widest font-mono">
-            </div>
-            <div id="adminTokenStatus" class="hidden text-xs px-1"></div>
-            <div class="flex gap-3">
-                <button onclick="clearAdminToken()" id="adminTokenClearBtn" class="hidden flex-1 py-3.5 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
-                    清空并注销
-                </button>
-                <button onclick="saveAdminToken()" id="adminTokenSaveBtn" class="flex-1 py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
-                    确认并保存
-                </button>
-            </div>
-        </div>
-    </div>
+                        <!-- 添加 Key 按钮 -->
+                        <button onclick="addApiKeyInputRow()" class="w-full py-2.5 border border-dashed border-gray-200 dark:border-slate-700/60 hover:border-gray-400 dark:hover:border-slate-500 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> 添加 API Key
+                        </button>
 
-    <!-- VIP 卡密输入弹窗 -->
-    <div id="userKeyModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
-        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeUserKeyModal()"></div>
-        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[90%] max-w-md p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <i data-lucide="key" class="w-5 h-5 text-yellow-500"></i> 输入 VIP 卡密
-                </h3>
-                <button onclick="closeUserKeyModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400 transition-colors">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
+                        <div id="apiKeyStatus" class="hidden text-xs px-1"></div>
+                        
+                        <div class="flex gap-3 pt-2">
+                            <button onclick="clearCustomApiKey()" id="apiKeyClearBtn" class="hidden flex-1 py-3 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+                                清除所有 Key
+                            </button>
+                            <button onclick="verifyCustomApiKey()" id="apiKeyVerifyBtn" class="flex-1 py-3 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+                                验证并保存
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 面板 2: 卡密兑换 -->
+                    <div id="settingsPanel-card" class="settings-panel hidden space-y-4">
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                                <i data-lucide="key" class="w-4 h-4 text-yellow-500"></i> 输入 VIP 卡密
+                            </h4>
+                            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-relaxed">
+                                输入您的专属 VIP 兑换卡密 (例如 <code>vip_12345678</code>)，激活账户画图点数。
+                            </p>
+                        </div>
+                        
+                        <div class="relative">
+                            <input type="text" id="userKeyInput" placeholder="请输入 VIP 卡密..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono">
+                        </div>
+                        <div id="userKeyStatus" class="hidden text-xs px-1"></div>
+                        <div class="flex gap-3 pt-2">
+                            <button onclick="clearUserKey()" id="userKeyClearBtn" class="hidden flex-1 py-3 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+                                注销卡密
+                            </button>
+                            <button onclick="saveUserKey()" id="userKeySaveBtn" class="flex-1 py-3 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+                                激活卡密
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 面板 3: 参数指南 -->
+                    <div id="settingsPanel-guide" class="settings-panel hidden space-y-4">
+                        <div class="space-y-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+                            <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                                <i data-lucide="book-open" class="w-4 h-4 text-emerald-500"></i> NovelAI 参数新手入门指南
+                            </h4>
+                            <div class="divide-y divide-gray-100 dark:divide-slate-800/80 space-y-4">
+                                <div class="pt-3 first:pt-0 space-y-1">
+                                    <span class="font-bold text-gray-700 dark:text-gray-200">📐 画幅比例与分辨率</span>
+                                    <p class="text-gray-500 dark:text-gray-400">控制图片的宽高比。推荐使用标准尺寸。注意对于 <b>Opus 订阅用户</b>：</p>
+                                    <ul class="list-disc pl-4 text-gray-500 dark:text-gray-400 space-y-0.5">
+                                        <li>标准分辨率（单张生成且总像素低于 1048576 像素，如 <code class="font-mono bg-gray-100 dark:bg-slate-800 px-1 rounded">1024x1024</code>, <code class="font-mono bg-gray-100 dark:bg-slate-800 px-1 rounded">832x1216</code>）<b>完全免费且无限次生成</b>。</li>
+                                        <li>超大分辨率（如宽或高超过限制）单张画图将<b>消耗您的 Anlas 余额点数</b>。</li>
+                                    </ul>
+                                </div>
+                                <div class="pt-3 space-y-1">
+                                    <span class="font-bold text-gray-700 dark:text-gray-200">⚡ 生成步数 (Steps)</span>
+                                    <p class="text-gray-500 dark:text-gray-400">表示 AI 迭代计算的次数。步数越多越细致，但耗时也相应变长。<b>推荐值：28 步</b>。</p>
+                                    <p class="text-amber-600 dark:text-amber-400">⚠️ 点数避坑：Opus 账号在 <b>28 步及以下</b> 单张画图是<b>完全免费</b>的。超过 28 步会按量消耗 Anlas！</p>
+                                </div>
+                                <div class="pt-3 space-y-1">
+                                    <span class="font-bold text-gray-700 dark:text-gray-200">🎯 提示词引导系数 (Prompt Scale / CFG)</span>
+                                    <p class="text-gray-500 dark:text-gray-400">决定 AI 对您的正向提示词的服从强度。<b>推荐值：5.0 ~ 7.0</b>。</p>
+                                    <p class="text-gray-550 dark:text-gray-455">若低于 3.0，画面可能会失去结构和内容；若超过 10.0，图像可能会色彩过度饱和、线条变得极其尖锐、产生噪点网格甚至画崩。</p>
+                                </div>
+                                <div class="pt-3 space-y-1">
+                                    <span class="font-bold text-gray-700 dark:text-gray-200">🧪 采样器 (Sampler)</span>
+                                    <p class="text-gray-500 dark:text-gray-400">选择用来给图像去噪的数学算法。常用采样器：</p>
+                                    <ul class="list-disc pl-4 text-gray-500 dark:text-gray-400 space-y-0.5">
+                                        <li><code class="font-mono bg-gray-100 dark:bg-slate-800 px-1 rounded">Euler Ancestral (Euler a)</code>：最经典的采样，生成速度最快，画面柔和明亮。</li>
+                                        <li><code class="font-mono bg-gray-100 dark:bg-slate-800 px-1 rounded">DPM++ 2M SDE Karras</code>：画面渲染细节极其精细，适合写实及包含复杂背景的插画。</li>
+                                    </ul>
+                                </div>
+                                <div class="pt-3 space-y-1">
+                                    <span class="font-bold text-gray-700 dark:text-gray-200">🎨 降噪强度 (Denoising Strength)</span>
+                                    <p class="text-gray-500 dark:text-gray-400">用于局部重绘（Inpaint）或画布扩图（Outpaint）。<b>推荐值：0.50 ~ 0.75</b>。</p>
+                                    <p class="text-gray-550 dark:text-gray-450">如果值设置过低，重绘的区域变化微乎其微；如果设置过高，AI 将彻底忽视选区内原有的画面，可能导致重绘区域与原图断层。</p>
+                                </div>
+                                <div class="pt-3 space-y-1">
+                                    <span class="font-bold text-gray-700 dark:text-gray-200">👥 氛围/角色参考强度 (Vibe Transfer)</span>
+                                    <p class="text-gray-500 dark:text-gray-400">控制参考图对新生成图像的风格及构图干预强度：</p>
+                                    <ul class="list-disc pl-4 text-gray-550 dark:text-gray-400 space-y-0.5">
+                                        <li><b>氛围强度 (Information Extracted)</b>：色彩和构图的提取度，建议 <b>0.7~0.8</b>。</li>
+                                        <li><b>角色参考强度 (Reference Strength)</b>：人物特征的参考度，建议 <b>0.6</b>。</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 面板 4: 进阶与管理员设置 -->
+                    <div id="settingsPanel-advanced" class="settings-panel hidden space-y-4">
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                                <i data-lucide="lock" class="w-4 h-4 text-amber-500"></i> 管理员密码
+                            </h4>
+                            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-relaxed">
+                                输入您的后台管理员密码，解锁管理员控制权、免 Key 使用额度以及进行批量卡密审批。
+                            </p>
+                        </div>
+                        
+                        <div class="relative">
+                            <input type="password" id="adminTokenInput" placeholder="输入管理员密码..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none tracking-widest font-mono">
+                        </div>
+                        <div id="adminTokenStatus" class="hidden text-xs px-1"></div>
+                        
+                        <div class="flex gap-3 pt-2">
+                            <button onclick="clearAdminToken()" id="adminTokenClearBtn" class="hidden flex-1 py-3 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+                                注销管理员
+                            </button>
+                            <button onclick="saveAdminToken()" id="adminTokenSaveBtn" class="flex-1 py-3 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+                                确认并保存
+                            </button>
+                        </div>
+
+                        <!-- 进阶系统开关区 -->
+                        <div class="border-t border-gray-100 dark:border-slate-800/80 pt-4 space-y-3">
+                            <h5 class="text-xs font-bold text-gray-700 dark:text-gray-300">系统性能调整</h5>
+                            <div class="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-150 dark:border-slate-800/60 rounded-2xl">
+                                <div class="flex flex-col gap-0.5">
+                                    <span class="text-xs font-bold text-gray-700 dark:text-gray-250 flex items-center gap-1.5">
+                                        <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i> 低性能优化模式
+                                    </span>
+                                    <span class="text-[10px] text-gray-400 dark:text-gray-500">禁用界面粒子和高能动效，适用于低端或发热手机。</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="settingsLowPerfCheckbox" onchange="toggleLowPerf(this.checked)" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 管理后台专属快捷入口 -->
+                        <div id="adminPanelEntrance" class="hidden border-t border-gray-100 dark:border-slate-800/80 pt-4 space-y-3">
+                            <h5 class="text-xs font-bold text-red-500 flex items-center gap-1">
+                                <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> 管理员特权控制区
+                            </h5>
+                            <button onclick="openAdminPanelFromSettings()" class="w-full py-3.5 text-xs font-bold rounded-2xl bg-red-500 hover:bg-red-650 text-white shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                                <i data-lucide="settings" class="w-4 h-4"></i> 进入系统管理后台
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
             </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                输入您的专属 VIP 兑换卡密 (例如 <code>vip_12345678</code>)，激活画图点数。
-            </p>
-            <div class="relative">
-                <input type="text" id="userKeyInput" placeholder="请输入 VIP 卡密..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono">
-            </div>
-            <div id="userKeyStatus" class="hidden text-xs px-1"></div>
-            <div class="flex gap-3">
-                <button onclick="clearUserKey()" id="userKeyClearBtn" class="hidden flex-1 py-3.5 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
-                    注销卡密
-                </button>
-                <button onclick="saveUserKey()" id="userKeySaveBtn" class="flex-1 py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
-                    激活卡密
-                </button>
-            </div>
+
         </div>
     </div>
 
