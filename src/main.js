@@ -1762,6 +1762,21 @@ window.fetchAndShowAllKeysBalances = async function(keys) {
                                 detailText += ` | 创建: ${createdDate}`;
                             } catch (_) {}
                         }
+                        if (detail.expiresAt) {
+                            try {
+                                // NovelAI 返回的 expiresAt 也是以秒为单位的 Unix 时间戳
+                                const expireTimestamp = detail.expiresAt < 10000000000 ? detail.expiresAt * 1000 : detail.expiresAt;
+                                const expireDate = new Date(expireTimestamp);
+                                const expireDateString = expireDate.toLocaleDateString();
+                                const msLeft = expireTimestamp - Date.now();
+                                const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+                                if (daysLeft > 0) {
+                                    detailText += ` | 到期: ${expireDateString} (剩余 ${daysLeft} 天)`;
+                                } else {
+                                    detailText += ` | 到期: ${expireDateString} (已过期)`;
+                                }
+                            } catch (_) {}
+                        }
                     }
                     balanceEl.innerHTML = `<span class="text-emerald-500 font-semibold">${detailText}</span>`;
                 } else {
