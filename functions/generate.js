@@ -64,12 +64,12 @@ export async function onRequest(context) {
     // 6. 成功出图后的副作用 (扣费或记录限流)
     if (isVip && authType === 'JWT' && userId && remainingCredits > 0) {
       // 注册用户扣点 + 记录日志
-      const updateStmt = env.DB.prepare("UPDATE users SET credits = credits - 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND credits > 0");
-      const logStmt = env.DB.prepare("INSERT INTO credit_logs (user_id, action, amount, description) VALUES (?, 'generate', -1, '生成图画消费')");
+      const updateStmt = env.DB.prepare("UPDATE users SET credits = credits - 1, updated_at = datetime('now', '+8 hours') WHERE id = ? AND credits > 0");
+      const logStmt = env.DB.prepare("INSERT INTO credit_logs (user_id, action, amount, description, created_at) VALUES (?, 'generate', -1, '生成图画消费', datetime('now', '+8 hours'))");
       waitUntil(env.DB.batch([updateStmt.bind(userId), logStmt.bind(userId)]));
     } else if (isVip && userKey && remainingCredits > 0 && userRole.startsWith("VIP")) {
       // VIP 扣费
-      waitUntil(env.DB.prepare("UPDATE cards SET credits = credits - 1, updated_at = CURRENT_TIMESTAMP WHERE card_key = ? AND credits > 0").bind(userKey).run());
+      waitUntil(env.DB.prepare("UPDATE cards SET credits = credits - 1, updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND credits > 0").bind(userKey).run());
     } else if (!isVip && recordUsage) {
       // 免费用户限流记录
       await recordUsage(waitUntil);

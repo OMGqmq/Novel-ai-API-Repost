@@ -81,15 +81,15 @@ export async function onRequest(context) {
 
     // 4. 原子性操作：使用 D1 batch 执行事务
     const updateCard = db.prepare(
-      "UPDATE cards SET is_used = 1, used_by_id = ?, used_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE card_key = ? AND is_used = 0"
+      "UPDATE cards SET is_used = 1, used_by_id = ?, used_at = datetime('now', '+8 hours'), updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND is_used = 0"
     ).bind(payload.id, trimmedCardKey);
 
     const updateUser = db.prepare(
-      "UPDATE users SET credits = credits + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+      "UPDATE users SET credits = credits + ?, updated_at = datetime('now', '+8 hours') WHERE id = ?"
     ).bind(addedCredits, payload.id);
 
     const writeLog = db.prepare(
-      "INSERT INTO credit_logs (user_id, action, amount, description) VALUES (?, 'recharge', ?, ?)"
+      "INSERT INTO credit_logs (user_id, action, amount, description, created_at) VALUES (?, 'recharge', ?, ?, datetime('now', '+8 hours'))"
     ).bind(payload.id, addedCredits, `充值卡密: ${trimmedCardKey}`);
 
     // D1 batch 会原子性地运行这三条 SQL

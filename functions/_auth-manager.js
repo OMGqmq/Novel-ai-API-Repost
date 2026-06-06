@@ -117,8 +117,8 @@ export async function authenticate(request, env) {
       async recordUsage(waitUntil) {
         const sql = `
           INSERT INTO free_limits (key, count, updated_at) 
-          VALUES (?, 1, CURRENT_TIMESTAMP)
-          ON CONFLICT(key) DO UPDATE SET count = count + 1, updated_at = CURRENT_TIMESTAMP
+          VALUES (?, 1, datetime('now', '+8 hours'))
+          ON CONFLICT(key) DO UPDATE SET count = count + 1, updated_at = datetime('now', '+8 hours')
         `;
         waitUntil(Promise.all([
           db.prepare(sql).bind(globalKey).run(),

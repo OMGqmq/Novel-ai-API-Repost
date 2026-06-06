@@ -70,7 +70,7 @@ export async function onRequest(context) {
     // 6. 成功后的副作用 (扣费或记录限流)
     if (isVip && userKey && remainingCredits > 0 && userRole.startsWith("VIP")) {
       // VIP 扣费
-      waitUntil(env.DB.prepare("UPDATE cards SET credits = credits - 1, updated_at = CURRENT_TIMESTAMP WHERE card_key = ? AND credits > 0").bind(userKey).run());
+      waitUntil(env.DB.prepare("UPDATE cards SET credits = credits - 1, updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND credits > 0").bind(userKey).run());
     } else if (!isVip && recordUsage) {
       // 免费用户限流记录
       await recordUsage(waitUntil);

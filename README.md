@@ -63,15 +63,15 @@
 CREATE TABLE IF NOT EXISTS cards (
     card_key TEXT PRIMARY KEY,
     credits INTEGER NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (datetime('now', '+8 hours')),
+    updated_at DATETIME DEFAULT (datetime('now', '+8 hours'))
 );
 
 -- 2. 创建免费用户/IP每日限流表
 CREATE TABLE IF NOT EXISTS free_limits (
     key TEXT PRIMARY KEY,
     count INTEGER NOT NULL DEFAULT 0,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT (datetime('now', '+8 hours'))
 );
 ```
 

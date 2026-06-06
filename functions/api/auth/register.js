@@ -72,7 +72,7 @@ export async function onRequest(context) {
 
     // 写入数据库
     const result = await db.prepare(
-      "INSERT INTO users (username, password_hash, salt, role, credits, status) VALUES (?, ?, ?, 'User', ?, 'Pending')"
+      "INSERT INTO users (username, password_hash, salt, role, credits, status, created_at, updated_at) VALUES (?, ?, ?, 'User', ?, 'Pending', datetime('now', '+8 hours'), datetime('now', '+8 hours'))"
     ).bind(trimmedUsername, passwordHash, salt, defaultCredits).run();
 
     if (!result.success) {
@@ -83,7 +83,7 @@ export async function onRequest(context) {
     const userRow = await db.prepare("SELECT id FROM users WHERE username = ?").bind(trimmedUsername).first();
     if (userRow) {
       await db.prepare(
-        "INSERT INTO credit_logs (user_id, action, amount, description) VALUES (?, 'register', ?, '注册赠送初始额度')"
+        "INSERT INTO credit_logs (user_id, action, amount, description, created_at) VALUES (?, 'register', ?, '注册赠送初始额度', datetime('now', '+8 hours'))"
       ).bind(userRow.id, defaultCredits).run();
     }
 

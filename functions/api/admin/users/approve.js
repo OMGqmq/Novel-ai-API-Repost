@@ -76,13 +76,13 @@ export async function onRequest(context) {
       }
       
       batchStmts.push(
-        db.prepare("UPDATE users SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(status, userId)
+        db.prepare("UPDATE users SET status = ?, updated_at = datetime('now', '+8 hours') WHERE id = ?").bind(status, userId)
       );
       
       // 记录日志
       if (user.status !== status) {
         batchStmts.push(
-          db.prepare("INSERT INTO credit_logs (user_id, action, amount, description) VALUES (?, 'admin_status', 0, ?)")
+          db.prepare("INSERT INTO credit_logs (user_id, action, amount, description, created_at) VALUES (?, 'admin_status', 0, ?, datetime('now', '+8 hours'))")
             .bind(userId, `管理员将状态从 '${user.status}' 变更为 '${status}'`)
         );
       }
@@ -99,14 +99,14 @@ export async function onRequest(context) {
       }
 
       batchStmts.push(
-        db.prepare("UPDATE users SET credits = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(newCredits, userId)
+        db.prepare("UPDATE users SET credits = ?, updated_at = datetime('now', '+8 hours') WHERE id = ?").bind(newCredits, userId)
       );
 
       // 记录日志
       const diff = newCredits - user.credits;
       if (diff !== 0) {
         batchStmts.push(
-          db.prepare("INSERT INTO credit_logs (user_id, action, amount, description) VALUES (?, 'admin_adjust', ?, ?)")
+          db.prepare("INSERT INTO credit_logs (user_id, action, amount, description, created_at) VALUES (?, 'admin_adjust', ?, ?, datetime('now', '+8 hours'))")
             .bind(userId, diff, `管理员调整点数：从 ${user.credits} 调整为 ${newCredits}`)
         );
       }
