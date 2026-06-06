@@ -1,5 +1,5 @@
 // functions/verify-key.js
-// 验证用户自定义的 NovelAI API Key 是否有效，并获取 Anlas 余额
+// 验证用户自定义的 NovelAI API Key 是否有效，并获取 Anlas 余额与账号详细信息
 
 export async function onRequest(context) {
   // CORS 响应头定义，支持预检和跨域
@@ -65,14 +65,35 @@ export async function onRequest(context) {
         }
         const data = await res.json();
         const sub = data.subscription || {};
+        const info = data.information || {};
         const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
+
+        let emailVal = info.email || '';
+        if (!emailVal) {
+          try {
+            const resInfo = await fetch('https://api.novelai.net/user/information', {
+              headers: { 'Authorization': `Bearer ${key}` }
+            });
+            if (resInfo.ok) {
+              const infoData = await resInfo.json();
+              emailVal = infoData.email || infoData.username || '';
+            }
+          } catch (e) {
+            console.warn('获取 email 失败:', e.message);
+          }
+        }
+
         return {
           key,
           valid: true,
           tier: sub.tier,
           tierName: tierNames[sub.tier] || `Tier ${sub.tier}`,
           active: sub.active,
-          anlas: getAnlasFromSub(sub)
+          anlas: getAnlasFromSub(sub),
+          emailVerified: info.emailVerified || false,
+          accountCreatedAt: info.accountCreatedAt || 0,
+          expiresAt: sub.expiresAt || 0,
+          email: emailVal
         };
       });
 
@@ -98,6 +119,29 @@ export async function onRequest(context) {
       });
 
       const firstSuccess = results[0].value;
+      const details = results.map((r, idx) => {
+        if (r.status === 'fulfilled') {
+          return {
+            key: keysToVerify[idx],
+            valid: true,
+            tier: r.value.tier,
+            tierName: r.value.tierName,
+            active: r.value.active,
+            anlas: r.value.anlas,
+            emailVerified: r.value.emailVerified,
+            accountCreatedAt: r.value.accountCreatedAt,
+            expiresAt: r.value.expiresAt,
+            email: r.value.email
+          };
+        } else {
+          return {
+            key: keysToVerify[idx],
+            valid: false,
+            error: r.reason.message
+          };
+        }
+      });
+
       return new Response(JSON.stringify({
         valid: true,
         tier: firstSuccess.tier,
@@ -106,7 +150,8 @@ export async function onRequest(context) {
         anlas: firstSuccess.anlas,
         totalAnlas: totalAnlas,
         keyCount: keysToVerify.length,
-        allKeysValid: true
+        allKeysValid: true,
+        details: details
       }), {
         status: 200,
         headers: {
@@ -127,7 +172,7 @@ export async function onRequest(context) {
       });
     }
 
-    // 向 NovelAI 请求用户完整数据以验证 Key 并获取 Anlas 余额
+    // 向 NovelAI 请求用户完整数据以验证 Key 并获取 Anlas 余额及账号信息
     const res = await fetch('https://api.novelai.net/user/data', {
       headers: { 'Authorization': `Bearer ${apiKey.trim()}` }
     });
@@ -144,10 +189,26 @@ export async function onRequest(context) {
 
     const data = await res.json();
     const sub = data.subscription || {};
+    const info = data.information || {};
     const anlasVal = getAnlasFromSub(sub);
     // tier: 0=free, 1=tablet, 2=scroll, 3=opus
     const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
     const tierName = tierNames[sub.tier] || `Tier ${sub.tier}`;
+
+    let emailVal = info.email || '';
+    if (!emailVal) {
+      try {
+        const resInfo = await fetch('https://api.novelai.net/user/information', {
+          headers: { 'Authorization': `Bearer ${apiKey.trim()}` }
+        });
+        if (resInfo.ok) {
+          const infoData = await resInfo.json();
+          emailVal = infoData.email || infoData.username || '';
+        }
+      } catch (e) {
+        console.warn('获取 email 失败:', e.message);
+      }
+    }
 
     return new Response(JSON.stringify({
       valid: true,
@@ -156,7 +217,19 @@ export async function onRequest(context) {
       active: sub.active,
       anlas: anlasVal,
       totalAnlas: anlasVal,
-      keyCount: 1
+      keyCount: 1,
+      details: [{
+        key: apiKey,
+        valid: true,
+        tier: sub.tier,
+        tierName: tierName,
+        active: sub.active,
+        anlas: anlasVal,
+        emailVerified: info.emailVerified || false,
+        accountCreatedAt: info.accountCreatedAt || 0,
+        expiresAt: sub.expiresAt || 0,
+        email: emailVal
+      }]
     }), {
       status: 200,
       headers: {

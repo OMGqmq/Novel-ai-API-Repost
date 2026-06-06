@@ -1746,7 +1746,20 @@ window.fetchAndShowAllKeysBalances = async function(keys) {
             if (res.ok) {
                 const data = await res.json();
                 if (data.valid) {
-                    balanceEl.innerHTML = `<span class="text-emerald-500 font-semibold">✔ 订阅: ${data.tierName} | 余额: ${data.anlas} Anlas</span>`;
+                    let detailText = `✔ 订阅: ${data.tierName} | 余额: ${data.anlas} Anlas`;
+                    const detail = data.details && data.details[0];
+                    if (detail) {
+                        if (detail.email) {
+                            detailText += ` | 邮箱: ${detail.email}`;
+                        }
+                        if (detail.accountCreatedAt) {
+                            try {
+                                const createdDate = new Date(detail.accountCreatedAt).toLocaleDateString();
+                                detailText += ` | 创建: ${createdDate}`;
+                            } catch (_) {}
+                        }
+                    }
+                    balanceEl.innerHTML = `<span class="text-emerald-500 font-semibold">${detailText}</span>`;
                 } else {
                     balanceEl.innerHTML = `<span class="text-red-500">✗ ${data.error || '验证失败'}</span>`;
                 }

@@ -293,6 +293,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                 resp_data = response.read()
                                 user_data = json.loads(resp_data.decode('utf-8'))
                                 sub_data = user_data.get('subscription', {})
+                                info_data = user_data.get('information', {})
                                 tier = sub_data.get('tier', 0)
                                 tier_names = {0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus'}
                                 tier_name = tier_names.get(tier, f'Tier {tier}')
@@ -304,12 +305,34 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                 else:
                                     anlas_val = 0
 
+                                # 获取 Email
+                                email_val = info_data.get("email", "")
+                                if not email_val:
+                                    try:
+                                        info_req = urllib.request.Request(
+                                            'https://api.novelai.net/user/information',
+                                            headers={
+                                                'Authorization': f'Bearer {key}',
+                                                'User-Agent': 'Mozilla/5.0'
+                                            },
+                                            method='GET'
+                                        )
+                                        with urllib.request.urlopen(info_req, timeout=5) as info_resp:
+                                            info_json = json.loads(info_resp.read().decode('utf-8'))
+                                            email_val = info_json.get("email") or info_json.get("username") or ""
+                                    except Exception as info_err:
+                                        print(f"获取邮箱失败: {info_err}")
+
                                 success_results.append({
                                     "key": key,
                                     "tier": tier,
                                     "tierName": tier_name,
                                     "active": sub_data.get('active', False),
-                                    "anlas": anlas_val
+                                    "anlas": anlas_val,
+                                    "emailVerified": info_data.get("emailVerified", False),
+                                    "accountCreatedAt": info_data.get("accountCreatedAt", 0),
+                                    "expiresAt": sub_data.get("expiresAt", 0),
+                                    "email": email_val
                                 })
                         except Exception as e:
                             failed_keys.append(f"{key[:10]}...")
@@ -323,6 +346,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     
                     first_success = success_results[0]
                     total_anlas = sum(item.get("anlas", 0) for item in success_results)
+                    
+                    details = []
+                    for item in success_results:
+                        details.append({
+                            "key": item["key"],
+                            "valid": True,
+                            "tier": item["tier"],
+                            "tierName": item["tierName"],
+                            "active": item["active"],
+                            "anlas": item["anlas"],
+                            "emailVerified": item.get("emailVerified", False),
+                            "accountCreatedAt": item.get("accountCreatedAt", 0),
+                            "expiresAt": item.get("expiresAt", 0),
+                            "email": item.get("email", "")
+                        })
+
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
                     self.end_headers()
@@ -334,7 +373,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         "anlas": first_success.get("anlas", 0),
                         "totalAnlas": total_anlas,
                         "keyCount": len(success_results),
-                        "allKeysValid": True
+                        "allKeysValid": True,
+                        "details": details
                     }).encode('utf-8'))
                     print(f"--- 验证成功! 共 {len(success_results)} 个 Key 均有效。首个 Key 订阅等级: {first_success['tierName']} ---")
                     return
@@ -365,9 +405,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     tier_names = {0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus'}
                     tier_name = tier_names.get(tier, f'Tier {tier}')
                     
-                    self.send_response(200)
-                    self.send_header('Content-Type', 'application/json')
-                    self.end_headers()
                     tsl = sub_data.get('trainingStepsLeft', 0)
                     if isinstance(tsl, dict):
                         anlas_val = tsl.get('fixedTrainingStepsLeft', 0) + tsl.get('purchasedTrainingSteps', 0)
@@ -375,7 +412,29 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         anlas_val = int(tsl)
                     else:
                         anlas_val = 0
+                    info_data = user_data.get('information', {})
 
+                    # 获取 Email
+                    email_val = info_data.get("email", "")
+                    if not email_val:
+                        try:
+                            info_req = urllib.request.Request(
+                                'https://api.novelai.net/user/information',
+                                headers={
+                                    'Authorization': f'Bearer {api_key}',
+                                    'User-Agent': 'Mozilla/5.0'
+                                },
+                                method='GET'
+                            )
+                            with urllib.request.urlopen(info_req, timeout=5) as info_resp:
+                                info_json = json.loads(info_resp.read().decode('utf-8'))
+                                email_val = info_json.get("email") or info_json.get("username") or ""
+                        except Exception as info_err:
+                            print(f"获取邮箱失败: {info_err}")
+
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
                     self.wfile.write(json.dumps({
                         "valid": True,
                         "tier": tier,
@@ -383,7 +442,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         "active": sub_data.get('active', False),
                         "anlas": anlas_val,
                         "totalAnlas": anlas_val,
-                        "keyCount": 1
+                        "keyCount": 1,
+                        "details": [{
+                            "key": api_key,
+                            "valid": True,
+                            "tier": tier,
+                            "tierName": tier_name,
+                            "active": sub_data.get('active', False),
+                            "anlas": anlas_val,
+                            "emailVerified": info_data.get("emailVerified", False),
+                            "accountCreatedAt": info_data.get("accountCreatedAt", 0),
+                            "expiresAt": sub_data.get("expiresAt", 0),
+                            "email": email_val
+                        }]
                     }).encode('utf-8'))
                     print(f"--- 验证成功! 订阅等级: {tier_name} ---")
                     
