@@ -296,12 +296,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                 tier = sub_data.get('tier', 0)
                                 tier_names = {0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus'}
                                 tier_name = tier_names.get(tier, f'Tier {tier}')
+                                tsl = sub_data.get('trainingStepsLeft', 0)
+                                if isinstance(tsl, dict):
+                                    anlas_val = tsl.get('fixedTrainingStepsLeft', 0) + tsl.get('purchasedTrainingSteps', 0)
+                                elif isinstance(tsl, (int, float)):
+                                    anlas_val = int(tsl)
+                                else:
+                                    anlas_val = 0
+
                                 success_results.append({
                                     "key": key,
                                     "tier": tier,
                                     "tierName": tier_name,
                                     "active": sub_data.get('active', False),
-                                    "anlas": user_data.get('anlas', 0)
+                                    "anlas": anlas_val
                                 })
                         except Exception as e:
                             failed_keys.append(f"{key[:10]}...")
@@ -360,13 +368,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
                     self.end_headers()
+                    tsl = sub_data.get('trainingStepsLeft', 0)
+                    if isinstance(tsl, dict):
+                        anlas_val = tsl.get('fixedTrainingStepsLeft', 0) + tsl.get('purchasedTrainingSteps', 0)
+                    elif isinstance(tsl, (int, float)):
+                        anlas_val = int(tsl)
+                    else:
+                        anlas_val = 0
+
                     self.wfile.write(json.dumps({
                         "valid": True,
                         "tier": tier,
                         "tierName": tier_name,
                         "active": sub_data.get('active', False),
-                        "anlas": user_data.get('anlas', 0),
-                        "totalAnlas": user_data.get('anlas', 0),
+                        "anlas": anlas_val,
+                        "totalAnlas": anlas_val,
                         "keyCount": 1
                     }).encode('utf-8'))
                     print(f"--- 验证成功! 订阅等级: {tier_name} ---")

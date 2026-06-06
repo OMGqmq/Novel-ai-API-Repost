@@ -32,6 +32,17 @@ export async function onRequest(context) {
   try {
     const { apiKey, apiKeys } = await context.request.json();
 
+    // Helper: 从 NovelAI subscription.trainingStepsLeft 提取计算 Anlas
+    const getAnlasFromSub = (sub) => {
+      const tsl = sub.trainingStepsLeft;
+      if (typeof tsl === 'number') {
+        return tsl;
+      } else if (tsl && typeof tsl === 'object') {
+        return (tsl.fixedTrainingStepsLeft || 0) + (tsl.purchasedTrainingSteps || 0);
+      }
+      return 0;
+    };
+
     // 1. 如果传了 apiKeys 数组，支持并发验证所有 Key
     if (apiKeys && Array.isArray(apiKeys)) {
       const keysToVerify = apiKeys.map(k => k.trim()).filter(k => k);
@@ -61,7 +72,7 @@ export async function onRequest(context) {
           tier: sub.tier,
           tierName: tierNames[sub.tier] || `Tier ${sub.tier}`,
           active: sub.active,
-          anlas: data.anlas || 0
+          anlas: getAnlasFromSub(sub)
         };
       });
 
@@ -133,6 +144,7 @@ export async function onRequest(context) {
 
     const data = await res.json();
     const sub = data.subscription || {};
+    const anlasVal = getAnlasFromSub(sub);
     // tier: 0=free, 1=tablet, 2=scroll, 3=opus
     const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
     const tierName = tierNames[sub.tier] || `Tier ${sub.tier}`;
@@ -142,8 +154,8 @@ export async function onRequest(context) {
       tier: sub.tier,
       tierName: tierName,
       active: sub.active,
-      anlas: data.anlas || 0,
-      totalAnlas: data.anlas || 0,
+      anlas: anlasVal,
+      totalAnlas: anlasVal,
       keyCount: 1
     }), {
       status: 200,
