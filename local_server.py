@@ -320,7 +320,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                         with urllib.request.urlopen(info_req, timeout=5) as info_resp:
                                             info_json = json.loads(info_resp.read().decode('utf-8'))
                                             email_val = info_json.get("email") or info_json.get("username") or ""
+                                            raw_info_val = info_json
+                                    except urllib.error.HTTPError as info_err:
+                                        raw_info_val = {"error": f"HTTP {info_err.code}"}
+                                        print(f"获取邮箱失败: {info_err}")
                                     except Exception as info_err:
+                                        raw_info_val = {"error": "fetch_failed", "message": str(info_err)}
                                         print(f"获取邮箱失败: {info_err}")
 
                                 success_results.append({
@@ -332,7 +337,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                     "emailVerified": info_data.get("emailVerified", False),
                                     "accountCreatedAt": info_data.get("accountCreatedAt", 0),
                                     "expiresAt": sub_data.get("expiresAt", 0),
-                                    "email": email_val
+                                    "email": email_val,
+                                    "rawInfo": raw_info_val
                                 })
                         except Exception as e:
                             failed_keys.append(f"{key[:10]}...")
@@ -359,7 +365,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             "emailVerified": item.get("emailVerified", False),
                             "accountCreatedAt": item.get("accountCreatedAt", 0),
                             "expiresAt": item.get("expiresAt", 0),
-                            "email": item.get("email", "")
+                            "email": item.get("email", ""),
+                            "rawInfo": item.get("rawInfo", {})
                         })
 
                     self.send_response(200)

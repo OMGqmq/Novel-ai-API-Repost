@@ -1751,6 +1751,8 @@ window.fetchAndShowAllKeysBalances = async function(keys) {
                     if (detail) {
                         if (detail.email) {
                             detailText += ` | 邮箱: ${detail.email}`;
+                        } else if (detail.rawInfo) {
+                            detailText += ` | 调试: ${JSON.stringify(detail.rawInfo)}`;
                         }
                         if (detail.accountCreatedAt) {
                             try {

@@ -69,6 +69,7 @@ export async function onRequest(context) {
         const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
 
         let emailVal = info.email || '';
+        let rawInfoVal = info;
         if (!emailVal) {
           try {
             const resInfo = await fetch('https://api.novelai.net/user/information', {
@@ -77,9 +78,13 @@ export async function onRequest(context) {
             if (resInfo.ok) {
               const infoData = await resInfo.json();
               emailVal = infoData.email || infoData.username || '';
+              rawInfoVal = infoData;
+            } else {
+              rawInfoVal = { error: `HTTP ${resInfo.status}`, text: await resInfo.text() };
             }
           } catch (e) {
             console.warn('获取 email 失败:', e.message);
+            rawInfoVal = { error: 'fetch_failed', message: e.message };
           }
         }
 
@@ -93,7 +98,8 @@ export async function onRequest(context) {
           emailVerified: info.emailVerified || false,
           accountCreatedAt: info.accountCreatedAt || 0,
           expiresAt: sub.expiresAt || 0,
-          email: emailVal
+          email: emailVal,
+          rawInfo: rawInfoVal
         };
       });
 
@@ -131,7 +137,8 @@ export async function onRequest(context) {
             emailVerified: r.value.emailVerified,
             accountCreatedAt: r.value.accountCreatedAt,
             expiresAt: r.value.expiresAt,
-            email: r.value.email
+            email: r.value.email,
+            rawInfo: r.value.rawInfo
           };
         } else {
           return {
@@ -196,6 +203,7 @@ export async function onRequest(context) {
     const tierName = tierNames[sub.tier] || `Tier ${sub.tier}`;
 
     let emailVal = info.email || '';
+    let rawInfoVal = info;
     if (!emailVal) {
       try {
         const resInfo = await fetch('https://api.novelai.net/user/information', {
@@ -204,9 +212,13 @@ export async function onRequest(context) {
         if (resInfo.ok) {
           const infoData = await resInfo.json();
           emailVal = infoData.email || infoData.username || '';
+          rawInfoVal = infoData;
+        } else {
+          rawInfoVal = { error: `HTTP ${resInfo.status}`, text: await resInfo.text() };
         }
       } catch (e) {
         console.warn('获取 email 失败:', e.message);
+        rawInfoVal = { error: 'fetch_failed', message: e.message };
       }
     }
 
@@ -228,7 +240,8 @@ export async function onRequest(context) {
         emailVerified: info.emailVerified || false,
         accountCreatedAt: info.accountCreatedAt || 0,
         expiresAt: sub.expiresAt || 0,
-        email: emailVal
+        email: emailVal,
+        rawInfo: rawInfoVal
       }]
     }), {
       status: 200,
