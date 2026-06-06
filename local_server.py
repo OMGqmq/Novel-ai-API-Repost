@@ -314,6 +314,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         return
                     
                     first_success = success_results[0]
+                    total_anlas = sum(item.get("anlas", 0) for item in success_results)
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
                     self.end_headers()
@@ -323,6 +324,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         "tierName": first_success["tierName"],
                         "active": first_success["active"],
                         "anlas": first_success.get("anlas", 0),
+                        "totalAnlas": total_anlas,
+                        "keyCount": len(success_results),
                         "allKeysValid": True
                     }).encode('utf-8'))
                     print(f"--- 验证成功! 共 {len(success_results)} 个 Key 均有效。首个 Key 订阅等级: {first_success['tierName']} ---")
@@ -362,7 +365,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         "tier": tier,
                         "tierName": tier_name,
                         "active": sub_data.get('active', False),
-                        "anlas": user_data.get('anlas', 0)
+                        "anlas": user_data.get('anlas', 0),
+                        "totalAnlas": user_data.get('anlas', 0),
+                        "keyCount": 1
                     }).encode('utf-8'))
                     print(f"--- 验证成功! 订阅等级: {tier_name} ---")
                     

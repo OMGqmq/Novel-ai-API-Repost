@@ -1354,8 +1354,13 @@ function toggleBypassLimitsEnabled(forceState) {
 }
 
 function updateAnlasUI(data) {
-    const anlasVal = typeof data.anlas === 'number' ? data.anlas : 0;
-    const text = `CustomAPI (Anlas: ${anlasVal})`;
+    const anlasVal = typeof data.totalAnlas === 'number' ? data.totalAnlas : (typeof data.anlas === 'number' ? data.anlas : 0);
+    const keyCountVal = typeof data.keyCount === 'number' ? data.keyCount : 1;
+    
+    let text = `CustomAPI (Anlas: ${anlasVal})`;
+    if (keyCountVal > 1) {
+        text = `CustomAPI (Anlas: ${anlasVal} | ${keyCountVal}个Key)`;
+    }
 
     const desktopDisplay = document.getElementById('creditDisplayDesktop');
     const mobileDisplay = document.getElementById('creditDisplayMobile');

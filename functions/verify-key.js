@@ -78,6 +78,14 @@ export async function onRequest(context) {
         });
       }
 
+      // 累加所有有效 Key 的点数
+      let totalAnlas = 0;
+      results.forEach(r => {
+        if (r.status === 'fulfilled') {
+          totalAnlas += (r.value.anlas || 0);
+        }
+      });
+
       const firstSuccess = results[0].value;
       return new Response(JSON.stringify({
         valid: true,
@@ -85,6 +93,8 @@ export async function onRequest(context) {
         tierName: firstSuccess.tierName,
         active: firstSuccess.active,
         anlas: firstSuccess.anlas,
+        totalAnlas: totalAnlas,
+        keyCount: keysToVerify.length,
         allKeysValid: true
       }), {
         status: 200,
@@ -132,7 +142,9 @@ export async function onRequest(context) {
       tier: sub.tier,
       tierName: tierName,
       active: sub.active,
-      anlas: data.anlas || 0
+      anlas: data.anlas || 0,
+      totalAnlas: data.anlas || 0,
+      keyCount: 1
     }), {
       status: 200,
       headers: {
