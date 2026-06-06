@@ -1716,7 +1716,9 @@ async function verifyCustomApiKey() {
                 }
             }
         } catch (serverErr) {
-            console.warn('后端验证接口不可用, 尝试直接验证:', serverErr.message);
+            console.warn('后端验证接口不可用:', serverErr.message);
+            statusEl.innerHTML = `<span class="text-red-500">✗ 接口故障: ${serverErr.message}</span>`;
+            return;
         }
 
         if (verified) return;
