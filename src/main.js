@@ -1891,6 +1891,18 @@ function updateSettingsUserCard() {
         `;
     }
 
+    // 移动端专用迷你账户按钮状态同步
+    const mobileAccountText = document.getElementById('mobileAccountText');
+    if (mobileAccountText) {
+        if (!token) {
+            mobileAccountText.textContent = "账户";
+            mobileAccountText.parentElement.classList.remove('bg-emerald-100', 'dark:bg-emerald-500/20');
+        } else {
+            mobileAccountText.textContent = "已登录";
+            mobileAccountText.parentElement.classList.add('bg-emerald-100', 'dark:bg-emerald-500/20');
+        }
+    }
+
     if (window.safeCreateIcons) {
         window.safeCreateIcons();
     } else if (typeof lucide !== 'undefined') {

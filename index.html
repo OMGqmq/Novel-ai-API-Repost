@@ -27,7 +27,7 @@
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <link rel="stylesheet" href="src/style.css?v=202606061912">
+    <link rel="stylesheet" href="src/style.css?v=202606061917">
 </head>
 
 <body
@@ -680,9 +680,14 @@
             <!-- 左侧边栏 (Sidebar) -->
             <div class="w-1/3 max-w-[240px] border-r border-gray-100 dark:border-slate-800/80 p-5 flex flex-col justify-between shrink-0 bg-gray-50/50 dark:bg-slate-950/30">
                 <div class="space-y-6">
-                    <div class="flex items-center gap-2 px-1">
-                        <i data-lucide="settings" class="w-5 h-5 text-gray-500 dark:text-gray-400"></i>
-                        <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">设置中心</h3>
+                    <div class="flex items-center justify-between px-1">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="settings" class="w-5 h-5 text-gray-500 dark:text-gray-400"></i>
+                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">设置中心</h3>
+                        </div>
+                        <button onclick="openUserModalFromSettings()" class="md:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                            <i data-lucide="user" class="w-3.5 h-3.5"></i> 账户
+                        </button>
                     </div>
                     <!-- 导航 Tab 列表 -->
                     <nav class="space-y-1" id="settingsTabs">
@@ -1300,7 +1305,7 @@
         </div>
     </div>
 
-    <script type="module" src="src/main.js?v=202606061907"></script>
+    <script type="module" src="src/main.js?v=202606061917"></script>
 </body>
 
 </html>
