@@ -1422,7 +1422,6 @@ function checkAdminStatus() {
         if (hasAdminToken) adminPanelEntrance.classList.remove('hidden');
         else adminPanelEntrance.classList.add('hidden');
     }
-}
 
     // 更新解除限制开关的启用状态和视觉指示
     const checkbox = document.getElementById('bypassLimitsEnabled');
@@ -1943,9 +1942,6 @@ window.fetchAndShowAllKeysBalances = async function(keys) {
     });
 };
 
-function closeApiKeyModal() {
-    closeModal('apiKeyModal');
-}
 
 async function verifyCustomApiKey() {
     const container = document.getElementById('apiKeyList');
