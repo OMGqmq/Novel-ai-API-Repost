@@ -2,10 +2,30 @@
 // 验证用户自定义的 NovelAI API Key 是否有效
 
 export async function onRequest(context) {
+  // CORS 响应头定义
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
+  };
+
+  // 1. 兼容处理 OPTIONS 预检请求
+  if (context.request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
+  }
+
+  // 2. 只放行 POST 请求
   if (context.request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
     });
   }
 
@@ -18,7 +38,10 @@ export async function onRequest(context) {
       if (keysToVerify.length === 0) {
         return new Response(JSON.stringify({ error: '请输入 API Key' }), {
           status: 400,
-          headers: { 'Content-Type': 'application/json' }
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
         });
       }
 
@@ -46,7 +69,10 @@ export async function onRequest(context) {
         const errors = failed.map(f => f.reason.message).join(', ');
         return new Response(JSON.stringify({ error: `部分 Key 验证失败: ${errors}` }), {
           status: 401,
-          headers: { 'Content-Type': 'application/json' }
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
         });
       }
 
@@ -59,7 +85,10 @@ export async function onRequest(context) {
         allKeysValid: true
       }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
       });
     }
 
@@ -67,7 +96,10 @@ export async function onRequest(context) {
     if (!apiKey || !apiKey.trim()) {
       return new Response(JSON.stringify({ error: '请输入 API Key' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
       });
     }
 
@@ -79,7 +111,10 @@ export async function onRequest(context) {
     if (!res.ok) {
       return new Response(JSON.stringify({ error: 'API Key 无效或已过期，请检查后重试。' }), {
         status: 401,
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
       });
     }
 
@@ -95,13 +130,19 @@ export async function onRequest(context) {
       active: data.active
     }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
     });
 
   } catch (e) {
     return new Response(JSON.stringify({ error: '验证失败: ' + e.message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
     });
   }
 }
