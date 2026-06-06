@@ -282,7 +282,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     for key in keys_to_verify:
                         try:
                             req = urllib.request.Request(
-                                'https://api.novelai.net/user/subscription',
+                                'https://api.novelai.net/user/data',
                                 headers={
                                     'Authorization': f'Bearer {key}',
                                     'User-Agent': 'Mozilla/5.0'
@@ -291,7 +291,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             )
                             with urllib.request.urlopen(req) as response:
                                 resp_data = response.read()
-                                sub_data = json.loads(resp_data.decode('utf-8'))
+                                user_data = json.loads(resp_data.decode('utf-8'))
+                                sub_data = user_data.get('subscription', {})
                                 tier = sub_data.get('tier', 0)
                                 tier_names = {0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus'}
                                 tier_name = tier_names.get(tier, f'Tier {tier}')
@@ -299,7 +300,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                     "key": key,
                                     "tier": tier,
                                     "tierName": tier_name,
-                                    "active": sub_data.get('active', False)
+                                    "active": sub_data.get('active', False),
+                                    "anlas": user_data.get('anlas', 0)
                                 })
                         except Exception as e:
                             failed_keys.append(f"{key[:10]}...")
@@ -320,6 +322,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         "tier": first_success["tier"],
                         "tierName": first_success["tierName"],
                         "active": first_success["active"],
+                        "anlas": first_success.get("anlas", 0),
                         "allKeysValid": True
                     }).encode('utf-8'))
                     print(f"--- 验证成功! 共 {len(success_results)} 个 Key 均有效。首个 Key 订阅等级: {first_success['tierName']} ---")
@@ -335,7 +338,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 
                 print("--- 正在验证 API Key 有效性... ---")
                 req = urllib.request.Request(
-                    'https://api.novelai.net/user/subscription',
+                    'https://api.novelai.net/user/data',
                     headers={
                         'Authorization': f'Bearer {api_key}',
                         'User-Agent': 'Mozilla/5.0'
@@ -345,7 +348,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 
                 with urllib.request.urlopen(req) as response:
                     resp_data = response.read()
-                    sub_data = json.loads(resp_data.decode('utf-8'))
+                    user_data = json.loads(resp_data.decode('utf-8'))
+                    sub_data = user_data.get('subscription', {})
                     tier = sub_data.get('tier', 0)
                     tier_names = {0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus'}
                     tier_name = tier_names.get(tier, f'Tier {tier}')
@@ -357,7 +361,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         "valid": True,
                         "tier": tier,
                         "tierName": tier_name,
-                        "active": sub_data.get('active', False)
+                        "active": sub_data.get('active', False),
+                        "anlas": user_data.get('anlas', 0)
                     }).encode('utf-8'))
                     print(f"--- 验证成功! 订阅等级: {tier_name} ---")
                     

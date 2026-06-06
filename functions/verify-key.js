@@ -1,5 +1,5 @@
 // functions/verify-key.js
-// 验证用户自定义的 NovelAI API Key 是否有效
+// 验证用户自定义的 NovelAI API Key 是否有效，并获取 Anlas 余额
 
 export async function onRequest(context) {
   // CORS 响应头定义，支持预检和跨域
@@ -46,20 +46,22 @@ export async function onRequest(context) {
       }
 
       const promises = keysToVerify.map(async (key) => {
-        const res = await fetch('https://api.novelai.net/user/subscription', {
+        const res = await fetch('https://api.novelai.net/user/data', {
           headers: { 'Authorization': `Bearer ${key}` }
         });
         if (!res.ok) {
           throw new Error(`API Key (${key.substring(0, 10)}...) 验证失败`);
         }
         const data = await res.json();
+        const sub = data.subscription || {};
         const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
         return {
           key,
           valid: true,
-          tier: data.tier,
-          tierName: tierNames[data.tier] || `Tier ${data.tier}`,
-          active: data.active
+          tier: sub.tier,
+          tierName: tierNames[sub.tier] || `Tier ${sub.tier}`,
+          active: sub.active,
+          anlas: data.anlas || 0
         };
       });
 
@@ -82,6 +84,7 @@ export async function onRequest(context) {
         tier: firstSuccess.tier,
         tierName: firstSuccess.tierName,
         active: firstSuccess.active,
+        anlas: firstSuccess.anlas,
         allKeysValid: true
       }), {
         status: 200,
@@ -103,8 +106,8 @@ export async function onRequest(context) {
       });
     }
 
-    // 向 NovelAI 请求用户订阅信息来验证 Key 是否有效
-    const res = await fetch('https://api.novelai.net/user/subscription', {
+    // 向 NovelAI 请求用户完整数据以验证 Key 并获取 Anlas 余额
+    const res = await fetch('https://api.novelai.net/user/data', {
       headers: { 'Authorization': `Bearer ${apiKey.trim()}` }
     });
 
@@ -119,15 +122,17 @@ export async function onRequest(context) {
     }
 
     const data = await res.json();
+    const sub = data.subscription || {};
     // tier: 0=free, 1=tablet, 2=scroll, 3=opus
     const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
-    const tierName = tierNames[data.tier] || `Tier ${data.tier}`;
+    const tierName = tierNames[sub.tier] || `Tier ${sub.tier}`;
 
     return new Response(JSON.stringify({
       valid: true,
-      tier: data.tier,
+      tier: sub.tier,
       tierName: tierName,
-      active: data.active
+      active: sub.active,
+      anlas: data.anlas || 0
     }), {
       status: 200,
       headers: {

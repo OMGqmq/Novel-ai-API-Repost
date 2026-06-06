@@ -322,6 +322,11 @@ export class UIController {
             creditDisplayDesktop.textContent = text;
             creditDisplayDesktop.classList.remove('hidden');
         }
+
+        // 如果角色是 CustomAPI，自动在后台拉取并显示最新 Anlas 余额
+        if (roleStr.includes('CustomAPI') && window.refreshAnlasDisplay) {
+            window.refreshAnlasDisplay();
+        }
     }
 
     showImageActions(show) {

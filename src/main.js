@@ -1434,6 +1434,11 @@ function checkAdminStatus() {
     if (apiBtnMobile) updateApiBtn(apiBtnMobile);
 
     safeCreateIcons();
+
+    // 异步在后台获取最新的 Anlas 并更新顶部显示
+    if (customKey && window.refreshAnlasDisplay) {
+        window.refreshAnlasDisplay();
+    }
 }
 checkAdminStatus();
 
@@ -1774,8 +1779,59 @@ function clearCustomApiKey() {
     const statusEl = document.getElementById('apiKeyStatus');
     statusEl.innerHTML = '<span class="text-gray-500">✔ 已清除自定义 Key</span>';
     statusEl.classList.remove('hidden');
+    
+    // 隐藏顶部自定义 Key 余额显示
+    const oldDesktop = document.getElementById('creditDisplayDesktop');
+    const oldMobile = document.getElementById('creditDisplayMobile');
+    if (oldDesktop) oldDesktop.classList.add('hidden');
+    if (oldMobile) oldMobile.classList.add('hidden');
+
     checkAdminStatus();
 }
+
+function updateAnlasUI(data) {
+    const isOpus = data.tier === 3;
+    const anlasVal = typeof data.anlas === 'number' ? data.anlas : 0;
+    // Opus 且 Anlas 为 0 时说明是无限点数
+    const displayVal = (isOpus && anlasVal === 0) ? '无限' : anlasVal;
+    const text = `CustomAPI (Anlas: ${displayVal})`;
+
+    const desktopDisplay = document.getElementById('creditDisplayDesktop');
+    const mobileDisplay = document.getElementById('creditDisplayMobile');
+    
+    if (desktopDisplay) {
+        desktopDisplay.textContent = text;
+        desktopDisplay.classList.remove('hidden');
+    }
+    if (mobileDisplay) {
+        mobileDisplay.textContent = text;
+        mobileDisplay.classList.remove('hidden');
+    }
+}
+
+window.refreshAnlasDisplay = async function() {
+    const keysRaw = localStorage.getItem('nai_custom_api_key');
+    if (!keysRaw) return;
+    const keys = keysRaw.split('\n').map(k => k.trim()).filter(k => k);
+    if (keys.length === 0) return;
+    const keyToVerify = keys[0];
+
+    try {
+        const res = await fetch('/validate-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: keyToVerify, apiKeys: keys })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.valid) {
+                updateAnlasUI(data);
+            }
+        }
+    } catch (e) {
+        console.warn('自动刷新 Anlas 余额失败:', e.message);
+    }
+};
 
 // =================== 局部重绘 (Inpainting) ===================
 const inpaintEditor = new InpaintEditor({
