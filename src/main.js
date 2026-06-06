@@ -1393,7 +1393,7 @@ function checkAdminStatus() {
             checkbox.disabled = false;
             if (icon) {
                 icon.setAttribute('data-lucide', 'unlock');
-                icon.className = 'w-4 h-4 text-green-500';
+                icon.setAttribute('class', 'w-4 h-4 text-green-500');
             }
             if (badge) {
                 badge.textContent = '已解锁';
@@ -1408,7 +1408,7 @@ function checkAdminStatus() {
             toggleBypassLimitsEnabled(false);
             if (icon) {
                 icon.setAttribute('data-lucide', 'lock');
-                icon.className = 'w-4 h-4 text-gray-400';
+                icon.setAttribute('class', 'w-4 h-4 text-gray-400');
             }
             if (badge) {
                 badge.textContent = '锁定';
@@ -1716,9 +1716,7 @@ async function verifyCustomApiKey() {
                 }
             }
         } catch (serverErr) {
-            console.warn('后端验证接口不可用:', serverErr.message);
-            statusEl.innerHTML = `<span class="text-red-500">✗ 接口故障: ${serverErr.message}</span>`;
-            return;
+            console.warn('后端验证接口不可用, 尝试直接验证:', serverErr.message);
         }
 
         if (verified) return;
