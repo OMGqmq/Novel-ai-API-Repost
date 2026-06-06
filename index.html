@@ -685,13 +685,13 @@
                             <i data-lucide="settings" class="w-5 h-5 text-gray-500 dark:text-gray-400"></i>
                             <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">设置中心</h3>
                         </div>
-                        <button onclick="openUserModalFromSettings()" class="md:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
-                            <i data-lucide="user" class="w-3.5 h-3.5"></i> 账户
-                        </button>
                     </div>
                     <!-- 导航 Tab 列表 -->
                     <nav class="space-y-1" id="settingsTabs">
-                        <button onclick="switchSettingsTab('api')" id="settingsTab-api" class="settings-tab-btn active w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all">
+                        <button onclick="switchSettingsTab('account')" id="settingsTab-account" class="settings-tab-btn active w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all">
+                            <i data-lucide="user" class="w-4 h-4"></i> 账户中心
+                        </button>
+                        <button onclick="switchSettingsTab('api')" id="settingsTab-api" class="settings-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all">
                             <i data-lucide="globe" class="w-4 h-4"></i> API 密钥
                         </button>
                         <button onclick="switchSettingsTab('card')" id="settingsTab-card" class="settings-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all">
@@ -701,7 +701,10 @@
                             <i data-lucide="book-open" class="w-4 h-4"></i> 参数指南
                         </button>
                         <button onclick="switchSettingsTab('advanced')" id="settingsTab-advanced" class="settings-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all">
-                            <i data-lucide="lock" class="w-4 h-4"></i> 进阶设置
+                            <i data-lucide="lock" class="w-4 h-4"></i> 系统设置
+                        </button>
+                        <button onclick="switchSettingsTab('admin')" id="settingsTab-admin" class="settings-tab-btn hidden w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all text-red-500 hover:text-red-650 dark:text-red-400 dark:hover:text-red-300">
+                            <i data-lucide="shield-alert" class="w-4 h-4 text-red-500"></i> 管理后台
                         </button>
                     </nav>
                 </div>
@@ -724,8 +727,65 @@
                 <!-- 滚动内容容器 -->
                 <div class="flex-1 overflow-y-auto px-6 pb-8 custom-scroll space-y-6">
                     
-                    <!-- 面板 1: API 密钥 -->
-                    <div id="settingsPanel-api" class="settings-panel space-y-4">
+                    <!-- 面板 1: 账户中心 -->
+                    <div id="settingsPanel-account" class="settings-panel space-y-4">
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                                <i data-lucide="user" class="w-4 h-4 text-emerald-500"></i> 账户与额度管理
+                            </h4>
+                            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-relaxed">
+                                注册或登录您的云端账户。登录后可充值画图点数，点数可供画图使用，并支持云端同步。
+                            </p>
+                        </div>
+                        
+                        <div id="userAuthPanel" class="space-y-4">
+                            <div class="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl">
+                                <button onclick="switchAuthTab('login')" id="authTabLogin" class="flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 shadow-sm transition-all">登录</button>
+                                <button onclick="switchAuthTab('register')" id="authTabRegister" class="flex-1 text-center py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-all">注册</button>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="relative">
+                                    <input type="text" id="authUsername" placeholder="请输入用户名..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none">
+                                </div>
+                                <div class="relative">
+                                    <input type="password" id="authPassword" placeholder="请输入密码..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none">
+                                </div>
+                            </div>
+                            <div id="authStatus" class="hidden text-xs px-1"></div>
+                            <button onclick="submitAuth()" id="authSubmitBtn" class="w-full py-3.5 text-xs font-bold rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg transition-all active:scale-[0.98]">
+                                登录
+                            </button>
+                        </div>
+
+                        <div id="userProfilePanel" class="hidden space-y-4">
+                            <div class="flex items-center justify-between p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
+                                <div class="flex flex-col">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">当前账号</span>
+                                    <span id="profileUsername" class="text-sm font-bold text-gray-800 dark:text-gray-100">--</span>
+                                </div>
+                                <div class="flex flex-col items-end">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">剩余点数</span>
+                                    <span id="profileCredits" class="text-sm font-bold text-emerald-600 dark:text-emerald-400">-- 点</span>
+                                </div>
+                            </div>
+                            <div class="space-y-3 pt-2">
+                                <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">使用卡密充值</label>
+                                <div class="relative">
+                                    <input type="text" id="rechargeCardKey" placeholder="请输入充值卡密..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono">
+                                </div>
+                                <div id="rechargeStatus" class="hidden text-xs px-1"></div>
+                                <button onclick="submitRecharge()" id="rechargeSubmitBtn" class="w-full py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+                                    立即充值
+                                </button>
+                            </div>
+                            <button onclick="logoutUser()" class="w-full py-3.5 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+                                退出登录
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 面板 2: API 密钥 -->
+                    <div id="settingsPanel-api" class="settings-panel hidden space-y-4">
                         <div>
                             <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                                 <i data-lucide="globe" class="w-4 h-4 text-blue-500"></i> 自定义 API Key (密钥)
@@ -735,12 +795,9 @@
                             </p>
                         </div>
                         
-                        <!-- 动态 Key 容器 -->
                         <div id="apiKeyList" class="space-y-3 max-h-[240px] overflow-y-auto pr-1 custom-scroll">
-                            <!-- 动态生成 key 输入行 -->
                         </div>
 
-                        <!-- 添加 Key 按钮 -->
                         <button onclick="addApiKeyInputRow()" class="w-full py-2.5 border border-dashed border-gray-200 dark:border-slate-700/60 hover:border-gray-400 dark:hover:border-slate-500 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i> 添加 API Key
                         </button>
@@ -757,7 +814,7 @@
                         </div>
                     </div>
 
-                    <!-- 面板 2: 卡密兑换 -->
+                    <!-- 面板 3: 卡密兑换 -->
                     <div id="settingsPanel-card" class="settings-panel hidden space-y-4">
                         <div>
                             <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
@@ -782,7 +839,7 @@
                         </div>
                     </div>
 
-                    <!-- 面板 3: 参数指南 -->
+                    <!-- 面板 4: 参数指南 -->
                     <div id="settingsPanel-guide" class="settings-panel hidden space-y-4">
                         <div class="space-y-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
                             <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
@@ -832,11 +889,11 @@
                         </div>
                     </div>
 
-                    <!-- 面板 4: 进阶与管理员设置 -->
+                    <!-- 面板 5: 系统设置 -->
                     <div id="settingsPanel-advanced" class="settings-panel hidden space-y-4">
                         <div>
                             <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                                <i data-lucide="lock" class="w-4 h-4 text-amber-500"></i> 管理员密码
+                                <i data-lucide="lock" class="w-4 h-4 text-amber-500"></i> 系统与管理员设置
                             </h4>
                             <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-relaxed">
                                 输入您的后台管理员密码，解锁管理员控制权、免 Key 使用额度以及进行批量卡密审批。
@@ -871,20 +928,37 @@
                                     <input type="checkbox" id="settingsLowPerfCheckbox" onchange="toggleLowPerf(this.checked)" class="sr-only peer">
                                     <div class="w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
                                 </label>
+                            </div>
                         </div>
 
                         <!-- 网页资源更新区 -->
                         <div class="border-t border-gray-100 dark:border-slate-800/80 pt-4 space-y-3">
-                            <h5 class="text-xs font-bold text-gray-700 dark:text-gray-300">网页资源更新</h5>
+                            <h5 class="text-xs font-bold text-gray-705 dark:text-gray-300">网页资源强制更新</h5>
                             <div class="p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-150 dark:border-slate-800/60 rounded-2xl space-y-3">
                                 <div class="flex flex-col gap-0.5">
                                     <span class="text-xs font-bold text-gray-700 dark:text-gray-250 flex items-center gap-1.5">
                                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-emerald-500"></i> 重载并强制更新网页
                                     </span>
-                                    <span class="text-[10px] text-gray-400 dark:text-gray-500">清除浏览器对网页 HTML/JS/CSS 的离线缓存并强制刷新。您的自定义 API Key、笔记本及登录信息将<b>安全保留，不受任何影响</b>。</span>
+                                    <span class="text-[10px] text-gray-400 dark:text-gray-500">清除浏览器对网页静态文件（HTML/JS/CSS）的离线缓存并强刷。您的自定义 API Key、笔记本及登录信息将<b>安全保留，不受任何影响</b>。</span>
                                 </div>
                                 <button onclick="forceReloadApp()" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow-md active:scale-[0.98]">
                                     立即重载更新
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 本地存储空间清理 -->
+                        <div class="border-t border-gray-100 dark:border-slate-800/80 pt-4 space-y-3">
+                            <h5 class="text-xs font-bold text-gray-700 dark:text-gray-300">本地存储空间清理</h5>
+                            <div class="p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-150 dark:border-slate-800/60 rounded-2xl space-y-3">
+                                <div class="flex flex-col gap-0.5">
+                                    <span class="text-xs font-bold text-gray-700 dark:text-gray-250 flex items-center gap-1.5">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-500"></i> 清理画图历史图片记录
+                                    </span>
+                                    <span class="text-[10px] text-gray-400 dark:text-gray-500">清空浏览器本地保存的画图生成历史记录。您的自定义 API Key、笔记本及登录信息将<b>安全保留，不受任何影响</b>。</span>
+                                </div>
+                                <button onclick="clearImageHistoryCache()" class="w-full py-2.5 border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-[0.98]">
+                                    立即清理历史图片 (释放空间)
                                 </button>
                             </div>
                         </div>
@@ -894,151 +968,82 @@
                             <h5 class="text-xs font-bold text-red-500 flex items-center gap-1">
                                 <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> 管理员特权控制区
                             </h5>
-                            <button onclick="openAdminPanelFromSettings()" class="w-full py-3.5 text-xs font-bold rounded-2xl bg-red-500 hover:bg-red-650 text-white shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                            <button onclick="switchSettingsTab('admin')" class="w-full py-3.5 text-xs font-bold rounded-2xl bg-red-500 hover:bg-red-650 text-white shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
                                 <i data-lucide="settings" class="w-4 h-4"></i> 进入系统管理后台
                             </button>
                         </div>
                     </div>
 
-                </div>
-            </div>
+                    <!-- 面板 6: 管理后台 -->
+                    <div id="settingsPanel-admin" class="settings-panel hidden space-y-4">
+                        <div>
+                            <h4 class="text-sm font-bold text-red-500 flex items-center gap-2">
+                                <i data-lucide="shield-alert" class="w-4 h-4"></i> 系统管理后台
+                            </h4>
+                            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-relaxed">
+                                管理员控制后台，提供注册用户审批、点数划拨和卡密批量生成管理。
+                            </p>
+                        </div>
 
-        </div>
-    </div>
+                        <!-- 控制台 Tab 切换 -->
+                        <div class="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
+                            <button onclick="switchAdminTab('users')" id="adminTabUsers" class="flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 shadow-sm transition-all">用户审批与管理</button>
+                            <button onclick="switchAdminTab('cards')" id="adminTabCards" class="flex-1 text-center py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-all">批量生成充值卡密</button>
+                        </div>
 
-    <!-- 用户中心弹窗 -->
-    <div id="userModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
-        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeUserModal()"></div>
-        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[90%] max-w-md p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <i data-lucide="user" class="w-5 h-5 text-emerald-500"></i> 用户中心
-                </h3>
-                <button onclick="closeUserModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400 transition-colors">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
+                        <!-- Tab 1: 用户管理面板 -->
+                        <div id="adminUsersPanel" class="space-y-4">
+                            <div class="flex justify-between items-center px-1">
+                                <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">注册用户列表</span>
+                                <button onclick="fetchAdminUsers()" class="text-xs text-blue-500 hover:underline flex items-center gap-1"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 刷新列表</button>
+                            </div>
+                            <div class="overflow-x-auto w-full border border-gray-100 dark:border-slate-800 rounded-2xl">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-gray-50 dark:bg-slate-800/50 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-slate-800">
+                                            <th class="px-4 py-3 whitespace-nowrap">用户名</th>
+                                            <th class="px-4 py-3 whitespace-nowrap">角色</th>
+                                            <th class="px-4 py-3 whitespace-nowrap">当前额度</th>
+                                            <th class="px-4 py-3 whitespace-nowrap">账号状态</th>
+                                            <th class="px-4 py-3 text-right whitespace-nowrap">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminUsersTableBody" class="text-xs text-gray-700 dark:text-gray-300 divide-y divide-gray-100 dark:divide-slate-800">
+                                        <!-- 动态加载用户行 -->
+                                        <tr>
+                                            <td colspan="5" class="text-center py-8 text-gray-400">正在加载用户列表...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
-            <!-- 登录/注册面板 -->
-            <div id="userAuthPanel" class="space-y-4">
-                <div class="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl">
-                    <button onclick="switchAuthTab('login')" id="authTabLogin" class="flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 shadow-sm transition-all">登录</button>
-                    <button onclick="switchAuthTab('register')" id="authTabRegister" class="flex-1 text-center py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-all">注册</button>
-                </div>
-                <div class="space-y-3">
-                    <div class="relative">
-                        <input type="text" id="authUsername" placeholder="请输入用户名..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none">
+                        <!-- Tab 2: 卡密生成面板 -->
+                        <div id="adminCardsPanel" class="hidden space-y-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 px-1">生成卡密张数</label>
+                                    <input type="number" id="genCardCount" value="10" min="1" max="100" class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 px-1">单张卡密点数</label>
+                                    <input type="number" id="genCardCredits" value="100" min="1" class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none">
+                                </div>
+                            </div>
+                            
+                            <button onclick="generateVipCards()" id="genCardsBtn" class="w-full py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+                                批量生成卡密
+                            </button>
+
+                            <div id="genCardsResultWrapper" class="hidden space-y-2">
+                                <div class="flex justify-between items-center px-1">
+                                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">已生成的卡密列表 (直接复制)</label>
+                                    <button onclick="copyGeneratedCards()" class="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline">一键复制全部</button>
+                                </div>
+                                <textarea id="genCardsTextarea" readonly class="w-full h-32 p-3 bg-gray-50 dark:bg-slate-950 font-mono text-xs text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-slate-800 rounded-xl outline-none resize-none"></textarea>
+                            </div>
+                        </div>
                     </div>
-                    <div class="relative">
-                        <input type="password" id="authPassword" placeholder="请输入密码..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none">
-                    </div>
-                </div>
-                <div id="authStatus" class="hidden text-xs px-1"></div>
-                <button onclick="submitAuth()" id="authSubmitBtn" class="w-full py-3.5 text-xs font-bold rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg transition-all active:scale-[0.98]">
-                    登录
-                </button>
-            </div>
-
-            <!-- 用户详情/充值面板 -->
-            <div id="userProfilePanel" class="hidden space-y-6">
-                <div class="flex items-center justify-between p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
-                    <div class="flex flex-col">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">当前账号</span>
-                        <span id="profileUsername" class="text-sm font-bold text-gray-800 dark:text-gray-100">--</span>
-                    </div>
-                    <div class="flex flex-col items-end">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">剩余点数</span>
-                        <span id="profileCredits" class="text-sm font-bold text-emerald-600 dark:text-emerald-400">-- 点</span>
-                    </div>
-                </div>
-
-                <div class="space-y-3 pt-2">
-                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">使用卡密充值</label>
-                    <div class="relative">
-                        <input type="text" id="rechargeCardKey" placeholder="请输入充值卡密..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none font-mono">
-                    </div>
-                    <div id="rechargeStatus" class="hidden text-xs px-1"></div>
-                    <button onclick="submitRecharge()" id="rechargeSubmitBtn" class="w-full py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg transition-all active:scale-[0.98]">
-                        立即充值
-                    </button>
-                </div>
-
-                <button onclick="logoutUser()" class="w-full py-3.5 text-xs font-semibold rounded-2xl border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
-                    退出登录
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 管理员控制台弹窗 -->
-    <div id="adminPanelModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
-        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeAdminPanel()"></div>
-        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[95%] max-w-3xl p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-all duration-300 flex flex-col max-h-[90vh]">
-            <div class="flex items-center justify-between shrink-0">
-                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <i data-lucide="settings" class="w-5 h-5 text-red-500"></i> 管理员后台控制台
-                </h3>
-                <button onclick="closeAdminPanel()" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400 transition-colors">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-
-            <!-- 控制台 Tab 切换 -->
-            <div class="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
-                <button onclick="switchAdminTab('users')" id="adminTabUsers" class="flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 shadow-sm transition-all">用户审批与管理</button>
-                <button onclick="switchAdminTab('cards')" id="adminTabCards" class="flex-1 text-center py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-all">批量生成充值卡密</button>
-            </div>
-
-            <!-- Tab 1: 用户管理面板 -->
-            <div id="adminUsersPanel" class="flex-1 overflow-y-auto min-h-0 custom-scroll space-y-4">
-                <div class="flex justify-between items-center px-1">
-                    <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">注册用户列表</span>
-                    <button onclick="fetchAdminUsers()" class="text-xs text-blue-500 hover:underline flex items-center gap-1"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 刷新列表</button>
-                </div>
-                <div class="overflow-x-auto w-full border border-gray-100 dark:border-slate-800 rounded-2xl">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-50 dark:bg-slate-800/50 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-slate-800">
-                                <th class="px-4 py-3 whitespace-nowrap">用户名</th>
-                                <th class="px-4 py-3 whitespace-nowrap">角色</th>
-                                <th class="px-4 py-3 whitespace-nowrap">当前额度</th>
-                                <th class="px-4 py-3 whitespace-nowrap">账号状态</th>
-                                <th class="px-4 py-3 text-right whitespace-nowrap">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="adminUsersTableBody" class="text-xs text-gray-700 dark:text-gray-300 divide-y divide-gray-100 dark:divide-slate-800">
-                            <!-- 动态加载用户行 -->
-                            <tr>
-                                <td colspan="5" class="text-center py-8 text-gray-400">正在加载用户列表...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Tab 2: 卡密生成面板 -->
-            <div id="adminCardsPanel" class="hidden flex-1 overflow-y-auto min-h-0 custom-scroll space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-2">
-                        <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 px-1">生成卡密张数</label>
-                        <input type="number" id="genCardCount" value="10" min="1" max="100" class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none">
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 px-1">单张卡密点数</label>
-                        <input type="number" id="genCardCredits" value="100" min="1" class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none">
-                    </div>
-                </div>
-                
-                <button onclick="generateVipCards()" id="genCardsBtn" class="w-full py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
-                    批量生成卡密
-                </button>
-
-                <div id="genCardsResultWrapper" class="hidden space-y-2">
-                    <div class="flex justify-between items-center px-1">
-                        <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">已生成的卡密列表 (直接复制)</label>
-                        <button onclick="copyGeneratedCards()" class="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline">一键复制全部</button>
-                    </div>
-                    <textarea id="genCardsTextarea" readonly class="w-full h-32 p-3 bg-gray-50 dark:bg-slate-950 font-mono text-xs text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-slate-800 rounded-xl outline-none resize-none"></textarea>
                 </div>
             </div>
         </div>

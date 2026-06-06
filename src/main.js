@@ -1204,11 +1204,7 @@ function toggleLowPerf(forceState) {
     if (checkbox) checkbox.checked = enabled;
 }
 function enterAdminToken() {
-    openSettingsModal();
-    switchSettingsTab('advanced');
-}
-function closeAdminTokenModal() {
-    closeSettingsModal();
+    openSettingsModal('advanced');
 }
 function saveAdminToken() {
     const input = document.getElementById('adminTokenInput');
@@ -1220,32 +1216,40 @@ function saveAdminToken() {
         return;
     }
     localStorage.setItem('nai_admin_token', val);
-    statusEl.innerHTML = '<span class="text-green-500">✔ 密码已保存</span>';
+    statusEl.innerHTML = '<span class="text-green-500">✔ 管理员密码已保存，已解锁后台</span>';
     statusEl.classList.remove('hidden');
     
     const clearBtn = document.getElementById('adminTokenClearBtn');
     if (clearBtn) clearBtn.classList.remove('hidden');
     
     checkAdminStatus();
-    setTimeout(() => closeAdminTokenModal(), 1000);
+    
+    setTimeout(() => {
+        switchSettingsTab('admin');
+        if (statusEl) statusEl.classList.add('hidden');
+    }, 1000);
 }
 function clearAdminToken() {
     localStorage.removeItem('nai_admin_token');
-    document.getElementById('adminTokenInput').value = '';
-    document.getElementById('adminTokenClearBtn').classList.add('hidden');
+    const input = document.getElementById('adminTokenInput');
+    if (input) input.value = '';
+    const clearBtn = document.getElementById('adminTokenClearBtn');
+    if (clearBtn) clearBtn.classList.add('hidden');
     const statusEl = document.getElementById('adminTokenStatus');
-    statusEl.innerHTML = '<span class="text-green-500">✔ 已注销管理员身份</span>';
-    statusEl.classList.remove('hidden');
+    if (statusEl) {
+        statusEl.innerHTML = '<span class="text-green-500">✔ 已注销管理员身份</span>';
+        statusEl.classList.remove('hidden');
+    }
     checkAdminStatus();
-    setTimeout(() => closeAdminTokenModal(), 1000);
+    
+    setTimeout(() => {
+        switchSettingsTab('advanced');
+        if (statusEl) statusEl.classList.add('hidden');
+    }, 1000);
 }
 
 function enterUserKey() {
-    openSettingsModal();
-    switchSettingsTab('card');
-}
-function closeUserKeyModal() {
-    closeSettingsModal();
+    openSettingsModal('card');
 }
 function saveUserKey() {
     const input = document.getElementById('userKeyInput');
@@ -1263,16 +1267,24 @@ function saveUserKey() {
     const clearBtn = document.getElementById('userKeyClearBtn');
     if (clearBtn) clearBtn.classList.remove('hidden');
     
-    setTimeout(() => closeUserKeyModal(), 1000);
+    setTimeout(() => {
+        if (statusEl) statusEl.classList.add('hidden');
+    }, 1500);
 }
 function clearUserKey() {
     localStorage.removeItem('nai_user_key');
-    document.getElementById('userKeyInput').value = '';
-    document.getElementById('userKeyClearBtn').classList.add('hidden');
+    const input = document.getElementById('userKeyInput');
+    if (input) input.value = '';
+    const clearBtn = document.getElementById('userKeyClearBtn');
+    if (clearBtn) clearBtn.classList.add('hidden');
     const statusEl = document.getElementById('userKeyStatus');
-    statusEl.innerHTML = '<span class="text-green-500">✔ 已注销卡密</span>';
-    statusEl.classList.remove('hidden');
-    setTimeout(() => closeUserKeyModal(), 1000);
+    if (statusEl) {
+        statusEl.innerHTML = '<span class="text-green-500">✔ 已注销卡密</span>';
+        statusEl.classList.remove('hidden');
+    }
+    setTimeout(() => {
+        if (statusEl) statusEl.classList.add('hidden');
+    }, 1500);
 }
 
 function updateResolutionOptions(bypass) {
@@ -1732,11 +1744,15 @@ async function forceReloadApp() {
 }
 
 // --- 设置中心 (Settings Center) JS Logic ---
-let currentSettingsTab = 'api';
+let currentSettingsTab = 'account';
 
-function openSettingsModal() {
+function openSettingsModal(defaultTab) {
     openModal('settingsModal');
     
+    if (defaultTab) {
+        currentSettingsTab = defaultTab;
+    }
+
     // 初始化时，载入 API Key 列表
     const container = document.getElementById('apiKeyList');
     if (container) {
@@ -1787,6 +1803,18 @@ function openSettingsModal() {
         if (adminTokenClearBtn) adminTokenClearBtn.classList.add('hidden');
     }
 
+    // 载入账户中心状态
+    const token = localStorage.getItem('nai_user_token');
+    if (token) {
+        fetchUserProfile();
+    } else {
+        const authPanel = document.getElementById('userAuthPanel');
+        const profilePanel = document.getElementById('userProfilePanel');
+        if (authPanel) authPanel.classList.remove('hidden');
+        if (profilePanel) profilePanel.classList.add('hidden');
+        switchAuthTab('login');
+    }
+
     // 同步低性能优化开关状态
     const lowPerfCheckbox = document.getElementById('settingsLowPerfCheckbox');
     if (lowPerfCheckbox) {
@@ -1808,6 +1836,16 @@ function closeSettingsModal() {
 }
 
 function switchSettingsTab(tabName) {
+    if (tabName === 'admin') {
+        const adminToken = localStorage.getItem('nai_admin_token');
+        if (!adminToken) {
+            window.showToast("未检测到管理员凭证，请先在系统设置中登录。", "error");
+            tabName = 'advanced';
+        } else {
+            fetchAdminUsers();
+        }
+    }
+
     currentSettingsTab = tabName;
     
     // 1. 切换 Tab 按钮高亮
@@ -1835,13 +1873,24 @@ function switchSettingsTab(tabName) {
 }
 
 function openUserModalFromSettings() {
-    closeSettingsModal();
-    openUserModal();
+    switchSettingsTab('account');
 }
 
 function openAdminPanelFromSettings() {
-    closeSettingsModal();
-    openAdminPanel();
+    switchSettingsTab('admin');
+}
+
+async function clearImageHistoryCache() {
+    if (!(await window.showConfirm("您确定要清空全部本地生成的画图历史图片吗？此操作将彻底删除保存在此设备上的所有历史画图图片，不可恢复！", "清空历史图片", "trash-2"))) {
+        return;
+    }
+    try {
+        await store.clearAll();
+        window.showToast("画图历史图片记录已彻底清空！", "success");
+        loadGallery();
+    } catch (err) {
+        window.showToast("清空历史记录失败: " + err.message, "error");
+    }
 }
 
 function updateSettingsUserCard() {
@@ -2471,7 +2520,7 @@ Object.assign(window, {
     exportNotebook, triggerImportNotebook, importNotebook,
 
     // 设置中心方法
-    openSettingsModal, closeSettingsModal, switchSettingsTab, openUserModalFromSettings, openAdminPanelFromSettings, updateSettingsUserCard, forceReloadApp,
+    openSettingsModal, closeSettingsModal, switchSettingsTab, openUserModalFromSettings, openAdminPanelFromSettings, updateSettingsUserCard, forceReloadApp, clearImageHistoryCache,
 
     // 用户系统方法
     openUserModal, closeUserModal, switchAuthTab, submitAuth, submitRecharge, logoutUser, fetchUserProfile,
@@ -2542,27 +2591,11 @@ function updateUserCreditsUI(user) {
 }
 
 function openUserModal() {
-    openModal('userModal');
-    
-    const authStatus = document.getElementById('authStatus');
-    const rechargeStatus = document.getElementById('rechargeStatus');
-    if (authStatus) { authStatus.classList.add('hidden'); authStatus.innerHTML = ''; }
-    if (rechargeStatus) { rechargeStatus.classList.add('hidden'); rechargeStatus.innerHTML = ''; }
-    
-    const token = localStorage.getItem('nai_user_token');
-    if (token) {
-        fetchUserProfile();
-    } else {
-        const authPanel = document.getElementById('userAuthPanel');
-        const profilePanel = document.getElementById('userProfilePanel');
-        if (authPanel) authPanel.classList.remove('hidden');
-        if (profilePanel) profilePanel.classList.add('hidden');
-        switchAuthTab('login');
-    }
+    openSettingsModal('account');
 }
 
 function closeUserModal() {
-    closeModal('userModal');
+    closeSettingsModal();
 }
 
 function switchAuthTab(tab) {
@@ -2631,7 +2664,7 @@ async function submitAuth() {
             statusEl.innerHTML = '<span class="text-green-500">✔ 登录成功！</span>';
             updateUserCreditsUI(data.user);
             setTimeout(() => {
-                closeUserModal();
+                statusEl.classList.add('hidden');
                 usernameEl.value = '';
                 passwordEl.value = '';
             }, 800);
@@ -2732,18 +2765,11 @@ if (window.updateSettingsUserCard) {
 
 // --- 管理员后台 (Admin Panel) JS Logic ---
 function openAdminPanel() {
-    const adminToken = localStorage.getItem('nai_admin_token');
-    if (!adminToken) {
-        window.showToast("未检测到管理员凭证，请先在锁形图标处登录。", "error");
-        return;
-    }
-    openModal('adminPanelModal');
-    switchAdminTab('users');
-    fetchAdminUsers();
+    openSettingsModal('admin');
 }
 
 function closeAdminPanel() {
-    closeModal('adminPanelModal');
+    closeSettingsModal();
 }
 
 function switchAdminTab(tab) {

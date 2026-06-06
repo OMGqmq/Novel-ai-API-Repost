@@ -728,8 +728,6 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     #settingsModal #settingsUserCard {
         display: none !important;
     }
-    #settingsModal .flex-1 {
-        overflow-y: auto;
-    }
+
 }
 
