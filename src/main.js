@@ -1353,6 +1353,47 @@ function toggleBypassLimitsEnabled(forceState) {
     updateResolutionOptions(enabled);
 }
 
+function updateAnlasUI(data) {
+    const anlasVal = typeof data.anlas === 'number' ? data.anlas : 0;
+    const text = `CustomAPI (Anlas: ${anlasVal})`;
+
+    const desktopDisplay = document.getElementById('creditDisplayDesktop');
+    const mobileDisplay = document.getElementById('creditDisplayMobile');
+    
+    if (desktopDisplay) {
+        desktopDisplay.textContent = text;
+        desktopDisplay.classList.remove('hidden');
+    }
+    if (mobileDisplay) {
+        mobileDisplay.textContent = text;
+        mobileDisplay.classList.remove('hidden');
+    }
+}
+
+window.refreshAnlasDisplay = async function() {
+    const keysRaw = localStorage.getItem('nai_custom_api_key');
+    if (!keysRaw) return;
+    const keys = keysRaw.split('\n').map(k => k.trim()).filter(k => k);
+    if (keys.length === 0) return;
+    const keyToVerify = keys[0];
+
+    try {
+        const res = await fetch('/validate-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: keyToVerify, apiKeys: keys })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.valid) {
+                updateAnlasUI(data);
+            }
+        }
+    } catch (e) {
+        console.warn('自动刷新 Anlas 余额失败:', e.message);
+    }
+};
+
 function checkAdminStatus() {
     const t = localStorage.getItem('nai_admin_token');
     const customKey = localStorage.getItem('nai_custom_api_key');
@@ -1789,46 +1830,7 @@ function clearCustomApiKey() {
     checkAdminStatus();
 }
 
-function updateAnlasUI(data) {
-    const anlasVal = typeof data.anlas === 'number' ? data.anlas : 0;
-    const text = `CustomAPI (Anlas: ${anlasVal})`;
 
-    const desktopDisplay = document.getElementById('creditDisplayDesktop');
-    const mobileDisplay = document.getElementById('creditDisplayMobile');
-    
-    if (desktopDisplay) {
-        desktopDisplay.textContent = text;
-        desktopDisplay.classList.remove('hidden');
-    }
-    if (mobileDisplay) {
-        mobileDisplay.textContent = text;
-        mobileDisplay.classList.remove('hidden');
-    }
-}
-
-window.refreshAnlasDisplay = async function() {
-    const keysRaw = localStorage.getItem('nai_custom_api_key');
-    if (!keysRaw) return;
-    const keys = keysRaw.split('\n').map(k => k.trim()).filter(k => k);
-    if (keys.length === 0) return;
-    const keyToVerify = keys[0];
-
-    try {
-        const res = await fetch('/validate-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apiKey: keyToVerify, apiKeys: keys })
-        });
-        if (res.ok) {
-            const data = await res.json();
-            if (data.valid) {
-                updateAnlasUI(data);
-            }
-        }
-    } catch (e) {
-        console.warn('自动刷新 Anlas 余额失败:', e.message);
-    }
-};
 
 // =================== 局部重绘 (Inpainting) ===================
 const inpaintEditor = new InpaintEditor({
