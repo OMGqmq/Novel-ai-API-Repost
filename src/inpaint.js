@@ -81,9 +81,7 @@ export class InpaintEditor {
             
             this.brushCursor.style.width = visualBs + 'px';
             this.brushCursor.style.height = visualBs + 'px';
-            this.brushCursor.style.left = e.clientX + 'px';
-            this.brushCursor.style.top = e.clientY + 'px';
-            this.brushCursor.style.transform = 'translate(-50%, -50%)';
+            this.brushCursor.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
             this.brushCursor.classList.remove('hidden');
 
             if (!this.drawing) return;

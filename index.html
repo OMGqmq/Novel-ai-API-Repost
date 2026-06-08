@@ -673,9 +673,9 @@
     </button>
 
     <!-- 统一设置中心弹窗 -->
-    <div id="settingsModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
+    <div id="settingsModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-[opacity] duration-300" style="display:none">
         <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeSettingsModal()"></div>
-        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[95%] max-w-4xl h-[80vh] max-h-[680px] flex overflow-hidden transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
+        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[95%] max-w-4xl h-[80vh] max-h-[680px] flex overflow-hidden transform scale-95 opacity-0 custom-modal-content transition-[transform,opacity] duration-300">
             
             <!-- 左侧边栏 (Sidebar) -->
             <div id="settingsSidebar" class="w-1/3 max-w-[240px] border-r border-gray-100 dark:border-slate-800/80 p-5 flex flex-col justify-between shrink-0 bg-gray-50/50 dark:bg-slate-950/30">
@@ -1289,9 +1289,9 @@
     <div id="toastContainer" class="fixed top-5 left-1/2 -translate-x-1/2 z-[300] flex flex-col gap-3 pointer-events-none w-[90%] max-w-md"></div>
 
     <!-- 自定义确认与提示弹窗 (Confirm Modal) -->
-    <div id="confirmModal" class="fixed inset-0 z-[280] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300" style="display:none">
+    <div id="confirmModal" class="fixed inset-0 z-[280] flex items-center justify-center opacity-0 pointer-events-none transition-[opacity] duration-300" style="display:none">
         <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" id="confirmModalBackdrop"></div>
-        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[90%] max-w-md p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-all duration-300">
+        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[90%] max-w-md p-6 md:p-8 space-y-6 transform scale-95 opacity-0 custom-modal-content transition-[transform,opacity] duration-300">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center text-amber-500 flex-shrink-0">
                     <i data-lucide="help-circle" class="w-5 h-5" id="confirmModalIcon"></i>

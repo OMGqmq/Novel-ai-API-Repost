@@ -576,7 +576,7 @@ export class OutpaintEditor {
     }
 
     _applyTransform() {
-        this.els.container.style.transform = `translate(${this.transform.x}px, ${this.transform.y}px) scale(${this.transform.scale})`;
+        this.els.container.style.transform = `translate3d(${this.transform.x}px, ${this.transform.y}px, 0) scale(${this.transform.scale})`;
     }
 
     _updateSelectionDOM() {

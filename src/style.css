@@ -406,6 +406,8 @@ html.dark .view-toggle-bg {
 }
 .brush-cursor {
     position: fixed;
+    top: 0;
+    left: 0;
     border: 1.5px solid #fff;
     box-shadow: 0 0 0 1.5px rgba(0,0,0,0.5);
     border-radius: 50%;
@@ -413,8 +415,8 @@ html.dark .view-toggle-bg {
     z-index: 10000;
     display: none;
     mix-blend-mode: difference;
-    transform: translate(0, 0);
-    will-change: left, top, width, height;
+    transform: translate3d(0, 0, 0);
+    will-change: transform, width, height;
 }
 
 /* --- Universal Modal & Lightbox Styles --- */
@@ -757,6 +759,42 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     /* 移动端彻底隐藏 UserCard，以免挤占第二层界面的纵向可视区域 */
     #settingsModal #settingsUserCard {
         display: none !important;
+    }
+}
+
+/* --- Desktop Performance & Hardware Acceleration Optimizations --- */
+#outpaintContainer,
+#inpaintBaseCanvas,
+#inpaintMaskCanvas {
+    will-change: transform;
+}
+
+@media (min-width: 768px) {
+    /* Optimize backdrop blur GPU overhead on desktop high resolution displays */
+    .backdrop-blur-2xl {
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+    }
+    .backdrop-blur-xl {
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+    }
+    .backdrop-blur-lg {
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+    }
+    .backdrop-blur-md,
+    .backdrop-blur {
+        backdrop-filter: blur(6px) !important;
+        -webkit-backdrop-filter: blur(6px) !important;
+    }
+    .glass-panel {
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        background: rgba(255, 255, 255, 0.96) !important;
+    }
+    html.dark .glass-panel {
+        background: rgba(15, 23, 42, 0.96) !important;
     }
 }
 
