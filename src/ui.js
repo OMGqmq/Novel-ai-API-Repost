@@ -201,10 +201,11 @@ export class UIController {
         const mini = document.getElementById('modelStatusMini');
         if (mini) mini.innerText = ver === 'v4.5' ? 'V4.5' : 'V3';
 
-        // 控制 V4.5 专属参数面板的显示/隐藏
+        // 控制 V4.5 专属参数面板的显示/隐藏（仅在 V4.5 且开启了实验性配置时显示）
         const skipCfgContainer = document.getElementById('skipCfgContainer');
         if (skipCfgContainer) {
-            if (ver === 'v4.5') {
+            const isV45Exp = localStorage.getItem('v4_5_experimental') === 'true';
+            if (ver === 'v4.5' && isV45Exp) {
                 skipCfgContainer.classList.remove('hidden');
             } else {
                 skipCfgContainer.classList.add('hidden');

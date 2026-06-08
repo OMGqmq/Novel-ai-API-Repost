@@ -1226,6 +1226,17 @@ function toggleV45Experimental(forceState) {
     store.setSetting('v4_5_experimental', enabled ? 'true' : 'false');
     if (checkbox) checkbox.checked = enabled;
     
+    // 动态更新 skipCfgContainer 的显示/隐藏状态
+    const skipCfgContainer = document.getElementById('skipCfgContainer');
+    if (skipCfgContainer) {
+        const currentModel = store.getSetting('nai_model_version', 'v3');
+        if (currentModel === 'v4.5' && enabled) {
+            skipCfgContainer.classList.remove('hidden');
+        } else {
+            skipCfgContainer.classList.add('hidden');
+        }
+    }
+    
     window.showToast(enabled ? "已启用 V4.5 实验性请求参数" : "已恢复 V4.5 官方默认参数", "success");
 }
 function randomizeSeed() {
