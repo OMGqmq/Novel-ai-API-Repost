@@ -307,6 +307,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
                                 # 获取 Email
                                 email_val = info_data.get("email", "")
+                                raw_info_val = info_data
                                 if not email_val:
                                     try:
                                         info_req = urllib.request.Request(

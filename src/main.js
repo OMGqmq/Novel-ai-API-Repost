@@ -7,14 +7,7 @@ import { PromptHelper } from './prompt-helper.js?v=202605292218';
 import { NotebookManager } from './notebook.js?v=202605292218';
 import { VibeManager } from './vibe-manager.js?v=202605292218';
 
-// 防抖函数，用于降低高频触发事件（如打字输入）的执行频率
-function debounce(func, wait) {
-    let timeout;
-    return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}
+
 
 function triggerDownload(url, filename) {
     console.log('[DEBUG-dl] triggerDownload called with filename:', filename);
@@ -1384,7 +1377,7 @@ window.refreshAnlasDisplay = async function() {
     const keyToVerify = keys[0];
 
     try {
-        const res = await fetch('/validate-session', {
+        const res = await fetch('/verify-key', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ apiKey: keyToVerify, apiKeys: keys })

@@ -379,42 +379,30 @@ export class NotebookManager {
                 let v3Added = 0;
                 if (v3Import.length > 0) {
                     const currentV3 = this.getNotebookNotes('v3');
-                    const mergedV3 = [...currentV3];
-                    v3Import.forEach(imp => {
-                        const isDup = mergedV3.some(n => n.prompt === imp.prompt && n.negative === imp.negative);
-                        if (!isDup) {
-                            mergedV3.push({
-                                id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
-                                prompt: imp.prompt,
-                                negative: imp.negative || '',
-                                preview: imp.preview || null,
-                                createdAt: imp.createdAt || Date.now()
-                            });
-                            v3Added++;
-                        }
-                    });
-                    mergedV3.sort((a, b) => b.createdAt - a.createdAt);
+                    const preparedImportV3 = v3Import.map(imp => ({
+                        id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+                        prompt: imp.prompt,
+                        negative: imp.negative || '',
+                        preview: imp.preview || null,
+                        createdAt: imp.createdAt || Date.now()
+                    }));
+                    const mergedV3 = this._mergeNotes(currentV3, preparedImportV3);
+                    v3Added = mergedV3.length - currentV3.length;
                     this.saveNotebookNotes('v3', mergedV3);
                 }
 
                 let v4Added = 0;
                 if (v4Import.length > 0) {
                     const currentV4 = this.getNotebookNotes('v4.5');
-                    const mergedV4 = [...currentV4];
-                    v4Import.forEach(imp => {
-                        const isDup = mergedV4.some(n => n.prompt === imp.prompt && n.negative === imp.negative);
-                        if (!isDup) {
-                            mergedV4.push({
-                                id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
-                                prompt: imp.prompt,
-                                negative: imp.negative || '',
-                                preview: imp.preview || null,
-                                createdAt: imp.createdAt || Date.now()
-                            });
-                            v4Added++;
-                        }
-                    });
-                    mergedV4.sort((a, b) => b.createdAt - a.createdAt);
+                    const preparedImportV4 = v4Import.map(imp => ({
+                        id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+                        prompt: imp.prompt,
+                        negative: imp.negative || '',
+                        preview: imp.preview || null,
+                        createdAt: imp.createdAt || Date.now()
+                    }));
+                    const mergedV4 = this._mergeNotes(currentV4, preparedImportV4);
+                    v4Added = mergedV4.length - currentV4.length;
                     this.saveNotebookNotes('v4.5', mergedV4);
                 }
 
