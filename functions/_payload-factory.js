@@ -38,6 +38,8 @@ export function createPayload(version, data) {
     let model = "nai-diffusion-4-5-full";
     if (isInpaint) model = `${model}-inpainting`;
 
+    const isExperimental = data.v4_5_experimental === true;
+
     payload = {
       input: prompt,
       model: model,
@@ -49,13 +51,13 @@ export function createPayload(version, data) {
         prompt, negative_prompt,
         v4_prompt: {
           caption: { base_caption: prompt, char_captions: [] },
-          use_coords: false,
+          use_coords: !isExperimental,
           use_order: true
         },
         v4_negative_prompt: {
           caption: { base_caption: negative_prompt, char_captions: [] },
           use_coords: false,
-          use_order: true
+          use_order: isExperimental
         },
         ucPreset: 4,
         qualityToggle: data.qualityToggle !== undefined ? data.qualityToggle : false,
@@ -69,7 +71,9 @@ export function createPayload(version, data) {
         noise_schedule: data.noise_schedule || "exponential",
         legacy_v3_extend: false,
         uncond_scale: data.uncond_scale !== undefined ? parseFloat(data.uncond_scale) : 1.0,
-        skip_cfg_above_sigma: data.skip_cfg_above_sigma !== undefined ? parseInt(data.skip_cfg_above_sigma) : 19,
+        skip_cfg_above_sigma: isExperimental ? 0.0 : null,
+        deliberate_euler_ancestral_bug: isExperimental,
+        prefer_brownian: !isExperimental,
         reference_image_multiple: vibe_images,
         reference_information_extracted_multiple: vibe_info,
         reference_strength_multiple: vibe_strength,

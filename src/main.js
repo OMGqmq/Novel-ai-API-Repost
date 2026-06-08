@@ -155,6 +155,13 @@ try {
         updateLowPerfUI(true);
     }
 
+    // Restore V4.5 experimental settings
+    const savedV45Exp = store.getSetting('v4_5_experimental') === 'true';
+    const v45ExpCheckbox = document.getElementById('settingsV45ExperimentalCheckbox');
+    if (v45ExpCheckbox) {
+        v45ExpCheckbox.checked = savedV45Exp;
+    }
+
     // Restore bypass limits settings
     const savedBypass = store.getSetting('nai_bypass_limits') === 'true';
     const checkbox = document.getElementById('bypassLimitsEnabled');
@@ -410,8 +417,11 @@ async function doGenerate() {
                     uncond_scale: uncondScaleEl ? parseFloat(uncondScaleEl.value) : 1.0
                 };
 
-                if (selectedVersion === 'v4.5' && skipCfgEl) {
-                    params.skip_cfg_above_sigma = parseInt(skipCfgEl.value);
+                if (selectedVersion === 'v4.5') {
+                    params.v4_5_experimental = store.getSetting('v4_5_experimental', 'false') === 'true';
+                    if (skipCfgEl) {
+                        params.skip_cfg_above_sigma = parseInt(skipCfgEl.value);
+                    }
                 }
 
                 if (currentInitImageBase64) {
@@ -425,11 +435,24 @@ async function doGenerate() {
                 const vibeParams = vibeManager.getPayloadParams(selectedVersion);
                 Object.assign(params, vibeParams);
 
-                // 为每个 API 实例生成独立的随机 seed，避免多 API 产生的图片完全相同
-                const localParamsList = auths.map(() => {
+                // 读取用户指定的 Seed
+                const seedEl = document.getElementById('seed');
+                const userSeedVal = seedEl ? seedEl.value.trim() : "";
+
+                // 为每个 API 实例生成 seed，避免产生的图片完全相同
+                const localParamsList = auths.map((auth, idx) => {
+                    let finalSeed;
+                    if (userSeedVal && !isNaN(userSeedVal)) {
+                        // 用户指定了 Seed。在批量循环第 i 次，多 API 轮询第 idx 个时，
+                        // 我们使用 userSeedVal + i + idx，既保证批量各不相同，也保证多 API 并发时不重复，
+                        // 同时也保证了单张生成时完全等于用户输入的 Seed。
+                        finalSeed = (parseInt(userSeedVal) + i + idx) % 4294967296;
+                    } else {
+                        finalSeed = Math.floor(Math.random() * 4294967295);
+                    }
                     return {
                         ...params,
-                        seed: Math.floor(Math.random() * 4294967295)
+                        seed: finalSeed
                     };
                 });
 
@@ -1196,6 +1219,22 @@ function toggleLowPerf(forceState) {
     const checkbox = document.getElementById('settingsLowPerfCheckbox');
     if (checkbox) checkbox.checked = enabled;
 }
+function toggleV45Experimental(forceState) {
+    const checkbox = document.getElementById('settingsV45ExperimentalCheckbox');
+    const enabled = typeof forceState === 'boolean' ? forceState : (checkbox ? checkbox.checked : false);
+    
+    store.setSetting('v4_5_experimental', enabled ? 'true' : 'false');
+    if (checkbox) checkbox.checked = enabled;
+    
+    window.showToast(enabled ? "已启用 V4.5 实验性请求参数" : "已恢复 V4.5 官方默认参数", "success");
+}
+function randomizeSeed() {
+    const input = document.getElementById('seed');
+    if (input) {
+        input.value = '';
+        window.showToast("已设置为每次随机种子", "success");
+    }
+}
 function enterAdminToken() {
     openSettingsModal('advanced');
 }
@@ -1814,6 +1853,12 @@ function openSettingsModal(defaultTab) {
         lowPerfCheckbox.checked = document.documentElement.classList.contains('low-perf');
     }
 
+    // 同步 V4.5 实验性参数开关状态
+    const v45ExpCheckbox = document.getElementById('settingsV45ExperimentalCheckbox');
+    if (v45ExpCheckbox) {
+        v45ExpCheckbox.checked = store.getSetting('v4_5_experimental', 'false') === 'true';
+    }
+
     // 同步更新管理员特权入口
     checkAdminStatus();
 
@@ -2376,6 +2421,11 @@ function lightboxApplyParams() {
                 resEl.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
+        
+        const seedEl = document.getElementById('seed');
+        if (seedEl) {
+            seedEl.value = meta.seed !== undefined && meta.seed !== null ? meta.seed : '';
+        }
     }
     
     setModel(item.model || 'v3');
@@ -2506,7 +2556,7 @@ Object.assign(window, {
     lightboxCreate, toggleLightboxSidebarMobile,
     saveAdminToken, clearAdminToken,
     saveUserKey, clearUserKey,
-    addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleBypassLimitsEnabled,
+    addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleV45Experimental, randomizeSeed, toggleBypassLimitsEnabled,
     saveCurrentPromptToNotebook, switchNotebookModel, renderNotebookNotes,
     applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote,
     bindCurrentCanvasToNote, removeNotePreview, viewNotebookNotePreview,

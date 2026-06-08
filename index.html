@@ -396,6 +396,19 @@
                     class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
             </div>
 
+            <div class="space-y-2 pt-2">
+                <div class="flex justify-between items-center px-1">
+                    <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                        <i data-lucide="hash" class="w-3 h-3"></i> 随机种子 (Seed)
+                    </span>
+                    <button type="button" onclick="randomizeSeed()" title="随机种子" class="text-slate-400 hover:text-indigo-500 transition-colors cursor-pointer">
+                        <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                <input type="text" id="seed" placeholder="留空则每次生成时随机"
+                    class="art-input w-full px-4 py-3 rounded-xl text-xs font-medium outline-none shadow-sm text-gray-700 dark:text-gray-250">
+            </div>
+
             <!-- 1. 采样与降噪设置 (折叠面板) -->
             <div class="border-t border-gray-100 dark:border-gray-800 pt-4 space-y-2">
                 <button type="button" onclick="window.togglePanel('samplerSettingsPanel', 'samplerChevron')" class="w-full flex items-center justify-between py-2 text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer select-none">
@@ -916,7 +929,8 @@
 
                         <!-- 进阶系统开关区 -->
                         <div class="border-t border-gray-100 dark:border-slate-800/80 pt-4 space-y-3">
-                            <h5 class="text-xs font-bold text-gray-700 dark:text-gray-300">系统性能调整</h5>
+                            <h5 class="text-xs font-bold text-gray-700 dark:text-gray-300">系统性能与实验功能</h5>
+                            <!-- 低性能优化模式 -->
                             <div class="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-150 dark:border-slate-800/60 rounded-2xl">
                                 <div class="flex flex-col gap-0.5">
                                     <span class="text-xs font-bold text-gray-700 dark:text-gray-250 flex items-center gap-1.5">
@@ -926,6 +940,19 @@
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="settingsLowPerfCheckbox" onchange="toggleLowPerf(this.checked)" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
+                                </label>
+                            </div>
+                            <!-- V4.5 实验性请求参数 -->
+                            <div class="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-150 dark:border-slate-800/60 rounded-2xl">
+                                <div class="flex flex-col gap-0.5">
+                                    <span class="text-xs font-bold text-gray-700 dark:text-gray-250 flex items-center gap-1.5">
+                                        <i data-lucide="flask-conical" class="w-3.5 h-3.5 text-indigo-500"></i> V4.5 实验性请求参数
+                                    </span>
+                                    <span class="text-[10px] text-gray-400 dark:text-gray-500">启用该项目原本修改过的 V4.5 参数配置。关闭则恢复为官方默认请求体。</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="settingsV45ExperimentalCheckbox" onchange="toggleV45Experimental(this.checked)" class="sr-only peer">
                                     <div class="w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
                                 </label>
                             </div>

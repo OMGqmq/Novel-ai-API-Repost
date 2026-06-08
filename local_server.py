@@ -105,6 +105,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 payload = {}
                 if version == 'v4.5':
                     model = "nai-diffusion-4-5-full-inpainting" if isInpaint else "nai-diffusion-4-5-full"
+                    is_experimental = data.get('v4_5_experimental') is True
                     payload = {
                         "input": prompt,
                         "model": model,
@@ -122,13 +123,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             "negative_prompt": negative_prompt,
                             "v4_prompt": {
                                 "caption": {"base_caption": prompt, "char_captions": []},
-                                "use_coords": False,
+                                "use_coords": not is_experimental,
                                 "use_order": True
                             },
                             "v4_negative_prompt": {
                                 "caption": {"base_caption": negative_prompt, "char_captions": []},
                                 "use_coords": False,
-                                "use_order": True
+                                "use_order": is_experimental
                             },
                             "ucPreset": 4,
                             "qualityToggle": data.get('qualityToggle', False),
@@ -142,7 +143,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             "noise_schedule": data.get('noise_schedule', 'exponential'),
                             "legacy_v3_extend": False,
                             "uncond_scale": data.get('uncond_scale', 1.0),
-                            "skip_cfg_above_sigma": data.get('skip_cfg_above_sigma', 19),
+                            "skip_cfg_above_sigma": 0.0 if is_experimental else None,
+                            "deliberate_euler_ancestral_bug": is_experimental,
+                            "prefer_brownian": not is_experimental,
                             "reference_image_multiple": vibe_images,
                             "reference_information_extracted_multiple": vibe_info,
                             "reference_strength_multiple": vibe_strength,
