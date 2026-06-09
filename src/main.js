@@ -261,6 +261,29 @@ try {
         if (vEl) vEl.textContent = e.target.value;
         store.setSetting('nai_skip_cfg', e.target.value);
     });
+
+    // Restore V4.5 cached character prompts
+    const savedCharPrompts = store.getSetting('nai_v45_character_prompts');
+    if (savedCharPrompts) {
+        try {
+            const list = JSON.parse(savedCharPrompts);
+            if (Array.isArray(list)) {
+                list.forEach(item => {
+                    addCharacterPromptRow(
+                        item.prompt || '',
+                        item.negative || '',
+                        typeof item.x === 'number' ? item.x : 0.5,
+                        typeof item.y === 'number' ? item.y : 0.5,
+                        item.autoPos !== false,
+                        item.enabled !== false,
+                        true // isInitializing = true
+                    );
+                });
+            }
+        } catch (err) {
+            console.error('Failed to parse cached character prompts:', err);
+        }
+    }
 } catch (e) {
     console.error("Initialization error (from cache):", e);
 }
@@ -1873,7 +1896,33 @@ function toggleCharacterPromptsPanel() {
     }
 }
 
-function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, autoPos = true) {
+function saveCharacterPromptsState() {
+    const container = document.getElementById('characterPromptsContainer');
+    if (!container) return;
+    const rows = container.querySelectorAll('.character-prompt-row');
+    const list = [];
+    rows.forEach(row => {
+        const enableToggle = row.querySelector('.char-enable-toggle');
+        const promptInput = row.querySelector('.char-prompt-input');
+        const negInput = row.querySelector('.char-neg-input');
+        const posXInput = row.querySelector('.char-pos-x');
+        const posYInput = row.querySelector('.char-pos-y');
+        const autoPosCheckbox = row.querySelector('.char-auto-pos');
+
+        list.push({
+            enabled: enableToggle ? enableToggle.checked : true,
+            prompt: promptInput ? promptInput.value : '',
+            negative: negInput ? negInput.value : '',
+            x: posXInput ? parseFloat(posXInput.value) : 0.5,
+            y: posYInput ? parseFloat(posYInput.value) : 0.5,
+            autoPos: autoPosCheckbox ? autoPosCheckbox.checked : true
+        });
+    });
+    store.setSetting('nai_v45_character_prompts', JSON.stringify(list));
+}
+window.saveCharacterPromptsState = saveCharacterPromptsState;
+
+function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, autoPos = true, enabled = true, isInitializing = false) {
     const container = document.getElementById('characterPromptsContainer');
     if (!container) return;
     
@@ -1907,7 +1956,7 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
             </div>
             <div class="flex items-center gap-1.5 char-row-actions">
                 <label class="flex items-center gap-1 cursor-pointer select-none text-[9px] text-gray-400 dark:text-gray-500 font-bold">
-                    <input type="checkbox" class="char-enable-toggle sr-only peer" checked>
+                    <input type="checkbox" class="char-enable-toggle sr-only peer" ${enabled ? 'checked' : ''}>
                     <div class="w-6 h-3.5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-green-600 relative scale-90"></div>
                     <span class="char-enable-text text-green-600 dark:text-green-500">已启用</span>
                 </label>
@@ -1951,8 +2000,7 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
     const inputs = div.querySelectorAll('.char-prompt-input, .char-neg-input, .char-auto-pos');
     const gridCells = div.querySelectorAll('.char-grid-cell');
     
-    enableToggle.addEventListener('change', (e) => {
-        const isEnabled = e.target.checked;
+    const applyEnabledState = (isEnabled) => {
         if (isEnabled) {
             enableText.textContent = "已启用";
             enableText.className = "char-enable-text text-green-600 dark:text-green-500";
@@ -1966,7 +2014,14 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
             inputs.forEach(input => input.disabled = true);
             gridCells.forEach(cell => cell.disabled = true);
         }
+    };
+
+    enableToggle.addEventListener('change', (e) => {
+        applyEnabledState(e.target.checked);
+        saveCharacterPromptsState();
     });
+
+    applyEnabledState(enabled);
 
     // 监听折叠/展开
     const rowHeader = div.querySelector('.char-row-header');
@@ -1990,7 +2045,7 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
         e.stopPropagation();
     });
 
-    // 角色提示词摘要实时显示
+    // 角色提示词摘要实时显示并保存状态
     const promptInput = div.querySelector('.char-prompt-input');
     const summarySpan = div.querySelector('.char-row-summary');
     const updateSummary = () => {
@@ -2002,8 +2057,15 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
             summarySpan.textContent = '';
         }
     };
-    promptInput.addEventListener('input', updateSummary);
+    promptInput.addEventListener('input', () => {
+        updateSummary();
+        saveCharacterPromptsState();
+    });
     updateSummary();
+
+    // 排除词修改保存
+    const negInput = div.querySelector('.char-neg-input');
+    negInput.addEventListener('input', saveCharacterPromptsState);
 
     // 监听 AI 自动位置开关
     const autoPosCheckbox = div.querySelector('.char-auto-pos');
@@ -2028,16 +2090,23 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
         } else {
             gridContainer.classList.remove('hidden');
         }
+        saveCharacterPromptsState();
     });
 
     // 体验防呆：如果折叠面板隐藏，添加卡片时自动展开
-    const panel = document.getElementById('characterPromptsPanel');
-    if (panel && panel.classList.contains('hidden')) {
-        toggleCharacterPromptsPanel();
+    if (!isInitializing) {
+        const panel = document.getElementById('characterPromptsPanel');
+        if (panel && panel.classList.contains('hidden')) {
+            toggleCharacterPromptsPanel();
+        }
     }
 
     container.appendChild(div);
     updateCharacterIndexLabels();
+
+    if (!isInitializing) {
+        saveCharacterPromptsState();
+    }
 }
 
 function removeCharacterPromptRow(button) {
@@ -2047,6 +2116,7 @@ function removeCharacterPromptRow(button) {
         setTimeout(() => {
             row.remove();
             updateCharacterIndexLabels();
+            saveCharacterPromptsState();
         }, 150);
     }
 }
@@ -2091,6 +2161,7 @@ function selectCharGridCell(btn, x, y) {
         const posYInput = row.querySelector('.char-pos-y');
         if (posXInput) posXInput.value = x;
         if (posYInput) posYInput.value = y;
+        saveCharacterPromptsState();
     }
 }
 
