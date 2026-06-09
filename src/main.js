@@ -1858,6 +1858,21 @@ function removeApiKeyInputRow(button) {
 }
 
 // --- 角色提示词 (Character Prompts) 管理 ---
+function toggleCharacterPromptsPanel() {
+    const panel = document.getElementById('characterPromptsPanel');
+    const chevron = document.getElementById('charChevron');
+    if (!panel) return;
+    
+    const isHidden = panel.classList.contains('hidden');
+    if (isHidden) {
+        panel.classList.remove('hidden');
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
+    } else {
+        panel.classList.add('hidden');
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
+    }
+}
+
 function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, autoPos = true) {
     const container = document.getElementById('characterPromptsContainer');
     if (!container) return;
@@ -1900,7 +1915,7 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
         <div class="space-y-2">
             <div class="space-y-1">
                 <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">描述提示词 (Character Prompt)</label>
-                <input type="text" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="${promptVal}" placeholder="例如: boy, luo xiaohei" />
+                <input type="text" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="${promptVal}" placeholder="填入角色特征tag，例如: boy, 1girl" />
             </div>
             <div class="space-y-1">
                 <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">排除词 (Character Negative, 可选)</label>
@@ -1974,6 +1989,12 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
         }
     });
 
+    // 体验防呆：如果折叠面板隐藏，添加卡片时自动展开
+    const panel = document.getElementById('characterPromptsPanel');
+    if (panel && panel.classList.contains('hidden')) {
+        toggleCharacterPromptsPanel();
+    }
+
     container.appendChild(div);
     updateCharacterIndexLabels();
 }
@@ -1999,6 +2020,17 @@ function updateCharacterIndexLabels() {
             label.textContent = `角色 ${idx + 1}`;
         }
     });
+
+    // 动态更新折叠栏的角色数量 Badge
+    const badge = document.getElementById('charCountBadge');
+    if (badge) {
+        if (rows.length > 0) {
+            badge.textContent = rows.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
 }
 
 function selectCharGridCell(btn, x, y) {
@@ -2839,7 +2871,7 @@ Object.assign(window, {
     lightboxCreate, toggleLightboxSidebarMobile,
     saveAdminToken, clearAdminToken,
     addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleV45Experimental, randomizeSeed, toggleBypassLimitsEnabled,
-    addCharacterPromptRow, removeCharacterPromptRow, selectCharGridCell,
+    addCharacterPromptRow, removeCharacterPromptRow, selectCharGridCell, toggleCharacterPromptsPanel,
     saveCurrentPromptToNotebook, switchNotebookModel, renderNotebookNotes,
     applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote,
     bindCurrentCanvasToNote, removeNotePreview, viewNotebookNotePreview,
