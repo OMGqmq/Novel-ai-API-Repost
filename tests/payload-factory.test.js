@@ -61,6 +61,32 @@ describe('PayloadFactory', () => {
     expect(payload.parameters.prefer_brownian).toBe(true);
   });
 
+  it('should create a valid V4.5 generation payload with multiple character prompts and coordinates', () => {
+    const charData = {
+      ...baseData,
+      v4_prompt_use_coords: true,
+      char_captions: [
+        { prompt: "boy, luo xiaohei", negative_prompt: "", x: 0.3, y: 0.5 },
+        { prompt: "girl, nahida (genshin impact)", negative_prompt: "bad face", x: 0.7, y: 0.5 }
+      ]
+    };
+    const payload = createPayload('v4.5', charData);
+    expect(payload.model).toBe('nai-diffusion-4-5-full');
+    
+    // 正向
+    expect(payload.parameters.v4_prompt.caption.char_captions.length).toBe(2);
+    expect(payload.parameters.v4_prompt.caption.char_captions[0].char_caption).toBe("boy, luo xiaohei");
+    expect(payload.parameters.v4_prompt.caption.char_captions[0].centers[0].x).toBe(0.3);
+    expect(payload.parameters.v4_prompt.caption.char_captions[0].centers[0].y).toBe(0.5);
+    
+    // 负向
+    expect(payload.parameters.v4_negative_prompt.caption.char_captions.length).toBe(2);
+    expect(payload.parameters.v4_negative_prompt.caption.char_captions[0].char_caption).toBe("");
+    expect(payload.parameters.v4_negative_prompt.caption.char_captions[1].char_caption).toBe("bad face");
+    expect(payload.parameters.v4_negative_prompt.caption.char_captions[1].centers[0].x).toBe(0.7);
+    expect(payload.parameters.v4_negative_prompt.caption.char_captions[1].centers[0].y).toBe(0.5);
+  });
+
   it('should handle infill (inpainting) correctly for V4.5', () => {
     const infillData = { ...baseData, action: 'infill', mask: 'base64mask', image: 'base64img' };
     const payload = createPayload('v4.5', infillData);

@@ -231,6 +231,16 @@ export class UIController {
                 smeaContainer.classList.add('hidden');
             }
         }
+
+        // 控制 Character Prompts 角色提示词面板的显示/隐藏（仅在 V4.5 模型下显示）
+        const charWrapper = document.getElementById('characterPromptsWrapper');
+        if (charWrapper) {
+            if (ver === 'v4.5') {
+                charWrapper.classList.remove('hidden');
+            } else {
+                charWrapper.classList.add('hidden');
+            }
+        }
     }
 
     switchRightView(view, updateGalleryTabCallback = null) {

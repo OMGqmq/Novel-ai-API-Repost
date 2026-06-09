@@ -34,11 +34,25 @@ export function createPayload(version, data) {
 
   let payload = {};
 
-  if (version === "v4.5") {
+    if (version === "v4.5") {
     let model = "nai-diffusion-4-5-full";
     if (isInpaint) model = `${model}-inpainting`;
 
     const isExperimental = data.v4_5_experimental === true;
+
+    // 解析多角色提示词 (Character Prompts)
+    let charCaptions = [];
+    let negCharCaptions = [];
+    if (data.char_captions && Array.isArray(data.char_captions) && data.char_captions.length > 0) {
+      charCaptions = data.char_captions.map(c => ({
+        char_caption: c.prompt || "",
+        centers: [{ x: c.x !== undefined ? parseFloat(c.x) : 0.5, y: c.y !== undefined ? parseFloat(c.y) : 0.5 }]
+      }));
+      negCharCaptions = data.char_captions.map(c => ({
+        char_caption: c.negative_prompt || "",
+        centers: [{ x: c.x !== undefined ? parseFloat(c.x) : 0.5, y: c.y !== undefined ? parseFloat(c.y) : 0.5 }]
+      }));
+    }
 
     const useCoords = data.v4_prompt_use_coords !== undefined 
       ? (data.v4_prompt_use_coords === true) 
@@ -79,12 +93,12 @@ export function createPayload(version, data) {
         n_samples: 1,
         prompt, negative_prompt,
         v4_prompt: {
-          caption: { base_caption: prompt, char_captions: [] },
+          caption: { base_caption: prompt, char_captions: charCaptions },
           use_coords: useCoords,
           use_order: useOrder
         },
         v4_negative_prompt: {
-          caption: { base_caption: negative_prompt, char_captions: [] },
+          caption: { base_caption: negative_prompt, char_captions: negCharCaptions },
           use_coords: false,
           use_order: negUseOrder
         },

@@ -455,6 +455,40 @@ async function doGenerate() {
                     const isExp = store.getSetting('v4_5_experimental', 'false') === 'true';
                     params.v4_5_experimental = isExp;
                     
+                    // 搜集多角色提示词 (Character Prompts)
+                    const charRows = document.querySelectorAll('.character-prompt-row');
+                    const charCaptions = [];
+                    let hasCustomCoords = false;
+                    charRows.forEach(row => {
+                        const promptInput = row.querySelector('.char-prompt-input');
+                        const negInput = row.querySelector('.char-neg-input');
+                        const posXInput = row.querySelector('.char-pos-x');
+                        const posYInput = row.querySelector('.char-pos-y');
+                        const autoPosCheckbox = row.querySelector('.char-auto-pos');
+                        
+                        const promptVal = promptInput ? promptInput.value.trim() : "";
+                        const negVal = negInput ? negInput.value.trim() : "";
+                        const x = posXInput ? parseFloat(posXInput.value) : 0.5;
+                        const y = posYInput ? parseFloat(posYInput.value) : 0.5;
+                        const isAutoPos = autoPosCheckbox ? autoPosCheckbox.checked : true;
+                        
+                        if (promptVal) {
+                            charCaptions.push({
+                                prompt: promptVal,
+                                negative_prompt: negVal,
+                                x: x,
+                                y: y
+                            });
+                            if (!isAutoPos) {
+                                hasCustomCoords = true;
+                            }
+                        }
+                    });
+
+                    if (charCaptions.length > 0) {
+                        params.char_captions = charCaptions;
+                    }
+                    
                     if (isExp) {
                         const eulerBugEl = document.getElementById('v45EulerBug');
                         const preferBrownianEl = document.getElementById('v45PreferBrownian');
@@ -467,6 +501,11 @@ async function doGenerate() {
                         if (useCoordsEl) params.v4_prompt_use_coords = useCoordsEl.checked;
                         if (useOrderEl) params.v4_prompt_use_order = useOrderEl.checked;
                         if (negUseOrderEl) params.v4_neg_use_order = negUseOrderEl.checked;
+                    }
+                    
+                    // 如果存在自定义坐标，则强行覆盖开启坐标解析功能
+                    if (hasCustomCoords) {
+                        params.v4_prompt_use_coords = true;
                     }
                     
                     if (skipCfgEl) {
@@ -1810,6 +1849,138 @@ function removeApiKeyInputRow(button) {
                 addApiKeyInputRow();
             }
         }, 200);
+}
+
+// --- 角色提示词 (Character Prompts) 管理 ---
+function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, autoPos = true) {
+    const container = document.getElementById('characterPromptsContainer');
+    if (!container) return;
+    
+    const div = document.createElement('div');
+    div.className = 'flex flex-col gap-2.5 character-prompt-row border border-gray-100 dark:border-slate-800 p-3 rounded-2xl bg-gray-50/50 dark:bg-slate-900/20 transition-all';
+    
+    // 生成 5*5 交互式网格
+    let gridHtml = '';
+    for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+            const cellX = (c * 2 + 1) / 10;
+            const cellY = (r * 2 + 1) / 10;
+            const isTarget = Math.abs(cellX - x) < 0.01 && Math.abs(cellY - y) < 0.01;
+            gridHtml += `
+                <button type="button" 
+                    onclick="window.selectCharGridCell(this, ${cellX}, ${cellY})"
+                    class="char-grid-cell w-full h-full rounded-md border transition-all ${isTarget ? 'bg-indigo-600 border-indigo-600 dark:bg-indigo-500' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50'}"
+                    style="aspect-ratio: 1/1;"
+                    title="列 ${c+1}, 排 ${r+1} (x: ${cellX}, y: ${cellY})">
+                </button>
+            `;
+        }
+    }
+
+    div.innerHTML = `
+        <div class="flex justify-between items-center">
+            <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest character-index-label">角色</span>
+            <button type="button" onclick="window.removeCharacterPromptRow(this)" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-lg transition-all" title="删除角色">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+            </button>
+        </div>
+        <div class="space-y-2">
+            <div class="space-y-1">
+                <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">描述提示词 (Character Prompt)</label>
+                <input type="text" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="${promptVal}" placeholder="例如: boy, luo xiaohei" />
+            </div>
+            <div class="space-y-1">
+                <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">排除词 (Character Negative, 可选)</label>
+                <input type="text" class="char-neg-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="${negVal}" placeholder="特定于该角色的排除特征，默认为空" />
+            </div>
+            <div class="space-y-1 mt-2">
+                <div class="flex justify-between items-center text-[9px] text-gray-400 dark:text-gray-500">
+                    <span>角色定位 (Position)</span>
+                    <label class="flex items-center gap-1 cursor-pointer select-none">
+                        <input type="checkbox" class="char-auto-pos sr-only peer" ${autoPos ? 'checked' : ''}>
+                        <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600 relative scale-90"></div>
+                        <span>AI 自动位置</span>
+                    </label>
+                </div>
+                <!-- 5*5 定位网格 -->
+                <div class="char-grid-container ${autoPos ? 'hidden' : ''} grid grid-cols-5 gap-1 w-28 h-28 mx-auto mt-2 border border-gray-200 dark:border-gray-700 p-1 rounded-xl bg-gray-100 dark:bg-slate-900/50">
+                    ${gridHtml}
+                </div>
+                <!-- 隐藏输入框以保存坐标 -->
+                <input type="hidden" class="char-pos-x" value="${x}" />
+                <input type="hidden" class="char-pos-y" value="${y}" />
+            </div>
+        </div>
+    `;
+    
+    // 监听 AI 自动位置开关
+    const autoPosCheckbox = div.querySelector('.char-auto-pos');
+    const gridContainer = div.querySelector('.char-grid-container');
+    const posXInput = div.querySelector('.char-pos-x');
+    const posYInput = div.querySelector('.char-pos-y');
+    
+    autoPosCheckbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            gridContainer.classList.add('hidden');
+            posXInput.value = "0.5";
+            posYInput.value = "0.5";
+            const cells = gridContainer.querySelectorAll('.char-grid-cell');
+            cells.forEach((cell, idx) => {
+                if (idx === 12) {
+                    cell.className = 'char-grid-cell w-full h-full rounded-md border transition-all bg-indigo-600 border-indigo-600 dark:bg-indigo-500';
+                } else {
+                    cell.className = 'char-grid-cell w-full h-full rounded-md border transition-all bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50';
+                }
+            });
+        } else {
+            gridContainer.classList.remove('hidden');
+        }
+    });
+
+    container.appendChild(div);
+    updateCharacterIndexLabels();
+}
+
+function removeCharacterPromptRow(button) {
+    const row = button.closest('.character-prompt-row');
+    if (row) {
+        row.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            row.remove();
+            updateCharacterIndexLabels();
+        }, 150);
+    }
+}
+
+function updateCharacterIndexLabels() {
+    const container = document.getElementById('characterPromptsContainer');
+    if (!container) return;
+    const rows = container.querySelectorAll('.character-prompt-row');
+    rows.forEach((row, idx) => {
+        const label = row.querySelector('.character-index-label');
+        if (label) {
+            label.textContent = `角色 ${idx + 1}`;
+        }
+    });
+}
+
+function selectCharGridCell(btn, x, y) {
+    const grid = btn.closest('.char-grid-container');
+    if (!grid) return;
+    
+    const cells = grid.querySelectorAll('.char-grid-cell');
+    cells.forEach(cell => {
+        cell.className = 'char-grid-cell w-full h-full rounded-md border transition-all bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50';
+    });
+    
+    btn.className = 'char-grid-cell w-full h-full rounded-md border transition-all bg-indigo-600 border-indigo-600 dark:bg-indigo-500';
+    
+    const row = grid.closest('.character-prompt-row');
+    if (row) {
+        const posXInput = row.querySelector('.char-pos-x');
+        const posYInput = row.querySelector('.char-pos-y');
+        if (posXInput) posXInput.value = x;
+        if (posYInput) posYInput.value = y;
     }
 }
 
@@ -2630,8 +2801,8 @@ Object.assign(window, {
     copyLightboxText, lightboxApplyParams, lightboxDownload, lightboxDelete,
     lightboxCreate, toggleLightboxSidebarMobile,
     saveAdminToken, clearAdminToken,
-    saveUserKey, clearUserKey,
     addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleV45Experimental, randomizeSeed, toggleBypassLimitsEnabled,
+    addCharacterPromptRow, removeCharacterPromptRow, selectCharGridCell,
     saveCurrentPromptToNotebook, switchNotebookModel, renderNotebookNotes,
     applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote,
     bindCurrentCanvasToNote, removeNotePreview, viewNotebookNotePreview,

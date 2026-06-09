@@ -107,6 +107,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     model = "nai-diffusion-4-5-full-inpainting" if isInpaint else "nai-diffusion-4-5-full"
                     is_experimental = data.get('v4_5_experimental') is True
                     
+                    char_captions = []
+                    neg_char_captions = []
+                    req_char_captions = data.get('char_captions')
+                    if isinstance(req_char_captions, list) and len(req_char_captions) > 0:
+                        for c in req_char_captions:
+                            x_val = float(c.get('x', 0.5)) if c.get('x') is not None else 0.5
+                            y_val = float(c.get('y', 0.5)) if c.get('y') is not None else 0.5
+                            char_captions.append({
+                                "char_caption": c.get('prompt', ''),
+                                "centers": [{"x": x_val, "y": y_val}]
+                            })
+                            neg_char_captions.append({
+                                "char_caption": c.get('negative_prompt', ''),
+                                "centers": [{"x": x_val, "y": y_val}]
+                            })
+                    
                     use_coords = data.get('v4_prompt_use_coords') if data.get('v4_prompt_use_coords') is not None else (not is_experimental)
                     use_order = data.get('v4_prompt_use_order') if data.get('v4_prompt_use_order') is not None else True
                     neg_use_order = data.get('v4_neg_use_order') if data.get('v4_neg_use_order') is not None else is_experimental
@@ -139,12 +155,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             "prompt": prompt,
                             "negative_prompt": negative_prompt,
                             "v4_prompt": {
-                                "caption": {"base_caption": prompt, "char_captions": []},
+                                "caption": {"base_caption": prompt, "char_captions": char_captions},
                                 "use_coords": use_coords,
                                 "use_order": use_order
                             },
                             "v4_negative_prompt": {
-                                "caption": {"base_caption": negative_prompt, "char_captions": []},
+                                "caption": {"base_caption": negative_prompt, "char_captions": neg_char_captions},
                                 "use_coords": False,
                                 "use_order": neg_use_order
                             },
