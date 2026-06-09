@@ -460,6 +460,11 @@ async function doGenerate() {
                     const charCaptions = [];
                     let hasCustomCoords = false;
                     charRows.forEach(row => {
+                        const enableToggle = row.querySelector('.char-enable-toggle');
+                        if (enableToggle && !enableToggle.checked) {
+                            return; // 忽略未启用的角色框
+                        }
+                        
                         const promptInput = row.querySelector('.char-prompt-input');
                         const negInput = row.querySelector('.char-neg-input');
                         const posXInput = row.querySelector('.char-pos-x');
@@ -1879,7 +1884,14 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
 
     div.innerHTML = `
         <div class="flex justify-between items-center">
-            <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest character-index-label">角色</span>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest character-index-label">角色</span>
+                <label class="flex items-center gap-1 cursor-pointer select-none text-[9px] text-gray-400 dark:text-gray-500 font-bold">
+                    <input type="checkbox" class="char-enable-toggle sr-only peer" checked>
+                    <div class="w-6 h-3.5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-green-600 relative scale-90"></div>
+                    <span class="char-enable-text text-green-600 dark:text-green-500">已启用</span>
+                </label>
+            </div>
             <button type="button" onclick="window.removeCharacterPromptRow(this)" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-lg transition-all" title="删除角色">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
             </button>
@@ -1913,6 +1925,29 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
         </div>
     `;
     
+    // 监听启用状态
+    const enableToggle = div.querySelector('.char-enable-toggle');
+    const enableText = div.querySelector('.char-enable-text');
+    const inputs = div.querySelectorAll('.char-prompt-input, .char-neg-input, .char-auto-pos');
+    const gridCells = div.querySelectorAll('.char-grid-cell');
+    
+    enableToggle.addEventListener('change', (e) => {
+        const isEnabled = e.target.checked;
+        if (isEnabled) {
+            enableText.textContent = "已启用";
+            enableText.className = "char-enable-text text-green-600 dark:text-green-500";
+            div.classList.remove('opacity-60');
+            inputs.forEach(input => input.disabled = false);
+            gridCells.forEach(cell => cell.disabled = false);
+        } else {
+            enableText.textContent = "已禁用";
+            enableText.className = "char-enable-text text-gray-400 dark:text-gray-500";
+            div.classList.add('opacity-60');
+            inputs.forEach(input => input.disabled = true);
+            gridCells.forEach(cell => cell.disabled = true);
+        }
+    });
+
     // 监听 AI 自动位置开关
     const autoPosCheckbox = div.querySelector('.char-auto-pos');
     const gridContainer = div.querySelector('.char-grid-container');
@@ -1920,6 +1955,7 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
     const posYInput = div.querySelector('.char-pos-y');
     
     autoPosCheckbox.addEventListener('change', (e) => {
+        if (autoPosCheckbox.disabled) return;
         if (e.target.checked) {
             gridContainer.classList.add('hidden');
             posXInput.value = "0.5";
