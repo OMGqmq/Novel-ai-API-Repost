@@ -202,13 +202,33 @@ export class UIController {
         if (mini) mini.innerText = ver === 'v4.5' ? 'V4.5' : 'V3';
 
         // 控制 V4.5 专属参数面板的显示/隐藏（仅在 V4.5 且开启了实验性配置时显示）
+        const isV45Exp = localStorage.getItem('v4_5_experimental') === 'true';
         const skipCfgContainer = document.getElementById('skipCfgContainer');
+        const v45ParamsContainer = document.getElementById('v45ParamsContainer');
+        
         if (skipCfgContainer) {
-            const isV45Exp = localStorage.getItem('v4_5_experimental') === 'true';
             if (ver === 'v4.5' && isV45Exp) {
                 skipCfgContainer.classList.remove('hidden');
             } else {
                 skipCfgContainer.classList.add('hidden');
+            }
+        }
+        
+        if (v45ParamsContainer) {
+            if (ver === 'v4.5' && isV45Exp) {
+                v45ParamsContainer.classList.remove('hidden');
+            } else {
+                v45ParamsContainer.classList.add('hidden');
+            }
+        }
+
+        // 控制 SMEA & SMEA DYN 面板的显示/隐藏（仅在 V3 模型下显示）
+        const smeaContainer = document.getElementById('smeaContainer');
+        if (smeaContainer) {
+            if (ver === 'v3') {
+                smeaContainer.classList.remove('hidden');
+            } else {
+                smeaContainer.classList.add('hidden');
             }
         }
     }

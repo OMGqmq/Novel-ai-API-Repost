@@ -162,6 +162,40 @@ try {
         v45ExpCheckbox.checked = savedV45Exp;
     }
 
+    // Restore V4.5 customized parameters
+    const savedEulerBug = store.getSetting('nai_v45_euler_bug', 'false') === 'true';
+    const savedPreferBrownian = store.getSetting('nai_v45_prefer_brownian', 'true') === 'true';
+    const savedUseCoords = store.getSetting('nai_v45_use_coords', 'true') === 'true';
+    const savedUseOrder = store.getSetting('nai_v45_use_order', 'true') === 'true';
+    const savedNegUseOrder = store.getSetting('nai_v45_neg_use_order', 'false') === 'true';
+
+    const eulerBugEl = document.getElementById('v45EulerBug');
+    const preferBrownianEl = document.getElementById('v45PreferBrownian');
+    const useCoordsEl = document.getElementById('v45UseCoords');
+    const useOrderEl = document.getElementById('v45UseOrder');
+    const negUseOrderEl = document.getElementById('v45NegUseOrder');
+
+    if (eulerBugEl) {
+        eulerBugEl.checked = savedEulerBug;
+        eulerBugEl.addEventListener('change', e => store.setSetting('nai_v45_euler_bug', e.target.checked ? 'true' : 'false'));
+    }
+    if (preferBrownianEl) {
+        preferBrownianEl.checked = savedPreferBrownian;
+        preferBrownianEl.addEventListener('change', e => store.setSetting('nai_v45_prefer_brownian', e.target.checked ? 'true' : 'false'));
+    }
+    if (useCoordsEl) {
+        useCoordsEl.checked = savedUseCoords;
+        useCoordsEl.addEventListener('change', e => store.setSetting('nai_v45_use_coords', e.target.checked ? 'true' : 'false'));
+    }
+    if (useOrderEl) {
+        useOrderEl.checked = savedUseOrder;
+        useOrderEl.addEventListener('change', e => store.setSetting('nai_v45_use_order', e.target.checked ? 'true' : 'false'));
+    }
+    if (negUseOrderEl) {
+        negUseOrderEl.checked = savedNegUseOrder;
+        negUseOrderEl.addEventListener('change', e => store.setSetting('nai_v45_neg_use_order', e.target.checked ? 'true' : 'false'));
+    }
+
     // Restore bypass limits settings
     const savedBypass = store.getSetting('nai_bypass_limits') === 'true';
     const checkbox = document.getElementById('bypassLimitsEnabled');
@@ -409,8 +443,8 @@ async function doGenerate() {
                     scale: parseFloat(els.scale.value),
                     sampler: els.sampler.value,
                     noise_schedule: nsEl ? nsEl.value : "exponential",
-                    sm: smEl ? smEl.checked : (selectedVersion !== 'v4.5'),
-                    sm_dyn: smDynEl ? smDynEl.checked : (selectedVersion !== 'v4.5'),
+                    sm: (selectedVersion === 'v4.5') ? false : (smEl ? smEl.checked : true),
+                    sm_dyn: (selectedVersion === 'v4.5') ? false : (smDynEl ? smDynEl.checked : true),
                     qualityToggle: qualityEl ? qualityEl.checked : false,
                     dynamic_thresholding: dynThresholdEl ? dynThresholdEl.checked : false,
                     cfg_rescale: cfgRescaleEl ? parseFloat(cfgRescaleEl.value) : 0.0,
@@ -418,9 +452,25 @@ async function doGenerate() {
                 };
 
                 if (selectedVersion === 'v4.5') {
-                    params.v4_5_experimental = store.getSetting('v4_5_experimental', 'false') === 'true';
+                    const isExp = store.getSetting('v4_5_experimental', 'false') === 'true';
+                    params.v4_5_experimental = isExp;
+                    
+                    if (isExp) {
+                        const eulerBugEl = document.getElementById('v45EulerBug');
+                        const preferBrownianEl = document.getElementById('v45PreferBrownian');
+                        const useCoordsEl = document.getElementById('v45UseCoords');
+                        const useOrderEl = document.getElementById('v45UseOrder');
+                        const negUseOrderEl = document.getElementById('v45NegUseOrder');
+                        
+                        if (eulerBugEl) params.deliberate_euler_ancestral_bug = eulerBugEl.checked;
+                        if (preferBrownianEl) params.prefer_brownian = preferBrownianEl.checked;
+                        if (useCoordsEl) params.v4_prompt_use_coords = useCoordsEl.checked;
+                        if (useOrderEl) params.v4_prompt_use_order = useOrderEl.checked;
+                        if (negUseOrderEl) params.v4_neg_use_order = negUseOrderEl.checked;
+                    }
+                    
                     if (skipCfgEl) {
-                        params.skip_cfg_above_sigma = parseInt(skipCfgEl.value);
+                        params.skip_cfg_above_sigma = isExp ? parseInt(skipCfgEl.value) : null;
                     }
                 }
 
@@ -1226,16 +1276,30 @@ function toggleV45Experimental(forceState) {
     store.setSetting('v4_5_experimental', enabled ? 'true' : 'false');
     if (checkbox) checkbox.checked = enabled;
     
-    // 动态更新 skipCfgContainer 的显示/隐藏状态
-    const skipCfgContainer = document.getElementById('skipCfgContainer');
-    if (skipCfgContainer) {
-        const currentModel = store.getSetting('nai_model_version', 'v3');
-        if (currentModel === 'v4.5' && enabled) {
-            skipCfgContainer.classList.remove('hidden');
-        } else {
-            skipCfgContainer.classList.add('hidden');
-        }
+    const eulerBugEl = document.getElementById('v45EulerBug');
+    const preferBrownianEl = document.getElementById('v45PreferBrownian');
+    const useCoordsEl = document.getElementById('v45UseCoords');
+    const useOrderEl = document.getElementById('v45UseOrder');
+    const negUseOrderEl = document.getElementById('v45NegUseOrder');
+
+    // 根据主开关重置 5 个专属开关的值和本地缓存
+    if (enabled) {
+        if (eulerBugEl) { eulerBugEl.checked = true; store.setSetting('nai_v45_euler_bug', 'true'); }
+        if (preferBrownianEl) { preferBrownianEl.checked = false; store.setSetting('nai_v45_prefer_brownian', 'false'); }
+        if (useCoordsEl) { useCoordsEl.checked = false; store.setSetting('nai_v45_use_coords', 'false'); }
+        if (useOrderEl) { useOrderEl.checked = true; store.setSetting('nai_v45_use_order', 'true'); }
+        if (negUseOrderEl) { negUseOrderEl.checked = true; store.setSetting('nai_v45_neg_use_order', 'true'); }
+    } else {
+        if (eulerBugEl) { eulerBugEl.checked = false; store.setSetting('nai_v45_euler_bug', 'false'); }
+        if (preferBrownianEl) { preferBrownianEl.checked = true; store.setSetting('nai_v45_prefer_brownian', 'true'); }
+        if (useCoordsEl) { useCoordsEl.checked = true; store.setSetting('nai_v45_use_coords', 'true'); }
+        if (useOrderEl) { useOrderEl.checked = true; store.setSetting('nai_v45_use_order', 'true'); }
+        if (negUseOrderEl) { negUseOrderEl.checked = false; store.setSetting('nai_v45_neg_use_order', 'false'); }
     }
+    
+    // 联动刷新界面容器的显示隐藏
+    const currentModel = store.getSetting('nai_model_version', 'v3');
+    ui.setModel(currentModel);
     
     window.showToast(enabled ? "已启用 V4.5 实验性请求参数" : "已恢复 V4.5 官方默认参数", "success");
 }

@@ -106,6 +106,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if version == 'v4.5':
                     model = "nai-diffusion-4-5-full-inpainting" if isInpaint else "nai-diffusion-4-5-full"
                     is_experimental = data.get('v4_5_experimental') is True
+                    
+                    use_coords = data.get('v4_prompt_use_coords') if data.get('v4_prompt_use_coords') is not None else (not is_experimental)
+                    use_order = data.get('v4_prompt_use_order') if data.get('v4_prompt_use_order') is not None else True
+                    neg_use_order = data.get('v4_neg_use_order') if data.get('v4_neg_use_order') is not None else is_experimental
+                    deliberate_euler_bug = data.get('deliberate_euler_ancestral_bug') if data.get('deliberate_euler_ancestral_bug') is not None else is_experimental
+                    prefer_brownian = data.get('prefer_brownian') if data.get('prefer_brownian') is not None else (not is_experimental)
+                    
+                    skip_cfg = 0.0 if is_experimental else None
+                    if data.get('skip_cfg_above_sigma') is not None:
+                        if data.get('skip_cfg_above_sigma') == 'null':
+                            skip_cfg = None
+                        else:
+                            try:
+                                skip_cfg = float(data.get('skip_cfg_above_sigma'))
+                            except:
+                                pass
+
                     payload = {
                         "input": prompt,
                         "model": model,
@@ -123,13 +140,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             "negative_prompt": negative_prompt,
                             "v4_prompt": {
                                 "caption": {"base_caption": prompt, "char_captions": []},
-                                "use_coords": not is_experimental,
-                                "use_order": True
+                                "use_coords": use_coords,
+                                "use_order": use_order
                             },
                             "v4_negative_prompt": {
                                 "caption": {"base_caption": negative_prompt, "char_captions": []},
                                 "use_coords": False,
-                                "use_order": is_experimental
+                                "use_order": neg_use_order
                             },
                             "ucPreset": 4,
                             "qualityToggle": data.get('qualityToggle', False),
@@ -143,9 +160,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             "noise_schedule": data.get('noise_schedule', 'exponential'),
                             "legacy_v3_extend": False,
                             "uncond_scale": data.get('uncond_scale', 1.0),
-                            "skip_cfg_above_sigma": 0.0 if is_experimental else None,
-                            "deliberate_euler_ancestral_bug": is_experimental,
-                            "prefer_brownian": not is_experimental,
+                            "skip_cfg_above_sigma": skip_cfg,
+                            "deliberate_euler_ancestral_bug": deliberate_euler_bug,
+                            "prefer_brownian": prefer_brownian,
                             "reference_image_multiple": vibe_images,
                             "reference_information_extracted_multiple": vibe_info,
                             "reference_strength_multiple": vibe_strength,

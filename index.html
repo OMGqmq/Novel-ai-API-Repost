@@ -560,7 +560,7 @@
                 </button>
                 <div id="advancedSettingsPanel" class="hidden space-y-4 pt-2 pb-4">
                     <!-- SMEA & SMEA DYN -->
-                    <div class="grid grid-cols-2 gap-4">
+                    <div id="smeaContainer" class="grid grid-cols-2 gap-4">
                         <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
                             <span class="text-[11px] text-gray-500">SMEA 采样增强</span>
                             <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
@@ -611,6 +611,55 @@
                             <span id="uncondScaleValue" class="font-mono font-bold text-gray-900 dark:text-gray-100">1.00</span>
                         </div>
                         <input type="range" id="uncondScale" min="0.0" max="2.5" value="1.0" step="0.05" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
+                    </div>
+
+                    <!-- V4.5 专属微调 -->
+                    <div id="v45ParamsContainer" class="space-y-4 hidden">
+                        <!-- V4.5 采样噪波微调 -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <span class="text-[11px] text-gray-500" title="在祖先采样器(如Euler A)中强制启用官方早期的采样器Bug">祖先采样器Bug</span>
+                                <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
+                                    <input type="checkbox" id="v45EulerBug" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <span class="text-[11px] text-gray-500" title="在去噪过程中首选布朗运动随机噪波以平滑细节">布朗运动噪波</span>
+                                <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
+                                    <input type="checkbox" id="v45PreferBrownian" class="sr-only peer" checked>
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- V4.5 提示词控制微调 -->
+                        <div class="grid grid-cols-3 gap-2">
+                            <!-- Use Coords -->
+                            <div class="flex flex-col justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <span class="text-[10px] text-gray-500 text-center text-ellipsis overflow-hidden whitespace-nowrap w-full" title="开启 V4.5 专属正向提示词坐标定位与空间感知">正向坐标定位</span>
+                                <label class="relative inline-flex items-center justify-center cursor-pointer scale-75 mt-2">
+                                    <input type="checkbox" id="v45UseCoords" class="sr-only peer" checked>
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
+                            </div>
+                            <!-- Use Order (Positive) -->
+                            <div class="flex flex-col justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <span class="text-[10px] text-gray-500 text-center text-ellipsis overflow-hidden whitespace-nowrap w-full" title="开启 V4.5 正向提示词严格顺序限制">正向顺序限制</span>
+                                <label class="relative inline-flex items-center justify-center cursor-pointer scale-75 mt-2">
+                                    <input type="checkbox" id="v45UseOrder" class="sr-only peer" checked>
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
+                            </div>
+                            <!-- Neg Use Order (Negative) -->
+                            <div class="flex flex-col justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <span class="text-[10px] text-gray-500 text-center text-ellipsis overflow-hidden whitespace-nowrap w-full" title="开启 V4.5 负向提示词严格顺序限制">负向顺序限制</span>
+                                <label class="relative inline-flex items-center justify-center cursor-pointer scale-75 mt-2">
+                                    <input type="checkbox" id="v45NegUseOrder" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Skip CFG Above Sigma -->

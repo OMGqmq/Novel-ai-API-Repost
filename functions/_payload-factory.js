@@ -40,6 +40,35 @@ export function createPayload(version, data) {
 
     const isExperimental = data.v4_5_experimental === true;
 
+    const useCoords = data.v4_prompt_use_coords !== undefined 
+      ? (data.v4_prompt_use_coords === true) 
+      : !isExperimental;
+      
+    const useOrder = data.v4_prompt_use_order !== undefined 
+      ? (data.v4_prompt_use_order === true) 
+      : true;
+      
+    const negUseOrder = data.v4_neg_use_order !== undefined 
+      ? (data.v4_neg_use_order === true) 
+      : isExperimental;
+      
+    const deliberateEulerBug = data.deliberate_euler_ancestral_bug !== undefined 
+      ? (data.deliberate_euler_ancestral_bug === true) 
+      : isExperimental;
+      
+    const preferBrownian = data.prefer_brownian !== undefined 
+      ? (data.prefer_brownian === true) 
+      : !isExperimental;
+      
+    let skipCfg = isExperimental ? 0.0 : null;
+    if (data.skip_cfg_above_sigma !== undefined && data.skip_cfg_above_sigma !== null) {
+      if (data.skip_cfg_above_sigma === 'null') {
+        skipCfg = null;
+      } else {
+        skipCfg = parseFloat(data.skip_cfg_above_sigma);
+      }
+    }
+
     payload = {
       input: prompt,
       model: model,
@@ -51,13 +80,13 @@ export function createPayload(version, data) {
         prompt, negative_prompt,
         v4_prompt: {
           caption: { base_caption: prompt, char_captions: [] },
-          use_coords: !isExperimental,
-          use_order: true
+          use_coords: useCoords,
+          use_order: useOrder
         },
         v4_negative_prompt: {
           caption: { base_caption: negative_prompt, char_captions: [] },
           use_coords: false,
-          use_order: isExperimental
+          use_order: negUseOrder
         },
         ucPreset: 4,
         qualityToggle: data.qualityToggle !== undefined ? data.qualityToggle : false,
@@ -71,9 +100,9 @@ export function createPayload(version, data) {
         noise_schedule: data.noise_schedule || "exponential",
         legacy_v3_extend: false,
         uncond_scale: data.uncond_scale !== undefined ? parseFloat(data.uncond_scale) : 1.0,
-        skip_cfg_above_sigma: isExperimental ? 0.0 : null,
-        deliberate_euler_ancestral_bug: isExperimental,
-        prefer_brownian: !isExperimental,
+        skip_cfg_above_sigma: skipCfg,
+        deliberate_euler_ancestral_bug: deliberateEulerBug,
+        prefer_brownian: preferBrownian,
         reference_image_multiple: vibe_images,
         reference_information_extracted_multiple: vibe_info,
         reference_strength_multiple: vibe_strength,
