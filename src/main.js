@@ -1854,6 +1854,7 @@ function removeApiKeyInputRow(button) {
                 addApiKeyInputRow();
             }
         }, 200);
+    }
 }
 
 // --- 角色提示词 (Character Prompts) 管理 ---
