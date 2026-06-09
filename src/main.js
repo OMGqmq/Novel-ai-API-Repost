@@ -1899,20 +1899,24 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
     }
 
     div.innerHTML = `
-        <div class="flex justify-between items-center">
-            <div class="flex items-center gap-2">
+        <div class="flex justify-between items-center select-none cursor-pointer char-row-header">
+            <div class="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 transition-transform duration-200 char-row-chevron transform rotate-90"><polyline points="9 18 15 12 9 6"></polyline></svg>
                 <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest character-index-label">角色</span>
+                <span class="text-[10px] text-gray-400 dark:text-gray-500 truncate max-w-[120px] char-row-summary font-normal"></span>
+            </div>
+            <div class="flex items-center gap-1.5 char-row-actions">
                 <label class="flex items-center gap-1 cursor-pointer select-none text-[9px] text-gray-400 dark:text-gray-500 font-bold">
                     <input type="checkbox" class="char-enable-toggle sr-only peer" checked>
                     <div class="w-6 h-3.5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-green-600 relative scale-90"></div>
                     <span class="char-enable-text text-green-600 dark:text-green-500">已启用</span>
                 </label>
+                <button type="button" onclick="window.removeCharacterPromptRow(this)" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-lg transition-all" title="删除角色">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                </button>
             </div>
-            <button type="button" onclick="window.removeCharacterPromptRow(this)" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-lg transition-all" title="删除角色">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-            </button>
         </div>
-        <div class="space-y-2">
+        <div class="char-row-content space-y-2">
             <div class="space-y-1">
                 <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">描述提示词 (Character Prompt)</label>
                 <input type="text" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="${promptVal}" placeholder="填入角色特征tag，例如: boy, 1girl" />
@@ -1963,6 +1967,43 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
             gridCells.forEach(cell => cell.disabled = true);
         }
     });
+
+    // 监听折叠/展开
+    const rowHeader = div.querySelector('.char-row-header');
+    const rowContent = div.querySelector('.char-row-content');
+    const rowChevron = div.querySelector('.char-row-chevron');
+    const rowActions = div.querySelector('.char-row-actions');
+
+    rowHeader.addEventListener('click', () => {
+        const isCollapsed = rowContent.classList.contains('hidden');
+        if (isCollapsed) {
+            rowContent.classList.remove('hidden');
+            rowChevron.classList.add('rotate-90');
+        } else {
+            rowContent.classList.add('hidden');
+            rowChevron.classList.remove('rotate-90');
+        }
+    });
+
+    // 阻止右侧按钮冒泡，以防止点击它们时触发折叠
+    rowActions.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    // 角色提示词摘要实时显示
+    const promptInput = div.querySelector('.char-prompt-input');
+    const summarySpan = div.querySelector('.char-row-summary');
+    const updateSummary = () => {
+        const val = promptInput.value.trim();
+        if (val) {
+            const cleanVal = val.replace(/[\{\}\[\]\(\)]/g, '').trim();
+            summarySpan.textContent = `(${cleanVal.length > 18 ? cleanVal.slice(0, 18) + '...' : cleanVal})`;
+        } else {
+            summarySpan.textContent = '';
+        }
+    };
+    promptInput.addEventListener('input', updateSummary);
+    updateSummary();
 
     // 监听 AI 自动位置开关
     const autoPosCheckbox = div.querySelector('.char-auto-pos');
