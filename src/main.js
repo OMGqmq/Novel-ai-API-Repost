@@ -597,7 +597,21 @@ async function doGenerate() {
                             sampler: localParams.sampler,
                             seed: localParams.seed,
                             strength: localParams.strength || null,
-                            noise: localParams.noise || null
+                            noise: localParams.noise || null,
+
+                            // 以下为新增套用支持的高级/微调参数与多角色数据
+                            sm: localParams.sm !== undefined ? localParams.sm : false,
+                            sm_dyn: localParams.sm_dyn !== undefined ? localParams.sm_dyn : false,
+                            cfg_rescale: localParams.cfg_rescale !== undefined ? localParams.cfg_rescale : 0.0,
+                            uncond_scale: localParams.uncond_scale !== undefined ? localParams.uncond_scale : 1.0,
+                            skip_cfg_above_sigma: localParams.skip_cfg_above_sigma !== undefined ? localParams.skip_cfg_above_sigma : null,
+                            v4_5_experimental: localParams.v4_5_experimental !== undefined ? localParams.v4_5_experimental : false,
+                            v4_prompt_use_coords: localParams.v4_prompt_use_coords !== undefined ? localParams.v4_prompt_use_coords : false,
+                            v4_prompt_use_order: localParams.v4_prompt_use_order !== undefined ? localParams.v4_prompt_use_order : true,
+                            v4_neg_use_order: localParams.v4_neg_use_order !== undefined ? localParams.v4_neg_use_order : false,
+                            deliberate_euler_ancestral_bug: localParams.deliberate_euler_ancestral_bug !== undefined ? localParams.deliberate_euler_ancestral_bug : false,
+                            prefer_brownian: localParams.prefer_brownian !== undefined ? localParams.prefer_brownian : true,
+                            char_captions: localParams.char_captions || null
                         };
 
                         // 转Base64存历史
@@ -2811,13 +2825,27 @@ function lightboxApplyParams() {
     if (lightboxItems.length === 0) return;
     const item = lightboxItems[lightboxIndex];
     
+    // 1. 先载入并应用模型版本，以便正确初始化模型专属的高级面板显示状态
+    const modelVer = item.model || 'v3';
+    if (window.setModel) {
+        window.setModel(modelVer);
+    } else if (typeof setModel === 'function') {
+        setModel(modelVer);
+    }
+    
+    // 2. 载入正向提示词
     els.prompt.value = item.prompt || '';
     els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
     
     const meta = item.meta;
     if (meta) {
-        if (meta.negative_prompt) els.negative.value = meta.negative_prompt;
+        // 3. 载入负向提示词
+        if (meta.negative_prompt !== undefined) {
+            els.negative.value = meta.negative_prompt || '';
+            els.negative.dispatchEvent(new Event('input', { bubbles: true }));
+        }
         
+        // 4. 载入 Steps, Scale, Seed, Resolution
         const stepsEl = document.getElementById('steps');
         if (stepsEl && meta.steps) {
             stepsEl.value = meta.steps;
@@ -2853,9 +2881,145 @@ function lightboxApplyParams() {
         if (seedEl) {
             seedEl.value = meta.seed !== undefined && meta.seed !== null ? meta.seed : '';
         }
+
+        // 5. 载入高级/微调参数：Sampler, SMEA, CFG Rescale, UC Scale, Skip CFG
+        const samplerEl = document.getElementById('sampler');
+        if (samplerEl && meta.sampler) {
+            samplerEl.value = meta.sampler;
+            samplerEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        const smEl = document.getElementById('smEnabled');
+        if (smEl && meta.sm !== undefined) {
+            smEl.checked = meta.sm;
+            smEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        const smDynEl = document.getElementById('smDynEnabled');
+        if (smDynEl && meta.sm_dyn !== undefined) {
+            smDynEl.checked = meta.sm_dyn;
+            smDynEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        const cfgRescaleEl = document.getElementById('cfgRescale');
+        if (cfgRescaleEl && meta.cfg_rescale !== undefined) {
+            cfgRescaleEl.value = meta.cfg_rescale;
+            const vEl = document.getElementById('cfgRescaleValue');
+            if (vEl) vEl.textContent = parseFloat(meta.cfg_rescale).toFixed(2);
+            cfgRescaleEl.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        const uncondScaleEl = document.getElementById('uncondScale');
+        if (uncondScaleEl && meta.uncond_scale !== undefined) {
+            uncondScaleEl.value = meta.uncond_scale;
+            const vEl = document.getElementById('uncondScaleValue');
+            if (vEl) vEl.textContent = parseFloat(meta.uncond_scale).toFixed(2);
+            uncondScaleEl.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        const skipCfgEl = document.getElementById('skipCfg');
+        if (skipCfgEl && meta.skip_cfg_above_sigma !== undefined) {
+            const val = meta.skip_cfg_above_sigma === null ? '' : meta.skip_cfg_above_sigma;
+            skipCfgEl.value = val;
+            const vEl = document.getElementById('skipCfgValue');
+            if (vEl) vEl.textContent = val;
+            skipCfgEl.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // 6. 载入 V4.5 专属高级微调参数
+        const isExp = meta.v4_5_experimental === true || (meta.v4_5_experimental === undefined && (
+            meta.v4_prompt_use_coords !== undefined || meta.v4_prompt_use_order !== undefined || meta.v4_neg_use_order !== undefined
+        ));
+        const expCheckbox = document.getElementById('settingsV45ExperimentalCheckbox');
+        if (expCheckbox) {
+            expCheckbox.checked = isExp;
+            if (window.toggleV45Experimental) {
+                window.toggleV45Experimental(isExp);
+            }
+        }
+
+        const eulerBugEl = document.getElementById('v45EulerBug');
+        const eulerBugVal = meta.deliberate_euler_ancestral_bug !== undefined ? meta.deliberate_euler_ancestral_bug : false;
+        if (eulerBugEl) {
+            eulerBugEl.checked = eulerBugVal;
+            eulerBugEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        const preferBrownianEl = document.getElementById('v45PreferBrownian');
+        const preferBrownianVal = meta.prefer_brownian !== undefined ? meta.prefer_brownian : true;
+        if (preferBrownianEl) {
+            preferBrownianEl.checked = preferBrownianVal;
+            preferBrownianEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        const useCoordsEl = document.getElementById('v45UseCoords');
+        const useCoordsVal = meta.v4_prompt_use_coords !== undefined ? meta.v4_prompt_use_coords : 
+                             (meta.v4_prompt ? meta.v4_prompt.use_coords : false);
+        if (useCoordsEl) {
+            useCoordsEl.checked = useCoordsVal;
+            useCoordsEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        const useOrderEl = document.getElementById('v45UseOrder');
+        const useOrderVal = meta.v4_prompt_use_order !== undefined ? meta.v4_prompt_use_order : 
+                            (meta.v4_prompt ? meta.v4_prompt.use_order : true);
+        if (useOrderEl) {
+            useOrderEl.checked = useOrderVal;
+            useOrderEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        const negUseOrderEl = document.getElementById('v45NegUseOrder');
+        const negUseOrderVal = meta.v4_neg_use_order !== undefined ? meta.v4_neg_use_order : 
+                               (meta.v4_negative_prompt ? meta.v4_negative_prompt.use_order : false);
+        if (negUseOrderEl) {
+            negUseOrderEl.checked = negUseOrderVal;
+            negUseOrderEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // 7. 恢复多角色提示词 (Character Prompts)
+        const container = document.getElementById('characterPromptsContainer');
+        if (container) {
+            container.innerHTML = '';
+            updateCharacterIndexLabels();
+        }
+        
+        let charList = meta.char_captions;
+        if (!charList && meta.v4_prompt && meta.v4_prompt.caption && meta.v4_prompt.caption.char_captions) {
+            charList = meta.v4_prompt.caption.char_captions;
+        }
+        
+        if (Array.isArray(charList)) {
+            const useCoords = meta.v4_prompt_use_coords !== undefined ? meta.v4_prompt_use_coords : 
+                              (meta.v4_prompt ? meta.v4_prompt.use_coords : false);
+            
+            charList.forEach(char => {
+                const promptVal = char.prompt || char.char_caption || '';
+                let negVal = char.negative_prompt || '';
+                if (!negVal && meta.v4_negative_prompt && meta.v4_negative_prompt.caption && meta.v4_negative_prompt.caption.char_captions) {
+                    const idx = charList.indexOf(char);
+                    const negChar = meta.v4_negative_prompt.caption.char_captions[idx];
+                    if (negChar) {
+                        negVal = negChar.char_caption || '';
+                    }
+                }
+                
+                let cx = 0.5;
+                let cy = 0.5;
+                if (typeof char.x === 'number') cx = char.x;
+                else if (char.centers && char.centers[0] && typeof char.centers[0].x === 'number') cx = char.centers[0].x;
+                
+                if (typeof char.y === 'number') cy = char.y;
+                else if (char.centers && char.centers[0] && typeof char.centers[0].y === 'number') cy = char.centers[0].y;
+                
+                const autoPos = !useCoords;
+                addCharacterPromptRow(promptVal, negVal, cx, cy, autoPos, true);
+            });
+        }
+        
+        // 自动将恢复后的数据落盘到 LocalStorage
+        saveCharacterPromptsState();
     }
     
-    setModel(item.model || 'v3');
     window.showToast("生成参数已载入主控制台！", "success");
     closeLightbox();
     ui.toggleMobileControls(true);
