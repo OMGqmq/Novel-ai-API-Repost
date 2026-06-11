@@ -99,8 +99,7 @@ export function createPayload(version, data) {
         },
         v4_negative_prompt: {
           caption: { base_caption: negative_prompt, char_captions: negCharCaptions },
-          use_coords: false,
-          use_order: negUseOrder
+          legacy_uc: data.legacy_uc !== undefined ? (data.legacy_uc === true) : false
         },
         ucPreset: 4,
         qualityToggle: data.qualityToggle !== undefined ? data.qualityToggle : false,
@@ -113,6 +112,9 @@ export function createPayload(version, data) {
         cfg_rescale: data.cfg_rescale !== undefined ? parseFloat(data.cfg_rescale) : 0,
         noise_schedule: data.noise_schedule || "exponential",
         legacy_v3_extend: false,
+        legacy_uc: data.legacy_uc !== undefined ? (data.legacy_uc === true) : false,
+        characterPrompts: data.characterPrompts || [],
+        normalize_reference_strength_multiple: data.normalize_reference_strength_multiple !== undefined ? (data.normalize_reference_strength_multiple === true) : false,
         uncond_scale: data.uncond_scale !== undefined ? parseFloat(data.uncond_scale) : 1.0,
         skip_cfg_above_sigma: skipCfg,
         deliberate_euler_ancestral_bug: deliberateEulerBug,

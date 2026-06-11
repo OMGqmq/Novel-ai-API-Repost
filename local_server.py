@@ -66,6 +66,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     self.wfile.write(json.dumps({"error": "分辨率超出 Opus 免费限制"}).encode('utf-8'))
                     return
 
+                if is_restricted and data.get('director_reference_images') and len(data.get('director_reference_images')) > 0:
+                    self.send_response(403)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "角色参考功能会消耗 Anlas 算力，仅限自定义 API Key 或管理员使用"}).encode('utf-8'))
+                    return
+
                 steps = min(int(data.get('steps', 28)), 28) if is_restricted else int(data.get('steps', 28))
 
                 # Payload 构造 (与 Cloudflare Workers 的 _payload-factory.js 保持 100% 对齐)
@@ -161,8 +168,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             },
                             "v4_negative_prompt": {
                                 "caption": {"base_caption": negative_prompt, "char_captions": neg_char_captions},
-                                "use_coords": False,
-                                "use_order": neg_use_order
+                                "legacy_uc": data.get('legacy_uc', False)
                             },
                             "ucPreset": 4,
                             "qualityToggle": data.get('qualityToggle', False),
@@ -175,6 +181,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             "cfg_rescale": data.get('cfg_rescale', 0),
                             "noise_schedule": data.get('noise_schedule', 'exponential'),
                             "legacy_v3_extend": False,
+                            "legacy_uc": data.get('legacy_uc', False),
+                            "characterPrompts": data.get('characterPrompts', []),
+                            "normalize_reference_strength_multiple": data.get('normalize_reference_strength_multiple', False),
                             "uncond_scale": data.get('uncond_scale', 1.0),
                             "skip_cfg_above_sigma": skip_cfg,
                             "deliberate_euler_ancestral_bug": deliberate_euler_bug,
@@ -241,12 +250,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     payload["parameters"]["strength"] = data.get('strength', 0.5)
                     payload["parameters"]["noise"] = data.get('noise', 0)
                 
+                # 处理 Character Reference (角色参考) (V4.5+)
+                if version == 'v4.5' and data.get('director_reference_images') and len(data.get('director_reference_images')) > 0:
+                    payload["parameters"]["director_reference_images"] = data.get('director_reference_images')
+                    payload["parameters"]["director_reference_descriptions"] = data.get('director_reference_descriptions', [])
+                    payload["parameters"]["director_reference_strength_values"] = data.get('director_reference_strength_values', [])
+                    payload["parameters"]["director_reference_secondary_strength_values"] = data.get('director_reference_secondary_strength_values', [])
+                    payload["parameters"]["director_reference_information_extracted"] = data.get('director_reference_information_extracted', [])
+
                 # 打印调试信息到控制台
                 print(f"--- 正在向 NovelAI 发送 {action} 请求 ---")
                 print(f"Model: {payload['model']}")
                 
                 debug_params = {k: v for k, v in payload['parameters'].items() 
-                               if k not in ('image', 'mask', 'reference_image_multiple')}
+                               if k not in ('image', 'mask', 'reference_image_multiple', 'director_reference_images')}
                 print(f"Parameters: {json.dumps(debug_params, indent=2, default=str)}")
                 
                 req = urllib.request.Request(

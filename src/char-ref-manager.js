@@ -213,13 +213,11 @@ export class CharRefManager {
             return {
                 director_reference_images: [this.currentCharRefImageBase64],
                 director_reference_descriptions: [{
-                    use_coords: false,
-                    use_order: false,
-                    legacy_uc: false,
                     caption: {
                         base_caption: base_caption,
                         char_captions: []
-                    }
+                    },
+                    legacy_uc: false
                 }],
                 director_reference_strength_values: [1.0],
                 director_reference_secondary_strength_values: [1.0 - fidelity],
