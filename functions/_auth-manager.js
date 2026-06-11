@@ -4,6 +4,7 @@
  */
 
 import { verifyJwt } from './_crypto-helper.js';
+import { GUEST_DAILY_IP_LIMIT, GUEST_DAILY_GLOBAL_LIMIT } from './_config.js';
 
 export async function authenticate(request, env) {
   const SERVER_API_KEY = env.NOVELAI_API_KEY;
@@ -39,7 +40,10 @@ export async function authenticate(request, env) {
   // C. Registered JWT User
   if (authHeader.startsWith('Bearer ') && db) {
     const token = authHeader.substring(7);
-    const jwtSecret = env.JWT_SECRET || "novelai-default-jwt-secret-key-987654";
+    const jwtSecret = env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new AuthError("服务器未配置 JWT_SECRET", 500);
+    }
     const payload = await verifyJwt(token, jwtSecret);
     
     if (payload) {
@@ -101,11 +105,11 @@ export async function authenticate(request, env) {
     const globalCount = globalRow ? globalRow.count : 0;
     const ipCount = ipRow ? ipRow.count : 0;
 
-    if (globalCount >= 200) {
+    if (globalCount >= GUEST_DAILY_GLOBAL_LIMIT) {
       throw new AuthError("今日全站免费算力已耗尽，请使用卡密或明天再来。", 429);
     }
-    if (ipCount >= 5) {
-      throw new AuthError("今日免费额度已用完 (5/5)。购买卡密可解锁更多次数。", 429);
+    if (ipCount >= GUEST_DAILY_IP_LIMIT) {
+      throw new AuthError(`今日免费额度已用完 (${GUEST_DAILY_IP_LIMIT}/${GUEST_DAILY_IP_LIMIT})。购买卡密可解锁更多次数。`, 429);
     }
 
     // Increment counters (not blocking)
@@ -128,7 +132,8 @@ export async function authenticate(request, env) {
     };
   }
 
-  return { apiKey, isVip: false, userRole: "Free", remainingCredits: 0 };
+  // 若无数据库绑定，且未通过自定义 Key 或 Admin Token 校验，则禁止访问以保障官方 Key 额度安全
+  throw new AuthError("系统未配置或无法连接数据库，暂不支持免费体验", 503);
 }
 
 export class AuthError extends Error {

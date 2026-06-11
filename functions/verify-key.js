@@ -252,7 +252,8 @@ export async function onRequest(context) {
     });
 
   } catch (e) {
-    return new Response(JSON.stringify({ error: '验证失败: ' + e.message }), {
+    console.error("Verify Key Exception:", e);
+    return new Response(JSON.stringify({ error: "验证失败，请稍后重试" }), {
       status: 500,
       headers: {
         'Content-Type': 'application/json',

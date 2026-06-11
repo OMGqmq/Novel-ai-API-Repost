@@ -93,7 +93,8 @@ export async function onRequest(context) {
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: '服务器注册异常: ' + err.message }), {
+    console.error("Register Exception:", err);
+    return new Response(JSON.stringify({ error: "服务器注册异常，请稍后再试" }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

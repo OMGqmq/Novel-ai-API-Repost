@@ -40,13 +40,27 @@ export async function onRequest(context) {
       });
     }
 
-    // 验证密码哈希
-    const passwordHash = await hashPassword(password, user.salt);
+    // 验证密码哈希 (支持 600,000 次和 100,000 次兼容)
+    let passwordHash = await hashPassword(password, user.salt, 600000);
     if (passwordHash !== user.password_hash) {
-      return new Response(JSON.stringify({ error: '用户名或密码错误' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const legacyHash = await hashPassword(password, user.salt, 100000);
+      if (legacyHash === user.password_hash) {
+        passwordHash = legacyHash;
+        // 静默升级哈希为 600,000 次
+        const newHash = await hashPassword(password, user.salt, 600000);
+        try {
+          await db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now', '+8 hours') WHERE id = ?")
+            .bind(newHash, user.id)
+            .run();
+        } catch (dbErr) {
+          console.error("静默升级用户哈希失败:", dbErr.message);
+        }
+      } else {
+        return new Response(JSON.stringify({ error: '用户名或密码错误' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     // 检查账户激活状态
@@ -89,7 +103,8 @@ export async function onRequest(context) {
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: '服务器登录异常: ' + err.message }), {
+    console.error("Login Exception:", err);
+    return new Response(JSON.stringify({ error: "服务器内部错误，请稍后再试" }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

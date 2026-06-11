@@ -21,7 +21,13 @@ export async function onRequest(context) {
   }
 
   const token = authHeader.substring(7);
-  const jwtSecret = env.JWT_SECRET || "novelai-default-jwt-secret-key-987654";
+  const jwtSecret = env.JWT_SECRET;
+  if (!jwtSecret) {
+    return new Response(JSON.stringify({ error: "服务器未配置 JWT_SECRET" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
   const payload = await verifyJwt(token, jwtSecret);
 
   if (!payload) {
@@ -55,7 +61,8 @@ export async function onRequest(context) {
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: '获取个人信息异常: ' + err.message }), {
+    console.error("Profile Exception:", err);
+    return new Response(JSON.stringify({ error: "获取个人信息失败" }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

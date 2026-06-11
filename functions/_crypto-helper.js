@@ -48,7 +48,7 @@ export function generateSalt() {
  * PBKDF2 Password Hashing
  * Runs 100,000 iterations of SHA-256 to hash the password with a salt.
  */
-export async function hashPassword(password, salt) {
+export async function hashPassword(password, salt, iterations = 600000) {
   const baseKey = await crypto.subtle.importKey(
     "raw",
     stringToBuffer(password),
@@ -61,7 +61,7 @@ export async function hashPassword(password, salt) {
     {
       name: "PBKDF2",
       salt: stringToBuffer(salt),
-      iterations: 100000,
+      iterations: iterations,
       hash: "SHA-256"
     },
     baseKey,
