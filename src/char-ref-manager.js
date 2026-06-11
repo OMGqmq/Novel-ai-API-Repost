@@ -105,33 +105,32 @@ export class CharRefManager {
             const clearBtn = document.getElementById('clearCharRefImageBtn');
             const controls = document.getElementById('charRefControls');
 
-            // 预览本地图像
-            const reader = new FileReader();
-            reader.onload = (e) => {
+            if (placeholder) placeholder.classList.add('hidden');
+            if (clearBtn) clearBtn.classList.remove('hidden');
+            if (controls) controls.classList.remove('hidden');
+
+            if (this.compressImage && typeof this.compressImage === 'function') {
+                const compressedDataUrl = await this.compressImage(file);
+                this.currentCharRefImageBase64 = compressedDataUrl.split(',')[1];
                 if (previewImg) {
-                    previewImg.src = e.target.result;
+                    previewImg.src = compressedDataUrl;
                     previewImg.classList.remove('hidden');
                 }
-                if (placeholder) placeholder.classList.add('hidden');
-                if (clearBtn) clearBtn.classList.remove('hidden');
-                if (controls) controls.classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
-
-            // 图像压缩与编码
-            let dataToSave = file;
-            if (this.compressImage && typeof this.compressImage === 'function') {
-                dataToSave = await this.compressImage(file);
-            }
-
-            const base64Reader = new FileReader();
-            base64Reader.onload = (e) => {
-                const base64Data = e.target.result.split(',')[1];
-                this.currentCharRefImageBase64 = base64Data;
                 this.saveState(model);
                 this.onShowToast('角色参考图加载成功');
-            };
-            base64Reader.readAsDataURL(dataToSave);
+            } else {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.currentCharRefImageBase64 = e.target.result.split(',')[1];
+                    if (previewImg) {
+                        previewImg.src = e.target.result;
+                        previewImg.classList.remove('hidden');
+                    }
+                    this.saveState(model);
+                    this.onShowToast('角色参考图加载成功');
+                };
+                reader.readAsDataURL(file);
+            }
 
         } catch (err) {
             this.onShowToast('读取角色参考图失败: ' + err.message, 'error');
