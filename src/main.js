@@ -6,6 +6,7 @@ import { OutpaintEditor } from './outpaint.js?v=202605292218';
 import { PromptHelper } from './prompt-helper.js?v=202605292218';
 import { NotebookManager } from './notebook.js?v=202605292218';
 import { VibeManager } from './vibe-manager.js?v=202605292218';
+import { CharRefManager } from './char-ref-manager.js?v=20260611';
 
 
 
@@ -101,6 +102,11 @@ const vibeManager = new VibeManager({
     compressImage: compressImage,
     onShowToast: (msg, type) => window.showToast ? window.showToast(msg, type) : console.log(msg)
 });
+const charRefManager = new CharRefManager({
+    store: store,
+    compressImage: compressImage,
+    onShowToast: (msg, type) => window.showToast ? window.showToast(msg, type) : console.log(msg)
+});
 
 let currentInitImageBase64 = null; 
 let currentImageId = null;
@@ -110,6 +116,8 @@ let currentGalleryTab = 'showcase';
 
 function loadVibeState(model) {
     vibeManager.loadState(model);
+    charRefManager.loadState(model);
+    charRefManager.initEventListeners(model);
 }
 
 function safeCreateIcons() {
@@ -366,6 +374,10 @@ window.handleVibeImage = (event) => vibeManager.handleVibeImage(event, document.
 window.clearVibeImage = () => vibeManager.clearVibeImage(document.getElementById('modelValue').value);
 window.toggleVibeEnabled = () => vibeManager.toggleVibeEnabled(document.getElementById('modelValue').value);
 window.onVibeStrengthSelect = (index) => vibeManager.selectVibeStrength(index, document.getElementById('modelValue').value);
+window.handleCharRefImage = (event) => charRefManager.handleCharRefImage(event, document.getElementById('modelValue').value);
+window.clearCharRefImage = () => charRefManager.clearCharRefImage(document.getElementById('modelValue').value);
+window.toggleCharRefEnabled = () => charRefManager.toggleCharRefEnabled(document.getElementById('modelValue').value);
+window.toggleCharRefStyleAware = () => charRefManager.toggleCharRefStyleAware(document.getElementById('modelValue').value);
 
 document.getElementById('strength')?.addEventListener('input', e => document.getElementById('strengthValue').textContent = e.target.value);
 document.getElementById('noise')?.addEventListener('input', e => document.getElementById('noiseValue').textContent = e.target.value);
@@ -435,9 +447,21 @@ async function doGenerate() {
         if (ui.currentRightView !== 'preview') ui.switchRightView('preview');
         ui.toggleMobileControls(false);
         
+        const customApiKeyRaw = store.getSetting('nai_custom_api_key');
+        const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
+        const hasCustomKey = customApiKeys.length > 0;
+
         const vibeVal = vibeManager.isValidForModel(selectedVersion);
         if (!vibeVal.isValid) {
             alert(vibeVal.error);
+            ui.setLoading(false);
+            ui.toggleMobileControls(true);
+            return;
+        }
+
+        const charRefVal = charRefManager.isValidForModel(selectedVersion, hasCustomKey);
+        if (!charRefVal.isValid) {
+            alert(charRefVal.error);
             ui.setLoading(false);
             ui.toggleMobileControls(true);
             return;
@@ -551,6 +575,8 @@ async function doGenerate() {
                 
                 const vibeParams = vibeManager.getPayloadParams(selectedVersion);
                 Object.assign(params, vibeParams);
+                const charRefParams = charRefManager.getPayloadParams(selectedVersion);
+                Object.assign(params, charRefParams);
 
                 // 读取用户指定的 Seed
                 const seedEl = document.getElementById('seed');

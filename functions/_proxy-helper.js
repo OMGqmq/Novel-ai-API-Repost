@@ -22,9 +22,13 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
     // 2. 获取请求数据
     const data = await request.json();
 
-    // 3. 安全防护：像素限制
+        // 3. 安全防护：像素限制与角色参考限制
     const allowBypass = env.ALLOW_CUSTOM_LIMITS !== 'false';
     const isRestricted = (userRole !== 'CustomAPI' && userRole !== 'Admin') || !allowBypass;
+
+    if (isRestricted && data.director_reference_images && data.director_reference_images.length > 0) {
+      throw new AuthError("角色参考功能会消耗 Anlas 算力，仅限自定义 API Key 或管理员使用", 403);
+    }
     
     const width = parseInt(data.width) || 832;
     const height = parseInt(data.height) || 1216;

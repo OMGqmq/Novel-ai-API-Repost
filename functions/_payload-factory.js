@@ -154,6 +154,15 @@ export function createPayload(version, data) {
     };
   }
 
+  // Handle Character Reference (V4.5+)
+  if (version === "v4.5" && data.director_reference_images && data.director_reference_images.length > 0) {
+    payload.parameters.director_reference_images = data.director_reference_images;
+    payload.parameters.director_reference_descriptions = data.director_reference_descriptions || [];
+    payload.parameters.director_reference_strength_values = data.director_reference_strength_values || [];
+    payload.parameters.director_reference_secondary_strength_values = data.director_reference_secondary_strength_values || [];
+    payload.parameters.director_reference_information_extracted = data.director_reference_information_extracted || [];
+  }
+
   // Handle image-based actions
   if (isInpaint) {
     const inpaintStrength = parseFloat(data.strength) || 1.0;
