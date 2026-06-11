@@ -447,8 +447,6 @@ async function doGenerate() {
         if (ui.currentRightView !== 'preview') ui.switchRightView('preview');
         ui.toggleMobileControls(false);
         
-        const customApiKeyRaw = store.getSetting('nai_custom_api_key');
-        const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
         const hasCustomKey = customApiKeys.length > 0;
 
         const vibeVal = vibeManager.isValidForModel(selectedVersion);
