@@ -377,7 +377,7 @@ window.onVibeStrengthSelect = (index) => vibeManager.selectVibeStrength(index, d
 window.handleCharRefImage = (event) => charRefManager.handleCharRefImage(event, document.getElementById('modelValue').value);
 window.clearCharRefImage = () => charRefManager.clearCharRefImage(document.getElementById('modelValue').value);
 window.toggleCharRefEnabled = () => charRefManager.toggleCharRefEnabled(document.getElementById('modelValue').value);
-window.toggleCharRefStyleAware = () => charRefManager.toggleCharRefStyleAware(document.getElementById('modelValue').value);
+window.toggleCharRefMode = () => charRefManager.toggleCharRefMode(document.getElementById('modelValue').value);
 
 document.getElementById('strength')?.addEventListener('input', e => document.getElementById('strengthValue').textContent = e.target.value);
 document.getElementById('noise')?.addEventListener('input', e => document.getElementById('noiseValue').textContent = e.target.value);

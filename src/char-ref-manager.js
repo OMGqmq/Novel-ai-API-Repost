@@ -42,17 +42,18 @@ export class CharRefManager {
     loadState(model) {
         const savedData = this.store.getSetting(this.getCharRefKey('nai_char_ref_image', model));
         const savedEnabled = this.store.getSetting(this.getCharRefKey('nai_char_ref_enabled', model)) !== 'false';
+        const savedStrength = this.store.getSetting(this.getCharRefKey('nai_char_ref_strength', model));
         const savedFidelity = this.store.getSetting(this.getCharRefKey('nai_char_ref_fidelity', model));
-        const savedStyleAware = this.store.getSetting(this.getCharRefKey('nai_char_ref_style_aware', model)) !== 'false';
+        const savedMode = this.store.getSetting(this.getCharRefKey('nai_char_ref_mode', model));
 
         const enabledCheckbox = document.getElementById('charRefEnabled');
         if (enabledCheckbox) {
             enabledCheckbox.checked = savedEnabled;
         }
 
-        const styleAwareCheckbox = document.getElementById('charRefStyleAware');
-        if (styleAwareCheckbox) {
-            styleAwareCheckbox.checked = savedStyleAware;
+        const modeSelect = document.getElementById('charRefMode');
+        if (modeSelect && savedMode) {
+            modeSelect.value = savedMode;
         }
 
         if (savedData) {
@@ -74,6 +75,15 @@ export class CharRefManager {
             const controls = document.getElementById('charRefControls');
             if (controls) controls.classList.remove('hidden');
 
+            if (savedStrength) {
+                const slider = document.getElementById('charRefStrength');
+                if (slider) {
+                    slider.value = savedStrength;
+                    const valSpan = document.getElementById('charRefStrengthValue');
+                    if (valSpan) valSpan.textContent = parseFloat(savedStrength).toFixed(2);
+                }
+            }
+
             if (savedFidelity) {
                 const slider = document.getElementById('charRefFidelity');
                 if (slider) {
@@ -92,7 +102,8 @@ export class CharRefManager {
     saveState(model) {
         this.store.setSetting(this.getCharRefKey('nai_char_ref_image', model), this.currentCharRefImageBase64 || '');
         this.store.setSetting(this.getCharRefKey('nai_char_ref_enabled', model), document.getElementById('charRefEnabled')?.checked.toString() || 'false');
-        this.store.setSetting(this.getCharRefKey('nai_char_ref_style_aware', model), document.getElementById('charRefStyleAware')?.checked.toString() || 'true');
+        this.store.setSetting(this.getCharRefKey('nai_char_ref_mode', model), document.getElementById('charRefMode')?.value || 'character&style');
+        this.store.setSetting(this.getCharRefKey('nai_char_ref_strength', model), document.getElementById('charRefStrength')?.value || '1.00');
         this.store.setSetting(this.getCharRefKey('nai_char_ref_fidelity', model), document.getElementById('charRefFidelity')?.value || '0.80');
     }
 
@@ -166,23 +177,35 @@ export class CharRefManager {
         this.store.setSetting(this.getCharRefKey('nai_char_ref_enabled', model), isEnabled.toString());
     }
 
-    toggleCharRefStyleAware(model) {
-        const styleCheckbox = document.getElementById('charRefStyleAware');
-        const isStyleAware = styleCheckbox ? styleCheckbox.checked : true;
-        this.store.setSetting(this.getCharRefKey('nai_char_ref_style_aware', model), isStyleAware.toString());
+    toggleCharRefMode(model) {
+        const modeSelect = document.getElementById('charRefMode');
+        const mode = modeSelect ? modeSelect.value : 'character&style';
+        this.store.setSetting(this.getCharRefKey('nai_char_ref_mode', model), mode);
     }
 
     initEventListeners(model) {
-        const slider = document.getElementById('charRefFidelity');
-        const valSpan = document.getElementById('charRefFidelityValue');
-        if (slider) {
-            slider.replaceWith(slider.cloneNode(true)); // 防止重复绑定
-            const newSlider = document.getElementById('charRefFidelity');
-            newSlider.addEventListener('input', (e) => {
-                if (valSpan) valSpan.textContent = parseFloat(e.target.value).toFixed(2);
+        const fidelitySlider = document.getElementById('charRefFidelity');
+        const fidelityValSpan = document.getElementById('charRefFidelityValue');
+        if (fidelitySlider) {
+            fidelitySlider.replaceWith(fidelitySlider.cloneNode(true));
+            const newFidelitySlider = document.getElementById('charRefFidelity');
+            newFidelitySlider.addEventListener('input', (e) => {
+                if (fidelityValSpan) fidelityValSpan.textContent = parseFloat(e.target.value).toFixed(2);
                 this.store.setSetting(this.getCharRefKey('nai_char_ref_fidelity', model), e.target.value);
             });
-            if (valSpan) valSpan.textContent = parseFloat(newSlider.value).toFixed(2);
+            if (fidelityValSpan) fidelityValSpan.textContent = parseFloat(newFidelitySlider.value).toFixed(2);
+        }
+
+        const strengthSlider = document.getElementById('charRefStrength');
+        const strengthValSpan = document.getElementById('charRefStrengthValue');
+        if (strengthSlider) {
+            strengthSlider.replaceWith(strengthSlider.cloneNode(true));
+            const newStrengthSlider = document.getElementById('charRefStrength');
+            newStrengthSlider.addEventListener('input', (e) => {
+                if (strengthValSpan) strengthValSpan.textContent = parseFloat(e.target.value).toFixed(2);
+                this.store.setSetting(this.getCharRefKey('nai_char_ref_strength', model), e.target.value);
+            });
+            if (strengthValSpan) strengthValSpan.textContent = parseFloat(newStrengthSlider.value).toFixed(2);
         }
     }
 
@@ -212,24 +235,24 @@ export class CharRefManager {
         const charRefEnabled = enabledCheckbox ? enabledCheckbox.checked : false;
 
         if (charRefEnabled && this.currentCharRefImageBase64 && model === 'v4.5') {
+            const strengthEl = document.getElementById('charRefStrength');
             const fidelityEl = document.getElementById('charRefFidelity');
-            const styleAwareEl = document.getElementById('charRefStyleAware');
+            const modeEl = document.getElementById('charRefMode');
 
+            const strength = strengthEl ? parseFloat(strengthEl.value) : 1.0;
             const fidelity = fidelityEl ? parseFloat(fidelityEl.value) : 0.8;
-            const styleAware = styleAwareEl ? styleAwareEl.checked : true;
-
-            const base_caption = styleAware ? "character&style" : "character";
+            const mode = modeEl ? modeEl.value : 'character&style';
 
             return {
                 director_reference_images: [this.currentCharRefImageBase64],
                 director_reference_descriptions: [{
                     caption: {
-                        base_caption: base_caption,
+                        base_caption: mode,
                         char_captions: []
                     },
                     legacy_uc: false
                 }],
-                director_reference_strength_values: [1.0],
+                director_reference_strength_values: [strength],
                 director_reference_secondary_strength_values: [1.0 - fidelity],
                 director_reference_information_extracted: [1.0]
             };
