@@ -57,13 +57,35 @@ export class CharRefManager {
         }
 
         if (savedData) {
-            this.currentCharRefImageBase64 = savedData;
-
-            const previewImg = document.getElementById('charRefImagePreview');
-            if (previewImg) {
-                const prefix = savedData.startsWith('iVBORw') ? 'data:image/png;base64,' : 'data:image/jpeg;base64,';
-                previewImg.src = prefix + savedData;
-                previewImg.classList.remove('hidden');
+            if (!savedData.startsWith('iVBORw')) {
+                // If it is not a PNG (doesn't start with standard PNG base64 prefix), convert it to PNG!
+                console.log("检测到历史缓存的角色参考图不是 PNG 格式，正在自动转换...");
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    const pngDataUrl = canvas.toDataURL('image/png');
+                    this.currentCharRefImageBase64 = pngDataUrl.split(',')[1];
+                    this.saveState(model);
+                    
+                    const previewImg = document.getElementById('charRefImagePreview');
+                    if (previewImg) {
+                        previewImg.src = pngDataUrl;
+                        previewImg.classList.remove('hidden');
+                    }
+                    console.log("历史缓存图片已成功自动转换为 PNG。");
+                };
+                img.src = 'data:image/jpeg;base64,' + savedData;
+            } else {
+                this.currentCharRefImageBase64 = savedData;
+                const previewImg = document.getElementById('charRefImagePreview');
+                if (previewImg) {
+                    previewImg.src = 'data:image/png;base64,' + savedData;
+                    previewImg.classList.remove('hidden');
+                }
             }
 
             const placeholder = document.getElementById('charRefImagePlaceholder');
