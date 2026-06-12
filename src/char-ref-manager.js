@@ -1,7 +1,30 @@
-/**
- * Character Reference (Char Ref) Manager Module
- * Handles file reading, status rendering, and parameter serialization.
- */
+function processImageToPng(file, maxPixels = 1024 * 1024) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                let w = img.width;
+                let h = img.height;
+                if (w * h > maxPixels) {
+                    const ratio = Math.sqrt(maxPixels / (w * h));
+                    w = Math.floor(w * ratio);
+                    h = Math.floor(h * ratio);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/png'));
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
 
 export class CharRefManager {
     constructor(config = {}) {
@@ -37,7 +60,8 @@ export class CharRefManager {
 
             const previewImg = document.getElementById('charRefImagePreview');
             if (previewImg) {
-                previewImg.src = 'data:image/jpeg;base64,' + savedData;
+                const prefix = savedData.startsWith('iVBORw') ? 'data:image/png;base64,' : 'data:image/jpeg;base64,';
+                previewImg.src = prefix + savedData;
                 previewImg.classList.remove('hidden');
             }
 
@@ -109,28 +133,14 @@ export class CharRefManager {
             if (clearBtn) clearBtn.classList.remove('hidden');
             if (controls) controls.classList.remove('hidden');
 
-            if (this.compressImage && typeof this.compressImage === 'function') {
-                const compressedDataUrl = await this.compressImage(file);
-                this.currentCharRefImageBase64 = compressedDataUrl.split(',')[1];
-                if (previewImg) {
-                    previewImg.src = compressedDataUrl;
-                    previewImg.classList.remove('hidden');
-                }
-                this.saveState(model);
-                this.onShowToast('角色参考图加载成功');
-            } else {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    this.currentCharRefImageBase64 = e.target.result.split(',')[1];
-                    if (previewImg) {
-                        previewImg.src = e.target.result;
-                        previewImg.classList.remove('hidden');
-                    }
-                    this.saveState(model);
-                    this.onShowToast('角色参考图加载成功');
-                };
-                reader.readAsDataURL(file);
+            const pngDataUrl = await processImageToPng(file);
+            this.currentCharRefImageBase64 = pngDataUrl.split(',')[1];
+            if (previewImg) {
+                previewImg.src = pngDataUrl;
+                previewImg.classList.remove('hidden');
             }
+            this.saveState(model);
+            this.onShowToast('角色参考图加载成功');
 
         } catch (err) {
             this.onShowToast('读取角色参考图失败: ' + err.message, 'error');
