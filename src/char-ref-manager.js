@@ -1,28 +1,59 @@
-function processImageToPng(file, maxPixels = 1024 * 1024) {
+function processImageToPng(source) {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = new Image();
-            img.onload = function() {
-                let w = img.width;
-                let h = img.height;
-                if (w * h > maxPixels) {
-                    const ratio = Math.sqrt(maxPixels / (w * h));
-                    w = Math.floor(w * ratio);
-                    h = Math.floor(h * ratio);
+        const img = new Image();
+        img.onload = function() {
+            const rd = [[1024, 1536], [1536, 1024], [1472, 1472]];
+            const imgRatio = img.width / img.height;
+            let targetSize = rd[0];
+            for (const t of rd) {
+                if (Math.abs(t[0] / t[1] - imgRatio) < Math.abs(targetSize[0] / targetSize[1] - imgRatio)) {
+                    targetSize = t;
                 }
-                const canvas = document.createElement('canvas');
-                canvas.width = w;
-                canvas.height = h;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL('image/png'));
-            };
-            img.onerror = reject;
-            img.src = e.target.result;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = targetSize[0];
+            canvas.height = targetSize[1];
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                reject(new Error("Could not get 2d context from canvas"));
+                return;
+            }
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const canvasRatio = canvas.width / canvas.height;
+            let drawW = img.width;
+            let drawH = img.height;
+            if (imgRatio > canvasRatio) {
+                drawW = canvas.width;
+                drawH = Math.round(canvas.width / imgRatio);
+            } else {
+                drawH = canvas.height;
+                drawW = Math.round(canvas.height * imgRatio);
+            }
+            ctx.drawImage(img, (canvas.width - drawW) / 2, (canvas.height - drawH) / 2, drawW, drawH);
+            resolve(canvas.toDataURL('image/png'));
         };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+        img.onerror = reject;
+
+        if (source instanceof File || source instanceof Blob) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                img.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(source);
+        } else if (typeof source === 'string') {
+            if (source.startsWith('data:')) {
+                img.src = source;
+            } else if (source.startsWith('iVBORw')) {
+                img.src = 'data:image/png;base64,' + source;
+            } else {
+                img.src = 'data:image/jpeg;base64,' + source;
+            }
+        } else {
+            reject(new Error("Unsupported source type for processImageToPng"));
+        }
     });
 }
 
@@ -57,35 +88,45 @@ export class CharRefManager {
         }
 
         if (savedData) {
-            if (!savedData.startsWith('iVBORw')) {
-                // If it is not a PNG (doesn't start with standard PNG base64 prefix), convert it to PNG!
-                console.log("检测到历史缓存的角色参考图不是 PNG 格式，正在自动转换...");
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    const pngDataUrl = canvas.toDataURL('image/png');
-                    this.currentCharRefImageBase64 = pngDataUrl.split(',')[1];
-                    this.saveState(model);
-                    
+            const img = new Image();
+            img.onload = () => {
+                const rd = [[1024, 1536], [1536, 1024], [1472, 1472]];
+                const isCorrectSize = rd.some(t => t[0] === img.width && t[1] === img.height);
+                const isPng = savedData.startsWith('iVBORw');
+
+                if (isCorrectSize && isPng) {
+                    this.currentCharRefImageBase64 = savedData;
                     const previewImg = document.getElementById('charRefImagePreview');
                     if (previewImg) {
-                        previewImg.src = pngDataUrl;
+                        previewImg.src = 'data:image/png;base64,' + savedData;
                         previewImg.classList.remove('hidden');
                     }
-                    console.log("历史缓存图片已成功自动转换为 PNG。");
-                };
-                img.src = 'data:image/jpeg;base64,' + savedData;
-            } else {
-                this.currentCharRefImageBase64 = savedData;
-                const previewImg = document.getElementById('charRefImagePreview');
-                if (previewImg) {
-                    previewImg.src = 'data:image/png;base64,' + savedData;
-                    previewImg.classList.remove('hidden');
+                } else {
+                    console.log("检测到历史缓存的角色参考图尺寸或格式不符，正在自动转换...");
+                    processImageToPng(savedData).then(pngDataUrl => {
+                        this.currentCharRefImageBase64 = pngDataUrl.split(',')[1];
+                        this.saveState(model);
+                        
+                        const previewImg = document.getElementById('charRefImagePreview');
+                        if (previewImg) {
+                            previewImg.src = pngDataUrl;
+                            previewImg.classList.remove('hidden');
+                        }
+                        console.log("历史缓存图片已成功转换为符合 NAI V4.5 规范的 PNG。");
+                    }).catch(err => {
+                        console.error("历史缓存图片转换失败:", err);
+                    });
                 }
+            };
+            img.onerror = () => {
+                console.error("加载历史缓存的角色参考图失败");
+            };
+            if (savedData.startsWith('data:')) {
+                img.src = savedData;
+            } else if (savedData.startsWith('iVBORw')) {
+                img.src = 'data:image/png;base64,' + savedData;
+            } else {
+                img.src = 'data:image/jpeg;base64,' + savedData;
             }
 
             const placeholder = document.getElementById('charRefImagePlaceholder');
