@@ -258,20 +258,76 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     payload["parameters"]["director_reference_secondary_strength_values"] = data.get('director_reference_secondary_strength_values', [])
                     payload["parameters"]["director_reference_information_extracted"] = data.get('director_reference_information_extracted', [])
 
-                # 打印调试信息到控制台
-                print(f"--- 正在向 NovelAI 发送 {action} 请求 ---")
-                print(f"Model: {payload['model']}")
-                
+                # Check if character reference is used
+                director_ref_imgs = payload['parameters'].get('director_reference_images')
+                use_multipart = False
+                if director_ref_imgs and isinstance(director_ref_imgs, list) and len(director_ref_imgs) > 0:
+                    use_multipart = True
+
+                if use_multipart:
+                    import uuid
+                    import hashlib
+                    import base64
+
+                    boundary = "----WebKitFormBoundary" + uuid.uuid4().hex[:16]
+                    multipart_body = bytearray()
+                    cached_images = []
+
+                    for idx, img_base64 in enumerate(director_ref_imgs):
+                        if ',' in img_base64:
+                            img_base64 = img_base64.split(',', 1)[1]
+                        img_bytes = base64.b64decode(img_base64)
+
+                        cache_key = hashlib.sha256(img_bytes).hexdigest()
+                        part_name = f"director_ref_{idx}"
+
+                        mime_type = "image/png"
+                        if img_bytes.startswith(b'\x89PNG\r\n\x1a\n'):
+                            mime_type = "image/png"
+                        elif img_bytes.startswith(b'\xff\xd8\xff'):
+                            mime_type = "image/jpeg"
+                        elif img_bytes.startswith(b'RIFF') and b'WEBP' in img_bytes[8:16]:
+                            mime_type = "image/webp"
+
+                        multipart_body.extend(f"--{boundary}\r\n".encode('utf-8'))
+                        multipart_body.extend(f'Content-Disposition: form-data; name="{part_name}"; filename="blob"\r\n'.encode('utf-8'))
+                        multipart_body.extend(f'Content-Type: {mime_type}\r\n\r\n'.encode('utf-8'))
+                        multipart_body.extend(img_bytes)
+                        multipart_body.extend(b'\r\n')
+
+                        cached_images.append({
+                            "cache_secret_key": cache_key,
+                            "data": part_name
+                        })
+
+                    # Modify payload parameters
+                    del payload['parameters']['director_reference_images']
+                    payload['parameters']['director_reference_images_cached'] = cached_images
+
+                    multipart_body.extend(f"--{boundary}\r\n".encode('utf-8'))
+                    multipart_body.extend(b'Content-Disposition: form-data; name="request"; filename="blob"\r\n')
+                    multipart_body.extend(b'Content-Type: application/json\r\n\r\n')
+                    multipart_body.extend(json.dumps(payload).encode('utf-8'))
+                    multipart_body.extend(b'\r\n')
+
+                    multipart_body.extend(f"--{boundary}--\r\n".encode('utf-8'))
+
+                    req_data = bytes(multipart_body)
+                    content_type = f'multipart/form-data; boundary={boundary}'
+                else:
+                    req_data = json.dumps(payload).encode('utf-8')
+                    content_type = 'application/json'
+
                 debug_params = {k: v for k, v in payload['parameters'].items() 
-                               if k not in ('image', 'mask', 'reference_image_multiple', 'director_reference_images')}
+                               if k not in ('image', 'mask', 'reference_image_multiple', 'director_reference_images', 'director_reference_images_cached')}
                 print(f"Parameters: {json.dumps(debug_params, indent=2, default=str)}")
                 
                 req = urllib.request.Request(
                     'https://image.novelai.net/ai/generate-image',
-                    data=json.dumps(payload).encode('utf-8'),
+                    data=req_data,
                     headers={
                         'Authorization': f'Bearer {api_key}',
-                        'Content-Type': 'application/json',
+                        'Content-Type': content_type,
                         'Accept': '*/*',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
                         'Origin': 'https://novelai.net',
@@ -634,9 +690,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error(404, "Not Found")
 
-socketserver.TCPServer.allow_reuse_address = True
-with socketserver.TCPServer(("", PORT), Handler) as httpd:
-    print(f"本地测试服务器已启动: http://localhost:{PORT}")
-    print("请在浏览器中打开这个地址，然后在新弹出的页面里按 F12 打开开发者工具。")
-    print("在控制台中发出的所有异常，以及在这里的终端输出都会对我们大有帮助！")
-    httpd.serve_forever()
+if __name__ == '__main__':
+    socketserver.TCPServer.allow_reuse_address = True
+    with socketserver.TCPServer(("", PORT), Handler) as httpd:
+        print(f"本地测试服务器已启动: http://localhost:{PORT}")
+        print("请在浏览器中打开这个地址，然后在新弹出的页面里按 F12 打开开发者工具。")
+        print("在控制台中发出的所有异常，以及在这里的终端输出都会对我们大有帮助！")
+        httpd.serve_forever()
