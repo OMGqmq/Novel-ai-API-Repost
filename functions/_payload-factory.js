@@ -87,6 +87,7 @@ export function createPayload(version, data) {
       input: prompt,
       model: model,
       action: action,
+      use_new_shared_trial: true,
       parameters: {
         params_version: 3,
         width, height, scale, sampler, steps, seed,
@@ -114,7 +115,7 @@ export function createPayload(version, data) {
         legacy_v3_extend: false,
         legacy_uc: data.legacy_uc !== undefined ? (data.legacy_uc === true) : false,
         characterPrompts: data.characterPrompts || [],
-        normalize_reference_strength_multiple: data.normalize_reference_strength_multiple !== undefined ? (data.normalize_reference_strength_multiple === true) : false,
+        normalize_reference_strength_multiple: true,
         uncond_scale: data.uncond_scale !== undefined ? parseFloat(data.uncond_scale) : 1.0,
         skip_cfg_above_sigma: skipCfg,
         deliberate_euler_ancestral_bug: deliberateEulerBug,

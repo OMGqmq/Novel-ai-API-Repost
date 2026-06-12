@@ -150,6 +150,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         "input": prompt,
                         "model": model,
                         "action": action,
+                        "use_new_shared_trial": True,
                         "parameters": {
                             "params_version": 3,
                             "width": width,
@@ -183,7 +184,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             "legacy_v3_extend": False,
                             "legacy_uc": data.get('legacy_uc', False),
                             "characterPrompts": data.get('characterPrompts', []),
-                            "normalize_reference_strength_multiple": data.get('normalize_reference_strength_multiple', False),
+                            "normalize_reference_strength_multiple": True,
                             "uncond_scale": data.get('uncond_scale', 1.0),
                             "skip_cfg_above_sigma": skip_cfg,
                             "deliberate_euler_ancestral_bug": deliberate_euler_bug,
