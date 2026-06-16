@@ -345,13 +345,34 @@ export class UIController {
         const text = roleStr.replace(" (Limited)", "").replace(" (Unlimited)", "");
         const { creditDisplayMobile, creditDisplayDesktop } = this.els;
 
-        if (creditDisplayMobile) {
-            creditDisplayMobile.textContent = text;
-            creditDisplayMobile.classList.remove('hidden');
-        }
-        if (creditDisplayDesktop) {
-            creditDisplayDesktop.textContent = text;
-            creditDisplayDesktop.classList.remove('hidden');
+        const userCreditsDisplay = document.getElementById('userCreditsDisplay');
+        const userCreditsDisplayMobile = document.getElementById('userCreditsDisplayMobile');
+
+        const isJwtUser = roleStr.startsWith('用户:');
+
+        if (isJwtUser) {
+            const displayText = text.replace('用户:', '');
+            if (userCreditsDisplay) {
+                userCreditsDisplay.textContent = displayText;
+                userCreditsDisplay.classList.remove('hidden');
+            }
+            if (userCreditsDisplayMobile) {
+                userCreditsDisplayMobile.textContent = displayText;
+                userCreditsDisplayMobile.classList.remove('hidden');
+            }
+            if (creditDisplayDesktop) creditDisplayDesktop.classList.add('hidden');
+            if (creditDisplayMobile) creditDisplayMobile.classList.add('hidden');
+        } else {
+            if (creditDisplayMobile) {
+                creditDisplayMobile.textContent = text;
+                creditDisplayMobile.classList.remove('hidden');
+            }
+            if (creditDisplayDesktop) {
+                creditDisplayDesktop.textContent = text;
+                creditDisplayDesktop.classList.remove('hidden');
+            }
+            if (userCreditsDisplay) userCreditsDisplay.classList.add('hidden');
+            if (userCreditsDisplayMobile) userCreditsDisplayMobile.classList.add('hidden');
         }
 
         // 如果角色是 CustomAPI，自动在后台拉取并显示最新 Anlas 余额

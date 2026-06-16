@@ -1,4 +1,5 @@
 import { verifyJwt } from '../../_crypto-helper.js';
+import { USER_DAILY_FREE_LIMIT } from '../../_config.js';
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -47,13 +48,21 @@ export async function onRequest(context) {
       });
     }
 
+    // 获取当前北京时间日期并计算用户的每日免费已用额度
+    const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const userLimitKey = `user_limit:${today}:${user.id}`;
+    const userLimitRow = await db.prepare("SELECT count FROM free_limits WHERE key = ?").bind(userLimitKey).first();
+    const userLimitCount = userLimitRow ? userLimitRow.count : 0;
+
     return new Response(JSON.stringify({
       success: true,
       user: {
         id: user.id,
         username: user.username,
         role: user.role,
-        credits: user.credits
+        credits: user.credits,
+        daily_limit: USER_DAILY_FREE_LIMIT,
+        daily_count: userLimitCount
       }
     }), {
       status: 200,

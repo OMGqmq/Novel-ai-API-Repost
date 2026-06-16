@@ -3217,7 +3217,17 @@ function updateUserCreditsUI(user) {
     const desktopDisplay = document.getElementById('userCreditsDisplay');
     const mobileDisplay = document.getElementById('userCreditsDisplayMobile');
     
-    const text = `${user.username} (余:${user.credits})`;
+    let text;
+    if (user.daily_limit !== undefined && user.daily_count !== undefined) {
+        const remainingDaily = Math.max(0, user.daily_limit - user.daily_count);
+        if (remainingDaily > 0) {
+            text = `${user.username} (日免:${remainingDaily})`;
+        } else {
+            text = `${user.username} (余:${user.credits})`;
+        }
+    } else {
+        text = `${user.username} (余:${user.credits})`;
+    }
     
     if (desktopDisplay) {
         desktopDisplay.textContent = text;

@@ -4,7 +4,7 @@
  */
 
 import { verifyJwt } from './_crypto-helper.js';
-import { GUEST_DAILY_IP_LIMIT, GUEST_DAILY_GLOBAL_LIMIT } from './_config.js';
+import { GUEST_DAILY_IP_LIMIT, GUEST_DAILY_GLOBAL_LIMIT, USER_DAILY_FREE_LIMIT } from './_config.js';
 
 export async function authenticate(request, env) {
   const SERVER_API_KEY = env.NOVELAI_API_KEY;
@@ -15,7 +15,10 @@ export async function authenticate(request, env) {
   const adminToken = (request.headers.get('x-admin-token') || "").trim();
   const userKey = (request.headers.get('x-user-key') || "").trim();
   const authHeader = (request.headers.get('Authorization') || "").trim();
-  const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const clientIP = request.headers.get('CF-Connecting-IP') || 
+                   request.headers.get('X-Real-IP') || 
+                   request.headers.get('X-Forwarded-For')?.split(',')[0].trim() || 
+                   'unknown';
   const serverAdminToken = (env.ADMIN_TOKEN || "").trim();
 
   let isVip = false;
@@ -52,18 +55,31 @@ export async function authenticate(request, env) {
         throw new AuthError("用户不存在，请重新登录。", 403);
       }
 
+      // 获取当前北京时间日期并计算用户的每日免费已用额度
+      const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const userLimitKey = `user_limit:${today}:${user.id}`;
+      const userLimitRow = await db.prepare("SELECT count FROM free_limits WHERE key = ?").bind(userLimitKey).first();
+      const userLimitCount = userLimitRow ? userLimitRow.count : 0;
+
+      const dailyFreeLimit = USER_DAILY_FREE_LIMIT;
+      const hasFreeDaily = userLimitCount < dailyFreeLimit;
+
       remainingCredits = user.credits;
-      if (isNaN(remainingCredits) || remainingCredits <= 0) {
-        throw new AuthError("您的账户余额已用尽，请充值后使用。", 402);
+      if (!hasFreeDaily && (isNaN(remainingCredits) || remainingCredits <= 0)) {
+        throw new AuthError("您的每日免费额度和长期余额已用尽，请充值后使用。", 402);
       }
 
       return {
         apiKey,
         isVip: true,
-        userRole: `用户:${user.username} (余:${remainingCredits - 1})`,
+        userRole: hasFreeDaily 
+          ? `用户:${user.username} (日免:${dailyFreeLimit - userLimitCount})` 
+          : `用户:${user.username} (余:${remainingCredits - 1})`,
         remainingCredits,
         userId: user.id,
-        authType: 'JWT'
+        authType: 'JWT',
+        useDailyLimit: hasFreeDaily,
+        userLimitKey
       };
     } else {
       throw new AuthError("登录状态已过期，请重新登录。", 401);
@@ -93,7 +109,8 @@ export async function authenticate(request, env) {
 
   // E. Free Guest
   if (db) {
-    const today = new Date().toISOString().split('T')[0];
+    // 使用北京时间 (UTC+8) 避免在 00:00 - 08:00 期间因 UTC 时区差被判定为前一天
+    const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
     const globalKey = `global:${today}`;
     const ipKey = `limit:${today}:${clientIP}`;
 
