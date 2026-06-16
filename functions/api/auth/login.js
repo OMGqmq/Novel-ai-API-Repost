@@ -40,27 +40,13 @@ export async function onRequest(context) {
       });
     }
 
-    // 验证密码哈希 (支持 600,000 次和 100,000 次兼容)
-    let passwordHash = await hashPassword(password, user.salt, 600000);
+    // 验证密码哈希 (统一采用 Cloudflare 支持的 100,000 次迭代)
+    const passwordHash = await hashPassword(password, user.salt, 100000);
     if (passwordHash !== user.password_hash) {
-      const legacyHash = await hashPassword(password, user.salt, 100000);
-      if (legacyHash === user.password_hash) {
-        passwordHash = legacyHash;
-        // 静默升级哈希为 600,000 次
-        const newHash = await hashPassword(password, user.salt, 600000);
-        try {
-          await db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now', '+8 hours') WHERE id = ?")
-            .bind(newHash, user.id)
-            .run();
-        } catch (dbErr) {
-          console.error("静默升级用户哈希失败:", dbErr.message);
-        }
-      } else {
-        return new Response(JSON.stringify({ error: '用户名或密码错误' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+      return new Response(JSON.stringify({ error: '用户名或密码错误' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // 检查账户激活状态
