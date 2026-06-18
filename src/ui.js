@@ -282,6 +282,18 @@ export class UIController {
             if (isZImage) zimageWrap.classList.remove('hidden');
             else zimageWrap.classList.add('hidden');
         }
+
+        const advancedWrap = document.getElementById('advancedSettingsWrapper');
+        if (advancedWrap) {
+            if (isZImage) advancedWrap.classList.add('hidden');
+            else advancedWrap.classList.remove('hidden');
+        }
+
+        const adminWrap = document.getElementById('adminSettingsWrapper');
+        if (adminWrap) {
+            if (isZImage) adminWrap.classList.add('hidden');
+            else adminWrap.classList.remove('hidden');
+        }
     }
 
     switchRightView(view, updateGalleryTabCallback = null) {
