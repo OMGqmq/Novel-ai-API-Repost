@@ -41,69 +41,88 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
     const payload = buildPayload(data, isRestricted, width, height);
 
     // 5. 请求 NovelAI
-    let fetchOptions = {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`
+    // 5. 请求模型 (如果是 zimage 则请求 pollinations.ai)
+    let response;
+    if (data.version === 'zimage') {
+      const pKey = env.POLLINATIONS_API_KEY || "";
+      const seedVal = data.seed ? parseInt(data.seed) : Math.floor(Math.random() * 1000000000);
+      const promptEncoded = encodeURIComponent(data.prompt || "a beautiful scenery");
+      const url = `https://gen.pollinations.ai/image/${promptEncoded}?model=zimage&width=${width}&height=${height}&seed=${seedVal}&nologo=true`;
+      
+      const pHeaders = {};
+      if (pKey) {
+        pHeaders['Authorization'] = `Bearer ${pKey}`;
       }
-    };
-
-    const directorRefImgs = payload.parameters?.director_reference_images;
-    if (directorRefImgs && Array.isArray(directorRefImgs) && directorRefImgs.length > 0) {
-      const formData = new FormData();
-      const cachedImages = [];
-
-      for (let i = 0; i < directorRefImgs.length; i++) {
-        let base64Str = directorRefImgs[i];
-        if (base64Str.includes(',')) {
-          base64Str = base64Str.split(',')[1];
-        }
-        
-        // Decode base64 to binary bytes
-        const binaryString = atob(base64Str);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let j = 0; j < len; j++) {
-          bytes[j] = binaryString.charCodeAt(j);
-        }
-
-        // Detect MIME type
-        let mimeType = 'image/png';
-        if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
-          mimeType = 'image/png';
-        } else if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
-          mimeType = 'image/jpeg';
-        } else if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
-          mimeType = 'image/webp';
-        }
-
-        const partName = `director_ref_${i}`;
-        const blob = new Blob([bytes], { type: mimeType });
-        formData.append(partName, blob, 'blob');
-
-        // Generate SHA-256 cache key using Web Crypto API
-        const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const cacheKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-        cachedImages.push({
-          cache_secret_key: cacheKey,
-          data: partName
-        });
-      }
-
-      // Modify payload parameters
-      delete payload.parameters.director_reference_images;
-      payload.parameters.director_reference_images_cached = cachedImages;
-
-      formData.append('request', new Blob([JSON.stringify(payload)], { type: 'application/json' }), 'blob');
-      fetchOptions.body = formData;
+      
+      response = await fetch(url, {
+        method: 'GET',
+        headers: pHeaders
+      });
     } else {
-      fetchOptions.headers['Content-Type'] = 'application/json';
-      fetchOptions.body = JSON.stringify(payload);
-    }
+      let fetchOptions = {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`
+        }
+      };
 
-    const response = await fetch(targetUrl, fetchOptions);
+      const directorRefImgs = payload.parameters?.director_reference_images;
+      if (directorRefImgs && Array.isArray(directorRefImgs) && directorRefImgs.length > 0) {
+        const formData = new FormData();
+        const cachedImages = [];
+
+        for (let i = 0; i < directorRefImgs.length; i++) {
+          let base64Str = directorRefImgs[i];
+          if (base64Str.includes(',')) {
+            base64Str = base64Str.split(',')[1];
+          }
+          
+          // Decode base64 to binary bytes
+          const binaryString = atob(base64Str);
+          const len = binaryString.length;
+          const bytes = new Uint8Array(len);
+          for (let j = 0; j < len; j++) {
+            bytes[j] = binaryString.charCodeAt(j);
+          }
+
+          // Detect MIME type
+          let mimeType = 'image/png';
+          if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+            mimeType = 'image/png';
+          } else if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+            mimeType = 'image/jpeg';
+          } else if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+            mimeType = 'image/webp';
+          }
+
+          const partName = `director_ref_${i}`;
+          const blob = new Blob([bytes], { type: mimeType });
+          formData.append(partName, blob, 'blob');
+
+          // Generate SHA-256 cache key using Web Crypto API
+          const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const cacheKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+          cachedImages.push({
+            cache_secret_key: cacheKey,
+            data: partName
+          });
+        }
+
+        // Modify payload parameters
+        delete payload.parameters.director_reference_images;
+        payload.parameters.director_reference_images_cached = cachedImages;
+
+        formData.append('request', new Blob([JSON.stringify(payload)], { type: 'application/json' }), 'blob');
+        fetchOptions.body = formData;
+      } else {
+        fetchOptions.headers['Content-Type'] = 'application/json';
+        fetchOptions.body = JSON.stringify(payload);
+      }
+
+      response = await fetch(targetUrl, fetchOptions);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -133,9 +152,13 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
       await recordUsage(waitUntil);
     }
 
-    // 7. 透传响应 (ZIP)
+    // 7. 透传响应
     const newHeaders = new Headers(response.headers);
-    newHeaders.set('Content-Type', 'application/zip');
+    if (data.version === 'zimage') {
+      newHeaders.set('Content-Type', response.headers.get('Content-Type') || 'image/jpeg');
+    } else {
+      newHeaders.set('Content-Type', 'application/zip');
+    }
     newHeaders.set('X-User-Role', encodeURIComponent(userRole));
 
     return new Response(response.body, {

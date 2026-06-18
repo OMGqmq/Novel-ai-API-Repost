@@ -194,12 +194,14 @@ export class UIController {
     setModel(ver) {
         document.getElementById('modelValue').value = ver;
         document.querySelectorAll('.switch-bg').forEach(bg => {
-            bg.style.transform = ver === 'v4.5' ? 'translateX(100%)' : 'translateX(0)';
+            if (ver === 'v4.5') bg.style.transform = 'translateX(100%)';
+            else if (ver === 'zimage') bg.style.transform = 'translateX(200%)';
+            else bg.style.transform = 'translateX(0)';
         });
         const badge = document.getElementById('modelBadge');
-        if (badge) badge.innerText = (ver === 'v4.5' ? 'V4.5' : 'V3') + ' MODE';
+        if (badge) badge.innerText = (ver === 'zimage' ? 'ZIMAGE' : ver === 'v4.5' ? 'V4.5' : 'V3') + ' MODE';
         const mini = document.getElementById('modelStatusMini');
-        if (mini) mini.innerText = ver === 'v4.5' ? 'V4.5' : 'V3';
+        if (mini) mini.innerText = ver === 'zimage' ? 'ZImage' : ver === 'v4.5' ? 'V4.5' : 'V3';
 
         // 控制 V4.5 专属参数面板的显示/隐藏（仅在 V4.5 且开启了实验性配置时显示）
         const isV45Exp = localStorage.getItem('v4_5_experimental') === 'true';

@@ -37,8 +37,15 @@ export class ImageEngine {
         await this._handleErrors(response);
 
         const userRole = this._parseUserRole(response);
+        const contentType = response.headers.get("content-type") || "";
         const blob = await response.blob();
-        const imgBlob = await this._extractImageFromZip(blob);
+        
+        let imgBlob;
+        if (contentType.includes("application/zip")) {
+            imgBlob = await this._extractImageFromZip(blob);
+        } else {
+            imgBlob = blob;
+        }
         const imageUrl = URL.createObjectURL(imgBlob);
 
         return {
@@ -76,8 +83,15 @@ export class ImageEngine {
         await this._handleErrors(response);
 
         const userRole = this._parseUserRole(response);
+        const contentType = response.headers.get("content-type") || "";
         const blob = await response.blob();
-        const imgBlob = await this._extractImageFromZip(blob);
+        
+        let imgBlob;
+        if (contentType.includes("application/zip")) {
+            imgBlob = await this._extractImageFromZip(blob);
+        } else {
+            imgBlob = blob;
+        }
         const imageUrl = URL.createObjectURL(imgBlob);
 
         return {
