@@ -407,6 +407,96 @@ window.onunhandledrejection = function(event) {
     if (window.ui) window.ui.setLoading(false);
 };
 
+async function doGenerateZImage() {
+    try {
+        const promptText = els.prompt.value.trim();
+        if (!promptText) { els.prompt.focus(); ui.toggleMobileControls(true); return; }
+
+        const resEl = document.getElementById('resolution');
+        if (!resEl) throw new Error("找不到分辨率选择器");
+        const [w, h] = resEl.value.split(',').map(Number);
+
+        // 切换 UI 到 preview 状态
+        if (ui.currentRightView !== 'preview') ui.switchRightView('preview');
+        ui.toggleMobileControls(false);
+        ui.setLoading(true, "生成中...");
+
+        // 获取 ZImage 专属参数
+        const ziTransparentEl = document.getElementById('ziTransparent');
+        const ziEnhanceEl = document.getElementById('ziEnhance');
+        const ziQualityEl = document.getElementById('ziQuality');
+
+        const zi_transparent = ziTransparentEl ? ziTransparentEl.checked : false;
+        const zi_enhance = ziEnhanceEl ? ziEnhanceEl.checked : true;
+        const zi_quality = ziQualityEl ? ziQualityEl.value : "standard";
+
+        // 提取或生成 Seed
+        const seedEl = document.getElementById('seed');
+        const userSeedVal = seedEl ? seedEl.value.trim() : "";
+        let finalSeed;
+        if (userSeedVal && !isNaN(userSeedVal)) {
+            finalSeed = parseInt(userSeedVal) % 4294967296;
+        } else {
+            finalSeed = Math.floor(Math.random() * 4294967295);
+        }
+
+        const params = {
+            version: 'zimage',
+            prompt: promptText,
+            width: w,
+            height: h,
+            seed: finalSeed,
+            zi_transparent,
+            zi_enhance,
+            zi_quality
+        };
+
+        // 构造极简的 auth
+        const auth = {
+            adminToken: store.getSetting('nai_admin_token'),
+            userKey: store.getSetting('nai_user_key'),
+            userToken: localStorage.getItem('nai_user_token') || "",
+            customApiKey: ""
+        };
+
+        // 发起生成请求
+        const result = await engine.generate(params, auth);
+
+        if (result.userRole) {
+            ui.updateCreditDisplay(result.userRole);
+        }
+
+        // 保存历史
+        const metaData = {
+            width: params.width,
+            height: params.height,
+            seed: params.seed,
+            zi_transparent: params.zi_transparent,
+            zi_enhance: params.zi_enhance,
+            zi_quality: params.zi_quality
+        };
+
+        // 转 Base64 存历史
+        const reader = new FileReader();
+        reader.readAsDataURL(result.blob);
+        reader.onloadend = async () => {
+            await saveToHistory(reader.result, promptText, 'zimage', result, false, metaData);
+        };
+
+        // 展示图片
+        ui.showResultImages([result], (selected) => {
+            currentImageData = selected;
+        });
+
+    } catch (err) {
+        console.error("ZImage Generate Error:", err);
+        alert(err.message || err);
+    } finally {
+        ui.setLoading(false);
+        ui.toggleMobileControls(true);
+    }
+}
+
 async function doGenerate() {
     // Check if outpaint is active
     const outpaintArea = document.getElementById('outpaintArea');
@@ -415,6 +505,11 @@ async function doGenerate() {
             window.outpaintEditor.generate();
         }
         return;
+    }
+
+    const selectedVersion = document.getElementById('modelValue').value;
+    if (selectedVersion === 'zimage') {
+        return doGenerateZImage();
     }
 
     try {
@@ -584,16 +679,6 @@ async function doGenerate() {
                 const charRefParams = charRefManager.getPayloadParams(selectedVersion);
                 Object.assign(params, charRefParams);
 
-                // 读取 ZImage 专属参数
-                if (selectedVersion === 'zimage') {
-                    const ziTransparentEl = document.getElementById('ziTransparent');
-                    const ziEnhanceEl = document.getElementById('ziEnhance');
-                    const ziQualityEl = document.getElementById('ziQuality');
-                    
-                    params.zi_transparent = ziTransparentEl ? ziTransparentEl.checked : false;
-                    params.zi_enhance = ziEnhanceEl ? ziEnhanceEl.checked : true;
-                    params.zi_quality = ziQualityEl ? ziQualityEl.value : "standard";
-                }
 
                 // 读取用户指定的 Seed
                 const seedEl = document.getElementById('seed');
