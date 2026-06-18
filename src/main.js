@@ -576,6 +576,17 @@ async function doGenerate() {
                 const charRefParams = charRefManager.getPayloadParams(selectedVersion);
                 Object.assign(params, charRefParams);
 
+                // 读取 ZImage 专属参数
+                if (selectedVersion === 'zimage') {
+                    const ziTransparentEl = document.getElementById('ziTransparent');
+                    const ziEnhanceEl = document.getElementById('ziEnhance');
+                    const ziQualityEl = document.getElementById('ziQuality');
+                    
+                    params.zi_transparent = ziTransparentEl ? ziTransparentEl.checked : false;
+                    params.zi_enhance = ziEnhanceEl ? ziEnhanceEl.checked : true;
+                    params.zi_quality = ziQualityEl ? ziQualityEl.value : "standard";
+                }
+
                 // 读取用户指定的 Seed
                 const seedEl = document.getElementById('seed');
                 const userSeedVal = seedEl ? seedEl.value.trim() : "";

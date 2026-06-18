@@ -47,7 +47,21 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
       const pKey = env.POLLINATIONS_API_KEY || "";
       const seedVal = data.seed ? parseInt(data.seed) : Math.floor(Math.random() * 1000000000);
       const promptEncoded = encodeURIComponent(data.prompt || "a beautiful scenery");
-      const url = `https://gen.pollinations.ai/image/${promptEncoded}?model=zimage&width=${width}&height=${height}&seed=${seedVal}&nologo=true`;
+      
+      const isTransparent = data.zi_transparent === true;
+      const isEnhance = data.zi_enhance !== false; // 默认是 true
+      const quality = data.zi_quality === 'hd' ? 'hd' : 'standard';
+      
+      let url = `https://gen.pollinations.ai/image/${promptEncoded}?model=zimage&width=${width}&height=${height}&seed=${seedVal}&nologo=true`;
+      if (isTransparent) {
+        url += `&transparent=true`;
+      }
+      if (!isEnhance) {
+        url += `&enhance=false`;
+      }
+      if (quality === 'hd') {
+        url += `&quality=hd`;
+      }
       
       const pHeaders = {};
       if (pKey) {

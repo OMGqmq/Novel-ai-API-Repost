@@ -276,6 +276,12 @@ export class UIController {
             if (isZImage) vibeWrap.classList.add('hidden');
             else vibeWrap.classList.remove('hidden');
         }
+
+        const zimageWrap = document.getElementById('zimageSettingsWrapper');
+        if (zimageWrap) {
+            if (isZImage) zimageWrap.classList.remove('hidden');
+            else zimageWrap.classList.add('hidden');
+        }
     }
 
     switchRightView(view, updateGalleryTabCallback = null) {
