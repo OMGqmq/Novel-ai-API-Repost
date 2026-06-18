@@ -432,10 +432,6 @@ async function doGenerate() {
             userToken: localStorage.getItem('nai_user_token') || ""
         };
 
-        // 如果有多个 Key,构造多个 auth 对象用于并发
-        const auths = customApiKeys.length > 0 
-            ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
-            : [{ ...authBase, customApiKey: "" }];
 
         const isAdmin = !!authBase.adminToken || customApiKeys.length > 0;
 
@@ -468,6 +464,9 @@ async function doGenerate() {
         for (let i = 0; i < batchTotal; i++) {
             const statusText = batchTotal > 1 ? `生成中 (${i + 1}/${batchTotal})` : "生成中...";
             ui.setLoading(true, statusText);
+
+            const currentKey = customApiKeys.length > 0 ? customApiKeys[i % customApiKeys.length] : "";
+            const auths = [{ ...authBase, customApiKey: currentKey }];
 
             try {
                 const nsEl = document.getElementById('noise_schedule');
