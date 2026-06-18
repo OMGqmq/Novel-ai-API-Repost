@@ -435,9 +435,9 @@ async function doGenerateZImage() {
         const userSeedVal = seedEl ? seedEl.value.trim() : "";
         let finalSeed;
         if (userSeedVal && !isNaN(userSeedVal)) {
-            finalSeed = parseInt(userSeedVal) % 4294967296;
+            finalSeed = parseInt(userSeedVal) % 2147483648;
         } else {
-            finalSeed = Math.floor(Math.random() * 4294967295);
+            finalSeed = Math.floor(Math.random() * 2147483647);
         }
 
         const params = {
