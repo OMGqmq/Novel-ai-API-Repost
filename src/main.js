@@ -486,6 +486,8 @@ async function doGenerateZImage() {
         // 展示图片
         ui.showResultImages([result], (selected) => {
             currentImageData = selected;
+            if (selected.id) currentImageId = selected.id;
+            window.lastSelectedImageUrl = selected.imageUrl;
         });
 
     } catch (err) {
