@@ -243,6 +243,39 @@ export class UIController {
                 charWrapper.classList.add('hidden');
             }
         }
+
+        // 控制 NAI 专属组件在 zimage 模式下隐藏，而在 NAI 模型（v3, v4.5）下显示
+        const isZImage = ver === 'zimage';
+        
+        const negPromptWrap = document.getElementById('negativePromptWrapper');
+        if (negPromptWrap) {
+            if (isZImage) negPromptWrap.classList.add('hidden');
+            else negPromptWrap.classList.remove('hidden');
+        }
+
+        const stepsWrap = document.getElementById('stepsWrapper');
+        if (stepsWrap) {
+            if (isZImage) stepsWrap.classList.add('hidden');
+            else stepsWrap.classList.remove('hidden');
+        }
+
+        const samplerWrap = document.getElementById('samplerSettingsWrapper');
+        if (samplerWrap) {
+            if (isZImage) samplerWrap.classList.add('hidden');
+            else samplerWrap.classList.remove('hidden');
+        }
+
+        const img2imgWrap = document.getElementById('img2imgSettingsWrapper');
+        if (img2imgWrap) {
+            if (isZImage) img2imgWrap.classList.add('hidden');
+            else img2imgWrap.classList.remove('hidden');
+        }
+
+        const vibeWrap = document.getElementById('vibeSettingsWrapper');
+        if (vibeWrap) {
+            if (isZImage) vibeWrap.classList.add('hidden');
+            else vibeWrap.classList.remove('hidden');
+        }
     }
 
     switchRightView(view, updateGalleryTabCallback = null) {
