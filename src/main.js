@@ -170,6 +170,13 @@ try {
         v45ExpCheckbox.checked = savedV45Exp;
     }
 
+    // Restore Multi-Key Concurrent mode
+    const savedKeyConcurrent = store.getSetting('nai_custom_key_concurrent') === 'true';
+    const keyConcurrentCheckbox = document.getElementById('settingsKeyConcurrentCheckbox');
+    if (keyConcurrentCheckbox) {
+        keyConcurrentCheckbox.checked = savedKeyConcurrent;
+    }
+
     // Restore V4.5 customized parameters
     const savedEulerBug = store.getSetting('nai_v45_euler_bug', 'false') === 'true';
     const savedPreferBrownian = store.getSetting('nai_v45_prefer_brownian', 'true') === 'true';
@@ -465,8 +472,10 @@ async function doGenerate() {
             const statusText = batchTotal > 1 ? `生成中 (${i + 1}/${batchTotal})` : "生成中...";
             ui.setLoading(true, statusText);
 
-            const currentKey = customApiKeys.length > 0 ? customApiKeys[i % customApiKeys.length] : "";
-            const auths = [{ ...authBase, customApiKey: currentKey }];
+            const isConcurrent = store.getSetting('nai_custom_key_concurrent') === 'true';
+            const auths = (isConcurrent && customApiKeys.length > 0)
+                ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
+                : [{ ...authBase, customApiKey: (customApiKeys.length > 0 ? customApiKeys[i % customApiKeys.length] : "") }];
 
             try {
                 const nsEl = document.getElementById('noise_schedule');
@@ -1383,6 +1392,15 @@ function toggleLowPerf(forceState) {
     
     const checkbox = document.getElementById('settingsLowPerfCheckbox');
     if (checkbox) checkbox.checked = enabled;
+}
+function toggleKeyConcurrent(forceState) {
+    const checkbox = document.getElementById('settingsKeyConcurrentCheckbox');
+    const enabled = typeof forceState === 'boolean' ? forceState : (checkbox ? checkbox.checked : false);
+    
+    store.setSetting('nai_custom_key_concurrent', enabled ? 'true' : 'false');
+    if (checkbox) checkbox.checked = enabled;
+    
+    window.showToast(enabled ? "已启用多 Key 并发生成" : "已切换为多 Key 轮询生成", "success");
 }
 function toggleV45Experimental(forceState) {
     const checkbox = document.getElementById('settingsV45ExperimentalCheckbox');
@@ -3180,7 +3198,7 @@ Object.assign(window, {
     copyLightboxText, lightboxApplyParams, lightboxDownload, lightboxDelete,
     lightboxCreate, toggleLightboxSidebarMobile,
     saveAdminToken, clearAdminToken,
-    addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleV45Experimental, randomizeSeed, toggleBypassLimitsEnabled,
+    addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleKeyConcurrent, toggleV45Experimental, randomizeSeed, toggleBypassLimitsEnabled,
     addCharacterPromptRow, removeCharacterPromptRow, selectCharGridCell, toggleCharacterPromptsPanel,
     saveCurrentPromptToNotebook, switchNotebookModel, renderNotebookNotes,
     applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote,
