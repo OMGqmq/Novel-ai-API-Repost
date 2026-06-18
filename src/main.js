@@ -7,6 +7,7 @@ import { PromptHelper } from './prompt-helper.js?v=202605292218';
 import { NotebookManager } from './notebook.js?v=202605292218';
 import { VibeManager } from './vibe-manager.js?v=202605292218';
 import { CharRefManager } from './char-ref-manager.js?v=20260611';
+import { AiHelperService } from './ai-helper-service.js?v=20260618';
 
 
 
@@ -77,6 +78,7 @@ const engine = new ImageEngine();
 const store = new GalleryStore();
 const ui = new UIController();
 const els = ui.els;
+const aiHelper = new AiHelperService(store);
 
 const notebookManager = new NotebookManager({
     listContainerEl: document.getElementById('notebookList'),
@@ -176,6 +178,18 @@ try {
     if (keyConcurrentCheckbox) {
         keyConcurrentCheckbox.checked = savedKeyConcurrent;
     }
+
+    // Restore AI Prompt Helper configuration
+    const aiHelperSettings = aiHelper.getSettings();
+    const aiBaseUrlInput = document.getElementById('aiHelperBaseUrl');
+    const aiApiKeyInput = document.getElementById('aiHelperApiKey');
+    const aiModelInput = document.getElementById('aiHelperModel');
+    const aiSystemPromptInput = document.getElementById('aiHelperSystemPrompt');
+
+    if (aiBaseUrlInput) aiBaseUrlInput.value = aiHelperSettings.baseUrl;
+    if (aiApiKeyInput) aiApiKeyInput.value = aiHelperSettings.apiKey;
+    if (aiModelInput) aiModelInput.value = aiHelperSettings.model;
+    if (aiSystemPromptInput) aiSystemPromptInput.value = aiHelperSettings.systemPrompt;
 
     // Restore V4.5 customized parameters
     const savedEulerBug = store.getSetting('nai_v45_euler_bug', 'false') === 'true';
@@ -1489,6 +1503,97 @@ function toggleKeyConcurrent(forceState) {
     
     window.showToast(enabled ? "已启用多 Key 并发生成" : "已切换为多 Key 轮询生成", "success");
 }
+
+function saveAiHelperSettings() {
+    const baseUrl = document.getElementById('aiHelperBaseUrl')?.value.trim() || "";
+    const apiKey = document.getElementById('aiHelperApiKey')?.value.trim() || "";
+    const model = document.getElementById('aiHelperModel')?.value.trim() || "";
+    const systemPrompt = document.getElementById('aiHelperSystemPrompt')?.value.trim() || "";
+
+    store.setSetting('ai_helper_base_url', baseUrl);
+    store.setSetting('ai_helper_api_key', apiKey);
+    store.setSetting('ai_helper_model', model);
+    store.setSetting('ai_helper_system_prompt', systemPrompt);
+
+    window.showToast("AI 提示词助手配置已保存", "success");
+}
+
+async function testAiHelperConnection() {
+    const statusEl = document.getElementById('aiHelperStatus');
+    const testBtn = document.getElementById('aiHelperTestBtn');
+    if (statusEl) {
+        statusEl.className = "text-xs px-1 text-gray-500 mt-2 block";
+        statusEl.textContent = "正在测试连接...";
+        statusEl.classList.remove('hidden');
+    }
+    if (testBtn) testBtn.disabled = true;
+
+    try {
+        const tempStore = {
+            getSetting(key, defVal) {
+                if (key === 'ai_helper_base_url') return document.getElementById('aiHelperBaseUrl')?.value.trim() || defVal;
+                if (key === 'ai_helper_api_key') return document.getElementById('aiHelperApiKey')?.value.trim() || defVal;
+                if (key === 'ai_helper_model') return document.getElementById('aiHelperModel')?.value.trim() || defVal;
+                if (key === 'ai_helper_system_prompt') return document.getElementById('aiHelperSystemPrompt')?.value.trim() || defVal;
+                return defVal;
+            }
+        };
+        const tempService = new AiHelperService(tempStore);
+        // 用最简问题快速测试
+        const res = await tempService.generatePrompt("Say 'ok'");
+        
+        if (statusEl) {
+            statusEl.className = "text-xs px-1 text-emerald-500 font-semibold mt-2 block";
+            statusEl.textContent = `连接成功! 响应: ${res}`;
+        }
+        window.showToast("连接测试成功!", "success");
+    } catch (err) {
+        if (statusEl) {
+            statusEl.className = "text-xs px-1 text-red-500 font-semibold mt-2 block";
+            statusEl.textContent = `连接失败: ${err.message}`;
+        }
+        window.showToast("连接测试失败", "error");
+    } finally {
+        if (testBtn) testBtn.disabled = false;
+    }
+}
+
+async function optimizePromptWithAi() {
+    const btn = document.getElementById('promptAiBtn');
+    const promptInput = document.getElementById('prompt');
+    if (!promptInput) return;
+
+    const originalHtml = btn ? btn.innerHTML : "";
+    const userIdea = promptInput.value.trim();
+
+    if (!userIdea) {
+        window.showToast("请先在正向提示词中输入一些简单想法", "warning");
+        promptInput.focus();
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="w-3.5 h-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 优化中...`;
+    }
+
+    try {
+        const expandedPrompt = await aiHelper.generatePrompt(userIdea);
+        promptInput.value = expandedPrompt;
+        promptInput.dispatchEvent(new Event('input', { bubbles: true }));
+        window.showToast("提示词优化成功!", "success");
+    } catch (err) {
+        console.error("AI Optimize Error:", err);
+        window.showToast(`优化失败: ${err.message}`, "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            if (window.lucide) window.lucide.createIcons();
+        }
+    }
+}
+
 function toggleV45Experimental(forceState) {
     const checkbox = document.getElementById('settingsV45ExperimentalCheckbox');
     const enabled = typeof forceState === 'boolean' ? forceState : (checkbox ? checkbox.checked : false);
@@ -3294,6 +3399,7 @@ Object.assign(window, {
 
     // 设置中心方法
     openSettingsModal, closeSettingsModal, switchSettingsTab, openUserModalFromSettings, openAdminPanelFromSettings, updateSettingsUserCard, forceReloadApp, clearImageHistoryCache,
+    saveAiHelperSettings, testAiHelperConnection, optimizePromptWithAi,
 
     // 用户系统方法
     openUserModal, closeUserModal, switchAuthTab, submitAuth, submitRecharge, logoutUser, fetchUserProfile,

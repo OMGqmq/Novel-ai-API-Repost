@@ -18,7 +18,6 @@
   },
   "homepage": "https://github.com/OMGqmq/Novel-ai-API-Repost#readme",
   "devDependencies": {
-    "miniflare": "^4.20260507.1",
     "vitest": "^4.1.6"
   }
 }
