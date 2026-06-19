@@ -33,6 +33,13 @@
   * **高并发扣费一致性**：使用 SQL 事务处理，彻底杜绝高频快速出图时发生的“扣费漏单（双花）”漏洞。
   * **巨量免费额度**：每日支持高达 **10 万次** 的写入（卡密扣点）和 **500 万次** 的读取，可免费支撑数千日活用户的商用变现。
 
+### 📊 7. 管理员数据可视化看板 (Admin Dashboard)
+* 在后台管理系统内置数据监控看板，管理员可以实时观察：
+  * **全局性能指标**：总请求次数、成功率（防止 NAI 额度超支或 503 异常）与平均耗时。
+  * **交互走势图**：使用 Chart.js 动态绘制过去 24小时/7天/30天 内的请求量与响应耗时双轴折线图。
+  * **模型请求占比走势**：各类生图模型的使用比例分布。
+  * **安全审计与高频 IP**：直观展示排名前 5 的报错异常分析，并列出 Top 10 活跃 IP，防止外部接口被刷。
+
 ---
 
 ## ⚙️ 部署与配置指南
@@ -56,23 +63,69 @@
    * 点击 **Save (保存)**。
 
 ### 3. 初始化数据表
-在您创建的 D1 数据库详情页中，点击顶部的 **Console (控制台)**，复制粘贴并执行以下 SQL 语句：
+在您创建的 D1 数据库详情页中，点击顶部的 **Console (控制台)**，复制粘贴并执行整个 [init_db.sql](file:///data/data/com.termux/files/home/Novel-ai-API-Repost/init_db.sql) 语句进行初始化：
 
 ```sql
--- 1. 创建卡密余额表
-CREATE TABLE IF NOT EXISTS cards (
-    card_key TEXT PRIMARY KEY,
-    credits INTEGER NOT NULL,
+-- 1. 用户表
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    role TEXT DEFAULT 'User', -- 'User' | 'Admin'
+    credits INTEGER DEFAULT 10, -- 注册默认赠送10次
+    status TEXT DEFAULT 'Pending', -- 'Pending' | 'Approved' | 'Banned'
     created_at DATETIME DEFAULT (datetime('now', '+8 hours')),
     updated_at DATETIME DEFAULT (datetime('now', '+8 hours'))
 );
 
--- 2. 创建免费用户/IP每日限流表
+-- 2. 卡密表
+CREATE TABLE IF NOT EXISTS cards (
+    card_key TEXT PRIMARY KEY,
+    credits INTEGER NOT NULL,
+    is_used INTEGER DEFAULT 0, -- 0: 未使用, 1: 已使用
+    used_by_id INTEGER, -- 关联 users.id
+    used_at DATETIME,
+    created_at DATETIME DEFAULT (datetime('now', '+8 hours')),
+    updated_at DATETIME DEFAULT (datetime('now', '+8 hours'))
+);
+
+-- 3. 免费用户/IP每日限流表
 CREATE TABLE IF NOT EXISTS free_limits (
     key TEXT PRIMARY KEY,
     count INTEGER NOT NULL DEFAULT 0,
     updated_at DATETIME DEFAULT (datetime('now', '+8 hours'))
 );
+
+-- 4. 额度变动日志表
+CREATE TABLE IF NOT EXISTS credit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    action TEXT NOT NULL, -- 'register' | 'recharge' | 'generate'
+    amount INTEGER NOT NULL,
+    description TEXT,
+    created_at DATETIME DEFAULT (datetime('now', '+8 hours'))
+);
+
+-- 5. 请求指标日志表
+CREATE TABLE IF NOT EXISTS request_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,                   -- 关联 users.id (非登录用户为 NULL)
+    auth_type TEXT,                    -- 认证方式 'JWT' | 'Card' | 'Anonymous'
+    model TEXT,                        -- 请求模型，如 'nai-diffusion-4-5-full', 'zimage'
+    status_code INTEGER,               -- 响应状态码 (如 200, 500, 503)
+    duration_ms INTEGER,               -- 请求处理耗时 (毫秒)
+    ip TEXT,                           -- 客户端原始 IP
+    error_message TEXT,                -- 报错信息摘要 (失败时有值)
+    created_at DATETIME DEFAULT (datetime('now', '+8 hours'))
+);
+
+-- 6. 索引优化 (用于加速关联查询与状态过滤)
+CREATE INDEX IF NOT EXISTS idx_credit_logs_user_id ON credit_logs (user_id);
+CREATE INDEX IF NOT EXISTS idx_cards_used_by_id ON cards (used_by_id);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users (status);
+CREATE INDEX IF NOT EXISTS idx_req_logs_created_at ON request_logs (created_at);
+CREATE INDEX IF NOT EXISTS idx_req_logs_user_id ON request_logs (user_id);
 ```
 
 ### 4. 配置管理员密码
