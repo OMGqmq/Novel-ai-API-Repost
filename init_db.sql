@@ -42,5 +42,22 @@ CREATE TABLE IF NOT EXISTS credit_logs (
 -- 5. 索引优化 (用于加速关联查询与状态过滤)
 CREATE INDEX IF NOT EXISTS idx_credit_logs_user_id ON credit_logs (user_id);
 CREATE INDEX IF NOT EXISTS idx_cards_used_by_id ON cards (used_by_id);
-CREATE INDEX IF NOT EXISTS idx_users_status ON users (status);
+
+-- 6. 请求指标日志表
+CREATE TABLE IF NOT EXISTS request_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,                   -- 关联 users.id (非登录用户为 NULL)
+    auth_type TEXT,                    -- 认证方式 'JWT' | 'Card' | 'Anonymous'
+    model TEXT,                        -- 请求模型，如 'nai-diffusion-4-5-full', 'zimage'
+    status_code INTEGER,               -- 响应状态码 (如 200, 500, 503)
+    duration_ms INTEGER,               -- 请求处理耗时 (毫秒)
+    ip TEXT,                           -- 客户端原始 IP
+    error_message TEXT,                -- 报错信息摘要 (失败时有值)
+    created_at DATETIME DEFAULT (datetime('now', '+8 hours'))
+);
+
+-- 索引提升统计查询性能
+CREATE INDEX IF NOT EXISTS idx_req_logs_created_at ON request_logs (created_at);
+CREATE INDEX IF NOT EXISTS idx_req_logs_user_id ON request_logs (user_id);
+
 

@@ -7,22 +7,52 @@ export const json = (data, status = 200, extraHeaders = {}) =>
     headers: { 'Content-Type': 'application/json', ...extraHeaders }
   });
 
+async function writeRequestLog(env, { userId, authType, model, statusCode, durationMs, ip, errorMessage }) {
+  if (!env.DB) return;
+  try {
+    const sql = `
+      INSERT INTO request_logs (user_id, auth_type, model, status_code, duration_ms, ip, error_message, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'))
+    `;
+    await env.DB.prepare(sql).bind(
+      userId || null,
+      authType || 'Anonymous',
+      model || 'Unknown',
+      statusCode,
+      durationMs,
+      ip || 'Unknown',
+      errorMessage || null
+    ).run();
+  } catch (err) {
+    console.error("Failed to write request log:", err);
+  }
+}
+
 export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
   if (context.request.method !== 'POST') {
     return json({ error: 'Method not allowed' }, 405);
   }
 
-  try {
-    const { request, env, waitUntil } = context;
+  const startTime = Date.now();
+  const { request, env, waitUntil } = context;
+  const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-real-ip') || 'Unknown';
 
+  let userId = null;
+  let authType = 'Anonymous';
+  let model = 'Unknown';
+
+  try {
     // 1. 鉴权与限流
     const auth = await authenticate(request, env);
-    const { apiKey, userRole, isVip, userKey, remainingCredits, recordUsage, userId, authType, useDailyLimit, userLimitKey } = auth;
+    userId = auth.userId;
+    authType = auth.authType;
+    const { apiKey, userRole, isVip, userKey, remainingCredits, recordUsage, useDailyLimit, userLimitKey } = auth;
 
-    // 2. 获取请求数据
+    // 2. 获取请求 data
     const data = await request.json();
+    model = data.version || 'v3';
 
-        // 3. 安全防护：像素限制与角色参考限制
+    // 3. 安全防护：像素限制与角色参考限制
     const allowBypass = env.ALLOW_CUSTOM_LIMITS !== 'false';
     const isRestricted = (userRole !== 'CustomAPI' && userRole !== 'Admin') || !allowBypass;
 
@@ -40,7 +70,6 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
     // 4. 构建 payload
     const payload = buildPayload(data, isRestricted, width, height);
 
-    // 5. 请求 NovelAI
     // 5. 请求模型 (如果是 zimage 则请求 pollinations.ai)
     let response;
     if (data.version === 'zimage') {
@@ -141,9 +170,9 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
     if (!response.ok) {
       const errorText = await response.text();
       if (response.status === 402) {
-        return json({ error: "服务器 Anlas 余额不足，请联系管理员。" }, 500);
+        throw new Error("服务器 Anlas 余额不足，请联系管理员。");
       }
-      return json({ error: `NovelAI API Error: ${errorText}` }, response.status);
+      throw new Error(`NovelAI API Error: ${errorText}`);
     }
 
     // 6. 成功出图后的副作用
@@ -175,6 +204,20 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
     }
     newHeaders.set('X-User-Role', encodeURIComponent(userRole));
 
+    const durationMs = Date.now() - startTime;
+    const logPromise = writeRequestLog(env, {
+      userId,
+      authType,
+      model,
+      statusCode: 200,
+      durationMs,
+      ip,
+      errorMessage: null
+    });
+    if (typeof waitUntil === 'function') {
+      waitUntil(logPromise);
+    }
+
     return new Response(response.body, {
       status: 200,
       headers: newHeaders
@@ -182,6 +225,19 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
 
   } catch (e) {
     const status = e instanceof AuthError ? e.status : 500;
+    const durationMs = Date.now() - startTime;
+    const logPromise = writeRequestLog(env, {
+      userId,
+      authType,
+      model,
+      statusCode: status,
+      durationMs,
+      ip,
+      errorMessage: e.message
+    });
+    if (typeof waitUntil === 'function') {
+      waitUntil(logPromise);
+    }
     return json({ error: e.message }, status);
   }
 }
