@@ -74,7 +74,8 @@ describe('CharRefManager', () => {
             width: 0,
             height: 0,
             getContext: vi.fn().mockReturnValue({
-                drawImage: vi.fn()
+                drawImage: vi.fn(),
+                fillRect: vi.fn()
             }),
             toDataURL: vi.fn().mockReturnValue('data:image/png;base64,mockedPngBase64')
         };
@@ -90,9 +91,9 @@ describe('CharRefManager', () => {
     });
 
     it('should correctly load state if cached image is correct size and is png', async () => {
-        // Mock image properties (e.g. 500x500, which is <= 1024x1024)
-        vi.spyOn(MockImage.prototype, 'width', 'get').mockReturnValue(500);
-        vi.spyOn(MockImage.prototype, 'height', 'get').mockReturnValue(500);
+        // Mock image properties (e.g. 1472x1472, which is one of the standard sizes)
+        vi.spyOn(MockImage.prototype, 'width', 'get').mockReturnValue(1472);
+        vi.spyOn(MockImage.prototype, 'height', 'get').mockReturnValue(1472);
 
         // Mock saved setting
         const fakePngBase64 = 'iVBORw0KGgoAAAANS'; // starts with iVBORw
@@ -113,7 +114,7 @@ describe('CharRefManager', () => {
     });
 
     it('should automatically convert cache image if it is too large or not png', async () => {
-        // Mock image properties: 2000x2000 (total 4,000,000 pixels > 1,048,576)
+        // Mock image properties: 2000x2000 (total 4,000,000 pixels)
         vi.spyOn(MockImage.prototype, 'width', 'get').mockReturnValue(2000);
         vi.spyOn(MockImage.prototype, 'height', 'get').mockReturnValue(2000);
 
@@ -129,12 +130,9 @@ describe('CharRefManager', () => {
         // wait for image onload timeout and processImageToPng execution
         await new Promise(resolve => setTimeout(resolve, 150));
 
-        // It should call processImageToPng, resize it, and save the state
-        expect(mockCanvas.width).toBeLessThan(2000);
-        expect(mockCanvas.height).toBeLessThan(2000);
-        // target width and height should scale to sqrt(1024*1024 / 4,000,000) = 0.509 -> 2000 * 0.509 = 1019
-        expect(mockCanvas.width).toBe(1024);
-        expect(mockCanvas.height).toBe(1024);
+        // It should call processImageToPng, output standard NAI size 1472x1472 for 1:1 image, and save
+        expect(mockCanvas.width).toBe(1472);
+        expect(mockCanvas.height).toBe(1472);
 
         // The base64 stored should be the new mockedPngBase64
         expect(manager.currentCharRefImageBase64).toBe('mockedPngBase64');

@@ -2,26 +2,64 @@ function processImageToPng(source) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = function() {
-            let targetW = img.width;
-            let targetH = img.height;
-            const maxPixels = 1024 * 1024;
-            
-            if (img.width * img.height > maxPixels) {
-                const ratio = Math.sqrt(maxPixels / (img.width * img.height));
-                targetW = Math.floor(img.width * ratio);
-                targetH = Math.floor(img.height * ratio);
+            // 1. 寻找最贴合比例的官方三大标准分辨率之一
+            const rd = [[1024, 1536], [1536, 1024], [1472, 1472]];
+            const imgRatio = img.width / img.height;
+            let targetSize = rd[0];
+            for (const t of rd) {
+                if (Math.abs(t[0] / t[1] - imgRatio) < Math.abs(targetSize[0] / targetSize[1] - imgRatio)) {
+                    targetSize = t;
+                }
             }
-            
+
             const canvas = document.createElement('canvas');
-            canvas.width = targetW;
-            canvas.height = targetH;
+            canvas.width = targetSize[0];
+            canvas.height = targetSize[1];
             const ctx = canvas.getContext('2d');
             if (!ctx) {
                 reject(new Error("Could not get 2d context from canvas"));
                 return;
             }
-            
-            ctx.drawImage(img, 0, 0, targetW, targetH);
+
+            // 填充纯黑色背景，避免透明通道和 NAI 网关对非 RGB 格式的报错
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 2. 算绘制尺寸 (drawW, drawH)：最大不能超出画布边界
+            const canvasRatio = canvas.width / canvas.height;
+            let maxDrawW = canvas.width;
+            let maxDrawH = canvas.height;
+            if (imgRatio > canvasRatio) {
+                maxDrawW = canvas.width;
+                maxDrawH = Math.round(canvas.width / imgRatio);
+            } else {
+                maxDrawH = canvas.height;
+                maxDrawW = Math.round(canvas.height * imgRatio);
+            }
+
+            // 如果图片本身小于等于这个限制边界，则不要强行放大它，保持原本的分辨率绘制；
+            // 否则 (大图) 我们等比缩小到贴边限制
+            let drawW = img.width;
+            let drawH = img.height;
+
+            if (img.width > maxDrawW || img.height > maxDrawH) {
+                drawW = maxDrawW;
+                drawH = maxDrawH;
+            }
+
+            // 对于仍然超大或者总像素数超出 1024*1024 的情况，我们等比限制到该总像素上限
+            const maxPixels = 1024 * 1024;
+            if (drawW * drawH > maxPixels) {
+                const ratio = Math.sqrt(maxPixels / (drawW * drawH));
+                drawW = Math.floor(drawW * ratio);
+                drawH = Math.floor(drawH * ratio);
+            }
+
+            // 3. 居中绘制到 Canvas 黑色画布上
+            const offsetX = (canvas.width - drawW) / 2;
+            const offsetY = (canvas.height - drawH) / 2;
+            ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+
             resolve(canvas.toDataURL('image/png'));
         };
         img.onerror = reject;
@@ -80,7 +118,8 @@ export class CharRefManager {
         if (savedData) {
             const img = new Image();
             img.onload = () => {
-                const isCorrectSize = (img.width * img.height) <= (1024 * 1024 + 100);
+                const rd = [[1024, 1536], [1536, 1024], [1472, 1472]];
+                const isCorrectSize = rd.some(t => t[0] === img.width && t[1] === img.height);
                 const isPng = savedData.startsWith('iVBORw');
 
                 if (isCorrectSize && isPng) {
