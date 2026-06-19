@@ -100,6 +100,7 @@ export function createPayload(version, data) {
         },
         v4_negative_prompt: {
           caption: { base_caption: negative_prompt, char_captions: negCharCaptions },
+          use_order: negUseOrder,
           legacy_uc: data.legacy_uc !== undefined ? (data.legacy_uc === true) : false
         },
         ucPreset: 4,

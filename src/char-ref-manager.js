@@ -2,36 +2,26 @@ function processImageToPng(source) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = function() {
-            const rd = [[1024, 1536], [1536, 1024], [1472, 1472]];
-            const imgRatio = img.width / img.height;
-            let targetSize = rd[0];
-            for (const t of rd) {
-                if (Math.abs(t[0] / t[1] - imgRatio) < Math.abs(targetSize[0] / targetSize[1] - imgRatio)) {
-                    targetSize = t;
-                }
+            let targetW = img.width;
+            let targetH = img.height;
+            const maxPixels = 1024 * 1024;
+            
+            if (img.width * img.height > maxPixels) {
+                const ratio = Math.sqrt(maxPixels / (img.width * img.height));
+                targetW = Math.floor(img.width * ratio);
+                targetH = Math.floor(img.height * ratio);
             }
+            
             const canvas = document.createElement('canvas');
-            canvas.width = targetSize[0];
-            canvas.height = targetSize[1];
+            canvas.width = targetW;
+            canvas.height = targetH;
             const ctx = canvas.getContext('2d');
             if (!ctx) {
                 reject(new Error("Could not get 2d context from canvas"));
                 return;
             }
-            ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            const canvasRatio = canvas.width / canvas.height;
-            let drawW = img.width;
-            let drawH = img.height;
-            if (imgRatio > canvasRatio) {
-                drawW = canvas.width;
-                drawH = Math.round(canvas.width / imgRatio);
-            } else {
-                drawH = canvas.height;
-                drawW = Math.round(canvas.height * imgRatio);
-            }
-            ctx.drawImage(img, (canvas.width - drawW) / 2, (canvas.height - drawH) / 2, drawW, drawH);
+            ctx.drawImage(img, 0, 0, targetW, targetH);
             resolve(canvas.toDataURL('image/png'));
         };
         img.onerror = reject;
@@ -90,8 +80,7 @@ export class CharRefManager {
         if (savedData) {
             const img = new Image();
             img.onload = () => {
-                const rd = [[1024, 1536], [1536, 1024], [1472, 1472]];
-                const isCorrectSize = rd.some(t => t[0] === img.width && t[1] === img.height);
+                const isCorrectSize = (img.width * img.height) <= (1024 * 1024 + 100);
                 const isPng = savedData.startsWith('iVBORw');
 
                 if (isCorrectSize && isPng) {
