@@ -900,5 +900,12 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     #toolboxSidebar > button {
         display: none !important;
     }
+
+    /* 防止移动端纵向布局时弹性高度坍塌或溢出，确保内部 overflow 完美滚动 */
+    #toolboxMainPanel {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
 }
 
