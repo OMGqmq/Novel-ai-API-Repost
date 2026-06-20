@@ -12,6 +12,8 @@ import { initToolbox, openToolboxModal, closeToolboxModal, switchToolboxTab, tog
 
 
 
+let lastDownloadBlobUrl = null;
+
 function triggerDownload(url, filename) {
     console.log('[DEBUG-dl] triggerDownload called with filename:', filename);
     
@@ -27,8 +29,20 @@ function triggerDownload(url, filename) {
         return;
     }
 
+    // 释放上一次生成的旧 Blob URL 以释放内存，保证当前下载拥有无限的时间进行传输，不会因为超时而中断
+    if (lastDownloadBlobUrl) {
+        try {
+            URL.revokeObjectURL(lastDownloadBlobUrl);
+            console.log('[DEBUG-dl] Revoked last download blob URL:', lastDownloadBlobUrl);
+        } catch (e) {
+            console.error('[DEBUG-dl] Failed to revoke last blob URL:', e);
+        }
+        lastDownloadBlobUrl = null;
+    }
+
     const a = document.createElement('a');
-    let blobUrl = null;
+    a.download = filename;
+    a.rel = 'noopener';
     
     if (url.startsWith('data:')) {
         console.log('[DEBUG-dl] Detecting data URL, converting to blob...');
@@ -41,7 +55,8 @@ function triggerDownload(url, filename) {
                 array[i] = binary.charCodeAt(i);
             }
             const blob = new Blob([array], { type: mime });
-            blobUrl = URL.createObjectURL(blob);
+            const blobUrl = URL.createObjectURL(blob);
+            lastDownloadBlobUrl = blobUrl;
             a.href = blobUrl;
             console.log('[DEBUG-dl] Data URL successfully converted to Blob URL:', blobUrl);
         } catch (e) {
@@ -53,22 +68,18 @@ function triggerDownload(url, filename) {
         a.href = url;
     }
     
-    a.download = filename;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    console.log('[DEBUG-dl] Anchor element appended to DOM. Triggering click...');
-    a.click();
-    
-    // 同步立即移除，避免短时间内多次点击导致 DOM 节点堆积被浏览器防滥用机制拦截
-    document.body.removeChild(a);
-    console.log('[DEBUG-dl] Anchor element removed from DOM.');
-    
-    if (blobUrl) {
-        // 延长释放时间至 8000ms，确保移动端和慢速浏览器完全读取数据，防止快速释放导致后续下载受阻
-        setTimeout(() => {
-            URL.revokeObjectURL(blobUrl);
-            console.log('[DEBUG-dl] Revoked blob URL:', blobUrl);
-        }, 8000);
+    // 使用真实可信的 MouseEvent 鼠标事件触发下载，防范部分手机WebView对于脚本纯click行为的安全屏蔽
+    try {
+        const event = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+        });
+        a.dispatchEvent(event);
+        console.log('[DEBUG-dl] MouseEvent dispatched successfully.');
+    } catch (err) {
+        console.error('[DEBUG-dl] Dispatch mouse event failed, falling back to a.click()', err);
+        a.click();
     }
 }
 
