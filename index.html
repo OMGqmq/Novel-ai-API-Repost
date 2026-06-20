@@ -288,6 +288,9 @@
                     </div>
                 </div>
                 <div class="flex gap-2">
+                    <button onclick="openToolboxModal()" id="toolboxBtn"
+                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"
+                        title="高级小工具箱"><i data-lucide="wrench" class="w-4 h-4"></i></button>
                     <button onclick="toggleTheme()"
                         class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 transition-colors"
                         title="切换主题"><i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun"
@@ -318,6 +321,9 @@
             <div class="md:hidden flex justify-between items-center px-1 pb-1">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">配置</span>
                 <div class="flex gap-2">
+                    <button onclick="openToolboxModal()" id="toolboxBtnMobile"
+                        class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"
+                        title="高级小工具箱"><i data-lucide="wrench" class="w-4 h-4"></i></button>
                     <button onclick="toggleTheme()"
                         class="p-1.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500"><i data-lucide="moon"
                             class="w-4 h-4 block dark:hidden"></i><i data-lucide="sun"
@@ -867,6 +873,157 @@
         id="fabBtn">
         <i data-lucide="sparkles" class="w-7 h-7 text-yellow-300 dark:text-yellow-600"></i>
     </button>
+
+    <!-- 统一高级小工具箱弹窗 -->
+    <div id="toolboxModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-[opacity] duration-300" style="display:none">
+        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md custom-modal-backdrop opacity-0 transition-opacity duration-300" onclick="closeToolboxModal()"></div>
+        <div class="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 dark:border-slate-800/80 w-[95%] max-w-4xl h-[80vh] max-h-[680px] flex overflow-hidden transform scale-95 opacity-0 custom-modal-content transition-[transform,opacity] duration-300">
+            
+            <!-- 工具箱左侧边栏 (Sidebar) -->
+            <div id="toolboxSidebar" class="w-1/3 max-w-[240px] border-r border-gray-100 dark:border-slate-800/80 p-5 flex flex-col justify-between shrink-0 bg-gray-50/50 dark:bg-slate-950/30">
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between px-1">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="wrench" class="w-5 h-5 text-gray-500 dark:text-gray-400"></i>
+                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">高级工具箱</h3>
+                        </div>
+                    </div>
+                    <!-- 工具 Tab 列表 -->
+                    <div class="space-y-1">
+                        <button onclick="switchToolboxTab('scrambler')" id="toolboxTab-scrambler" class="toolbox-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm">
+                            <i data-lucide="image" class="w-4 h-4"></i>
+                            <span>图像加密解密</span>
+                        </button>
+                        <!-- 未来可扩展在此处添加新工具 Tab -->
+                    </div>
+                </div>
+                
+                <button onclick="closeToolboxModal()" class="w-full py-3 text-xs font-semibold rounded-xl border border-gray-100 dark:border-slate-800 text-gray-500 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                    关闭工具箱
+                </button>
+            </div>
+
+            <!-- 右侧工具面板内容 -->
+            <div class="flex-1 flex flex-col h-full bg-white dark:bg-slate-900/40 relative">
+                <!-- 头部 -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800/80 shrink-0">
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100" id="toolboxTitle">图像加密与解密器</h3>
+                    </div>
+                    <button onclick="closeToolboxModal()" class="p-2 hover:bg-gray-150 dark:hover:bg-slate-800 rounded-full text-gray-400 hover:text-gray-650 transition-colors">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- 工具面板容器 (内容滚动) -->
+                <div class="flex-1 overflow-y-auto p-6 space-y-5 custom-scroll">
+                    <!-- Tool 1: Scrambler Panel -->
+                    <div id="toolboxPanel-scrambler" class="toolbox-panel space-y-4">
+                        <div>
+                            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-relaxed">
+                                对图像进行无损的混淆打乱，可用于防止他人盗图或用于敏感图片版权保护。解密时输入相同算法与密码即可 100% 还原。
+                            </p>
+                        </div>
+
+                        <!-- 图像来源选择 -->
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">1. 选择待处理图片</label>
+                            <div class="flex gap-2">
+                                <button onclick="document.getElementById('scrambleFileInput').click()" class="flex-1 py-3 text-xs font-semibold rounded-xl border border-dashed border-gray-300 dark:border-slate-700 text-gray-650 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all flex items-center justify-center gap-1.5">
+                                    <i data-lucide="upload" class="w-4 h-4"></i>
+                                    上传本地图片
+                                </button>
+                                <button onclick="toggleScrambleHistoryList()" class="flex-1 py-3 text-xs font-semibold rounded-xl border border-gray-200 dark:border-slate-800 text-gray-650 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all flex items-center justify-center gap-1.5">
+                                    <i data-lucide="history" class="w-4 h-4"></i>
+                                    从生图历史中选择
+                                </button>
+                                <input type="file" id="scrambleFileInput" accept="image/*" class="hidden" onchange="handleScrambleFileUpload(event)">
+                            </div>
+
+                            <!-- 生图历史列表面板 (隐藏) -->
+                            <div id="scrambleHistoryListWrapper" class="hidden border border-gray-150 dark:border-slate-800 rounded-xl p-3 bg-gray-50/50 dark:bg-slate-950/20">
+                                <div class="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">点击图片直接导入：</div>
+                                <div id="scrambleHistoryThumbnails" class="flex gap-2 overflow-x-auto py-1 shrink-0 custom-scroll min-h-[70px]">
+                                    <!-- 动态塞入缩略图 -->
+                                    <div class="text-[10px] text-gray-450 text-center w-full py-4">无历史生成图片</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 加密配置 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50/50 dark:bg-slate-950/20 p-4 rounded-2xl border border-gray-100 dark:border-slate-800/50 space-y-4">
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">2. 模式与算法</label>
+                                    <div class="flex bg-gray-150 dark:bg-slate-800 p-1 rounded-lg shrink-0">
+                                        <button onclick="setScrambleMode(false)" id="scrambleModeEncrypt" class="flex-1 text-center py-1.5 text-xs font-bold rounded bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm transition-all">加密混淆</button>
+                                        <button onclick="setScrambleMode(true)" id="scrambleModeDecrypt" class="flex-1 text-center py-1.5 text-xs font-semibold rounded text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all">解密还原</button>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">混淆算法</label>
+                                    <select id="scrambleAlgorithmSelect" onchange="onScrambleAlgorithmChange()" class="art-input w-full px-3 py-2.5 rounded-xl text-xs outline-none bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 text-gray-800 dark:text-white">
+                                        <option value="tile" selected>像素块乱序拼图 (Tile)</option>
+                                        <option value="xor">色彩通道位异或 (XOR)</option>
+                                        <option value="shift">行列循环正交平移 (Shift)</option>
+                                    </select>
+                                </div>
+
+                                <!-- Tile Size 选项 (仅在 Tile 算法下展示) -->
+                                <div id="scrambleTileSizeWrapper" class="space-y-2">
+                                    <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">方格大小 (Tile Size)</label>
+                                    <select id="scrambleTileSizeSelect" class="art-input w-full px-3 py-2.5 rounded-xl text-xs outline-none bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 text-gray-800 dark:text-white">
+                                        <option value="16">16 x 16 像素 (超细致混淆)</option>
+                                        <option value="32" selected>32 x 32 像素 (默认推荐)</option>
+                                        <option value="64">64 x 64 像素 (大格拼图)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-50/50 dark:bg-slate-950/20 p-4 rounded-2xl border border-gray-100 dark:border-slate-800/50 flex flex-col justify-between space-y-4">
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">3. 密码选项</label>
+                                        <div class="flex items-center gap-1 cursor-pointer select-none">
+                                            <input type="checkbox" id="scrambleUsePassword" onchange="toggleScramblePasswordInput()" class="cursor-pointer">
+                                            <span class="text-[11px] text-gray-500 dark:text-gray-400 font-semibold" onclick="document.getElementById('scrambleUsePassword').click(); return false;">启用密码保护</span>
+                                        </div>
+                                    </div>
+                                    <div id="scramblePasswordWrapper" class="hidden space-y-1">
+                                        <input type="password" id="scramblePasswordInput" placeholder="输入加/解密密码..." class="art-input w-full px-4 py-3 rounded-xl text-sm outline-none tracking-widest font-mono text-gray-800 dark:text-white bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800">
+                                        <p class="text-[9px] text-yellow-600 dark:text-yellow-500 px-1">重要提示：密码在解密时必须完全一致才能正确复原。</p>
+                                    </div>
+                                </div>
+
+                                <button onclick="executeScrambleProcess()" id="scrambleActionBtn" class="w-full py-3.5 text-xs font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+                                    开始混淆加密
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 实时预览区 -->
+                        <div class="border border-gray-150 dark:border-slate-800 rounded-2xl p-4 bg-gray-50/50 dark:bg-slate-950/20 space-y-3">
+                            <div class="flex justify-between items-center px-1">
+                                <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">4. 处理效果预览</label>
+                                <button onclick="downloadScrambleResult()" id="downloadScrambleBtn" class="hidden text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline flex items-center gap-1">
+                                    <i data-lucide="download" class="w-3.5 h-3.5"></i> 一键下载此图
+                                </button>
+                            </div>
+                            <div class="w-full min-h-[220px] bg-slate-950/10 dark:bg-slate-950/40 rounded-xl flex items-center justify-center p-2 border border-gray-100 dark:border-slate-800/50 relative overflow-hidden">
+                                <canvas id="scrambleCanvas" class="max-w-full max-h-[300px] shadow-md rounded-lg hidden"></canvas>
+                                <div id="scramblePlaceholder" class="text-xs text-gray-400 flex flex-col items-center gap-2">
+                                    <i data-lucide="image" class="w-8 h-8 text-gray-300 dark:text-gray-650"></i>
+                                    <span>暂未加载图片，请先在上方导入图片</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 统一设置中心弹窗 -->
     <div id="settingsModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-[opacity] duration-300" style="display:none">
