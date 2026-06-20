@@ -59,17 +59,16 @@ function triggerDownload(url, filename) {
     console.log('[DEBUG-dl] Anchor element appended to DOM. Triggering click...');
     a.click();
     
-    // 异步延迟 200ms 移除，让浏览器后台有足够时间拉起保存会话
-    setTimeout(() => {
-        document.body.removeChild(a);
-        console.log('[DEBUG-dl] Anchor element removed from DOM.');
-    }, 200);
+    // 同步立即移除，避免短时间内多次点击导致 DOM 节点堆积被浏览器防滥用机制拦截
+    document.body.removeChild(a);
+    console.log('[DEBUG-dl] Anchor element removed from DOM.');
     
     if (blobUrl) {
+        // 延长释放时间至 8000ms，确保移动端和慢速浏览器完全读取数据，防止快速释放导致后续下载受阻
         setTimeout(() => {
             URL.revokeObjectURL(blobUrl);
             console.log('[DEBUG-dl] Revoked blob URL:', blobUrl);
-        }, 1500);
+        }, 8000);
     }
 }
 
