@@ -47,10 +47,10 @@ export function closeToolboxModal() {
 export function switchToolboxTab(tabId) {
     document.querySelectorAll('.toolbox-tab-btn').forEach(btn => {
         if (btn.id === `toolboxTab-${tabId}`) {
-            btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+            btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-900', 'dark:text-white', 'shadow-sm', 'active-tab');
             btn.classList.remove('text-gray-500', 'dark:text-gray-400');
         } else {
-            btn.classList.remove('bg-gray-100', 'dark:bg-slate-800', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+            btn.classList.remove('bg-gray-100', 'dark:bg-slate-800', 'text-gray-900', 'dark:text-white', 'shadow-sm', 'active-tab');
             btn.classList.add('text-gray-500', 'dark:text-gray-400');
         }
     });

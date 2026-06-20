@@ -798,3 +798,107 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     }
 }
 
+/* --- toolboxModal Styles (工具箱移动端适配) --- */
+.toolbox-tab-btn {
+    text-align: left;
+    color: #64748b; /* text-gray-500 */
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+.toolbox-tab-btn:hover {
+    color: #0f172a;
+    background: rgba(15, 23, 42, 0.04);
+}
+.dark .toolbox-tab-btn:hover {
+    color: #f8fafc;
+    background: rgba(248, 250, 252, 0.05);
+}
+
+/* 移动端适配工具箱双栏 */
+@media (max-width: 768px) {
+    #toolboxModal .custom-modal-content {
+        flex-direction: column !important;
+        height: 90vh !important;
+        max-height: none !important;
+    }
+    #toolboxSidebar {
+        width: 100% !important;
+        max-width: none !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 1rem 1.25rem !important;
+    }
+    .dark #toolboxSidebar {
+        border-bottom-color: rgba(255, 255, 255, 0.06);
+    }
+    #toolboxSidebar .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0.75rem !important;
+    }
+    
+    /* 导航选项卡：胶囊分段滑动轨道 */
+    #toolboxModal #toolboxTabs {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        gap: 4px !important;
+        background: rgba(15, 23, 42, 0.05) !important;
+        padding: 4px !important;
+        border-radius: 14px !important;
+        border: 1px solid rgba(0, 0, 0, 0.04) !important;
+        width: 100% !important;
+    }
+    .dark #toolboxModal #toolboxTabs {
+        background: rgba(255, 255, 255, 0.04) !important;
+        border-color: rgba(255, 255, 255, 0.02) !important;
+    }
+    
+    #toolboxModal #toolboxTabs::-webkit-scrollbar {
+        display: none !important;
+    }
+    #toolboxModal #toolboxTabs {
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
+    }
+    
+    /* 胶囊按钮样式 */
+    #toolboxModal .toolbox-tab-btn {
+        width: auto !important;
+        flex: 1 0 auto !important;
+        white-space: nowrap !important;
+        padding: 8px 14px !important;
+        font-size: 11px !important;
+        border-radius: 10px !important;
+        text-align: center !important;
+        justify-content: center !important;
+        color: #64748b !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 1.5px !important;
+    }
+    .dark #toolboxModal .toolbox-tab-btn {
+        color: #94a3b8 !important;
+    }
+    
+    /* 选中高亮胶囊 */
+    #toolboxModal .toolbox-tab-btn.active-tab {
+        background: #ffffff !important;
+        color: #10b981 !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+    }
+    .dark #toolboxModal .toolbox-tab-btn.active-tab {
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: #34d399 !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    /* 移动端隐藏侧边栏底部的“关闭工具箱”按钮，防止挤占纵向空间 */
+    #toolboxSidebar > button {
+        display: none !important;
+    }
+}
+
