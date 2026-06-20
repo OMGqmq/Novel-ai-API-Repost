@@ -12,8 +12,6 @@ import { initToolbox, openToolboxModal, closeToolboxModal, switchToolboxTab, tog
 
 
 
-let lastDownloadBlobUrl = null;
-
 function triggerDownload(url, filename) {
     console.log('[DEBUG-dl] triggerDownload called with filename:', filename);
     
@@ -29,58 +27,30 @@ function triggerDownload(url, filename) {
         return;
     }
 
-    // 释放上一次生成的旧 Blob URL 以释放内存，保证当前下载拥有无限的时间进行传输，不会因为超时而中断
-    if (lastDownloadBlobUrl) {
-        try {
-            URL.revokeObjectURL(lastDownloadBlobUrl);
-            console.log('[DEBUG-dl] Revoked last download blob URL:', lastDownloadBlobUrl);
-        } catch (e) {
-            console.error('[DEBUG-dl] Failed to revoke last blob URL:', e);
-        }
-        lastDownloadBlobUrl = null;
-    }
-
     const a = document.createElement('a');
+    a.href = url;
     a.download = filename;
-    a.rel = 'noopener';
+    a.style.display = 'none';
     
-    if (url.startsWith('data:')) {
-        console.log('[DEBUG-dl] Detecting data URL, converting to blob...');
-        try {
-            const parts = url.split(',');
-            const mime = parts[0].match(/:(.*?);/)[1];
-            const binary = atob(parts[1]);
-            const array = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                array[i] = binary.charCodeAt(i);
-            }
-            const blob = new Blob([array], { type: mime });
-            const blobUrl = URL.createObjectURL(blob);
-            lastDownloadBlobUrl = blobUrl;
-            a.href = blobUrl;
-            console.log('[DEBUG-dl] Data URL successfully converted to Blob URL:', blobUrl);
-        } catch (e) {
-            console.error('[DEBUG-dl] Failed to convert dataURL to blob, falling back to data URL', e);
-            a.href = url;
-        }
-    } else {
-        console.log('[DEBUG-dl] Direct/Blob URL used:', url.substring(0, 120));
-        a.href = url;
-    }
-    
-    // 使用真实可信的 MouseEvent 鼠标事件触发下载，防范部分手机WebView对于脚本纯click行为的安全屏蔽
+    // 采用同步挂载、物理模拟点击与同步卸载的最保险方案，彻底防范浏览器防劫持与多重下载锁定策略
+    document.body.appendChild(a);
     try {
-        const event = new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-        });
-        a.dispatchEvent(event);
-        console.log('[DEBUG-dl] MouseEvent dispatched successfully.');
-    } catch (err) {
-        console.error('[DEBUG-dl] Dispatch mouse event failed, falling back to a.click()', err);
         a.click();
+        console.log('[DEBUG-dl] Direct click triggered successfully.');
+    } catch (e) {
+        console.error('[DEBUG-dl] Direct click failed, attempting dispatchEvent', e);
+        try {
+            const event = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+            a.dispatchEvent(event);
+        } catch (err) {
+            console.error('[DEBUG-dl] MouseEvent dispatch failed too', err);
+        }
     }
+    document.body.removeChild(a);
 }
 
 // PromptHelper is now imported from './prompt-helper.js'
