@@ -13,72 +13,80 @@ import { initToolbox, openToolboxModal, closeToolboxModal, switchToolboxTab, tog
 
 
 function triggerDownload(url, filename) {
-    let logMsg = `[DEBUG-dl-edge] triggerDownload called. file: ${filename}\n`;
-    logMsg += `Protocol: ${url.startsWith('data:') ? 'Data URL' : url.substring(0, 15)}\n`;
+    console.log('[DEBUG-dl] triggerDownload called with filename:', filename);
     
-    try {
-        const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
-        logMsg += `isWeChat: ${isWeChat}\n`;
-        if (isWeChat) {
-            alert(logMsg + "微信环境下拦截");
-            return;
+    // 检测是否在微信浏览器中
+    const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+    if (isWeChat) {
+        console.warn('[DEBUG-dl] Blocked due to WeChat environment.');
+        if (window.showToast) {
+            window.showToast('微信内无法直接下载，请长按图片选择“保存图片”，或在右上角选择在浏览器中打开。', 'warning');
+        } else {
+            alert('微信内无法直接下载，请长按图片选择“保存图片”，或在右上角选择在浏览器中打开。');
         }
+        return;
+    }
 
-        const a = document.createElement('a');
-        a.download = filename;
+    // 使用已经在 DOM 中的静态 A 标签承载下载，
+    // 规避 Chrome/Edge 对动态频繁 createElement('a') 并挂载/卸载时触发的“脚本多文件下载滥用安全拦截”
+    let a = document.getElementById('globalDownloadAnchor');
+    if (!a) {
+        // Fallback: 如果出于某种原因 DOM 中不存在此标签，则现场创建一个静态持有的元素
+        a = document.createElement('a');
+        a.id = 'globalDownloadAnchor';
         a.style.display = 'none';
-
-        let finalUrl = url;
-        if (url.startsWith('data:')) {
-            logMsg += `Converting data URL...\n`;
-            try {
-                const parts = url.split(',');
-                const mime = parts[0].match(/:(.*?);/)[1];
-                const binary = atob(parts[1]);
-                logMsg += `Decoded length: ${binary.length}\n`;
-                const array = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) {
-                    array[i] = binary.charCodeAt(i);
-                }
-                const blob = new Blob([array], { type: mime });
-                finalUrl = URL.createObjectURL(blob);
-                logMsg += `Blob URL: ${finalUrl.substring(0, 50)}\n`;
-            } catch (e) {
-                logMsg += `Blob Err: ${e.message}\n`;
-                finalUrl = url;
-            }
-        }
-        
-        a.href = finalUrl;
+        a.rel = 'noopener';
         document.body.appendChild(a);
-        logMsg += `DOM Appended. Click starts...\n`;
-        
+    }
+
+    a.download = filename;
+
+    let finalUrl = url;
+    
+    // Edge/Chrome 会对 data: Base64 格式的大文件多重下载进行防钓鱼静默拦截。
+    // 转为 Blob URL 格式后，Edge 沙箱会将其作为安全的内源映射对象放行。
+    if (url.startsWith('data:')) {
+        console.log('[DEBUG-dl] Converting data URL to blob URL to bypass Edge phishing blocker...');
         try {
-            a.click();
-            logMsg += `a.click() success.\n`;
-        } catch (eClick) {
-            logMsg += `a.click() failed: ${eClick.message}\n`;
-            try {
-                const event = new MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window
-                });
-                a.dispatchEvent(event);
-                logMsg += `MouseEvent dispatch success.\n`;
-            } catch (eDispatch) {
-                logMsg += `MouseEvent dispatch failed: ${eDispatch.message}\n`;
+            const parts = url.split(',');
+            const mime = parts[0].match(/:(.*?);/)[1];
+            const binary = atob(parts[1]);
+            const array = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                array[i] = binary.charCodeAt(i);
             }
+            const blob = new Blob([array], { type: mime });
+            finalUrl = URL.createObjectURL(blob);
+            console.log('[DEBUG-dl] Conversion successful:', finalUrl);
+        } catch (e) {
+            console.error('[DEBUG-dl] Fallback to data URL due to conversion error:', e);
+            finalUrl = url;
         }
-        
-        document.body.removeChild(a);
-        logMsg += `DOM Removed.\n`;
-    } catch (globalErr) {
-        logMsg += `Global Err: ${globalErr.message}\n`;
     }
     
-    console.log(logMsg);
-    alert(logMsg);
+    a.href = finalUrl;
+    
+    // 触发点击。因为 a 标签已经静态稳定挂载在 DOM 中，
+    // 所以浏览器在点击时认为是有源的有效下载锚点，不会由于动态 DOM 移除或异步延时导致手势激活状态丢失。
+    // 注意：我们绝不在此处或其它任何地方调用 URL.revokeObjectURL。
+    // 注销动作如果发生在新一轮网络请求未完全建立或与创生逻辑在单线程 EventLoop 中同步冲突，会导致后续下载直接锁死。
+    // 内存释放完全由浏览器页面会话结束时 GC 统一管理，确保 100% 重复下载绝对畅通。
+    try {
+        a.click();
+        console.log('[DEBUG-dl] Static anchor click completed.');
+    } catch (e) {
+        console.error('[DEBUG-dl] Static click failed, attempting dispatchEvent', e);
+        try {
+            const event = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+            a.dispatchEvent(event);
+        } catch (err) {
+            console.error('[DEBUG-dl] MouseEvent dispatch failed too', err);
+        }
+    }
 }
 
 // PromptHelper is now imported from './prompt-helper.js'
