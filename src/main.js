@@ -13,71 +13,72 @@ import { initToolbox, openToolboxModal, closeToolboxModal, switchToolboxTab, tog
 
 
 function triggerDownload(url, filename) {
-    console.log('[DEBUG-dl] triggerDownload called with filename:', filename);
+    let logMsg = `[DEBUG-dl-edge] triggerDownload called. file: ${filename}\n`;
+    logMsg += `Protocol: ${url.startsWith('data:') ? 'Data URL' : url.substring(0, 15)}\n`;
     
-    // 检测是否在微信浏览器中
-    const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
-    if (isWeChat) {
-        console.warn('[DEBUG-dl] Blocked due to WeChat environment.');
-        if (window.showToast) {
-            window.showToast('微信内无法直接下载，请长按图片选择“保存图片”，或在右上角选择在浏览器中打开。', 'warning');
-        } else {
-            alert('微信内无法直接下载，请长按图片选择“保存图片”，或在右上角选择在浏览器中打开。');
-        }
-        return;
-    }
-
-    const a = document.createElement('a');
-    a.download = filename;
-    a.style.display = 'none';
-
-    let finalUrl = url;
-    
-    // Edge/Chrome 会对大文件 data: Base64 自动拦截第二次下载（防钓鱼防护机制）。
-    // 将其转换为 Blob URL 后下载即可被浏览器沙箱认可为安全资源，完美绕过该拦截限制。
-    if (url.startsWith('data:')) {
-        console.log('[DEBUG-dl] Detecting data URL, converting to blob to prevent Edge block...');
-        try {
-            const parts = url.split(',');
-            const mime = parts[0].match(/:(.*?);/)[1];
-            const binary = atob(parts[1]);
-            const array = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                array[i] = binary.charCodeAt(i);
-            }
-            const blob = new Blob([array], { type: mime });
-            finalUrl = URL.createObjectURL(blob);
-            console.log('[DEBUG-dl] Data URL successfully converted to Blob URL:', finalUrl);
-        } catch (e) {
-            console.error('[DEBUG-dl] Failed to convert dataURL to blob, falling back to data URL', e);
-            finalUrl = url;
-        }
-    }
-    
-    a.href = finalUrl;
-    
-    // 同步挂载、物理模拟点击与同步卸载的最保险方案。
-    // 注意：我们在此处和后续中绝不主动调用 URL.revokeObjectURL。
-    // 释放动作如果在底层与新一轮 createObjectURL 同步冲突极易导致请求被挂起。
-    // 留给浏览器自带的垃圾回收器在页面关闭/跳转时自动回收，完全消除了注销操作带来的二次点击死锁。
-    document.body.appendChild(a);
     try {
-        a.click();
-        console.log('[DEBUG-dl] Click triggered successfully.');
-    } catch (e) {
-        console.error('[DEBUG-dl] Direct click failed, attempting dispatchEvent', e);
-        try {
-            const event = new MouseEvent('click', {
-                bubbles: true,
-                cancelable: true,
-                view: window
-            });
-            a.dispatchEvent(event);
-        } catch (err) {
-            console.error('[DEBUG-dl] MouseEvent dispatch failed too', err);
+        const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+        logMsg += `isWeChat: ${isWeChat}\n`;
+        if (isWeChat) {
+            alert(logMsg + "微信环境下拦截");
+            return;
         }
+
+        const a = document.createElement('a');
+        a.download = filename;
+        a.style.display = 'none';
+
+        let finalUrl = url;
+        if (url.startsWith('data:')) {
+            logMsg += `Converting data URL...\n`;
+            try {
+                const parts = url.split(',');
+                const mime = parts[0].match(/:(.*?);/)[1];
+                const binary = atob(parts[1]);
+                logMsg += `Decoded length: ${binary.length}\n`;
+                const array = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    array[i] = binary.charCodeAt(i);
+                }
+                const blob = new Blob([array], { type: mime });
+                finalUrl = URL.createObjectURL(blob);
+                logMsg += `Blob URL: ${finalUrl.substring(0, 50)}\n`;
+            } catch (e) {
+                logMsg += `Blob Err: ${e.message}\n`;
+                finalUrl = url;
+            }
+        }
+        
+        a.href = finalUrl;
+        document.body.appendChild(a);
+        logMsg += `DOM Appended. Click starts...\n`;
+        
+        try {
+            a.click();
+            logMsg += `a.click() success.\n`;
+        } catch (eClick) {
+            logMsg += `a.click() failed: ${eClick.message}\n`;
+            try {
+                const event = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                });
+                a.dispatchEvent(event);
+                logMsg += `MouseEvent dispatch success.\n`;
+            } catch (eDispatch) {
+                logMsg += `MouseEvent dispatch failed: ${eDispatch.message}\n`;
+            }
+        }
+        
+        document.body.removeChild(a);
+        logMsg += `DOM Removed.\n`;
+    } catch (globalErr) {
+        logMsg += `Global Err: ${globalErr.message}\n`;
     }
-    document.body.removeChild(a);
+    
+    console.log(logMsg);
+    alert(logMsg);
 }
 
 // PromptHelper is now imported from './prompt-helper.js'
