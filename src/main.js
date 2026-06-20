@@ -27,26 +27,12 @@ function triggerDownload(url, filename) {
         return;
     }
 
-    // 使用已经在 DOM 中的静态 A 标签承载下载，
-    // 规避 Chrome/Edge 对动态频繁 createElement('a') 并挂载/卸载时触发的“脚本多文件下载滥用安全拦截”
-    let a = document.getElementById('globalDownloadAnchor');
-    if (!a) {
-        // Fallback: 如果出于某种原因 DOM 中不存在此标签，则现场创建一个静态持有的元素
-        a = document.createElement('a');
-        a.id = 'globalDownloadAnchor';
-        a.style.display = 'none';
-        a.rel = 'noopener';
-        document.body.appendChild(a);
-    }
-
-    a.download = filename;
-
     let finalUrl = url;
-    
-    // Edge/Chrome 会对 data: Base64 格式的大文件多重下载进行防钓鱼静默拦截。
-    // 转为 Blob URL 格式后，Edge 沙箱会将其作为安全的内源映射对象放行。
+    let isBlobCreated = false;
+
+    // 1. 如果是 data: Base64，同步转换为 Blob URL
+    // 这能有效规避 Chrome/Edge 对 data: 协议大文件多次下载的安全拦截
     if (url.startsWith('data:')) {
-        console.log('[DEBUG-dl] Converting data URL to blob URL to bypass Edge phishing blocker...');
         try {
             const parts = url.split(',');
             const mime = parts[0].match(/:(.*?);/)[1];
@@ -57,25 +43,32 @@ function triggerDownload(url, filename) {
             }
             const blob = new Blob([array], { type: mime });
             finalUrl = URL.createObjectURL(blob);
-            console.log('[DEBUG-dl] Conversion successful:', finalUrl);
+            isBlobCreated = true;
+            console.log('[DEBUG-dl] Converted data URL to Blob URL successfully.');
         } catch (e) {
-            console.error('[DEBUG-dl] Fallback to data URL due to conversion error:', e);
+            console.error('[DEBUG-dl] Failed to convert data URL, using original:', e);
             finalUrl = url;
         }
     }
-    
+
+    // 2. 传统静态锚点点击下载 (完全同步，确保用户手势生命周期不丢失)
+    let a = document.getElementById('globalDownloadAnchor');
+    if (!a) {
+        a = document.createElement('a');
+        a.id = 'globalDownloadAnchor';
+        a.style.display = 'none';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+    }
+
+    a.download = filename;
     a.href = finalUrl;
     
-    // 触发点击。因为 a 标签已经静态稳定挂载在 DOM 中，
-    // 所以浏览器在点击时认为是有源的有效下载锚点，不会由于动态 DOM 移除或异步延时导致手势激活状态丢失。
-    // 注意：我们绝不在此处或其它任何地方调用 URL.revokeObjectURL。
-    // 注销动作如果发生在新一轮网络请求未完全建立或与创生逻辑在单线程 EventLoop 中同步冲突，会导致后续下载直接锁死。
-    // 内存释放完全由浏览器页面会话结束时 GC 统一管理，确保 100% 重复下载绝对畅通。
     try {
         a.click();
-        console.log('[DEBUG-dl] Static anchor click completed.');
+        console.log('[DEBUG-dl] Sync download triggered successfully.');
     } catch (e) {
-        console.error('[DEBUG-dl] Static click failed, attempting dispatchEvent', e);
+        console.error('[DEBUG-dl] Direct click failed, attempting MouseEvent dispatch:', e);
         try {
             const event = new MouseEvent('click', {
                 bubbles: true,
@@ -84,8 +77,20 @@ function triggerDownload(url, filename) {
             });
             a.dispatchEvent(event);
         } catch (err) {
-            console.error('[DEBUG-dl] MouseEvent dispatch failed too', err);
+            console.error('[DEBUG-dl] Dispatch failed too:', err);
         }
+    }
+
+    // 3. 延迟注销 Blob URL 防止内存泄漏，同时绝不阻断当前下载
+    if (isBlobCreated && finalUrl.startsWith('blob:')) {
+        setTimeout(() => {
+            try {
+                URL.revokeObjectURL(finalUrl);
+                console.log('[DEBUG-dl] Blob URL revoked successfully after delay.');
+            } catch (err) {
+                console.error('[DEBUG-dl] Failed to revoke Blob URL:', err);
+            }
+        }, 15000); // 延迟 15 秒，确保浏览器已经开始并完成了下载的处理
     }
 }
 
