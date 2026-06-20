@@ -28,15 +28,42 @@ function triggerDownload(url, filename) {
     }
 
     const a = document.createElement('a');
-    a.href = url;
     a.download = filename;
     a.style.display = 'none';
+
+    let finalUrl = url;
     
-    // 采用同步挂载、物理模拟点击与同步卸载的最保险方案，彻底防范浏览器防劫持与多重下载锁定策略
+    // Edge/Chrome 会对大文件 data: Base64 自动拦截第二次下载（防钓鱼防护机制）。
+    // 将其转换为 Blob URL 后下载即可被浏览器沙箱认可为安全资源，完美绕过该拦截限制。
+    if (url.startsWith('data:')) {
+        console.log('[DEBUG-dl] Detecting data URL, converting to blob to prevent Edge block...');
+        try {
+            const parts = url.split(',');
+            const mime = parts[0].match(/:(.*?);/)[1];
+            const binary = atob(parts[1]);
+            const array = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                array[i] = binary.charCodeAt(i);
+            }
+            const blob = new Blob([array], { type: mime });
+            finalUrl = URL.createObjectURL(blob);
+            console.log('[DEBUG-dl] Data URL successfully converted to Blob URL:', finalUrl);
+        } catch (e) {
+            console.error('[DEBUG-dl] Failed to convert dataURL to blob, falling back to data URL', e);
+            finalUrl = url;
+        }
+    }
+    
+    a.href = finalUrl;
+    
+    // 同步挂载、物理模拟点击与同步卸载的最保险方案。
+    // 注意：我们在此处和后续中绝不主动调用 URL.revokeObjectURL。
+    // 释放动作如果在底层与新一轮 createObjectURL 同步冲突极易导致请求被挂起。
+    // 留给浏览器自带的垃圾回收器在页面关闭/跳转时自动回收，完全消除了注销操作带来的二次点击死锁。
     document.body.appendChild(a);
     try {
         a.click();
-        console.log('[DEBUG-dl] Direct click triggered successfully.');
+        console.log('[DEBUG-dl] Click triggered successfully.');
     } catch (e) {
         console.error('[DEBUG-dl] Direct click failed, attempting dispatchEvent', e);
         try {
