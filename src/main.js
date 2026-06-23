@@ -2696,8 +2696,8 @@ const inpaintEditor = new InpaintEditor({
         }
 
         ui.showResultImages(successfulResults, (selected) => {
-            currentImageData = selected;
-            if (selected.id) currentImageId = selected.id;
+            appState.currentImageData = selected;
+            if (selected.id) appState.currentImageId = selected.id;
             window.lastSelectedImageUrl = selected.imageUrl;
         });
     }
