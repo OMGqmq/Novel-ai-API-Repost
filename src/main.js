@@ -8,7 +8,9 @@ import { NotebookManager } from './notebook.js?v=202605292218';
 import { VibeManager } from './vibe-manager.js?v=202605292218';
 import { CharRefManager } from './char-ref-manager.js?v=20260611';
 import { AiHelperService } from './ai-helper-service.js?v=20260618';
-import { initToolbox, openToolboxModal, closeToolboxModal, switchToolboxTab, toggleScrambleHistoryList, handleScrambleFileUpload, setScrambleMode, onScrambleAlgorithmChange, toggleScramblePasswordInput, executeScrambleProcess, downloadScrambleResult } from './toolbox-controller.js?v=20260620';
+import { appState } from './app-state.js';
+import { GalleryController } from './gallery.js';
+import { initToolbox, openToolboxModal, closeToolboxModal, switchToolboxTab, toggleScrambleHistoryList, handleScrambleFileUpload, setScrambleMode, onScrambleAlgorithmChange, toggleScramblePasswordInput, executeScrambleProcess, downloadScrambleResult, toggleMetadataHistoryList, handleMetadataFileUpload, applyMetadataParameters } from './toolbox-controller.js?v=20260620';
 
 
 
@@ -133,11 +135,7 @@ const charRefManager = new CharRefManager({
     onShowToast: (msg, type) => window.showToast ? window.showToast(msg, type) : console.log(msg)
 });
 
-let currentInitImageBase64 = null; 
-let currentImageId = null;
-let currentImageData = null;
-let showcaseData = [];
-let currentGalleryTab = 'showcase';
+const galleryController = new GalleryController({ store, ui, appState });
 
 function loadVibeState(model) {
     vibeManager.loadState(model);
@@ -392,7 +390,7 @@ async function handleInitImage(event) {
     if (file) {
         try {
             const compressedDataUrl = await compressImage(file);
-            currentInitImageBase64 = compressedDataUrl.split(',')[1];
+            appState.currentInitImageBase64 = compressedDataUrl.split(',')[1];
             document.getElementById('initImagePreview').src = compressedDataUrl;
             document.getElementById('initImagePreview').classList.remove('hidden');
             document.getElementById('initImagePlaceholder').classList.add('hidden');
@@ -405,7 +403,7 @@ async function handleInitImage(event) {
     }
 }
 function clearInitImage() {
-    currentInitImageBase64 = null;
+    appState.currentInitImageBase64 = null;
     document.getElementById('initImageInput').value = '';
     document.getElementById('initImagePreview').src = '';
     document.getElementById('initImagePreview').classList.add('hidden');
@@ -522,8 +520,8 @@ async function doGenerateZImage() {
 
         // 展示图片
         ui.showResultImages([result], (selected) => {
-            currentImageData = selected;
-            if (selected.id) currentImageId = selected.id;
+            appState.currentImageData = selected;
+            if (selected.id) appState.currentImageId = selected.id;
             window.lastSelectedImageUrl = selected.imageUrl;
         });
 
@@ -705,10 +703,10 @@ async function doGenerate() {
                     }
                 }
 
-                if (currentInitImageBase64) {
+                if (appState.currentInitImageBase64) {
                     const strEl = document.getElementById('strength');
                     const noiEl = document.getElementById('noise');
-                    params.image = currentInitImageBase64;
+                    params.image = appState.currentInitImageBase64;
                     params.strength = strEl ? parseFloat(strEl.value) : 0.5;
                     params.noise = noiEl ? parseFloat(noiEl.value) : 0;
                 }
@@ -799,8 +797,8 @@ async function doGenerate() {
 
                 // 批量展示！
                 ui.showResultImages(successfulResults, (selected) => {
-                    currentImageData = selected;
-                    if (selected.id) currentImageId = selected.id;
+                    appState.currentImageData = selected;
+                    if (selected.id) appState.currentImageId = selected.id;
                     window.lastSelectedImageUrl = selected.imageUrl;
                 });
 
@@ -835,7 +833,7 @@ window.downloadImage = function() {
 }
 
 // --- Store Integration ---
-store.init().then(() => loadGallery());
+store.init().then(() => galleryController.loadGallery());
 
 async function saveToHistory(imgData, prompt, model, resultObj = null, forceFocus = false, meta = null) {
     try {
@@ -845,13 +843,13 @@ async function saveToHistory(imgData, prompt, model, resultObj = null, forceFocu
         }
         
         // If it's a legacy call (no resultObj) or we force focus, OR if the newly saved result is what the user is currently viewing
-        if (forceFocus || (!resultObj && !forceFocus) || (resultObj && currentImageData === resultObj)) {
-            currentImageId = savedItem.id;
-            currentImageData = savedItem;
+        if (forceFocus || (!resultObj && !forceFocus) || (resultObj && appState.currentImageData === resultObj)) {
+            appState.currentImageId = savedItem.id;
+            appState.currentImageData = savedItem;
             ui.showImageActions(true);
         }
         
-        loadGallery();
+        galleryController.loadGallery();
         return savedItem;
     } catch (e) {
         console.error("Failed to save to history", e);
@@ -859,12 +857,12 @@ async function saveToHistory(imgData, prompt, model, resultObj = null, forceFocu
 }
 
 async function deleteCurrentImage() {
-    if (currentImageData && currentImageData.isShowcase) return;
-    if (!currentImageId || !(await window.showConfirm("您确定要从历史记录中删除这张图片吗？", "删除图片", "trash-2"))) return;
+    if (appState.currentImageData && appState.currentImageData.isShowcase) return;
+    if (!appState.currentImageId || !(await window.showConfirm("您确定要从历史记录中删除这张图片吗？", "删除图片", "trash-2"))) return;
     try {
-        await store.deleteImage(currentImageId);
+        await store.deleteImage(appState.currentImageId);
         ui.resetPreview();
-        loadGallery();
+        galleryController.loadGallery();
     } catch (e) {
         console.error("Failed to delete image", e);
     }
@@ -874,7 +872,7 @@ async function clearAllHistory() {
     if (!(await window.showConfirm("清空历史将永久删除所有已生成的本地图片，确定要继续吗？", "清空历史记录", "alert-triangle"))) return;
     try {
         await store.clearAll();
-        loadGallery();
+        galleryController.loadGallery();
         ui.resetPreview();
     } catch (e) {
         console.error("Failed to clear history", e);
@@ -903,9 +901,9 @@ document.addEventListener('click', (e) => {
 });
 
 async function doAugment(reqType) {
-    if (!currentImageData || !(currentImageData.imageUrl || currentImageData.image)) return;
+    if (!appState.currentImageData || !(appState.currentImageData.imageUrl || appState.currentImageData.image)) return;
     
-    const imageUrl = currentImageData.imageUrl || currentImageData.image;
+    const imageUrl = appState.currentImageData.imageUrl || appState.currentImageData.image;
     
     const authBase = {
         adminToken: store.getSetting('nai_admin_token'),
@@ -972,12 +970,12 @@ async function doAugment(reqType) {
         const reader2 = new FileReader();
         reader2.readAsDataURL(result.blob);
         reader2.onloadend = async () => {
-            await saveToHistory(reader2.result, `[${reqType}] ` + (currentImageData.prompt || ""), currentImageData.model || "v3", result, true);
+            await saveToHistory(reader2.result, `[${reqType}] ` + (appState.currentImageData.prompt || ""), appState.currentImageData.model || "v3", result, true);
         };
 
         ui.showResultImages([result], (selected) => {
-            currentImageData = selected;
-            if (selected.id) currentImageId = selected.id;
+            appState.currentImageData = selected;
+            if (selected.id) appState.currentImageId = selected.id;
             window.lastSelectedImageUrl = selected.imageUrl;
         });
 
@@ -990,167 +988,7 @@ async function doAugment(reqType) {
     }
 }
 
-// --- 历史图库分页流式加载与滚动渲染 ---
-let galleryPage = 0;
-let galleryHasMore = true;
-let galleryLoading = false;
-let galleryItems = [];
-
-async function loadGallery() {
-    galleryPage = 0;
-    galleryHasMore = true;
-    galleryLoading = false;
-    galleryItems = [];
-    els.galleryGrid.innerHTML = '';
-    
-    await loadMoreGallery(true);
-}
-
-async function loadMoreGallery(isFirstLoad = false) {
-    if (galleryLoading || (!galleryHasMore && !isFirstLoad)) return;
-    galleryLoading = true;
-
-    let loaderEl = document.getElementById('galleryLoader');
-    if (!loaderEl) {
-        loaderEl = document.createElement('div');
-        loaderEl.id = 'galleryLoader';
-        loaderEl.className = 'col-span-full py-4 flex justify-center text-gray-400 text-xs font-semibold';
-        loaderEl.innerHTML = '<span class="loader w-4 h-4 mr-2"></span> 正在加载历史图片...';
-        els.galleryGrid.appendChild(loaderEl);
-    }
-
-    try {
-        const limit = 24;
-        const pageData = await store.getImagesPage(galleryPage, limit);
-        
-        loaderEl = document.getElementById('galleryLoader');
-        if (loaderEl && loaderEl.parentNode) {
-            loaderEl.parentNode.removeChild(loaderEl);
-        }
-
-        if (pageData.length < limit) {
-            galleryHasMore = false;
-        }
-
-        if (isFirstLoad) {
-            els.galleryGrid.innerHTML = '';
-            galleryItems = [];
-        }
-
-        if (pageData.length === 0) {
-            if (galleryPage === 0) {
-                els.emptyGallery.classList.remove('hidden');
-                els.zipBtn.classList.add('hidden');
-                els.clearBtn.classList.add('hidden');
-            }
-            return;
-        }
-
-        els.emptyGallery.classList.add('hidden');
-        if (ui.currentRightView === 'history') {
-            els.zipBtn.classList.remove('hidden');
-            els.clearBtn.classList.remove('hidden');
-        }
-
-        galleryItems = galleryItems.concat(pageData);
-
-        const fragment = document.createDocumentFragment();
-        pageData.forEach(item => {
-            const el = document.createElement('div');
-            el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:scale-[1.01] transition-transform duration-200';
-            
-            // Render image and delete button
-            el.innerHTML = `
-                <img src="${item.image}" class="w-full h-full object-cover" loading="lazy">
-                <button class="delete-item-btn" title="删除此图片">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            `;
-
-            // Bind click event for delete button with stopPropagation to prevent triggering lightbox
-            const delBtn = el.querySelector('.delete-item-btn');
-            if (delBtn) {
-                delBtn.onclick = async (e) => {
-                    e.stopPropagation();
-                    if (!(await window.showConfirm("您确定要从历史图库中删除这张图片吗？该操作不可撤销。", "删除图库图片", "trash-2"))) return;
-                    try {
-                        await store.deleteImage(item.id);
-                        if (currentImageId === item.id) {
-                            ui.resetPreview();
-                        }
-                        loadGallery();
-                    } catch (err) {
-                        console.error("Failed to delete history image", err);
-                    }
-                };
-            }
-
-            el.onclick = () => openLightbox(item);
-            fragment.appendChild(el);
-        });
-        els.galleryGrid.appendChild(fragment);
-
-        galleryPage++;
-    } catch (e) {
-        console.error("Failed to load gallery page", e);
-    } finally {
-        galleryLoading = false;
-    }
-}
-
-// 监听图库容器滚动事件以实现无限滚动加载
-const historyArea = document.getElementById('historyArea');
-if (historyArea) {
-    historyArea.addEventListener('scroll', () => {
-        if (historyArea.scrollTop + historyArea.clientHeight >= historyArea.scrollHeight - 100) {
-            loadMoreGallery();
-        }
-    });
-}
-
-function loadPreviewFromHistory(item) {
-    ui.switchRightView('preview');
-    ui.showResultImage(item.image);
-    currentImageId = item.id;
-    currentImageData = { ...item, imageUrl: item.image };
-    window.lastSelectedImageUrl = item.image;
-    ui.showImageActions(true);
-    ui.toggleMobileControls(false);
-}
-
-function useCurrentPrompt() {
-    if (!currentImageData) return;
-    els.prompt.value = currentImageData.prompt;
-    els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
-    ui.setModel(currentImageData.model || 'v3');
-    els.prompt.classList.add('bg-blue-50', 'dark:bg-blue-900/30');
-    setTimeout(() => els.prompt.classList.remove('bg-blue-50', 'dark:bg-blue-900/30'), 500);
-    ui.toggleMobileControls(true);
-}
-
-async function downloadZip() {
-    try {
-        const items = await store.getAllImages();
-        if (!items.length) return;
-        const zip = new JSZip();
-        const folder = zip.folder("novelai_gallery");
-        items.forEach((item, idx) => {
-            // 清洗提示词以生成安全的文件名，并截取前 30 个字符
-            const safePrompt = item.prompt 
-                ? item.prompt.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '_').replace(/_+/g, '_').substring(0, 30) 
-                : '';
-            const cleanPrompt = safePrompt.trim().replace(/^_+|_+$/g, '');
-            const filename = `${idx}_${cleanPrompt || 'untitled'}.png`;
-            folder.file(filename, item.image.split(',')[1], { base64: true });
-        });
-        const content = await zip.generateAsync({ type: "blob" });
-        const url = URL.createObjectURL(content);
-        const filename = `history_${Date.now()}.zip`;
-        triggerDownload(url, filename);
-    } catch (e) {
-        console.error("Failed to generate zip", e);
-    }
-}
+// 画廊流式加载与滚动监听逻辑已抽离至 src/gallery.js 模块中
 
 function getActiveCanvasImage() {
     // 1. 如果单图聚焦区域可见且有 src
@@ -1253,95 +1091,28 @@ Object.assign(window, {
         store.setSetting('nai_model_version', v);
         loadVibeState(v);
     },
-    switchRightView: (v) => ui.switchRightView(v, (tab) => switchGalleryTab(tab)),
+    switchRightView: (v) => ui.switchRightView(v, (tab) => galleryController.switchGalleryTab(tab)),
     toggleDrawer: () => ui.toggleDrawer(),
     switchDrawerTab: (t) => ui.switchDrawerTab(t, renderNotebookCallback),
     openNotebook: () => ui.openNotebook(renderNotebookCallback),
-    handleInitImage, clearInitImage, doGenerate, useCurrentPrompt,
-    deleteCurrentImage, clearAllHistory, switchGalleryTab, downloadZip,
+    handleInitImage, clearInitImage, doGenerate,
+    useCurrentPrompt: () => galleryController.useCurrentPrompt(),
+    deleteCurrentImage, clearAllHistory,
+    switchGalleryTab: (tab) => galleryController.switchGalleryTab(tab),
+    downloadZip: () => galleryController.downloadZip(),
     backToGrid: () => ui.showGrid(),
-    doAugment, toggleToolbox
+    doAugment, toggleToolbox,
+    openLightbox
 });
 
 fetch('gallery_index.json').then(r => r.json()).then(d => {
-    showcaseData = d;
+    appState.showcaseData = d;
     // 数据就绪后,若当前在展示 tab 且 grid 为空则立即渲染
     const grid = document.getElementById('showcaseGrid');
-    if (currentGalleryTab === 'showcase' && grid && grid.children.length === 0) {
-        renderShowcase();
+    if (appState.currentGalleryTab === 'showcase' && grid && grid.children.length === 0) {
+        galleryController.renderShowcase();
     }
 }).catch(() => { });
-
-function switchGalleryTab(tab) {
-    currentGalleryTab = tab;
-    const tabShowcase = document.getElementById('tabShowcase');
-    const tabHistory = document.getElementById('tabHistory');
-    const showcaseGrid = document.getElementById('showcaseGrid');
-    const activeClass = 'px-4 py-1.5 text-[11px] font-semibold rounded-full transition-all bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm';
-    const inactiveClass = 'px-4 py-1.5 text-[11px] font-semibold rounded-full transition-all text-gray-500 dark:text-gray-400';
-    if (tab === 'showcase') {
-        tabShowcase.className = activeClass;
-        tabHistory.className = inactiveClass;
-        showcaseGrid.classList.remove('hidden');
-        els.galleryGrid.classList.add('hidden');
-        els.emptyGallery.classList.add('hidden');
-        els.zipBtn.classList.add('hidden');
-        els.clearBtn.classList.add('hidden');
-        if (showcaseGrid.children.length === 0) renderShowcase();
-    } else {
-        tabShowcase.className = inactiveClass;
-        tabHistory.className = activeClass;
-        showcaseGrid.classList.add('hidden');
-        els.galleryGrid.classList.remove('hidden');
-        els.zipBtn.classList.remove('hidden');
-        els.clearBtn.classList.remove('hidden');
-        loadGallery();
-    }
-}
-
-function renderShowcase() {
-    const grid = document.getElementById('showcaseGrid');
-    if (!grid || showcaseData.length === 0) return;
-    grid.innerHTML = '';
-    
-    // 分批渲染
-    const chunkSize = 24;
-    let index = 0;
-
-    function renderChunk() {
-        const fragment = document.createDocumentFragment();
-        const end = Math.min(index + chunkSize, showcaseData.length);
-        for (; index < end; index++) {
-            const item = showcaseData[index];
-            const el = document.createElement('div');
-            el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:shadow-md transition-shadow';
-            const img = document.createElement('img');
-            img.className = 'w-full h-full object-cover';
-            img.loading = 'lazy';
-            img.src = `images/${item.id}.png`;
-            img.alt = '';
-            el.appendChild(img);
-            el.onclick = () => { item.isShowcase = true; openLightbox(item); };
-            fragment.appendChild(el);
-        }
-        grid.appendChild(fragment);
-        if (index < showcaseData.length) {
-            requestAnimationFrame(renderChunk);
-        }
-    }
-    renderChunk();
-}
-
-function loadPreviewFromShowcase(item) {
-    ui.switchRightView('preview');
-    const url = `images/${item.id}.png`;
-    ui.showResultImage(url);
-    currentImageId = null;
-    currentImageData = { prompt: item.prompt, model: item.model, isShowcase: true, imageUrl: url };
-    window.lastSelectedImageUrl = url;
-    ui.showImageActions(true);
-    ui.toggleMobileControls(false);
-}
 
 
 let tagData = {};
@@ -2943,7 +2714,7 @@ let lightboxIndex = 0;
 
 async function openLightbox(item) {
     if (item.isShowcase) {
-        lightboxItems = showcaseData.map(s => ({
+        lightboxItems = appState.showcaseData.map(s => ({
             id: s.id,
             image: `images/${s.id}.png`,
             prompt: s.prompt,
@@ -2953,8 +2724,8 @@ async function openLightbox(item) {
         }));
         lightboxIndex = lightboxItems.findIndex(x => x.id === item.id);
     } else {
-        lightboxItems = galleryItems;
-        lightboxIndex = galleryItems.findIndex(x => x.id === item.id);
+        lightboxItems = galleryController.galleryItems;
+        lightboxIndex = galleryController.galleryItems.findIndex(x => x.id === item.id);
     }
 
     if (lightboxIndex === -1) {
@@ -3066,10 +2837,10 @@ async function nextLightboxImage() {
     if (lightboxIndex < lightboxItems.length - 1) {
         lightboxIndex++;
         renderLightboxCurrent();
-    } else if (lightboxItems.length > 0 && !lightboxItems[0].isShowcase && galleryHasMore) {
+    } else if (lightboxItems.length > 0 && !lightboxItems[0].isShowcase && galleryController.galleryHasMore) {
         const prevLength = lightboxItems.length;
-        await loadMoreGallery();
-        lightboxItems = galleryItems;
+        await galleryController.loadMoreGallery();
+        lightboxItems = galleryController.galleryItems;
         if (lightboxItems.length > prevLength) {
             lightboxIndex = prevLength;
             renderLightboxCurrent();
@@ -3318,7 +3089,7 @@ async function lightboxDelete() {
             }
             renderLightboxCurrent();
         }
-        loadGallery();
+        galleryController.loadGallery();
     } catch(e) {
         console.error("Failed to delete lightbox image", e);
     }
@@ -3338,8 +3109,8 @@ function lightboxCreate(type) {
         ui.showResultImage(imgUrl);
     }
     
-    currentImageId = item.id;
-    currentImageData = { ...item, imageUrl: imgUrl };
+    appState.currentImageId = item.id;
+    appState.currentImageData = { ...item, imageUrl: imgUrl };
     window.lastSelectedImageUrl = imgUrl;
     ui.showImageActions(true);
 
@@ -3431,7 +3202,8 @@ Object.assign(window, {
     openAdminPanel, closeAdminPanel, switchAdminTab, fetchAdminUsers, updateUserStatus, saveAdjustedCredits, deleteUserAccount, generateVipCards, copyGeneratedCards, fetchAdminStats,
     
     // 工具箱及图像加密解密方法
-    openToolboxModal, closeToolboxModal, switchToolboxTab, toggleScrambleHistoryList, handleScrambleFileUpload, setScrambleMode, onScrambleAlgorithmChange, toggleScramblePasswordInput, executeScrambleProcess, downloadScrambleResult
+    openToolboxModal, closeToolboxModal, switchToolboxTab, toggleScrambleHistoryList, handleScrambleFileUpload, setScrambleMode, onScrambleAlgorithmChange, toggleScramblePasswordInput, executeScrambleProcess, downloadScrambleResult,
+    toggleMetadataHistoryList, handleMetadataFileUpload, applyMetadataParameters
 });
 
 // --- 用户系统 (User System) JS Logic ---
