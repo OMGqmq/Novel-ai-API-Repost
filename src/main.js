@@ -172,6 +172,70 @@ try {
         els.negative.addEventListener('input', (e) => store.setSetting('nai_negative_prompt', e.target.value));
     }
 
+    // 恢复常规生图参数并绑定保存事件
+    const resEl = document.getElementById('resolution');
+    const nsEl = document.getElementById('noise_schedule');
+    const strengthEl = document.getElementById('strength');
+    const noiseEl = document.getElementById('noise');
+
+    const savedSteps = store.getSetting('nai_steps');
+    if (savedSteps && els.steps) {
+        els.steps.value = savedSteps;
+        els.steps.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const savedScale = store.getSetting('nai_scale');
+    if (savedScale && els.scale) {
+        els.scale.value = savedScale;
+        els.scale.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const savedSampler = store.getSetting('nai_sampler');
+    if (savedSampler && els.sampler) {
+        els.sampler.value = savedSampler;
+        els.sampler.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const savedResolution = store.getSetting('nai_resolution');
+    if (savedResolution && resEl) {
+        resEl.value = savedResolution;
+        resEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const savedNoiseSchedule = store.getSetting('nai_noise_schedule');
+    if (savedNoiseSchedule && nsEl) {
+        nsEl.value = savedNoiseSchedule;
+        nsEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const savedStrength = store.getSetting('nai_strength');
+    if (savedStrength && strengthEl) {
+        strengthEl.value = savedStrength;
+        strengthEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const savedNoise = store.getSetting('nai_noise');
+    if (savedNoise && noiseEl) {
+        noiseEl.value = savedNoise;
+        noiseEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    if (els.steps) {
+        els.steps.addEventListener('input', (e) => store.setSetting('nai_steps', e.target.value));
+    }
+    if (els.scale) {
+        els.scale.addEventListener('input', (e) => store.setSetting('nai_scale', e.target.value));
+    }
+    if (els.sampler) {
+        els.sampler.addEventListener('change', (e) => store.setSetting('nai_sampler', e.target.value));
+    }
+    if (resEl) {
+        resEl.addEventListener('change', (e) => store.setSetting('nai_resolution', e.target.value));
+    }
+    if (nsEl) {
+        nsEl.addEventListener('change', (e) => store.setSetting('nai_noise_schedule', e.target.value));
+    }
+    if (strengthEl) {
+        strengthEl.addEventListener('input', (e) => store.setSetting('nai_strength', e.target.value));
+    }
+    if (noiseEl) {
+        noiseEl.addEventListener('input', (e) => store.setSetting('nai_noise', e.target.value));
+    }
+
     // Restore model version first
     const savedModel = store.getSetting('nai_model_version', 'v3');
     ui.setModel(savedModel);
