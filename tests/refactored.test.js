@@ -1,9 +1,12 @@
-import { describe, it } from 'vitest';
+import { describe, it, vi } from 'vitest';
 import assert from 'assert';
 import { PromptHelper } from '../src/prompt-helper.js';
 import { NotebookManager } from '../src/notebook.js';
 import { VibeManager } from '../src/vibe-manager.js';
 import { SettingsManager } from '../src/settings-manager.js';
+import { CharPromptManager } from '../src/char-prompt-manager.js';
+import { AuthController } from '../src/auth-controller.js';
+import { AdminController } from '../src/admin-controller.js';
 import { generateSalt, hashPassword, signJwt, verifyJwt } from '../functions/_crypto-helper.js';
 
 // Setup Mock DOM Environment for Testing
@@ -503,5 +506,488 @@ describe('Refactored Suite', () => {
     assert.strictEqual(typeof resJson.token, 'string');
     assert.strictEqual(resJson.user.credits, 15);
   });
-  
+
+  it('should run CharPromptManager tests', () => {
+    localStorage.clear();
+
+    const mockStore = {
+      settings: {},
+      getSetting(key, defaultVal) {
+        return this.settings[key] !== undefined ? this.settings[key] : defaultVal;
+      },
+      setSetting(key, val) {
+        this.settings[key] = String(val);
+      }
+    };
+
+    const charPromptManager = new CharPromptManager();
+    charPromptManager.bind(mockStore);
+
+    // Mock elements
+    const elements = {};
+    const createdElements = [];
+
+    function createMockElement(tag) {
+      const el = {
+        tagName: tag.toUpperCase(),
+        classList: {
+          add: (cls) => el.classes.add(cls),
+          remove: (cls) => el.classes.delete(cls),
+          contains: (cls) => el.classes.has(cls),
+          toggle: (cls, cond) => {
+            if (cond === undefined) cond = !el.classes.has(cls);
+            if (cond) el.classes.add(cls); else el.classes.delete(cls);
+          }
+        },
+        classes: new Set(),
+        value: '',
+        checked: false,
+        disabled: false,
+        textContent: '',
+        listeners: {},
+        addEventListener(event, cb) {
+          this.listeners[event] = cb;
+        },
+        querySelector(sel) {
+          if (sel === '.char-enable-toggle') return el.enableToggle;
+          if (sel === '.char-enable-text') return el.enableText;
+          if (sel === '.char-prompt-input') return el.promptInput;
+          if (sel === '.char-neg-input') return el.negInput;
+          if (sel === '.char-pos-x') return el.posXInput;
+          if (sel === '.char-pos-y') return el.posYInput;
+          if (sel === '.char-auto-pos') return el.autoPosCheckbox;
+          if (sel === '.char-grid-container') return el.gridContainer;
+          if (sel === '.character-index-label') return el.indexLabel;
+          if (sel === '.char-row-summary') return el.summarySpan;
+          if (sel === '.char-row-header') return el.rowHeader;
+          if (sel === '.char-row-content') return el.rowContent;
+          if (sel === '.char-row-chevron') return el.rowChevron;
+          if (sel === '.char-row-actions') return el.rowActions;
+          return null;
+        },
+        querySelectorAll(sel) {
+          if (sel === '.char-prompt-input, .char-neg-input, .char-auto-pos') {
+            return [el.promptInput, el.negInput, el.autoPosCheckbox];
+          }
+          if (sel === '.char-grid-cell') {
+            return el.gridCells || [];
+          }
+          if (sel === '.character-prompt-row') {
+            return createdElements;
+          }
+          return [];
+        },
+        closest(sel) {
+          if (sel === '.character-prompt-row') return el;
+          if (sel === '.char-grid-container') return el.gridContainer;
+          return null;
+        },
+        remove() {
+          const idx = createdElements.indexOf(el);
+          if (idx !== -1) createdElements.splice(idx, 1);
+        }
+      };
+
+      // Child elements for the row element
+      el.enableToggle = { checked: true, addEventListener: (ev, cb) => { el.enableToggle.listener = cb; } };
+      el.enableText = { textContent: '', className: '' };
+      el.promptInput = { value: '', addEventListener: (ev, cb) => { el.promptInput.listener = cb; } };
+      el.negInput = { value: '', addEventListener: (ev, cb) => { el.negInput.listener = cb; } };
+      el.posXInput = { value: '0.5' };
+      el.posYInput = { value: '0.5' };
+      el.autoPosCheckbox = { checked: true, addEventListener: (ev, cb) => { el.autoPosCheckbox.listener = cb; } };
+      el.gridContainer = {
+        classList: el.classList,
+        querySelectorAll(sel) {
+          if (sel === '.char-grid-cell') return el.gridCells;
+          return [];
+        },
+        closest(sel) {
+          if (sel === '.character-prompt-row') return el;
+          return null;
+        }
+      };
+      el.indexLabel = { textContent: '' };
+      el.summarySpan = { textContent: '' };
+      el.rowHeader = { addEventListener: (ev, cb) => { el.rowHeader.listener = cb; } };
+      el.rowContent = { classList: { add: (cls) => el.rowContent.classes.add(cls), remove: (cls) => el.rowContent.classes.delete(cls), contains: (cls) => el.rowContent.classes.has(cls) }, classes: new Set() };
+      el.rowChevron = { classList: { add: (cls) => {}, remove: (cls) => {} } };
+      el.rowActions = { addEventListener: (ev, cb) => { el.rowActions.listener = cb; } };
+      el.gridCells = Array.from({ length: 25 }, (_, i) => ({
+        className: '',
+        title: '',
+        style: {}
+      }));
+
+      Object.defineProperty(el, 'innerHTML', {
+        set(val) {
+          const promptMatch = val.match(/class="char-prompt-input[^"]*"\s+value="([^"]*)"/);
+          if (promptMatch) el.promptInput.value = promptMatch[1];
+          
+          const negMatch = val.match(/class="char-neg-input[^"]*"\s+value="([^"]*)"/);
+          if (negMatch) el.negInput.value = negMatch[1];
+
+          const posXMatch = val.match(/class="char-pos-x"\s+value="([^"]*)"/);
+          if (posXMatch) el.posXInput.value = posXMatch[1];
+
+          const posYMatch = val.match(/class="char-pos-y"\s+value="([^"]*)"/);
+          if (posYMatch) el.posYInput.value = posYMatch[1];
+
+          const autoPosMatch = val.match(/class="char-auto-pos[^"]*"\s+([^>]*)/);
+          if (autoPosMatch) el.autoPosCheckbox.checked = autoPosMatch[1].includes('checked');
+
+          const enabledMatch = val.match(/class="char-enable-toggle[^"]*"\s+([^>]*)/);
+          if (enabledMatch) el.enableToggle.checked = enabledMatch[1].includes('checked');
+        },
+        get() {
+          return '';
+        }
+      });
+
+      createdElements.push(el);
+      return el;
+    }
+
+    global.document.createElement = createMockElement;
+    global.document.getElementById = (id) => {
+      if (id === 'characterPromptsContainer') {
+        return {
+          appendChild: (child) => {},
+          querySelectorAll(sel) {
+            if (sel === '.character-prompt-row') return createdElements;
+            return [];
+          }
+        };
+      }
+      if (id === 'charCountBadge') {
+        return {
+          textContent: '',
+          classList: {
+            add: (cls) => {},
+            remove: (cls) => {}
+          }
+        };
+      }
+      return null;
+    };
+
+    // Test addCharacterPromptRow
+    charPromptManager.addCharacterPromptRow('prompt1', 'neg1', 0.5, 0.5, true, true, true);
+    assert.strictEqual(createdElements.length, 1);
+    const row = createdElements[0];
+    assert.strictEqual(row.promptInput.value, 'prompt1');
+    assert.strictEqual(row.negInput.value, 'neg1');
+
+    // Test enable/disable toggle
+    row.enableToggle.listener({ target: { checked: false } });
+    assert.strictEqual(row.enableText.textContent, '已禁用');
+
+    row.enableToggle.listener({ target: { checked: true } });
+    assert.strictEqual(row.enableText.textContent, '已启用');
+
+    // Test prompt input updates summary
+    row.promptInput.value = 'hello';
+    row.promptInput.listener();
+    assert.strictEqual(row.summarySpan.textContent, '(hello)');
+
+    // Test autoPos toggle change
+    row.autoPosCheckbox.listener({ target: { checked: false } });
+    row.autoPosCheckbox.listener({ target: { checked: true } });
+
+    // Test selectCharGridCell
+    const dummyBtn = {
+      closest: (sel) => {
+        if (sel === '.char-grid-container') return row.gridContainer;
+        return null;
+      },
+      className: ''
+    };
+    charPromptManager.selectCharGridCell(dummyBtn, 0.3, 0.7);
+    assert.strictEqual(row.posXInput.value, 0.3);
+    assert.strictEqual(row.posYInput.value, 0.7);
+
+    // Test row collapse/expand
+    row.rowHeader.listener();
+    row.rowActions.listener({ stopPropagation: () => {} });
+
+    // Test removeCharacterPromptRow
+    // Simulating setTimeout callback execution
+    const originalSetTimeout = global.setTimeout;
+    global.setTimeout = (cb) => cb();
+    try {
+      const dummyDelBtn = {
+        closest: (sel) => {
+          if (sel === '.character-prompt-row') return row;
+          return null;
+        }
+      };
+      charPromptManager.removeCharacterPromptRow(dummyDelBtn);
+      assert.strictEqual(createdElements.length, 0);
+    } finally {
+      global.setTimeout = originalSetTimeout;
+    }
+  });
+
+  it('should run AuthController tests', async () => {
+    localStorage.clear();
+    const authController = new AuthController();
+
+    const mockUi = {};
+    const mockStore = {};
+    authController.bind(mockUi, mockStore);
+
+    // Mock fetch responses
+    let fetchUrl = '';
+    let fetchOptions = {};
+    global.fetch = async (url, options = {}) => {
+      fetchUrl = url;
+      fetchOptions = options;
+      if (url === '/api/auth/profile') {
+        if (options.headers && options.headers['Authorization'] === 'Bearer invalid-token') {
+          return { ok: false, status: 401, json: async () => ({ success: false }) };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            user: { username: 'alice', credits: 100, daily_limit: 10, daily_count: 3 }
+          })
+        };
+      }
+      if (url === '/api/auth/login' || url === '/api/auth/register') {
+        const body = JSON.parse(options.body);
+        if (body.username === 'error') {
+          return { ok: false, status: 400, json: async () => ({ error: 'Bad request' }) };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            token: 'mock-jwt-token',
+            user: { username: body.username, credits: 100 }
+          })
+        };
+      }
+      if (url === '/api/auth/recharge') {
+        const body = JSON.parse(options.body);
+        if (body.cardKey === 'invalid') {
+          return { ok: false, status: 400, json: async () => ({ error: 'Card invalid' }) };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            message: '充值成功'
+          })
+        };
+      }
+      return { ok: false, status: 404 };
+    };
+
+    // Elements mock
+    const elements = {};
+    function getOrCreateMockElement(id) {
+      if (!elements[id]) {
+        elements[id] = {
+          id,
+          value: '',
+          checked: false,
+          disabled: false,
+          textContent: '',
+          innerHTML: '',
+          classList: {
+            add: (cls) => {},
+            remove: (cls) => {}
+          },
+          dataset: {}
+        };
+      }
+      return elements[id];
+    }
+    global.document.getElementById = getOrCreateMockElement;
+
+    // Test fetchUserProfile (no token)
+    await authController.fetchUserProfile();
+    assert.strictEqual(fetchUrl, '');
+
+    // With token
+    localStorage.setItem('nai_user_token', 'valid-token');
+    await authController.fetchUserProfile();
+    assert.strictEqual(fetchUrl, '/api/auth/profile');
+    assert.strictEqual(getOrCreateMockElement('profileUsername').textContent, 'alice');
+
+    // Test switchAuthTab
+    authController.switchAuthTab('login');
+    assert.strictEqual(getOrCreateMockElement('userAuthPanel').dataset.tab, 'login');
+    authController.switchAuthTab('register');
+    assert.strictEqual(getOrCreateMockElement('userAuthPanel').dataset.tab, 'register');
+
+    // Test submitAuth empty input
+    const authStatus = getOrCreateMockElement('authStatus');
+    getOrCreateMockElement('authUsername').value = '';
+    getOrCreateMockElement('authPassword').value = '';
+    await authController.submitAuth();
+    assert.ok(authStatus.innerHTML.includes('不能为空'));
+
+    // Test submitAuth Login
+    getOrCreateMockElement('authUsername').value = 'alice';
+    getOrCreateMockElement('authPassword').value = 'pass';
+    getOrCreateMockElement('userAuthPanel').dataset.tab = 'login';
+    await authController.submitAuth();
+    assert.strictEqual(localStorage.getItem('nai_user_token'), 'mock-jwt-token');
+
+    // Test submitAuth Register
+    getOrCreateMockElement('authUsername').value = 'bob';
+    getOrCreateMockElement('authPassword').value = 'pass';
+    getOrCreateMockElement('userAuthPanel').dataset.tab = 'register';
+    await authController.submitAuth();
+    assert.ok(authStatus.innerHTML.includes('注册成功'));
+
+    // Test submitRecharge
+    getOrCreateMockElement('rechargeCardKey').value = 'VIP-123';
+    await authController.submitRecharge();
+    assert.ok(getOrCreateMockElement('rechargeStatus').innerHTML.includes('充值成功'));
+
+    // Test logoutUser
+    authController.logoutUser();
+    assert.strictEqual(localStorage.getItem('nai_user_token'), null);
+  });
+
+  it('should run AdminController tests', async () => {
+    const adminController = new AdminController();
+    const mockUi = {};
+    const mockStore = {};
+    const mockAuthController = { fetchUserProfile: vi.fn() };
+    adminController.bind(mockUi, mockStore, mockAuthController);
+
+    // Mock Chart
+    global.Chart = function(ctx, config) {
+      this.ctx = ctx;
+      this.config = config;
+      this.destroy = vi.fn();
+    };
+
+    // Mock confirm/showConfirm
+    global.window.showConfirm = async () => true;
+    global.window.showToast = vi.fn();
+
+    // Mock fetch responses
+    const fetchCalls = [];
+    global.fetch = async (url, options = {}) => {
+      const call = { url, options };
+      fetchCalls.push(call);
+      if (url === '/api/admin/users') {
+        return {
+          ok: true,
+          json: async () => ({
+            users: [
+              { id: 1, username: 'user1', role: 'User', credits: 10, status: 'Pending' },
+              { id: 2, username: 'user2', role: 'User', credits: 20, status: 'Approved' },
+              { id: 3, username: 'user3', role: 'User', credits: 30, status: 'Banned' }
+            ]
+          })
+        };
+      }
+      if (url === '/api/admin/users/approve') {
+        return { ok: true, json: async () => ({ success: true }) };
+      }
+      if (url === '/api/admin/cards/generate') {
+        return { ok: true, json: async () => ({ message: 'Generated', cards: ['CARD1', 'CARD2'] }) };
+      }
+      if (url.startsWith('/api/admin/stats')) {
+        return {
+          ok: true,
+          json: async () => ({
+            summary: { total_requests: 10, success_rate: 90, avg_duration: 500 },
+            ips: [{ ip: '1.1.1.1', count: 5 }],
+            errors: [{ error_message: 'Error 1', count: 2 }],
+            trend: [{ time_bucket: '12:00', request_count: 5, avg_duration: 400 }],
+            models: [{ model: 'v4.5', count: 10 }]
+          })
+        };
+      }
+      return { ok: false, status: 404 };
+    };
+
+    // Elements mock
+    const elements = {};
+    function getOrCreateMockElement(id) {
+      if (!elements[id]) {
+        elements[id] = {
+          id,
+          value: '',
+          checked: false,
+          disabled: false,
+          textContent: '',
+          innerHTML: '',
+          classList: {
+            add: (cls) => {},
+            remove: (cls) => {},
+            toggle: vi.fn()
+          },
+          appendChild: vi.fn(),
+          getContext: () => ({})
+        };
+      }
+      return elements[id];
+    }
+    global.document.getElementById = getOrCreateMockElement;
+
+    // Test switchAdminTab
+    adminController.switchAdminTab('users');
+    adminController.switchAdminTab('stats');
+    assert.ok(fetchCalls.some(c => c.url.startsWith('/api/admin/stats')));
+
+    // Test fetchAdminUsers
+    const tbody = getOrCreateMockElement('adminUsersTableBody');
+    tbody.innerHTML = '';
+    fetchCalls.length = 0;
+    await adminController.fetchAdminUsers();
+    assert.strictEqual(fetchCalls[0].url, '/api/admin/users');
+
+    // Test updateUserStatus
+    fetchCalls.length = 0;
+    await adminController.updateUserStatus(1, 'Approved');
+    const callApproved = fetchCalls.find(c => c.url === '/api/admin/users/approve');
+    assert.ok(callApproved);
+    const bodyApproved = JSON.parse(callApproved.options.body);
+    assert.strictEqual(bodyApproved.userId, 1);
+    assert.strictEqual(bodyApproved.status, 'Approved');
+
+    // Test deleteUserAccount
+    fetchCalls.length = 0;
+    await adminController.deleteUserAccount(2, 'user2');
+    const callDelete = fetchCalls.find(c => c.url === '/api/admin/users/approve');
+    assert.ok(callDelete);
+    const bodyDelete = JSON.parse(callDelete.options.body);
+    assert.strictEqual(bodyDelete.userId, 2);
+    assert.strictEqual(bodyDelete.action, 'delete');
+
+    // Test saveAdjustedCredits
+    getOrCreateMockElement('adjustCreditsInput-3').value = '50';
+    fetchCalls.length = 0;
+    await adminController.saveAdjustedCredits(3);
+    const callCredits = fetchCalls.find(c => c.url === '/api/admin/users/approve');
+    assert.ok(callCredits);
+    const bodyCredits = JSON.parse(callCredits.options.body);
+    assert.strictEqual(bodyCredits.userId, 3);
+    assert.strictEqual(bodyCredits.credits, 50);
+
+    // Test generateVipCards
+    getOrCreateMockElement('genCardCount').value = '5';
+    getOrCreateMockElement('genCardCredits').value = '10';
+    await adminController.generateVipCards();
+    assert.strictEqual(getOrCreateMockElement('genCardsTextarea').value, 'CARD1\nCARD2');
+
+    // Test copyGeneratedCards
+    getOrCreateMockElement('genCardsTextarea').value = 'CARD1\nCARD2';
+    getOrCreateMockElement('genCardsTextarea').select = vi.fn();
+    global.document.execCommand = vi.fn();
+    adminController.copyGeneratedCards();
+
+    // Test fetchAdminStats
+    await adminController.fetchAdminStats();
+    assert.strictEqual(getOrCreateMockElement('statTotalRequests').textContent, 10);
+  });
+
 });
