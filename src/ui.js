@@ -591,6 +591,13 @@ export class UIController {
             imgWrapper.appendChild(img);
             imgWrapper.appendChild(focusOverlay);
             
+            if (item.xyInfo) {
+                const badge = document.createElement('div');
+                badge.className = 'absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] px-2 py-0.5 rounded font-mono font-bold border border-white/10 z-20 pointer-events-none';
+                badge.textContent = item.xyInfo;
+                imgWrapper.appendChild(badge);
+            }
+            
             const select = (e) => {
                 if (e) e.stopPropagation();
                 // 清除其他选中状态

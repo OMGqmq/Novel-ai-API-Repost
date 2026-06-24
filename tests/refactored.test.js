@@ -7,6 +7,7 @@ import { SettingsManager } from '../src/settings-manager.js';
 import { CharPromptManager } from '../src/char-prompt-manager.js';
 import { AuthController } from '../src/auth-controller.js';
 import { AdminController } from '../src/admin-controller.js';
+import { XyPlotManager } from '../src/xy-plot-manager.js';
 import { generateSalt, hashPassword, signJwt, verifyJwt } from '../functions/_crypto-helper.js';
 
 // Setup Mock DOM Environment for Testing
@@ -988,6 +989,56 @@ describe('Refactored Suite', () => {
     // Test fetchAdminStats
     await adminController.fetchAdminStats();
     assert.strictEqual(getOrCreateMockElement('statTotalRequests').textContent, 10);
+  });
+
+  it('should run XyPlotManager tests', () => {
+    const mockStore = {};
+    const xyPlotManager = new XyPlotManager();
+    xyPlotManager.bind(mockStore);
+
+    const elements = {};
+    function getOrCreateMockElement(id) {
+      if (!elements[id]) {
+        elements[id] = {
+          id,
+          value: '',
+          checked: false
+        };
+      }
+      return elements[id];
+    }
+    global.document.getElementById = getOrCreateMockElement;
+
+    // Test isEnabled
+    getOrCreateMockElement('xyPlotEnabled').checked = false;
+    assert.strictEqual(xyPlotManager.isEnabled(), false);
+    getOrCreateMockElement('xyPlotEnabled').checked = true;
+    assert.strictEqual(xyPlotManager.isEnabled(), true);
+
+    // Test getXyConfigs with Steps and Scale
+    getOrCreateMockElement('xyPlotXType').value = 'steps';
+    getOrCreateMockElement('xyPlotXValues').value = ' 10, 20 , 30 ';
+    getOrCreateMockElement('xyPlotYType').value = 'scale';
+    getOrCreateMockElement('xyPlotYValues').value = ' 5.0, 7.5 ';
+
+    const configs = xyPlotManager.getXyConfigs();
+    assert.strictEqual(configs.xType, 'steps');
+    assert.deepStrictEqual(configs.xValues, [10, 20, 30]);
+    assert.strictEqual(configs.yType, 'scale');
+    assert.deepStrictEqual(configs.yValues, [5.0, 7.5]);
+
+    // Test generateParamGrid
+    const baseParams = { prompt: 'masterpiece', steps: 28, scale: 7.0 };
+    const grid = xyPlotManager.generateParamGrid(baseParams);
+
+    assert.strictEqual(grid.length, 6); // 2 rows * 3 columns = 6 cells
+    assert.strictEqual(grid[0].params.steps, 10);
+    assert.strictEqual(grid[0].params.scale, 5.0);
+    assert.strictEqual(grid[0].xyInfo, 'Steps: 10 | Scale: 5');
+
+    assert.strictEqual(grid[5].params.steps, 30);
+    assert.strictEqual(grid[5].params.scale, 7.5);
+    assert.strictEqual(grid[5].xyInfo, 'Steps: 30 | Scale: 7.5');
   });
 
 });

@@ -813,7 +813,60 @@
                 </div>
             </div>
 
-            <!-- 5. 解密与管理员控制 (折叠面板) -->
+            <!-- 5. X/Y Plot 参数网格 (折叠面板) -->
+            <div class="border-t border-gray-100 dark:border-gray-800 pt-4 space-y-2" id="xyPlotSettingsWrapper">
+                <button type="button" onclick="window.togglePanel('xyPlotSettingsPanel', 'xyPlotChevron')" class="w-full flex items-center justify-between py-2 text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer select-none">
+                    <span class="flex items-center gap-1.5"><i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i> X/Y Plot 参数网格</span>
+                    <i data-lucide="chevron-down" id="xyPlotChevron" class="w-4 h-4 transition-transform duration-200"></i>
+                </button>
+                <div id="xyPlotSettingsPanel" class="hidden space-y-4 pt-2 pb-2">
+                    <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                        <span class="text-[11px] text-gray-500 font-semibold">启用 X/Y Plot 参数对比</span>
+                        <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
+                            <input type="checkbox" id="xyPlotEnabled" class="sr-only peer" onchange="window.toggleXyPlotEnabled(this.checked)">
+                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+                    
+                    <div id="xyPlotControls" class="hidden space-y-3">
+                        <div class="space-y-1">
+                            <label class="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">X 轴参数类型 (X Axis Type)</label>
+                            <select id="xyPlotXType" class="art-input w-full px-3 py-2 rounded-xl text-xs outline-none bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800" onchange="window.updateXyPlotCountPreview()">
+                                <option value="steps">步骤数 (Steps)</option>
+                                <option value="scale">CFG 比例 (Scale)</option>
+                                <option value="seed">种子 (Seed)</option>
+                                <option value="strength">去噪强度 (Strength)</option>
+                                <option value="noise">噪波量 (Noise)</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">X 轴参数值 (英文逗号分隔)</label>
+                            <input type="text" id="xyPlotXValues" placeholder="例如: 15, 20, 28" class="art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="15, 20, 28" oninput="window.updateXyPlotCountPreview()">
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">Y 轴参数类型 (Y Axis Type)</label>
+                            <select id="xyPlotYType" class="art-input w-full px-3 py-2 rounded-xl text-xs outline-none bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800" onchange="window.updateXyPlotCountPreview()">
+                                <option value="scale" selected>CFG 比例 (Scale)</option>
+                                <option value="steps">步骤数 (Steps)</option>
+                                <option value="seed">种子 (Seed)</option>
+                                <option value="strength">去噪强度 (Strength)</option>
+                                <option value="noise">噪波量 (Noise)</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">Y 轴参数值 (英文逗号分隔)</label>
+                            <input type="text" id="xyPlotYValues" placeholder="例如: 5.0, 7.0, 9.0" class="art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="5.0, 7.0, 9.0" oninput="window.updateXyPlotCountPreview()">
+                        </div>
+
+                        <p class="text-[10px] text-gray-450 dark:text-gray-500 bg-gray-50 dark:bg-slate-900/30 p-2 rounded-xl border border-gray-100 dark:border-slate-800">
+                            X/Y Plot 会对网格中的每个交点执行生成。上述设定将产生 <span id="xyPlotCountPreview" class="font-bold text-indigo-500">9</span> 张图片，请确保余额可用。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. 解密与管理员控制 (折叠面板) -->
             <div class="border-t border-gray-100 dark:border-gray-800 pt-4 space-y-2 pb-20 md:pb-0" id="adminSettingsWrapper">
                 <button type="button" onclick="window.togglePanel('adminSettingsPanel', 'adminChevron')" class="w-full flex items-center justify-between py-2 text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer select-none">
                     <span class="flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 解锁与管理员控制</span>

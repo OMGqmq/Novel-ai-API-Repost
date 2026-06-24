@@ -15,6 +15,7 @@ import { SettingsManager } from './settings-manager.js';
 import { CharPromptManager } from './char-prompt-manager.js';
 import { AuthController } from './auth-controller.js';
 import { AdminController } from './admin-controller.js';
+import { XyPlotManager } from './xy-plot-manager.js';
 
 
 
@@ -151,10 +152,12 @@ const settingsManager = new SettingsManager();
 const charPromptManager = new CharPromptManager();
 const authController = new AuthController();
 const adminController = new AdminController();
+const xyPlotManager = new XyPlotManager();
 
 charPromptManager.bind(store);
 authController.bind(ui, store);
 adminController.bind(ui, store, authController);
+xyPlotManager.bind(store);
 
 settingsManager.bind(ui, store, {
     onModelChange: (model) => {
@@ -466,6 +469,10 @@ async function doGenerate() {
             return;
         }
 
+        if (xyPlotManager.isEnabled()) {
+            return doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, authBase });
+        }
+
         for (let i = 0; i < batchTotal; i++) {
             const statusText = batchTotal > 1 ? `生成中 (${i + 1}/${batchTotal})` : "生成中...";
             ui.setLoading(true, statusText);
@@ -683,6 +690,205 @@ async function doGenerate() {
         alert("发生意外错误: " + globalErr.message);
     } finally {
         ui.setLoading(false);
+    }
+}
+
+async function doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, authBase }) {
+    try {
+        const resEl = document.getElementById('resolution');
+        const [w, h] = resEl.value.split(',').map(Number);
+
+        const nsEl = document.getElementById('noise_schedule');
+        const smEl = document.getElementById('smEnabled');
+        const smDynEl = document.getElementById('smDynEnabled');
+        const qualityEl = document.getElementById('qualityToggleEnabled');
+        const dynThresholdEl = document.getElementById('dynThresholdEnabled');
+        const cfgRescaleEl = document.getElementById('cfgRescale');
+        const uncondScaleEl = document.getElementById('uncondScale');
+        const skipCfgEl = document.getElementById('skipCfg');
+
+        const baseParams = {
+            version: selectedVersion,
+            prompt: promptText,
+            negative_prompt: els.negative.value.trim(),
+            width: w, height: h,
+            steps: parseInt(els.steps.value),
+            scale: parseFloat(els.scale.value),
+            sampler: els.sampler.value,
+            noise_schedule: nsEl ? nsEl.value : "exponential",
+            sm: (selectedVersion === 'v4.5') ? false : (smEl ? smEl.checked : true),
+            sm_dyn: (selectedVersion === 'v4.5') ? false : (smDynEl ? smDynEl.checked : true),
+            qualityToggle: qualityEl ? qualityEl.checked : false,
+            dynamic_thresholding: dynThresholdEl ? dynThresholdEl.checked : false,
+            cfg_rescale: cfgRescaleEl ? parseFloat(cfgRescaleEl.value) : 0.0,
+            uncond_scale: uncondScaleEl ? parseFloat(uncondScaleEl.value) : 1.0
+        };
+
+        if (selectedVersion === 'v4.5') {
+            const isExp = store.getSetting('v4_5_experimental', 'false') === 'true';
+            baseParams.v4_5_experimental = isExp;
+            
+            const charRows = document.querySelectorAll('.character-prompt-row');
+            const charCaptions = [];
+            let hasCustomCoords = false;
+            charRows.forEach(row => {
+                const enableToggle = row.querySelector('.char-enable-toggle');
+                if (enableToggle && !enableToggle.checked) return;
+                
+                const promptInput = row.querySelector('.char-prompt-input');
+                const negInput = row.querySelector('.char-neg-input');
+                const posXInput = row.querySelector('.char-pos-x');
+                const posYInput = row.querySelector('.char-pos-y');
+                const autoPosCheckbox = row.querySelector('.char-auto-pos');
+                
+                const promptVal = promptInput ? promptInput.value.trim() : "";
+                const negVal = negInput ? negInput.value.trim() : "";
+                const x = posXInput ? parseFloat(posXInput.value) : 0.5;
+                const y = posYInput ? parseFloat(posYInput.value) : 0.5;
+                const isAutoPos = autoPosCheckbox ? autoPosCheckbox.checked : true;
+                
+                if (promptVal) {
+                    charCaptions.push({
+                        prompt: promptVal,
+                        negative_prompt: negVal,
+                        x: x,
+                        y: y
+                    });
+                    if (!isAutoPos) hasCustomCoords = true;
+                }
+            });
+
+            if (charCaptions.length > 0) baseParams.char_captions = charCaptions;
+            
+            if (isExp) {
+                const eulerBugEl = document.getElementById('v45EulerBug');
+                const preferBrownianEl = document.getElementById('v45PreferBrownian');
+                const useCoordsEl = document.getElementById('v45UseCoords');
+                const useOrderEl = document.getElementById('v45UseOrder');
+                const negUseOrderEl = document.getElementById('v45NegUseOrder');
+                
+                if (eulerBugEl) baseParams.deliberate_euler_ancestral_bug = eulerBugEl.checked;
+                if (preferBrownianEl) baseParams.prefer_brownian = preferBrownianEl.checked;
+                if (useCoordsEl) baseParams.v4_prompt_use_coords = useCoordsEl.checked;
+                if (useOrderEl) baseParams.v4_prompt_use_order = useOrderEl.checked;
+                if (negUseOrderEl) baseParams.v4_neg_use_order = negUseOrderEl.checked;
+            }
+            if (hasCustomCoords) baseParams.v4_prompt_use_coords = true;
+            if (skipCfgEl) baseParams.skip_cfg_above_sigma = isExp ? parseInt(skipCfgEl.value) : null;
+        }
+
+        if (appState.currentInitImageBase64) {
+            const strEl = document.getElementById('strength');
+            const noiEl = document.getElementById('noise');
+            baseParams.image = appState.currentInitImageBase64;
+            baseParams.strength = strEl ? parseFloat(strEl.value) : 0.5;
+            baseParams.noise = noiEl ? parseFloat(noiEl.value) : 0;
+        }
+        
+        const vibeParams = vibeManager.getPayloadParams(selectedVersion);
+        Object.assign(baseParams, vibeParams);
+        const charRefParams = charRefManager.getPayloadParams(selectedVersion);
+        Object.assign(baseParams, charRefParams);
+
+        const seedEl = document.getElementById('seed');
+        const userSeedVal = seedEl ? seedEl.value.trim() : "";
+        let baseSeed;
+        if (userSeedVal && !isNaN(userSeedVal)) {
+            baseSeed = parseInt(userSeedVal);
+        } else {
+            baseSeed = Math.floor(Math.random() * 4294967295);
+        }
+        baseParams.seed = baseSeed;
+
+        const paramGrid = xyPlotManager.generateParamGrid(baseParams);
+        if (paramGrid.length === 0) {
+            throw new Error("X/Y Plot 参数值配置为空，无法生成对比网格");
+        }
+
+        const successfulResults = [];
+
+        for (let idx = 0; idx < paramGrid.length; idx++) {
+            const cell = paramGrid[idx];
+            ui.setLoading(true, `X/Y Plot 生成中 (${idx + 1}/${paramGrid.length})`);
+
+            const customApiKeyRaw = store.getSetting('nai_custom_api_key');
+            const customApiKeys = (customApiKeyRaw || "")
+                .split(/[\n,]/)
+                .map(k => k.trim())
+                .filter(k => k);
+
+            const auth = {
+                ...authBase,
+                customApiKey: (customApiKeys.length > 0 ? customApiKeys[idx % customApiKeys.length] : "")
+            };
+
+            const isSeedPlot = (xyPlotManager.getXyConfigs().xType === 'seed' || xyPlotManager.getXyConfigs().yType === 'seed');
+            if (!isSeedPlot) {
+                cell.params.seed = (baseSeed + idx) % 4294967296;
+            }
+
+            try {
+                const result = await engine.generate(cell.params, auth);
+
+                if (result.userRole) {
+                    ui.updateCreditDisplay(result.userRole);
+                }
+
+                result.xyInfo = cell.xyInfo;
+                successfulResults.push(result);
+
+                const metaData = {
+                    negative_prompt: cell.params.negative_prompt,
+                    width: cell.params.width,
+                    height: cell.params.height,
+                    steps: cell.params.steps,
+                    scale: cell.params.scale,
+                    sampler: cell.params.sampler,
+                    seed: cell.params.seed,
+                    strength: cell.params.strength || null,
+                    noise: cell.params.noise || null,
+                    sm: cell.params.sm !== undefined ? cell.params.sm : false,
+                    sm_dyn: cell.params.sm_dyn !== undefined ? cell.params.sm_dyn : false,
+                    cfg_rescale: cell.params.cfg_rescale !== undefined ? cell.params.cfg_rescale : 0.0,
+                    uncond_scale: cell.params.uncond_scale !== undefined ? cell.params.uncond_scale : 1.0,
+                    skip_cfg_above_sigma: cell.params.skip_cfg_above_sigma !== undefined ? cell.params.skip_cfg_above_sigma : null,
+                    v4_5_experimental: cell.params.v4_5_experimental !== undefined ? cell.params.v4_5_experimental : false,
+                    v4_prompt_use_coords: cell.params.v4_prompt_use_coords !== undefined ? cell.params.v4_prompt_use_coords : false,
+                    v4_prompt_use_order: cell.params.v4_prompt_use_order !== undefined ? cell.params.v4_prompt_use_order : true,
+                    v4_neg_use_order: cell.params.v4_neg_use_order !== undefined ? cell.params.v4_neg_use_order : false,
+                    deliberate_euler_ancestral_bug: cell.params.deliberate_euler_ancestral_bug !== undefined ? cell.params.deliberate_euler_ancestral_bug : false,
+                    prefer_brownian: cell.params.prefer_brownian !== undefined ? cell.params.prefer_brownian : true,
+                    char_captions: cell.params.char_captions || null,
+                    xyInfo: cell.xyInfo
+                };
+
+                const reader = new FileReader();
+                reader.readAsDataURL(result.blob);
+                reader.onloadend = async () => {
+                    await saveToHistory(reader.result, promptText, selectedVersion, result, false, metaData);
+                };
+
+            } catch (cellErr) {
+                console.error(`X/Y Plot grid cell [${cell.xyInfo}] failed:`, cellErr);
+            }
+        }
+
+        if (successfulResults.length === 0) {
+            throw new Error("X/Y Plot 网格中所有生成请求均失败");
+        }
+
+        ui.showResultImages(successfulResults, (selected) => {
+            appState.currentImageData = selected;
+            if (selected.id) appState.currentImageId = selected.id;
+            window.lastSelectedImageUrl = selected.imageUrl;
+        });
+
+    } catch (err) {
+        console.error("X/Y Plot Grid Gen Error:", err);
+        alert(err.message || err);
+    } finally {
+        ui.setLoading(false);
+        ui.toggleMobileControls(true);
     }
 }
 
@@ -946,6 +1152,35 @@ function triggerImportNotebook() {
 function importNotebook(event) {
     notebookManager.importNotebook(event);
 }
+
+function toggleXyPlotEnabled(checked) {
+    const controls = document.getElementById('xyPlotControls');
+    if (controls) {
+        controls.classList.toggle('hidden', !checked);
+    }
+    updateXyPlotCountPreview();
+}
+window.toggleXyPlotEnabled = toggleXyPlotEnabled;
+
+function updateXyPlotCountPreview() {
+    const xValEl = document.getElementById('xyPlotXValues');
+    const yValEl = document.getElementById('xyPlotYValues');
+    const previewEl = document.getElementById('xyPlotCountPreview');
+    if (!previewEl) return;
+
+    const countItems = (str) => {
+        return (str || '')
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s !== '').length;
+    };
+
+    const xCount = xValEl ? countItems(xValEl.value) : 0;
+    const yCount = yValEl ? countItems(yValEl.value) : 0;
+    const total = xCount * yCount;
+    previewEl.textContent = total;
+}
+window.updateXyPlotCountPreview = updateXyPlotCountPreview;
 
 // --- 暴露给 Window 的代理方法 ---
 const renderNotebookCallback = () => notebookManager.render();
