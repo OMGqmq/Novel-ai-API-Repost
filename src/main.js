@@ -1163,21 +1163,11 @@ function toggleXyPlotEnabled(checked) {
 window.toggleXyPlotEnabled = toggleXyPlotEnabled;
 
 function updateXyPlotCountPreview() {
-    const xValEl = document.getElementById('xyPlotXValues');
-    const yValEl = document.getElementById('xyPlotYValues');
     const previewEl = document.getElementById('xyPlotCountPreview');
     if (!previewEl) return;
 
-    const countItems = (str) => {
-        return (str || '')
-            .split(',')
-            .map(s => s.trim())
-            .filter(s => s !== '').length;
-    };
-
-    const xCount = xValEl ? countItems(xValEl.value) : 0;
-    const yCount = yValEl ? countItems(yValEl.value) : 0;
-    const total = xCount * yCount;
+    const { xValues, yValues } = xyPlotManager.getXyConfigs();
+    const total = xValues.length * yValues.length;
     previewEl.textContent = total;
 }
 window.updateXyPlotCountPreview = updateXyPlotCountPreview;

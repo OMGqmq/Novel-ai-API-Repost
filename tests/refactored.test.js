@@ -1039,6 +1039,59 @@ describe('Refactored Suite', () => {
     assert.strictEqual(grid[5].params.steps, 30);
     assert.strictEqual(grid[5].params.scale, 7.5);
     assert.strictEqual(grid[5].xyInfo, 'Steps: 30 | Scale: 7.5');
+
+    // Test getXyConfigs with X axis set to 'none'
+    getOrCreateMockElement('xyPlotXType').value = 'none';
+    getOrCreateMockElement('xyPlotXValues').value = ' 10, 20 , 30 '; // Should be ignored
+    getOrCreateMockElement('xyPlotYType').value = 'scale';
+    getOrCreateMockElement('xyPlotYValues').value = ' 5.0, 7.5 ';
+
+    const configsXNone = xyPlotManager.getXyConfigs();
+    assert.strictEqual(configsXNone.xType, 'none');
+    assert.deepStrictEqual(configsXNone.xValues, [null]);
+    assert.strictEqual(configsXNone.yType, 'scale');
+    assert.deepStrictEqual(configsXNone.yValues, [5.0, 7.5]);
+
+    const gridXNone = xyPlotManager.generateParamGrid(baseParams);
+    assert.strictEqual(gridXNone.length, 2); // 1 (X none) * 2 (Y scale) = 2 cells
+    assert.strictEqual(gridXNone[0].params.steps, 28); // steps stays as baseParams.steps
+    assert.strictEqual(gridXNone[0].params.scale, 5.0);
+    assert.strictEqual(gridXNone[0].xyInfo, 'Scale: 5');
+    assert.strictEqual(gridXNone[1].params.steps, 28);
+    assert.strictEqual(gridXNone[1].params.scale, 7.5);
+    assert.strictEqual(gridXNone[1].xyInfo, 'Scale: 7.5');
+
+    // Test getXyConfigs with Y axis set to 'none'
+    getOrCreateMockElement('xyPlotXType').value = 'steps';
+    getOrCreateMockElement('xyPlotXValues').value = ' 10, 20 , 30 ';
+    getOrCreateMockElement('xyPlotYType').value = 'none';
+    getOrCreateMockElement('xyPlotYValues').value = ' 5.0, 7.5 '; // Should be ignored
+
+    const configsYNone = xyPlotManager.getXyConfigs();
+    assert.strictEqual(configsYNone.xType, 'steps');
+    assert.deepStrictEqual(configsYNone.xValues, [10, 20, 30]);
+    assert.strictEqual(configsYNone.yType, 'none');
+    assert.deepStrictEqual(configsYNone.yValues, [null]);
+
+    const gridYNone = xyPlotManager.generateParamGrid(baseParams);
+    assert.strictEqual(gridYNone.length, 3); // 3 (X steps) * 1 (Y none) = 3 cells
+    assert.strictEqual(gridYNone[0].params.steps, 10);
+    assert.strictEqual(gridYNone[0].params.scale, 7.0); // scale stays as baseParams.scale
+    assert.strictEqual(gridYNone[0].xyInfo, 'Steps: 10');
+
+    // Test getXyConfigs with both axes set to 'none'
+    getOrCreateMockElement('xyPlotXType').value = 'none';
+    getOrCreateMockElement('xyPlotYType').value = 'none';
+
+    const configsBothNone = xyPlotManager.getXyConfigs();
+    assert.deepStrictEqual(configsBothNone.xValues, [null]);
+    assert.deepStrictEqual(configsBothNone.yValues, [null]);
+
+    const gridBothNone = xyPlotManager.generateParamGrid(baseParams);
+    assert.strictEqual(gridBothNone.length, 1);
+    assert.strictEqual(gridBothNone[0].params.steps, 28);
+    assert.strictEqual(gridBothNone[0].params.scale, 7.0);
+    assert.strictEqual(gridBothNone[0].xyInfo, null);
   });
 
 });

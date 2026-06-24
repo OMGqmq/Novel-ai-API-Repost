@@ -42,8 +42,8 @@ export class XyPlotManager {
                 .filter(item => item !== null);
         };
 
-        const xValues = xValEl ? parseList(xValEl.value, xType) : [15, 20, 28];
-        const yValues = yValEl ? parseList(yValEl.value, yType) : [5.0, 7.0, 9.0];
+        const xValues = (xType === 'none') ? [null] : (xValEl ? parseList(xValEl.value, xType) : [15, 20, 28]);
+        const yValues = (yType === 'none') ? [null] : (yValEl ? parseList(yValEl.value, yType) : [5.0, 7.0, 9.0]);
 
         return {
             xType,
@@ -71,15 +71,26 @@ export class XyPlotManager {
             for (const xVal of xValues) {
                 const params = { ...baseParams };
 
-                // Apply overrides
-                params[xType] = xVal;
-                params[yType] = yVal;
+                // Apply overrides if not 'none'
+                if (xType !== 'none' && xVal !== null) {
+                    params[xType] = xVal;
+                }
+                if (yType !== 'none' && yVal !== null) {
+                    params[yType] = yVal;
+                }
 
-                const xyInfo = `${getLabel(xType)}: ${xVal} | ${getLabel(yType)}: ${yVal}`;
+                let xyInfo = '';
+                if (xType !== 'none' && xVal !== null && yType !== 'none' && yVal !== null) {
+                    xyInfo = `${getLabel(xType)}: ${xVal} | ${getLabel(yType)}: ${yVal}`;
+                } else if (xType !== 'none' && xVal !== null) {
+                    xyInfo = `${getLabel(xType)}: ${xVal}`;
+                } else if (yType !== 'none' && yVal !== null) {
+                    xyInfo = `${getLabel(yType)}: ${yVal}`;
+                }
 
                 grid.push({
                     params,
-                    xyInfo
+                    xyInfo: xyInfo || null
                 });
             }
         }
