@@ -14,6 +14,7 @@ function debounce(func, wait) {
 export class PromptHelper {
     constructor(config = {}) {
         this.promptEl = config.promptEl;
+        this.mainPromptEl = config.promptEl;
         this.containerEl = config.containerEl;
         this.searchInputEl = config.searchInputEl;
         this.searchBtnEl = config.searchBtnEl;
@@ -357,6 +358,10 @@ export class PromptHelper {
         const debouncedUpdateTranslations = debounce(() => this.updateTranslations(), 250);
 
         const handleInput = () => {
+            if (this.suggestPanel && this.containerEl && this.suggestPanel.parentNode !== this.containerEl) {
+                this.containerEl.insertBefore(this.suggestPanel, this.translatePanel);
+            }
+            this.promptEl = this.mainPromptEl;
             debouncedUpdateSuggestions();
             debouncedUpdateTranslations();
         };
@@ -368,7 +373,9 @@ export class PromptHelper {
 
         this.promptEl.addEventListener('blur', () => {
             setTimeout(() => {
-                if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
+                if (this.suggestPanel && this.promptEl === this.mainPromptEl) {
+                    this.suggestPanel.classList.add('hidden');
+                }
             }, 250);
         });
     }
@@ -416,6 +423,35 @@ export class PromptHelper {
             tagSearchTimeout = setTimeout(() => {
                 this.searchBtnEl.click();
             }, 300);
+        });
+    }
+
+    registerInput(inputEl, placeholderEl) {
+        if (!inputEl || !placeholderEl) return;
+
+        const debouncedUpdateSuggestions = debounce(() => this.updateSuggestions(), 150);
+        const debouncedUpdateTranslations = debounce(() => this.updateTranslations(), 250);
+
+        const handleInput = () => {
+            if (this.suggestPanel && this.suggestPanel.parentNode !== placeholderEl) {
+                placeholderEl.appendChild(this.suggestPanel);
+            }
+            this.promptEl = inputEl;
+            debouncedUpdateSuggestions();
+            debouncedUpdateTranslations();
+        };
+
+        inputEl.addEventListener('input', handleInput);
+        inputEl.addEventListener('keyup', handleInput);
+        inputEl.addEventListener('click', handleInput);
+        inputEl.addEventListener('focus', handleInput);
+
+        inputEl.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (this.suggestPanel && this.promptEl === inputEl) {
+                    this.suggestPanel.classList.add('hidden');
+                }
+            }, 250);
         });
     }
 

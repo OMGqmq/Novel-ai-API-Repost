@@ -16,6 +16,7 @@ import { CharPromptManager } from './char-prompt-manager.js';
 import { AuthController } from './auth-controller.js';
 import { AdminController } from './admin-controller.js';
 import { XyPlotManager } from './xy-plot-manager.js';
+import { RandomPromptManager } from './random-prompt-manager.js';
 
 
 
@@ -153,6 +154,7 @@ const charPromptManager = new CharPromptManager();
 const authController = new AuthController();
 const adminController = new AdminController();
 const xyPlotManager = new XyPlotManager();
+const randomPromptManager = new RandomPromptManager();
 
 charPromptManager.bind(store);
 authController.bind(ui, store);
@@ -605,9 +607,22 @@ async function doGenerate() {
                     } else {
                         finalSeed = Math.floor(Math.random() * 4294967295);
                     }
+
+                    let finalPrompt = promptText;
+                    let randomSelections = null;
+                    if (randomPromptManager.isEnabled()) {
+                        const { selectedTags, individualSelections } = randomPromptManager.getRandomSelection();
+                        if (selectedTags) {
+                            finalPrompt = promptText + (promptText ? ', ' : '') + selectedTags;
+                            randomSelections = individualSelections;
+                        }
+                    }
+
                     return {
                         ...params,
-                        seed: finalSeed
+                        prompt: finalPrompt,
+                        seed: finalSeed,
+                        randomSelections
                     };
                 });
 
@@ -649,14 +664,15 @@ async function doGenerate() {
                             v4_neg_use_order: localParams.v4_neg_use_order !== undefined ? localParams.v4_neg_use_order : false,
                             deliberate_euler_ancestral_bug: localParams.deliberate_euler_ancestral_bug !== undefined ? localParams.deliberate_euler_ancestral_bug : false,
                             prefer_brownian: localParams.prefer_brownian !== undefined ? localParams.prefer_brownian : true,
-                            char_captions: localParams.char_captions || null
+                            char_captions: localParams.char_captions || null,
+                            random_prompt_selections: localParams.randomSelections || null
                         };
 
                         // 转Base64存历史
                         const reader = new FileReader();
                         reader.readAsDataURL(result.blob);
                         reader.onloadend = async () => {
-                            await saveToHistory(reader.result, promptText, selectedVersion, result, false, metaData);
+                            await saveToHistory(reader.result, localParams.prompt, selectedVersion, result, false, metaData);
                         }
                     } else {
                         console.error("Concurrent Gen Error:", res.reason);
@@ -707,9 +723,19 @@ async function doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, aut
         const uncondScaleEl = document.getElementById('uncondScale');
         const skipCfgEl = document.getElementById('skipCfg');
 
+        let finalPrompt = promptText;
+        let randomSelections = null;
+        if (randomPromptManager.isEnabled()) {
+            const { selectedTags, individualSelections } = randomPromptManager.getRandomSelection();
+            if (selectedTags) {
+                finalPrompt = promptText + (promptText ? ', ' : '') + selectedTags;
+                randomSelections = individualSelections;
+            }
+        }
+
         const baseParams = {
             version: selectedVersion,
-            prompt: promptText,
+            prompt: finalPrompt,
             negative_prompt: els.negative.value.trim(),
             width: w, height: h,
             steps: parseInt(els.steps.value),
@@ -859,13 +885,14 @@ async function doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, aut
                     deliberate_euler_ancestral_bug: cell.params.deliberate_euler_ancestral_bug !== undefined ? cell.params.deliberate_euler_ancestral_bug : false,
                     prefer_brownian: cell.params.prefer_brownian !== undefined ? cell.params.prefer_brownian : true,
                     char_captions: cell.params.char_captions || null,
-                    xyInfo: cell.xyInfo
+                    xyInfo: cell.xyInfo,
+                    random_prompt_selections: randomSelections
                 };
 
                 const reader = new FileReader();
                 reader.readAsDataURL(result.blob);
                 reader.onloadend = async () => {
-                    await saveToHistory(reader.result, promptText, selectedVersion, result, false, metaData);
+                    await saveToHistory(reader.result, finalPrompt, selectedVersion, result, false, metaData);
                 };
 
             } catch (cellErr) {
@@ -1957,6 +1984,14 @@ function switchSettingsTab(tabName) {
         }
     }
 
+    if (tabName === 'randomPrompt') {
+        renderRandomPromptsList();
+        const globalCheckbox = document.getElementById('randomPromptEnabled');
+        if (globalCheckbox) {
+            globalCheckbox.checked = randomPromptManager.isEnabled();
+        }
+    }
+
     currentSettingsTab = tabName;
     
     // 1. 切换 Tab 按钮高亮
@@ -2797,7 +2832,10 @@ Object.assign(window, {
     
     // 工具箱及图像加密解密方法
     openToolboxModal, closeToolboxModal, switchToolboxTab, toggleScrambleHistoryList, handleScrambleFileUpload, setScrambleMode, onScrambleAlgorithmChange, toggleScramblePasswordInput, executeScrambleProcess, downloadScrambleResult,
-    toggleMetadataHistoryList, handleMetadataFileUpload, applyMetadataParameters
+    toggleMetadataHistoryList, handleMetadataFileUpload, applyMetadataParameters,
+
+    // 随机词库方法
+    toggleRandomPromptEnabled, toggleRandomCategory, updateRandomCategoryContent, deleteRandomCategory, addRandomPromptCategory, exportRandomPromptFile, importRandomPromptFile, renderRandomPromptsList
 });
 
 // --- 用户系统 (User System) JS Logic ---
@@ -3096,6 +3134,127 @@ function initCustomSelects() {
 
 // Run custom select initialization
 initCustomSelects();
+
+
+// --- Random Prompt Library UI Helper Functions ---
+function renderRandomPromptsList() {
+    const container = document.getElementById('randomPromptCategoriesContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+    const categories = randomPromptManager.getCategories();
+
+    categories.forEach(cat => {
+        const item = document.createElement('div');
+        item.className = 'border border-gray-150 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-white/50 dark:bg-slate-900/40 shadow-sm';
+        item.innerHTML = `
+            <div class="flex justify-between items-center bg-gray-50/50 dark:bg-slate-950/20 px-4 py-2.5 border-b border-gray-150 dark:border-slate-800/80">
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="rp-chk-${cat.name}" ${cat.enabled ? 'checked' : ''} onchange="window.toggleRandomCategory('${cat.name}', this.checked)" class="w-3.5 h-3.5 rounded border-gray-300 dark:border-slate-700 text-indigo-500 focus:ring-indigo-500 cursor-pointer">
+                    <span class="text-xs font-bold text-gray-700 dark:text-gray-200 capitalize">${cat.name}</span>
+                </div>
+                ${cat.custom ? `
+                    <button onclick="window.deleteRandomCategory('${cat.name}')" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-lg transition-colors cursor-pointer">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                ` : ''}
+            </div>
+            <div class="p-3 space-y-2">
+                <textarea id="rp-txt-${cat.name}" rows="2" oninput="window.updateRandomCategoryContent('${cat.name}', this.value)" class="art-input w-full px-3 py-2 rounded-xl text-xs outline-none resize-none text-gray-700 dark:text-gray-200" placeholder="以英文分号分词组，例如: jk uniform, white shirt; maid outfit, apron; white summer dress"></textarea>
+                <div id="rp-placeholder-${cat.name}" class="mt-1"></div>
+            </div>
+        `;
+        
+        container.appendChild(item);
+        
+        // Populate current content
+        const textarea = item.querySelector(`#rp-txt-${cat.name}`);
+        if (textarea) {
+            textarea.value = cat.content || '';
+            // Register with promptHelper autocomplete
+            const placeholder = item.querySelector(`#rp-placeholder-${cat.name}`);
+            if (placeholder && promptHelper) {
+                promptHelper.registerInput(textarea, placeholder);
+            }
+        }
+    });
+
+    if (window.safeCreateIcons) window.safeCreateIcons();
+}
+
+function toggleRandomPromptEnabled(checked) {
+    randomPromptManager.setEnabled(checked);
+    if (checked) {
+        renderRandomPromptsList();
+    }
+}
+
+function toggleRandomCategory(name, checked) {
+    randomPromptManager.updateCategory(name, { enabled: checked });
+}
+
+function updateRandomCategoryContent(name, content) {
+    randomPromptManager.updateCategory(name, { content: content });
+}
+
+async function deleteRandomCategory(name) {
+    if (await window.showConfirm(`确定要删除自定义分类 “${name}” 吗？`, "确认删除")) {
+        randomPromptManager.removeCategory(name);
+        renderRandomPromptsList();
+    }
+}
+
+function addRandomPromptCategory() {
+    const input = document.getElementById('newRandomPromptCategoryName');
+    if (!input) return;
+    const name = input.value.trim();
+    if (!name) {
+        window.showToast("请输入类别名称", "warning");
+        return;
+    }
+    const res = randomPromptManager.addCategory(name);
+    if (res.error) {
+        window.showToast(res.error, "error");
+    } else {
+        input.value = '';
+        renderRandomPromptsList();
+        window.showToast(`添加类别 “${name}” 成功`, "success");
+    }
+}
+
+function exportRandomPromptFile() {
+    const dataStr = randomPromptManager.exportData();
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `novelai_random_prompts_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importRandomPromptFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const res = randomPromptManager.importData(e.target.result);
+        if (res.error) {
+            window.showToast(res.error, "error");
+        } else {
+            window.showToast("导入随机词库成功", "success");
+            // Sync global toggle
+            const globalCheckbox = document.getElementById('randomPromptEnabled');
+            if (globalCheckbox) {
+                globalCheckbox.checked = randomPromptManager.isEnabled();
+            }
+            renderRandomPromptsList();
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
 
 
 

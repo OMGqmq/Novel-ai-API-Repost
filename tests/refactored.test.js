@@ -8,6 +8,7 @@ import { CharPromptManager } from '../src/char-prompt-manager.js';
 import { AuthController } from '../src/auth-controller.js';
 import { AdminController } from '../src/admin-controller.js';
 import { XyPlotManager } from '../src/xy-plot-manager.js';
+import { RandomPromptManager } from '../src/random-prompt-manager.js';
 import { generateSalt, hashPassword, signJwt, verifyJwt } from '../functions/_crypto-helper.js';
 
 // Setup Mock DOM Environment for Testing
@@ -1092,6 +1093,73 @@ describe('Refactored Suite', () => {
     assert.strictEqual(gridBothNone[0].params.steps, 28);
     assert.strictEqual(gridBothNone[0].params.scale, 7.0);
     assert.strictEqual(gridBothNone[0].xyInfo, null);
+  });
+
+  it('should run RandomPromptManager tests', () => {
+    const manager = new RandomPromptManager();
+    
+    // Check defaults
+    assert.strictEqual(manager.isEnabled(), false);
+    const cats = manager.getCategories();
+    assert.strictEqual(cats.length, 4);
+    assert.strictEqual(cats[0].name, '服装');
+    assert.strictEqual(cats[0].enabled, true);
+    assert.strictEqual(cats[0].custom, false);
+
+    // Test enabled global state
+    manager.setEnabled(true);
+    assert.strictEqual(manager.isEnabled(), true);
+
+    // Test addCategory
+    const addRes1 = manager.addCategory('  ');
+    assert.ok(addRes1.error);
+    
+    const addRes2 = manager.addCategory('服装'); // Already exists
+    assert.ok(addRes2.error);
+
+    const addRes3 = manager.addCategory('背景', 'sky, cloud; night, stars');
+    assert.strictEqual(addRes3.success, true);
+    assert.strictEqual(addRes3.category.name, '背景');
+    assert.strictEqual(addRes3.category.content, 'sky, cloud; night, stars');
+    assert.strictEqual(addRes3.category.custom, true);
+    assert.strictEqual(manager.getCategories().length, 5);
+
+    // Test updateCategory
+    const updRes1 = manager.updateCategory('背景', { enabled: false, content: 'noon, sun; rain, wet' });
+    assert.strictEqual(updRes1.success, true);
+    const cat = manager.getCategories().find(c => c.name === '背景');
+    assert.strictEqual(cat.enabled, false);
+    assert.strictEqual(cat.content, 'noon, sun; rain, wet');
+
+    // Test removeCategory
+    const delRes1 = manager.removeCategory('非真实分类');
+    assert.ok(delRes1.error);
+
+    const delRes2 = manager.removeCategory('背景');
+    assert.strictEqual(delRes2.success, true);
+    assert.strictEqual(manager.getCategories().length, 4);
+
+    // Test getRandomSelection
+    manager.setEnabled(true);
+    // Disable all except Clothing (服装)
+    manager.getCategories().forEach(c => {
+      manager.updateCategory(c.name, { enabled: c.name === '服装' });
+    });
+    // Set a predictable content for 服装
+    manager.updateCategory('服装', { content: 'only_clothing' });
+    
+    const selection = manager.getRandomSelection();
+    assert.strictEqual(selection.selectedTags, 'only_clothing');
+    assert.deepStrictEqual(selection.individualSelections, { '服装': 'only_clothing' });
+
+    // Test export/import
+    const exported = manager.exportData();
+    const importedManager = new RandomPromptManager();
+    const importRes = importedManager.importData(exported);
+    assert.strictEqual(importRes.success, true);
+    assert.strictEqual(importedManager.isEnabled(), true);
+    assert.strictEqual(importedManager.getCategories().length, 4);
+    assert.strictEqual(importedManager.getCategories().find(c => c.name === '服装').content, 'only_clothing');
   });
 
 });
