@@ -2897,5 +2897,206 @@ async function fetchAdminStats() {
 window.fetchAdminStats = fetchAdminStats;
 
 
+// --- Custom Select Dropdown UI Enhancements ---
+function initCustomSelects() {
+    if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') {
+        return;
+    }
+
+    const selects = document.querySelectorAll('select');
+    selects.forEach(selectEl => {
+        if (selectEl.dataset.customized === 'true') return;
+        selectEl.dataset.customized = 'true';
+
+        // Hide original select
+        selectEl.style.display = 'none';
+
+        // Create wrapper
+        const wrapper = document.createElement('div');
+        const originalClasses = selectEl.className || '';
+        const hasWFull = originalClasses.includes('w-full');
+        
+        wrapper.className = `relative custom-select-wrapper ${hasWFull ? 'w-full' : 'inline-block min-w-[120px]'}`;
+        selectEl.parentNode.insertBefore(wrapper, selectEl);
+        wrapper.appendChild(selectEl); // keep original select hidden inside wrapper for structure
+
+        // Create trigger button
+        const button = document.createElement('button');
+        button.type = 'button';
+        
+        // Base tailwind styling for the select button matching our custom style system
+        button.className = `w-full flex items-center justify-between outline-none bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-800 text-gray-700 dark:text-gray-250 cursor-pointer shadow-sm hover:border-gray-200 dark:hover:border-slate-700 transition-all select-none`;
+
+        // Extract spacing, styling, font size classes from original select to match layout
+        const classesToCopy = [];
+        originalClasses.split(' ').forEach(cls => {
+            const c = cls.trim();
+            if (!c || c === 'art-input' || c.startsWith('bg-') || c.startsWith('border-') || c.startsWith('w-') || c.startsWith('cursor-')) return;
+            if (c.startsWith('py-') || c.startsWith('px-') || c.startsWith('rounded-') || c.startsWith('text-') || c.startsWith('font-') || c.startsWith('shadow-') || c.startsWith('h-')) {
+                classesToCopy.push(c);
+            }
+        });
+        if (classesToCopy.length > 0) {
+            button.className += ` ${classesToCopy.join(' ')}`;
+        } else {
+            button.className += ' px-3 py-2 rounded-xl text-xs';
+        }
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'truncate';
+        
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'flex-shrink-0 ml-1.5 text-gray-400 dark:text-gray-500';
+        iconSpan.innerHTML = '<i data-lucide="chevron-down" class="w-3.5 h-3.5 transition-transform duration-200 pointer-events-none"></i>';
+
+        button.appendChild(textSpan);
+        button.appendChild(iconSpan);
+        wrapper.appendChild(button);
+
+        // Create dropdown options list container
+        const listContainer = document.createElement('div');
+        listContainer.className = 'hidden absolute z-[9999] w-full mt-1.5 py-1 bg-white/95 dark:bg-slate-900/95 border border-gray-100 dark:border-slate-800/80 rounded-2xl shadow-xl backdrop-blur-md max-h-60 overflow-y-auto transition-all duration-200 opacity-0 scale-95 origin-top';
+        wrapper.appendChild(listContainer);
+
+        // Update selected text display
+        const updateDisplay = () => {
+            const selectedOption = selectEl.options[selectEl.selectedIndex];
+            textSpan.textContent = selectedOption ? selectedOption.textContent : '';
+            // Highlight active item in list
+            const items = listContainer.querySelectorAll('.custom-select-item');
+            items.forEach(item => {
+                if (item.dataset.value === selectEl.value) {
+                    item.className = 'custom-select-item px-3 py-2 text-xs font-semibold bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 cursor-pointer transition-colors';
+                } else {
+                    item.className = 'custom-select-item px-3 py-2 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors';
+                }
+            });
+        };
+
+        // Rebuild options list
+        const rebuildOptions = () => {
+            listContainer.innerHTML = '';
+            Array.from(selectEl.options).forEach(opt => {
+                const item = document.createElement('div');
+                item.dataset.value = opt.value;
+                item.className = 'custom-select-item px-3 py-2 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors';
+                item.textContent = opt.textContent;
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectEl.value = opt.value;
+                    selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    closeDropdown();
+                });
+                listContainer.appendChild(item);
+            });
+            updateDisplay();
+        };
+
+        rebuildOptions();
+
+        // Toggle dropdown
+        const openDropdown = () => {
+            // Close all other custom selects first
+            document.querySelectorAll('.custom-select-wrapper').forEach(w => {
+                if (w !== wrapper) {
+                    const list = w.querySelector('div:not(.hidden)');
+                    const btn = w.querySelector('button');
+                    if (list) {
+                        list.classList.add('opacity-0', 'scale-95');
+                        setTimeout(() => list.classList.add('hidden'), 200);
+                        const chevron = btn.querySelector('[data-lucide="chevron-down"]');
+                        if (chevron) chevron.classList.remove('rotate-180');
+                    }
+                }
+            });
+
+            listContainer.classList.remove('hidden');
+            // Force reflow
+            listContainer.offsetHeight;
+            listContainer.classList.remove('opacity-0', 'scale-95');
+            const chevron = button.querySelector('[data-lucide="chevron-down"]');
+            if (chevron) chevron.classList.add('rotate-180');
+        };
+
+        const closeDropdown = () => {
+            listContainer.classList.add('opacity-0', 'scale-95');
+            const chevron = button.querySelector('[data-lucide="chevron-down"]');
+            if (chevron) chevron.classList.remove('rotate-180');
+            setTimeout(() => {
+                if (listContainer.classList.contains('opacity-0')) {
+                    listContainer.classList.add('hidden');
+                }
+            }, 200);
+        };
+
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = !listContainer.classList.contains('hidden') && !listContainer.classList.contains('opacity-0');
+            if (isOpen) {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        });
+
+        // Close on click outside
+        document.addEventListener('click', () => {
+            closeDropdown();
+        });
+
+        // Listen to native change event (in case value changes from outside)
+        selectEl.addEventListener('change', () => {
+            updateDisplay();
+        });
+
+        // Intercept .value property setter to update custom display
+        if (typeof HTMLSelectElement !== 'undefined') {
+            const originalValueProp = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+            if (originalValueProp) {
+                Object.defineProperty(selectEl, 'value', {
+                    get() {
+                        return originalValueProp.get.call(this);
+                    },
+                    set(val) {
+                        originalValueProp.set.call(this, val);
+                        updateDisplay();
+                    },
+                    configurable: true
+                });
+            }
+
+            // Intercept selectedIndex
+            const originalIndexProp = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
+            if (originalIndexProp) {
+                Object.defineProperty(selectEl, 'selectedIndex', {
+                    get() {
+                        return originalIndexProp.get.call(this);
+                    },
+                    set(idx) {
+                        originalIndexProp.set.call(this, idx);
+                        updateDisplay();
+                    },
+                    configurable: true
+                });
+            }
+        }
+
+        // Handle dynamically added/changed options via MutationObserver
+        if (typeof MutationObserver !== 'undefined') {
+            const observer = new MutationObserver(() => {
+                rebuildOptions();
+            });
+            observer.observe(selectEl, { childList: true, subtree: true });
+        }
+
+        // Initialize icons inside trigger button
+        if (window.safeCreateIcons) window.safeCreateIcons();
+    });
+}
+
+// Run custom select initialization
+initCustomSelects();
+
+
 
 
