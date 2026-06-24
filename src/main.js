@@ -17,6 +17,7 @@ import { AuthController } from './auth-controller.js';
 import { AdminController } from './admin-controller.js';
 import { XyPlotManager } from './xy-plot-manager.js';
 import { RandomPromptManager } from './random-prompt-manager.js';
+import { RandomPromptController } from './random-prompt-controller.js';
 
 
 
@@ -155,6 +156,7 @@ const authController = new AuthController();
 const adminController = new AdminController();
 const xyPlotManager = new XyPlotManager();
 const randomPromptManager = new RandomPromptManager();
+const randomPromptController = new RandomPromptController();
 
 charPromptManager.bind(store);
 authController.bind(ui, store);
@@ -1242,6 +1244,8 @@ const promptHelper = new PromptHelper({
     onShowToast: (msg, type) => window.showToast ? window.showToast(msg, type) : console.log(msg)
 });
 
+randomPromptController.bind(randomPromptManager, promptHelper);
+
 function toggleTheme() {
     ui.toggleTheme();
 }
@@ -1985,7 +1989,7 @@ function switchSettingsTab(tabName) {
     }
 
     if (tabName === 'randomPrompt') {
-        renderRandomPromptsList();
+        randomPromptController.renderList();
         const globalCheckbox = document.getElementById('randomPromptEnabled');
         if (globalCheckbox) {
             globalCheckbox.checked = randomPromptManager.isEnabled();
@@ -3137,123 +3141,37 @@ initCustomSelects();
 
 
 // --- Random Prompt Library UI Helper Functions ---
+// --- Random Prompt Library UI Helper Delegation ---
 function renderRandomPromptsList() {
-    const container = document.getElementById('randomPromptCategoriesContainer');
-    if (!container) return;
-
-    container.innerHTML = '';
-    const categories = randomPromptManager.getCategories();
-
-    categories.forEach(cat => {
-        const item = document.createElement('div');
-        item.className = 'border border-gray-150 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-white/50 dark:bg-slate-900/40 shadow-sm';
-        item.innerHTML = `
-            <div class="flex justify-between items-center bg-gray-50/50 dark:bg-slate-950/20 px-4 py-2.5 border-b border-gray-150 dark:border-slate-800/80">
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="rp-chk-${cat.name}" ${cat.enabled ? 'checked' : ''} onchange="window.toggleRandomCategory('${cat.name}', this.checked)" class="w-3.5 h-3.5 rounded border-gray-300 dark:border-slate-700 text-indigo-500 focus:ring-indigo-500 cursor-pointer">
-                    <span class="text-xs font-bold text-gray-700 dark:text-gray-200 capitalize">${cat.name}</span>
-                </div>
-                ${cat.custom ? `
-                    <button onclick="window.deleteRandomCategory('${cat.name}')" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-lg transition-colors cursor-pointer">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                    </button>
-                ` : ''}
-            </div>
-            <div class="p-3 space-y-2">
-                <textarea id="rp-txt-${cat.name}" rows="2" oninput="window.updateRandomCategoryContent('${cat.name}', this.value)" class="art-input w-full px-3 py-2 rounded-xl text-xs outline-none resize-none text-gray-700 dark:text-gray-200" placeholder="以英文分号分词组，例如: jk uniform, white shirt; maid outfit, apron; white summer dress"></textarea>
-                <div id="rp-placeholder-${cat.name}" class="mt-1"></div>
-            </div>
-        `;
-        
-        container.appendChild(item);
-        
-        // Populate current content
-        const textarea = item.querySelector(`#rp-txt-${cat.name}`);
-        if (textarea) {
-            textarea.value = cat.content || '';
-            // Register with promptHelper autocomplete
-            const placeholder = item.querySelector(`#rp-placeholder-${cat.name}`);
-            if (placeholder && promptHelper) {
-                promptHelper.registerInput(textarea, placeholder);
-            }
-        }
-    });
-
-    if (window.safeCreateIcons) window.safeCreateIcons();
+    randomPromptController.renderList();
 }
 
 function toggleRandomPromptEnabled(checked) {
-    randomPromptManager.setEnabled(checked);
-    if (checked) {
-        renderRandomPromptsList();
-    }
+    randomPromptController.toggleEnabled(checked);
 }
 
 function toggleRandomCategory(name, checked) {
-    randomPromptManager.updateCategory(name, { enabled: checked });
+    randomPromptController.toggleCategory(name, checked);
 }
 
 function updateRandomCategoryContent(name, content) {
-    randomPromptManager.updateCategory(name, { content: content });
+    randomPromptController.updateCategoryContent(name, content);
 }
 
 async function deleteRandomCategory(name) {
-    if (await window.showConfirm(`确定要删除自定义分类 “${name}” 吗？`, "确认删除")) {
-        randomPromptManager.removeCategory(name);
-        renderRandomPromptsList();
-    }
+    await randomPromptController.deleteCategory(name);
 }
 
 function addRandomPromptCategory() {
-    const input = document.getElementById('newRandomPromptCategoryName');
-    if (!input) return;
-    const name = input.value.trim();
-    if (!name) {
-        window.showToast("请输入类别名称", "warning");
-        return;
-    }
-    const res = randomPromptManager.addCategory(name);
-    if (res.error) {
-        window.showToast(res.error, "error");
-    } else {
-        input.value = '';
-        renderRandomPromptsList();
-        window.showToast(`添加类别 “${name}” 成功`, "success");
-    }
+    randomPromptController.addCategory();
 }
 
 function exportRandomPromptFile() {
-    const dataStr = randomPromptManager.exportData();
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `novelai_random_prompts_${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    randomPromptController.exportFile();
 }
 
 function importRandomPromptFile(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const res = randomPromptManager.importData(e.target.result);
-        if (res.error) {
-            window.showToast(res.error, "error");
-        } else {
-            window.showToast("导入随机词库成功", "success");
-            // Sync global toggle
-            const globalCheckbox = document.getElementById('randomPromptEnabled');
-            if (globalCheckbox) {
-                globalCheckbox.checked = randomPromptManager.isEnabled();
-            }
-            renderRandomPromptsList();
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
+    randomPromptController.importFile(event);
 }
 
 
