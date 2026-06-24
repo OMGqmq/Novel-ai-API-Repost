@@ -2839,7 +2839,7 @@ Object.assign(window, {
     toggleMetadataHistoryList, handleMetadataFileUpload, applyMetadataParameters,
 
     // 随机词库方法
-    toggleRandomPromptEnabled, toggleRandomCategory, updateRandomCategoryContent, deleteRandomCategory, addRandomPromptCategory, exportRandomPromptFile, importRandomPromptFile, renderRandomPromptsList
+    toggleRandomPromptEnabled, toggleRandomCategory, toggleRandomCategoryFold, updateRandomCategoryContent, deleteRandomCategory, addRandomPromptCategory, exportRandomPromptFile, importRandomPromptFile, renderRandomPromptsList
 });
 
 // --- 用户系统 (User System) JS Logic ---
@@ -3152,6 +3152,10 @@ function toggleRandomPromptEnabled(checked) {
 
 function toggleRandomCategory(name, checked) {
     randomPromptController.toggleCategory(name, checked);
+}
+
+function toggleRandomCategoryFold(name, event) {
+    randomPromptController.toggleFold(name, event);
 }
 
 function updateRandomCategoryContent(name, content) {
