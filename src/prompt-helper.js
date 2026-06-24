@@ -1,6 +1,6 @@
 /**
  * Prompt Helper Module
- * Encapsulates prompt tag analysis, weights, autocomplete suggestions, and translations.
+ * Encapsulates prompt tag analysis, weights, autocomplete suggestions, translations, and tag search.
  */
 
 function debounce(func, wait) {
@@ -15,20 +15,84 @@ export class PromptHelper {
     constructor(config = {}) {
         this.promptEl = config.promptEl;
         this.containerEl = config.containerEl;
-        this.tagData = config.tagData || {};
-        this.onTagSelected = config.onTagSelected || (() => {});
+        this.searchInputEl = config.searchInputEl;
+        this.searchBtnEl = config.searchBtnEl;
+        this.searchResultsEl = config.searchResultsEl;
+        this.onShowToast = config.onShowToast || ((msg, type) => {
+            if (window.showToast) window.showToast(msg, type);
+            else console.log(`[Toast] ${type}: ${msg}`);
+        });
         
-        this.tagArray = Object.entries(this.tagData); // Cache entries to avoid high GC overhead
+        this.tagData = {};
+        this.tagArray = [];
         this.isTranslationExpanded = localStorage.getItem('nai_translation_expanded') !== 'false';
         
         this.initUI();
-        this.bindEvents();
-        this.updateTranslations();
+        this.loadTagDatabase();
+    }
+
+    async loadTagDatabase() {
+        const TAGS_URL = 'all_tags.txt';
+        const CACHE_NAME = 'nai-tags-cache-v1';
+        let data = null;
+
+        try {
+            if ('caches' in window) {
+                const cache = await caches.open(CACHE_NAME);
+                const cachedResponse = await cache.match(TAGS_URL);
+                
+                if (cachedResponse) {
+                    // Cache hit: immediately return data
+                    data = await cachedResponse.json();
+                    
+                    // Background refetch and cache update
+                    fetch(TAGS_URL)
+                        .then(response => {
+                            if (response.ok) {
+                                cache.put(TAGS_URL, response.clone());
+                                response.json().then(freshData => {
+                                    this.updateTagData(freshData);
+                                }).catch(() => {});
+                            }
+                        })
+                        .catch(() => {});
+                } else {
+                    // Cache miss: fetch and write to cache
+                    const response = await fetch(TAGS_URL);
+                    if (response.ok) {
+                        await cache.put(TAGS_URL, response.clone());
+                        data = await response.clone().json();
+                    } else {
+                        data = await response.json();
+                    }
+                }
+            } else {
+                // Fallback for browsers without Caches API
+                const r = await fetch(TAGS_URL);
+                data = await r.json();
+            }
+        } catch (e) {
+            console.error("Failed to load tags from cache:", e);
+            try {
+                const r = await fetch(TAGS_URL);
+                data = await r.json();
+            } catch (err) {
+                console.error("Tags fetch fallback failed:", err);
+            }
+        }
+        
+        if (data) {
+            this.updateTagData(data);
+        }
     }
 
     updateTagData(newTagData) {
         this.tagData = newTagData;
         this.tagArray = Object.entries(newTagData);
+        
+        // Once tags are loaded, bind events
+        this.bindEvents();
+        this.bindSearchEvents();
         this.updateTranslations();
     }
 
@@ -251,6 +315,7 @@ export class PromptHelper {
 
     getActiveTagInfo() {
         const textarea = this.promptEl;
+        if (!textarea) return { query: '', rawQuery: '', start: 0, end: 0 };
         const text = textarea.value;
         const pos = textarea.selectionStart;
         
@@ -271,19 +336,22 @@ export class PromptHelper {
     }
 
     bindEvents() {
-        const toggleBtn = this.translatePanel.querySelector('#tagTranslateToggle');
-        toggleBtn.addEventListener('click', () => {
-            this.isTranslationExpanded = !this.isTranslationExpanded;
-            localStorage.setItem('nai_translation_expanded', this.isTranslationExpanded.toString());
-            
-            if (this.isTranslationExpanded) {
-                this.translateContentEl.classList.remove('hidden');
-                this.translateToggleIcon.classList.add('rotate-180');
-            } else {
-                this.translateContentEl.classList.add('hidden');
-                this.translateToggleIcon.classList.remove('rotate-180');
-            }
-        });
+        if (!this.promptEl) return;
+        const toggleBtn = this.translatePanel?.querySelector('#tagTranslateToggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this.isTranslationExpanded = !this.isTranslationExpanded;
+                localStorage.setItem('nai_translation_expanded', this.isTranslationExpanded.toString());
+                
+                if (this.isTranslationExpanded) {
+                    this.translateContentEl.classList.remove('hidden');
+                    this.translateToggleIcon.classList.add('rotate-180');
+                } else {
+                    this.translateContentEl.classList.add('hidden');
+                    this.translateToggleIcon.classList.remove('rotate-180');
+                }
+            });
+        }
 
         const debouncedUpdateSuggestions = debounce(() => this.updateSuggestions(), 150);
         const debouncedUpdateTranslations = debounce(() => this.updateTranslations(), 250);
@@ -300,8 +368,54 @@ export class PromptHelper {
 
         this.promptEl.addEventListener('blur', () => {
             setTimeout(() => {
-                this.suggestPanel.classList.add('hidden');
+                if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
             }, 250);
+        });
+    }
+
+    bindSearchEvents() {
+        if (!this.searchInputEl || !this.searchBtnEl) return;
+
+        this.searchBtnEl.onclick = () => {
+            const q = this.searchInputEl.value.toLowerCase().trim();
+            if (!q) {
+                if (this.searchResultsEl) this.searchResultsEl.innerHTML = '';
+                return;
+            }
+            
+            // Limit to top 100 results to prevent massive DOM rendering lag
+            const res = this.tagArray
+                .filter(([e, c]) => e.includes(q) || c.includes(q))
+                .slice(0, 100);
+
+            if (this.searchResultsEl) {
+                this.searchResultsEl.innerHTML = '';
+                res.forEach(([en, cn]) => {
+                    const d = document.createElement('div');
+                    d.className = "p-3 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors";
+                    d.innerHTML = `<div class="text-sm font-medium text-gray-800 dark:text-gray-200">${en}</div><div class="text-xs text-gray-400 dark:text-gray-500">${cn}</div>`;
+                    d.onclick = () => {
+                        this.promptEl.value += (this.promptEl.value ? ', ' : '') + en;
+                        this.promptEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        this.onShowToast(`已添加标签: ${en}`, 'success');
+                    };
+                    this.searchResultsEl.appendChild(d);
+                });
+            }
+        };
+
+        this.searchInputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.searchBtnEl.click();
+            }
+        });
+
+        let tagSearchTimeout = null;
+        this.searchInputEl.addEventListener('input', () => {
+            clearTimeout(tagSearchTimeout);
+            tagSearchTimeout = setTimeout(() => {
+                this.searchBtnEl.click();
+            }, 300);
         });
     }
 
@@ -310,7 +424,7 @@ export class PromptHelper {
         const query = info.query.toLowerCase().trim();
 
         if (!query) {
-            this.suggestPanel.classList.add('hidden');
+            if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
             return;
         }
 
@@ -324,7 +438,7 @@ export class PromptHelper {
         }
 
         if (matches.length === 0) {
-            this.suggestPanel.classList.add('hidden');
+            if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
             return;
         }
 
@@ -346,26 +460,28 @@ export class PromptHelper {
 
         const topMatches = matches.slice(0, 15);
         
-        this.suggestListEl.innerHTML = '';
-        topMatches.forEach(({ en, cn }) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'px-3 py-1.5 text-xs bg-white dark:bg-slate-700/60 hover:bg-yellow-50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-600 hover:border-yellow-200 dark:hover:border-yellow-500/50 rounded-lg text-gray-700 dark:text-gray-200 flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-left';
-            btn.innerHTML = `
-                <span class="font-mono font-medium text-gray-900 dark:text-white">${en}</span>
-                <span class="text-[10px] text-gray-400 dark:text-slate-400 border-l border-gray-100 dark:border-slate-600/80 pl-1.5">${cn}</span>
-            `;
-            
-            btn.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.selectSuggestion(en);
+        if (this.suggestListEl) {
+            this.suggestListEl.innerHTML = '';
+            topMatches.forEach(({ en, cn }) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'px-3 py-1.5 text-xs bg-white dark:bg-slate-700/60 hover:bg-yellow-50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-600 hover:border-yellow-200 dark:hover:border-yellow-500/50 rounded-lg text-gray-700 dark:text-gray-200 flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-left';
+                btn.innerHTML = `
+                    <span class="font-mono font-medium text-gray-900 dark:text-white">${en}</span>
+                    <span class="text-[10px] text-gray-400 dark:text-slate-400 border-l border-gray-100 dark:border-slate-600/80 pl-1.5">${cn}</span>
+                `;
+                
+                btn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.selectSuggestion(en);
+                });
+                
+                this.suggestListEl.appendChild(btn);
             });
-            
-            this.suggestListEl.appendChild(btn);
-        });
+        }
 
-        this.suggestPanel.classList.remove('hidden');
+        if (this.suggestPanel) this.suggestPanel.classList.remove('hidden');
     }
 
     selectSuggestion(suggestionEn) {
@@ -389,14 +505,18 @@ export class PromptHelper {
         const newText = text.substring(0, info.start) + replacement + text.substring(info.end);
         const newCursorPos = info.start + replacement.length;
 
-        // Delegate mutation control back to the orchestrator callback
-        this.onTagSelected(newText, newCursorPos);
+        // Directly mutate value
+        textarea.value = newText;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.focus();
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
         
-        this.suggestPanel.classList.add('hidden');
+        if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
         this.updateTranslations();
     }
 
     updateTranslations() {
+        if (!this.promptEl || !this.translateListEl || !this.translateCountEl) return;
         const text = this.promptEl.value;
         if (!text.trim()) {
             this.translateListEl.innerHTML = '<div class="text-xs text-gray-400 dark:text-slate-500 italic select-none">输入提示词以查看实时翻译...</div>';

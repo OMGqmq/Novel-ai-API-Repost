@@ -61,7 +61,74 @@ export class UIController {
             viewNotebook: document.getElementById('view-notebook'),
             notebookList: document.getElementById('notebookList'),
             creditDisplayMobile: document.getElementById('creditDisplayMobile'),
-            creditDisplayDesktop: document.getElementById('creditDisplayDesktop')
+            creditDisplayDesktop: document.getElementById('creditDisplayDesktop'),
+            // New settings/credentials related DOM references:
+            noise_schedule: document.getElementById('noise_schedule'),
+            strength: document.getElementById('strength'),
+            noise: document.getElementById('noise'),
+            strengthVal: document.getElementById('strengthValue'),
+            noiseVal: document.getElementById('noiseValue'),
+            vibeStrength: document.getElementById('vibeStrength'),
+            vibeStrengthVal: document.getElementById('vibeStrengthValue'),
+            modelValue: document.getElementById('modelValue'),
+            modelBadge: document.getElementById('modelBadge'),
+            modelStatusMini: document.getElementById('modelStatusMini'),
+            settingsV45ExperimentalCheckbox: document.getElementById('settingsV45ExperimentalCheckbox'),
+            settingsKeyConcurrentCheckbox: document.getElementById('settingsKeyConcurrentCheckbox'),
+            aiHelperBaseUrl: document.getElementById('aiHelperBaseUrl'),
+            aiHelperApiKey: document.getElementById('aiHelperApiKey'),
+            aiHelperModel: document.getElementById('aiHelperModel'),
+            aiHelperSystemPrompt: document.getElementById('aiHelperSystemPrompt'),
+            v45EulerBug: document.getElementById('v45EulerBug'),
+            v45PreferBrownian: document.getElementById('v45PreferBrownian'),
+            v45UseCoords: document.getElementById('v45UseCoords'),
+            v45UseOrder: document.getElementById('v45UseOrder'),
+            v45NegUseOrder: document.getElementById('v45NegUseOrder'),
+            bypassLimitsEnabled: document.getElementById('bypassLimitsEnabled'),
+            bypassLimitsIcon: document.getElementById('bypassLimitsIcon'),
+            bypassLimitsBadge: document.getElementById('bypassLimitsBadge'),
+            bypassLimitsHint: document.getElementById('bypassLimitsHint'),
+            smEnabled: document.getElementById('smEnabled'),
+            smDynEnabled: document.getElementById('smDynEnabled'),
+            qualityToggleEnabled: document.getElementById('qualityToggleEnabled'),
+            dynThresholdEnabled: document.getElementById('dynThresholdEnabled'),
+            cfgRescale: document.getElementById('cfgRescale'),
+            uncondScale: document.getElementById('uncondScale'),
+            skipCfg: document.getElementById('skipCfg'),
+            cfgRescaleValue: document.getElementById('cfgRescaleValue'),
+            uncondScaleValue: document.getElementById('uncondScaleValue'),
+            skipCfgValue: document.getElementById('skipCfgValue'),
+            seed: document.getElementById('seed'),
+            ziTransparent: document.getElementById('ziTransparent'),
+            ziEnhance: document.getElementById('ziEnhance'),
+            ziQuality: document.getElementById('ziQuality'),
+            adminTokenInput: document.getElementById('adminTokenInput'),
+            adminTokenStatus: document.getElementById('adminTokenStatus'),
+            adminTokenClearBtn: document.getElementById('adminTokenClearBtn'),
+            userKeyInput: document.getElementById('userKeyInput'),
+            userKeyStatus: document.getElementById('userKeyStatus'),
+            userKeyClearBtn: document.getElementById('userKeyClearBtn'),
+            settingsLowPerfCheckbox: document.getElementById('settingsLowPerfCheckbox'),
+            lowPerfBtn: document.getElementById('lowPerfBtn'),
+            lowPerfBtnMobile: document.getElementById('lowPerfBtnMobile'),
+            outpaintArea: document.getElementById('outpaintArea'),
+            characterPromptsWrapper: document.getElementById('characterPromptsWrapper'),
+            skipCfgContainer: document.getElementById('skipCfgContainer'),
+            v45ParamsContainer: document.getElementById('v45ParamsContainer'),
+            smeaContainer: document.getElementById('smeaContainer'),
+            negativePromptWrapper: document.getElementById('negativePromptWrapper'),
+            stepsWrapper: document.getElementById('stepsWrapper'),
+            samplerSettingsWrapper: document.getElementById('samplerSettingsWrapper'),
+            img2imgSettingsWrapper: document.getElementById('img2imgSettingsWrapper'),
+            vibeSettingsWrapper: document.getElementById('vibeSettingsWrapper'),
+            zimageSettingsWrapper: document.getElementById('zimageSettingsWrapper'),
+            advancedSettingsWrapper: document.getElementById('advancedSettingsWrapper'),
+            adminSettingsWrapper: document.getElementById('adminSettingsWrapper'),
+            adminPanelBtn: document.getElementById('adminPanelBtn'),
+            adminPanelBtnMobile: document.getElementById('adminPanelBtnMobile'),
+            adminPanelEntrance: document.getElementById('adminPanelEntrance'),
+            apiBtn: document.getElementById('apiBtn'),
+            apiBtnMobile: document.getElementById('apiBtnMobile')
         };
     }
 
@@ -552,5 +619,116 @@ export class UIController {
         const item = { imageUrl: url };
         this.showResultImages([item]);
         this.focusImage(item);
+    }
+
+    initTheme() {
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }
+
+    toggleTheme() {
+        if (document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('color-theme', 'light');
+        } else {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('color-theme', 'dark');
+        }
+    }
+
+    updateAdminUI(isAdmin, hasAdminToken, customKey, toggleBypassLimitsEnabledCallback) {
+        const updateLock = (btn) => {
+            if (isAdmin) {
+                btn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
+                this.els.adminControls?.classList.remove('hidden');
+            } else {
+                btn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300 dark:text-gray-500"></i>';
+                this.els.adminControls?.classList.add('hidden');
+            }
+        };
+        if (this.els.adminLockBtn) updateLock(this.els.adminLockBtn);
+        if (this.els.adminLockBtnMobile) updateLock(this.els.adminLockBtnMobile);
+
+        const showHide = (el, show) => {
+            if (el) {
+                if (show) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            }
+        };
+        showHide(this.els.adminPanelBtn, hasAdminToken);
+        showHide(this.els.adminPanelBtnMobile, hasAdminToken);
+        showHide(this.els.adminPanelEntrance, hasAdminToken);
+
+        const checkbox = this.els.bypassLimitsEnabled;
+        const icon = this.els.bypassLimitsIcon;
+        const badge = this.els.bypassLimitsBadge;
+        const hint = this.els.bypassLimitsHint;
+
+        if (checkbox) {
+            if (isAdmin) {
+                checkbox.disabled = false;
+                if (icon) {
+                    icon.setAttribute('data-lucide', 'unlock');
+                    icon.setAttribute('class', 'w-4 h-4 text-green-500');
+                }
+                if (badge) {
+                    badge.textContent = '已解锁';
+                    badge.className = 'text-[9px] bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded border border-green-200/50 dark:border-green-900/30';
+                }
+                if (hint) {
+                    hint.textContent = '开启后，可选用 1.5M 像素超大画幅与最高 50 步生成（将消耗您的 Anlas）。';
+                }
+            } else {
+                checkbox.disabled = true;
+                checkbox.checked = false;
+                if (toggleBypassLimitsEnabledCallback) {
+                    toggleBypassLimitsEnabledCallback(false);
+                }
+                if (icon) {
+                    icon.setAttribute('data-lucide', 'lock');
+                    icon.setAttribute('class', 'w-4 h-4 text-gray-400');
+                }
+                if (badge) {
+                    badge.textContent = '锁定';
+                    badge.className = 'text-[9px] bg-gray-100 dark:bg-slate-800 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700';
+                }
+                if (hint) {
+                    hint.textContent = '需在顶部工具栏配置您的自定义 API Key 或管理员密码以解锁此选项。';
+                }
+            }
+        }
+
+        const updateApiBtn = (btn) => {
+            if (btn) {
+                if (customKey) {
+                    btn.innerHTML = '<i data-lucide="globe" class="w-4 h-4 text-green-500"></i>';
+                } else {
+                    btn.innerHTML = '<i data-lucide="globe" class="w-4 h-4"></i>';
+                }
+            }
+        };
+        updateApiBtn(this.els.apiBtn);
+        updateApiBtn(this.els.apiBtnMobile);
+
+        if (window.safeCreateIcons) window.safeCreateIcons();
+    }
+
+    updateLowPerfUI(enabled) {
+        const iconHtml = enabled 
+            ? `<i data-lucide="zap-off" class="w-4 h-4 text-gray-400"></i>` 
+            : `<i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>`;
+            
+        if (this.els.lowPerfBtn) {
+            this.els.lowPerfBtn.innerHTML = iconHtml;
+            this.els.lowPerfBtn.title = enabled ? "高性能模式" : "低性能模式";
+        }
+        if (this.els.lowPerfBtnMobile) {
+            this.els.lowPerfBtnMobile.innerHTML = iconHtml;
+            this.els.lowPerfBtnMobile.title = enabled ? "高性能模式" : "低性能模式";
+        }
+        if (window.safeCreateIcons) window.safeCreateIcons();
     }
 }

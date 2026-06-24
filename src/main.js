@@ -11,6 +11,7 @@ import { AiHelperService } from './ai-helper-service.js?v=20260618';
 import { appState } from './app-state.js';
 import { GalleryController } from './gallery.js';
 import { initToolbox, openToolboxModal, closeToolboxModal, switchToolboxTab, toggleScrambleHistoryList, handleScrambleFileUpload, setScrambleMode, onScrambleAlgorithmChange, toggleScramblePasswordInput, executeScrambleProcess, downloadScrambleResult, toggleMetadataHistoryList, handleMetadataFileUpload, applyMetadataParameters } from './toolbox-controller.js?v=20260620';
+import { SettingsManager } from './settings-manager.js';
 
 
 
@@ -143,6 +144,37 @@ function loadVibeState(model) {
     charRefManager.initEventListeners(model);
 }
 
+const settingsManager = new SettingsManager();
+settingsManager.bind(ui, store, {
+    onModelChange: (model) => {
+        loadVibeState(model);
+    },
+    onHydrate: () => {
+        // Restore V4.5 cached character prompts
+        const savedCharPrompts = store.getSetting('nai_v45_character_prompts');
+        if (savedCharPrompts) {
+            try {
+                const list = JSON.parse(savedCharPrompts);
+                if (Array.isArray(list)) {
+                    list.forEach(item => {
+                        addCharacterPromptRow(
+                            item.prompt || '',
+                            item.negative || '',
+                            typeof item.x === 'number' ? item.x : 0.5,
+                            typeof item.y === 'number' ? item.y : 0.5,
+                            item.autoPos !== false,
+                            item.enabled !== false,
+                            true // isInitializing = true
+                        );
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to parse cached character prompts:', err);
+            }
+        }
+    }
+});
+
 function safeCreateIcons() {
     if (typeof lucide !== 'undefined' && lucide.createIcons) {
         // 延迟一下确保 DOM 已更新
@@ -158,249 +190,8 @@ function safeCreateIcons() {
 window.safeCreateIcons = safeCreateIcons;
 safeCreateIcons();
 
-// 缓存加载
-try {
-    const savedPrompt = store.getSetting('nai_prompt');
-    if (savedPrompt && els.prompt) els.prompt.value = savedPrompt;
-    const savedNegative = store.getSetting('nai_negative_prompt');
-    if (savedNegative && els.negative) els.negative.value = savedNegative;
-
-    if (els.prompt) {
-        els.prompt.addEventListener('input', (e) => store.setSetting('nai_prompt', e.target.value));
-    }
-    if (els.negative) {
-        els.negative.addEventListener('input', (e) => store.setSetting('nai_negative_prompt', e.target.value));
-    }
-
-    // 恢复常规生图参数并绑定保存事件
-    const resEl = document.getElementById('resolution');
-    const nsEl = document.getElementById('noise_schedule');
-    const strengthEl = document.getElementById('strength');
-    const noiseEl = document.getElementById('noise');
-
-    const savedSteps = store.getSetting('nai_steps');
-    if (savedSteps && els.steps) {
-        els.steps.value = savedSteps;
-        els.steps.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    const savedScale = store.getSetting('nai_scale');
-    if (savedScale && els.scale) {
-        els.scale.value = savedScale;
-        els.scale.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    const savedSampler = store.getSetting('nai_sampler');
-    if (savedSampler && els.sampler) {
-        els.sampler.value = savedSampler;
-        els.sampler.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    const savedResolution = store.getSetting('nai_resolution');
-    if (savedResolution && resEl) {
-        resEl.value = savedResolution;
-        resEl.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    const savedNoiseSchedule = store.getSetting('nai_noise_schedule');
-    if (savedNoiseSchedule && nsEl) {
-        nsEl.value = savedNoiseSchedule;
-        nsEl.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    const savedStrength = store.getSetting('nai_strength');
-    if (savedStrength && strengthEl) {
-        strengthEl.value = savedStrength;
-        strengthEl.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    const savedNoise = store.getSetting('nai_noise');
-    if (savedNoise && noiseEl) {
-        noiseEl.value = savedNoise;
-        noiseEl.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    if (els.steps) {
-        els.steps.addEventListener('input', (e) => store.setSetting('nai_steps', e.target.value));
-    }
-    if (els.scale) {
-        els.scale.addEventListener('input', (e) => store.setSetting('nai_scale', e.target.value));
-    }
-    if (els.sampler) {
-        els.sampler.addEventListener('change', (e) => store.setSetting('nai_sampler', e.target.value));
-    }
-    if (resEl) {
-        resEl.addEventListener('change', (e) => store.setSetting('nai_resolution', e.target.value));
-    }
-    if (nsEl) {
-        nsEl.addEventListener('change', (e) => store.setSetting('nai_noise_schedule', e.target.value));
-    }
-    if (strengthEl) {
-        strengthEl.addEventListener('input', (e) => store.setSetting('nai_strength', e.target.value));
-    }
-    if (noiseEl) {
-        noiseEl.addEventListener('input', (e) => store.setSetting('nai_noise', e.target.value));
-    }
-
-    // Restore model version first
-    const savedModel = store.getSetting('nai_model_version', 'v3');
-    ui.setModel(savedModel);
-
-    // Restore Vibe settings from storage
-    loadVibeState(savedModel);
-
-    // Restore low performance mode
-    const savedLowPerf = store.getSetting('low_perf') === 'true';
-    if (savedLowPerf) {
-        document.documentElement.classList.add('low-perf');
-        updateLowPerfUI(true);
-    }
-
-    // Restore V4.5 experimental settings
-    const savedV45Exp = store.getSetting('v4_5_experimental') === 'true';
-    const v45ExpCheckbox = document.getElementById('settingsV45ExperimentalCheckbox');
-    if (v45ExpCheckbox) {
-        v45ExpCheckbox.checked = savedV45Exp;
-    }
-
-    // Restore Multi-Key Concurrent mode
-    const savedKeyConcurrent = store.getSetting('nai_custom_key_concurrent') === 'true';
-    const keyConcurrentCheckbox = document.getElementById('settingsKeyConcurrentCheckbox');
-    if (keyConcurrentCheckbox) {
-        keyConcurrentCheckbox.checked = savedKeyConcurrent;
-    }
-
-    // Restore AI Prompt Helper configuration
-    const aiHelperSettings = aiHelper.getSettings();
-    const aiBaseUrlInput = document.getElementById('aiHelperBaseUrl');
-    const aiApiKeyInput = document.getElementById('aiHelperApiKey');
-    const aiModelInput = document.getElementById('aiHelperModel');
-    const aiSystemPromptInput = document.getElementById('aiHelperSystemPrompt');
-
-    if (aiBaseUrlInput) aiBaseUrlInput.value = aiHelperSettings.baseUrl;
-    if (aiApiKeyInput) aiApiKeyInput.value = aiHelperSettings.apiKey;
-    if (aiModelInput) aiModelInput.value = aiHelperSettings.model;
-    if (aiSystemPromptInput) aiSystemPromptInput.value = aiHelperSettings.systemPrompt;
-
-    // Restore V4.5 customized parameters
-    const savedEulerBug = store.getSetting('nai_v45_euler_bug', 'false') === 'true';
-    const savedPreferBrownian = store.getSetting('nai_v45_prefer_brownian', 'true') === 'true';
-    const savedUseCoords = store.getSetting('nai_v45_use_coords', 'true') === 'true';
-    const savedUseOrder = store.getSetting('nai_v45_use_order', 'true') === 'true';
-    const savedNegUseOrder = store.getSetting('nai_v45_neg_use_order', 'false') === 'true';
-
-    const eulerBugEl = document.getElementById('v45EulerBug');
-    const preferBrownianEl = document.getElementById('v45PreferBrownian');
-    const useCoordsEl = document.getElementById('v45UseCoords');
-    const useOrderEl = document.getElementById('v45UseOrder');
-    const negUseOrderEl = document.getElementById('v45NegUseOrder');
-
-    if (eulerBugEl) {
-        eulerBugEl.checked = savedEulerBug;
-        eulerBugEl.addEventListener('change', e => store.setSetting('nai_v45_euler_bug', e.target.checked ? 'true' : 'false'));
-    }
-    if (preferBrownianEl) {
-        preferBrownianEl.checked = savedPreferBrownian;
-        preferBrownianEl.addEventListener('change', e => store.setSetting('nai_v45_prefer_brownian', e.target.checked ? 'true' : 'false'));
-    }
-    if (useCoordsEl) {
-        useCoordsEl.checked = savedUseCoords;
-        useCoordsEl.addEventListener('change', e => store.setSetting('nai_v45_use_coords', e.target.checked ? 'true' : 'false'));
-    }
-    if (useOrderEl) {
-        useOrderEl.checked = savedUseOrder;
-        useOrderEl.addEventListener('change', e => store.setSetting('nai_v45_use_order', e.target.checked ? 'true' : 'false'));
-    }
-    if (negUseOrderEl) {
-        negUseOrderEl.checked = savedNegUseOrder;
-        negUseOrderEl.addEventListener('change', e => store.setSetting('nai_v45_neg_use_order', e.target.checked ? 'true' : 'false'));
-    }
-
-    // Restore bypass limits settings
-    const savedBypass = store.getSetting('nai_bypass_limits') === 'true';
-    const checkbox = document.getElementById('bypassLimitsEnabled');
-    if (checkbox) {
-        checkbox.checked = savedBypass;
-        toggleBypassLimitsEnabled(savedBypass);
-    }
-
-    // Restore advanced settings
-    const savedSm = store.getSetting('nai_sm', 'true') === 'true';
-    const savedSmDyn = store.getSetting('nai_sm_dyn', 'true') === 'true';
-    const savedQuality = store.getSetting('nai_quality_toggle', 'false') === 'true';
-    const savedDynThreshold = store.getSetting('nai_dyn_threshold', 'false') === 'true';
-    const savedCfgRescale = store.getSetting('nai_cfg_rescale', '0.00');
-    const savedUncondScale = store.getSetting('nai_uncond_scale', '1.00');
-    const savedSkipCfg = store.getSetting('nai_skip_cfg', '19');
-
-    const smEl = document.getElementById('smEnabled');
-    const smDynEl = document.getElementById('smDynEnabled');
-    const qualityEl = document.getElementById('qualityToggleEnabled');
-    const dynThresholdEl = document.getElementById('dynThresholdEnabled');
-    const cfgRescaleEl = document.getElementById('cfgRescale');
-    const uncondScaleEl = document.getElementById('uncondScale');
-    const skipCfgEl = document.getElementById('skipCfg');
-
-    if (smEl) smEl.checked = savedSm;
-    if (smDynEl) smDynEl.checked = savedSmDyn;
-    if (qualityEl) qualityEl.checked = savedQuality;
-    if (dynThresholdEl) dynThresholdEl.checked = savedDynThreshold;
-    if (cfgRescaleEl) {
-        cfgRescaleEl.value = savedCfgRescale;
-        const vEl = document.getElementById('cfgRescaleValue');
-        if (vEl) vEl.textContent = parseFloat(savedCfgRescale).toFixed(2);
-    }
-    if (uncondScaleEl) {
-        uncondScaleEl.value = savedUncondScale;
-        const vEl = document.getElementById('uncondScaleValue');
-        if (vEl) vEl.textContent = parseFloat(savedUncondScale).toFixed(2);
-    }
-    if (skipCfgEl) {
-        skipCfgEl.value = savedSkipCfg;
-        const vEl = document.getElementById('skipCfgValue');
-        if (vEl) vEl.textContent = savedSkipCfg;
-    }
-
-    // Save on change & update value label
-    smEl?.addEventListener('change', e => store.setSetting('nai_sm', e.target.checked.toString()));
-    smDynEl?.addEventListener('change', e => store.setSetting('nai_sm_dyn', e.target.checked.toString()));
-    qualityEl?.addEventListener('change', e => store.setSetting('nai_quality_toggle', e.target.checked.toString()));
-    dynThresholdEl?.addEventListener('change', e => store.setSetting('nai_dyn_threshold', e.target.checked.toString()));
-    cfgRescaleEl?.addEventListener('input', e => {
-        const vEl = document.getElementById('cfgRescaleValue');
-        if (vEl) vEl.textContent = parseFloat(e.target.value).toFixed(2);
-        store.setSetting('nai_cfg_rescale', e.target.value);
-    });
-    uncondScaleEl?.addEventListener('input', e => {
-        const vEl = document.getElementById('uncondScaleValue');
-        if (vEl) vEl.textContent = parseFloat(e.target.value).toFixed(2);
-        store.setSetting('nai_uncond_scale', e.target.value);
-    });
-    skipCfgEl?.addEventListener('input', e => {
-        const vEl = document.getElementById('skipCfgValue');
-        if (vEl) vEl.textContent = e.target.value;
-        store.setSetting('nai_skip_cfg', e.target.value);
-    });
-
-    // Restore V4.5 cached character prompts
-    const savedCharPrompts = store.getSetting('nai_v45_character_prompts');
-    if (savedCharPrompts) {
-        try {
-            const list = JSON.parse(savedCharPrompts);
-            if (Array.isArray(list)) {
-                list.forEach(item => {
-                    addCharacterPromptRow(
-                        item.prompt || '',
-                        item.negative || '',
-                        typeof item.x === 'number' ? item.x : 0.5,
-                        typeof item.y === 'number' ? item.y : 0.5,
-                        item.autoPos !== false,
-                        item.enabled !== false,
-                        true // isInitializing = true
-                    );
-                });
-            }
-        } catch (err) {
-            console.error('Failed to parse cached character prompts:', err);
-        }
-    }
-} catch (e) {
-    console.error("Initialization error (from cache):", e);
-}
+// Theme and settings initialization are handled by SettingsManager and UIController
+ui.initTheme();
 
 window.togglePanel = function(panelId, chevronId) {
     const panel = document.getElementById(panelId);
@@ -1179,139 +970,17 @@ fetch('gallery_index.json').then(r => r.json()).then(d => {
 }).catch(() => { });
 
 
-let tagData = {};
-let promptHelper = null;
+const promptHelper = new PromptHelper({
+    promptEl: els.prompt,
+    containerEl: document.getElementById('promptHelperContainer'),
+    searchInputEl: els.tagSearchInput,
+    searchBtnEl: els.tagSearchBtn,
+    searchResultsEl: els.tagResults,
+    onShowToast: (msg, type) => window.showToast ? window.showToast(msg, type) : console.log(msg)
+});
 
-async function loadTags() {
-    const TAGS_URL = 'all_tags.txt';
-    const CACHE_NAME = 'nai-tags-cache-v1';
-    let data = null;
-
-    try {
-        if ('caches' in window) {
-            const cache = await caches.open(CACHE_NAME);
-            const cachedResponse = await cache.match(TAGS_URL);
-            
-            if (cachedResponse) {
-                // 缓存命中的情况下，直接返回缓存数据进行毫秒级秒开
-                data = await cachedResponse.json();
-                
-                // 异步后台拉取最新标签数据并写入缓存进行静默热更新 (Stale-While-Revalidate)
-                fetch(TAGS_URL)
-                    .then(response => {
-                        if (response.ok) {
-                            cache.put(TAGS_URL, response.clone());
-                            response.json().then(freshData => {
-                                tagData = freshData;
-                                if (promptHelper) {
-                                    promptHelper.updateTagData(freshData);
-                                }
-                            }).catch(() => {});
-                        }
-                    })
-                    .catch(() => {});
-            } else {
-                // 缓存未命中的情况，fetch 后写入缓存并返回数据
-                const response = await fetch(TAGS_URL);
-                if (response.ok) {
-                    await cache.put(TAGS_URL, response.clone());
-                    data = await response.clone().json();
-                } else {
-                    data = await response.json();
-                }
-            }
-        } else {
-            // 浏览器不支持 caches API，直接请求
-            const r = await fetch(TAGS_URL);
-            data = await r.json();
-        }
-    } catch (e) {
-        console.error("Failed to load tags from cache:", e);
-        try {
-            const r = await fetch(TAGS_URL);
-            data = await r.json();
-        } catch (err) {
-            console.error("Tags fetch fallback failed:", err);
-        }
-    }
-    
-    if (data) {
-        tagData = data;
-        if (els.prompt) {
-            promptHelper = new PromptHelper({
-                promptEl: els.prompt,
-                containerEl: document.getElementById('promptHelperContainer'),
-                tagData: tagData,
-                onTagSelected: (newText, newCursorPos) => {
-                    els.prompt.value = newText;
-                    els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
-                    els.prompt.focus();
-                    els.prompt.setSelectionRange(newCursorPos, newCursorPos);
-                }
-            });
-        }
-    }
-}
-
-loadTags();
-els.tagSearchBtn.onclick = () => {
-    const q = els.tagSearchInput.value.toLowerCase().trim();
-    if (!q) {
-        els.tagResults.innerHTML = '';
-        return;
-    }
-    // Limit to top 100 results to prevent massive DOM rendering lag
-    const res = Object.entries(tagData)
-        .filter(([e, c]) => e.includes(q) || c.includes(q))
-        .slice(0, 100);
-
-    els.tagResults.innerHTML = '';
-    res.forEach(([en, cn]) => {
-        const d = document.createElement('div');
-        d.className = "p-3 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors";
-        d.innerHTML = `<div class="text-sm font-medium text-gray-800 dark:text-gray-200">${en}</div><div class="text-xs text-gray-400 dark:text-gray-500">${cn}</div>`;
-        d.onclick = () => {
-            els.prompt.value += (els.prompt.value ? ', ' : '') + en;
-            // Notify prompt input listeners so that it auto-saves to LocalStorage
-            els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
-            if (window.showToast) {
-                window.showToast(`已添加标签: ${en}`, 'success', 1500);
-            }
-        };
-        els.tagResults.appendChild(d);
-    });
-};
-
-// Enter key search and debounced search-as-you-type support
-if (els.tagSearchInput) {
-    els.tagSearchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            els.tagSearchBtn.click();
-        }
-    });
-
-    let tagSearchTimeout = null;
-    els.tagSearchInput.addEventListener('input', () => {
-        clearTimeout(tagSearchTimeout);
-        tagSearchTimeout = setTimeout(() => {
-            els.tagSearchBtn.click();
-        }, 300);
-    });
-}
-
-// --- 主题/鉴权 ---
-function initTheme() {
-    if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-    } else document.documentElement.classList.remove('dark');
-}
-initTheme();
 function toggleTheme() {
-    if (document.documentElement.classList.contains('dark')) {
-        document.documentElement.classList.remove('dark'); localStorage.setItem('color-theme', 'light');
-    } else {
-        document.documentElement.classList.add('dark'); localStorage.setItem('color-theme', 'dark');
-    }
+    ui.toggleTheme();
 }
 
 // --- Low Performance Mode (低性能模式) Logic ---
@@ -1455,35 +1124,7 @@ async function optimizePromptWithAi() {
 function toggleV45Experimental(forceState) {
     const checkbox = document.getElementById('settingsV45ExperimentalCheckbox');
     const enabled = typeof forceState === 'boolean' ? forceState : (checkbox ? checkbox.checked : false);
-    
-    store.setSetting('v4_5_experimental', enabled ? 'true' : 'false');
-    if (checkbox) checkbox.checked = enabled;
-    
-    const eulerBugEl = document.getElementById('v45EulerBug');
-    const preferBrownianEl = document.getElementById('v45PreferBrownian');
-    const useCoordsEl = document.getElementById('v45UseCoords');
-    const useOrderEl = document.getElementById('v45UseOrder');
-    const negUseOrderEl = document.getElementById('v45NegUseOrder');
-
-    // 根据主开关重置 5 个专属开关的值和本地缓存
-    if (enabled) {
-        if (eulerBugEl) { eulerBugEl.checked = true; store.setSetting('nai_v45_euler_bug', 'true'); }
-        if (preferBrownianEl) { preferBrownianEl.checked = false; store.setSetting('nai_v45_prefer_brownian', 'false'); }
-        if (useCoordsEl) { useCoordsEl.checked = false; store.setSetting('nai_v45_use_coords', 'false'); }
-        if (useOrderEl) { useOrderEl.checked = true; store.setSetting('nai_v45_use_order', 'true'); }
-        if (negUseOrderEl) { negUseOrderEl.checked = true; store.setSetting('nai_v45_neg_use_order', 'true'); }
-    } else {
-        if (eulerBugEl) { eulerBugEl.checked = false; store.setSetting('nai_v45_euler_bug', 'false'); }
-        if (preferBrownianEl) { preferBrownianEl.checked = true; store.setSetting('nai_v45_prefer_brownian', 'true'); }
-        if (useCoordsEl) { useCoordsEl.checked = true; store.setSetting('nai_v45_use_coords', 'true'); }
-        if (useOrderEl) { useOrderEl.checked = true; store.setSetting('nai_v45_use_order', 'true'); }
-        if (negUseOrderEl) { negUseOrderEl.checked = false; store.setSetting('nai_v45_neg_use_order', 'false'); }
-    }
-    
-    // 联动刷新界面容器的显示隐藏
-    const currentModel = store.getSetting('nai_model_version', 'v3');
-    ui.setModel(currentModel);
-    
+    settingsManager.toggleV45Experimental(enabled);
     window.showToast(enabled ? "已启用 V4.5 实验性请求参数" : "已恢复 V4.5 官方默认参数", "success");
 }
 function randomizeSeed() {
@@ -1505,14 +1146,9 @@ function saveAdminToken() {
         statusEl.classList.remove('hidden');
         return;
     }
-    localStorage.setItem('nai_admin_token', val);
+    settingsManager.saveAdminToken(val);
     statusEl.innerHTML = '<span class="text-green-500">✔ 管理员密码已保存，已解锁后台</span>';
     statusEl.classList.remove('hidden');
-    
-    const clearBtn = document.getElementById('adminTokenClearBtn');
-    if (clearBtn) clearBtn.classList.remove('hidden');
-    
-    checkAdminStatus();
     
     setTimeout(() => {
         switchSettingsTab('admin');
@@ -1520,11 +1156,7 @@ function saveAdminToken() {
     }, 1000);
 }
 function clearAdminToken() {
-    localStorage.removeItem('nai_admin_token');
-    const input = document.getElementById('adminTokenInput');
-    if (input) input.value = '';
-    const clearBtn = document.getElementById('adminTokenClearBtn');
-    if (clearBtn) clearBtn.classList.add('hidden');
+    settingsManager.clearAdminToken();
     const statusEl = document.getElementById('adminTokenStatus');
     if (statusEl) {
         statusEl.innerHTML = '<span class="text-green-500">✔ 已注销管理员身份</span>';
@@ -1691,97 +1323,7 @@ window.refreshAnlasDisplay = async function() {
 };
 
 function checkAdminStatus() {
-    const t = localStorage.getItem('nai_admin_token');
-    const customKey = localStorage.getItem('nai_custom_api_key');
-    const isAdmin = !!t || !!customKey;
-    const updateLock = (btn) => {
-        if (isAdmin) {
-            btn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
-            els.adminControls.classList.remove('hidden');
-        } else {
-            btn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300 dark:text-gray-500"></i>';
-            els.adminControls.classList.add('hidden');
-        }
-    };
-    if (els.adminLockBtn) updateLock(els.adminLockBtn);
-    if (els.adminLockBtnMobile) updateLock(els.adminLockBtnMobile);
-
-    const adminPanelBtn = document.getElementById('adminPanelBtn');
-    const adminPanelBtnMobile = document.getElementById('adminPanelBtnMobile');
-    const hasAdminToken = !!t;
-
-    if (adminPanelBtn) {
-        if (hasAdminToken) adminPanelBtn.classList.remove('hidden');
-        else adminPanelBtn.classList.add('hidden');
-    }
-    if (adminPanelBtnMobile) {
-        if (hasAdminToken) adminPanelBtnMobile.classList.remove('hidden');
-        else adminPanelBtnMobile.classList.add('hidden');
-    }
-
-    const adminPanelEntrance = document.getElementById('adminPanelEntrance');
-    if (adminPanelEntrance) {
-        if (hasAdminToken) adminPanelEntrance.classList.remove('hidden');
-        else adminPanelEntrance.classList.add('hidden');
-    }
-
-    // 更新解除限制开关的启用状态和视觉指示
-    const checkbox = document.getElementById('bypassLimitsEnabled');
-    const icon = document.getElementById('bypassLimitsIcon');
-    const badge = document.getElementById('bypassLimitsBadge');
-    const hint = document.getElementById('bypassLimitsHint');
-    
-    if (checkbox) {
-        if (isAdmin) {
-            checkbox.disabled = false;
-            if (icon) {
-                icon.setAttribute('data-lucide', 'unlock');
-                icon.setAttribute('class', 'w-4 h-4 text-green-500');
-            }
-            if (badge) {
-                badge.textContent = '已解锁';
-                badge.className = 'text-[9px] bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded border border-green-200/50 dark:border-green-900/30';
-            }
-            if (hint) {
-                hint.textContent = '开启后，可选用 1.5M 像素超大画幅与最高 50 步生成（将消耗您的 Anlas）。';
-            }
-        } else {
-            checkbox.disabled = true;
-            checkbox.checked = false;
-            toggleBypassLimitsEnabled(false);
-            if (icon) {
-                icon.setAttribute('data-lucide', 'lock');
-                icon.setAttribute('class', 'w-4 h-4 text-gray-400');
-            }
-            if (badge) {
-                badge.textContent = '锁定';
-                badge.className = 'text-[9px] bg-gray-100 dark:bg-slate-800 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700';
-            }
-            if (hint) {
-                hint.textContent = '需在顶部工具栏配置您的自定义 API Key 或管理员密码以解锁此选项。';
-            }
-        }
-    }
-
-    // 更新 API 按钮状态
-    const updateApiBtn = (btn) => {
-        if (customKey) {
-            btn.innerHTML = '<i data-lucide="globe" class="w-4 h-4 text-green-500"></i>';
-        } else {
-            btn.innerHTML = '<i data-lucide="globe" class="w-4 h-4"></i>';
-        }
-    };
-    const apiBtn = document.getElementById('apiBtn');
-    const apiBtnMobile = document.getElementById('apiBtnMobile');
-    if (apiBtn) updateApiBtn(apiBtn);
-    if (apiBtnMobile) updateApiBtn(apiBtnMobile);
-
-    safeCreateIcons();
-
-    // 异步在后台获取最新的 Anlas 并更新顶部显示
-    if (customKey && window.refreshAnlasDisplay) {
-        window.refreshAnlasDisplay();
-    }
+    settingsManager.checkAdminStatus();
 }
 checkAdminStatus();
 

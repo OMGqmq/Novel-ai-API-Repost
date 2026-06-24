@@ -3,6 +3,7 @@ import assert from 'assert';
 import { PromptHelper } from '../src/prompt-helper.js';
 import { NotebookManager } from '../src/notebook.js';
 import { VibeManager } from '../src/vibe-manager.js';
+import { SettingsManager } from '../src/settings-manager.js';
 import { generateSalt, hashPassword, signJwt, verifyJwt } from '../functions/_crypto-helper.js';
 
 // Setup Mock DOM Environment for Testing
@@ -25,7 +26,12 @@ global.localStorage = {
     store: {},
     getItem(key) { return this.store[key] || null; },
     setItem(key, value) { this.store[key] = String(value); },
+    removeItem(key) { delete this.store[key]; },
     clear() { this.store = {}; }
+};
+global.Option = function(text, value) {
+    this.text = text;
+    this.value = value;
 };
 
 describe('Refactored Suite', () => {
@@ -224,6 +230,148 @@ describe('Refactored Suite', () => {
     assert.strictEqual(vibeManager.currentVibeImageBase64, null);
     assert.strictEqual(vibeManager.currentVibeIsJson, false);
     assert.deepStrictEqual(vibeManager.availableVibeEncodings, []);
+  });
+
+  it('should run SettingsManager tests', () => {
+    localStorage.clear();
+
+    const elements = {};
+    function getOrCreateMockElement(id, attrs = {}) {
+        if (!elements[id]) {
+            elements[id] = {
+                id,
+                classList: {
+                    add: (cls) => elements[id].classes.add(cls),
+                    remove: (cls) => elements[id].classes.delete(cls),
+                    contains: (cls) => elements[id].classes.has(cls)
+                },
+                classes: new Set(),
+                value: attrs.value || '',
+                checked: attrs.checked !== undefined ? attrs.checked : false,
+                src: attrs.src || '',
+                textContent: attrs.textContent || '',
+                innerHTML: attrs.innerHTML || '',
+                querySelector: (sel) => {
+                    const subId = id + '-' + sel.replace(/[#.]/g, '');
+                    return getOrCreateMockElement(subId);
+                },
+                addEventListener: (event, cb) => {
+                    elements[id].listeners = elements[id].listeners || {};
+                    elements[id].listeners[event] = cb;
+                },
+                dispatchEvent: () => {},
+                add: () => {},
+                ...attrs
+            };
+        }
+        return elements[id];
+    }
+
+    global.document.getElementById = (id) => getOrCreateMockElement(id);
+    global.document.documentElement = {
+        classList: {
+            add: (cls) => {},
+            remove: (cls) => {},
+            contains: (cls) => false
+        }
+    };
+
+    const mockStore = {
+        settings: {},
+        getSetting(key, defaultVal) {
+            return this.settings[key] !== undefined ? this.settings[key] : (defaultVal !== undefined ? defaultVal : '');
+        },
+        setSetting(key, val) {
+            this.settings[key] = String(val);
+        }
+    };
+
+    const mockUi = {
+        els: {
+            prompt: getOrCreateMockElement('prompt'),
+            negative: getOrCreateMockElement('negative'),
+            steps: getOrCreateMockElement('steps'),
+            stepsVal: getOrCreateMockElement('stepsVal'),
+            scale: getOrCreateMockElement('scale'),
+            scaleVal: getOrCreateMockElement('scaleVal'),
+            sampler: getOrCreateMockElement('sampler'),
+            resolution: getOrCreateMockElement('resolution'),
+            noise_schedule: getOrCreateMockElement('noise_schedule'),
+            strength: getOrCreateMockElement('strength'),
+            strengthVal: getOrCreateMockElement('strengthVal'),
+            noise: getOrCreateMockElement('noise'),
+            noiseVal: getOrCreateMockElement('noiseVal'),
+            smEnabled: getOrCreateMockElement('smEnabled'),
+            smDynEnabled: getOrCreateMockElement('smDynEnabled'),
+            qualityToggleEnabled: getOrCreateMockElement('qualityToggleEnabled'),
+            dynThresholdEnabled: getOrCreateMockElement('dynThresholdEnabled'),
+            cfgRescale: getOrCreateMockElement('cfgRescale'),
+            uncondScale: getOrCreateMockElement('uncondScale'),
+            skipCfg: getOrCreateMockElement('skipCfg'),
+            v45EulerBug: getOrCreateMockElement('v45EulerBug'),
+            v45PreferBrownian: getOrCreateMockElement('v45PreferBrownian'),
+            v45UseCoords: getOrCreateMockElement('v45UseCoords'),
+            v45UseOrder: getOrCreateMockElement('v45UseOrder'),
+            v45NegUseOrder: getOrCreateMockElement('v45NegUseOrder'),
+            settingsLowPerfCheckbox: getOrCreateMockElement('settingsLowPerfCheckbox'),
+            settingsV45ExperimentalCheckbox: getOrCreateMockElement('settingsV45ExperimentalCheckbox'),
+            settingsKeyConcurrentCheckbox: getOrCreateMockElement('settingsKeyConcurrentCheckbox'),
+            adminTokenInput: getOrCreateMockElement('adminTokenInput'),
+            adminTokenClearBtn: getOrCreateMockElement('adminTokenClearBtn'),
+            userKeyInput: getOrCreateMockElement('userKeyInput'),
+            userKeyClearBtn: getOrCreateMockElement('userKeyClearBtn'),
+            bypassLimitsEnabled: getOrCreateMockElement('bypassLimitsEnabled')
+        },
+        updateLowPerfUI: () => {},
+        updateAdminUI: () => {},
+        setModel: () => {}
+    };
+
+    let modelChanged = null;
+    let hydrated = false;
+
+    const settingsManager = new SettingsManager();
+    settingsManager.bind(mockUi, mockStore, {
+        onModelChange: (model) => { modelChanged = model; },
+        onHydrate: () => { hydrated = true; }
+    });
+
+    // 1. Initial State / Hydration
+    assert.strictEqual(hydrated, true);
+    assert.strictEqual(modelChanged, 'v3');
+
+    // 2. Standard Input binding
+    mockUi.els.prompt.value = 'a masterpiece';
+    mockUi.els.prompt.listeners['input']({ target: mockUi.els.prompt });
+    assert.strictEqual(mockStore.getSetting('nai_prompt'), 'a masterpiece');
+
+    // 3. Admin / User Credentials
+    settingsManager.saveAdminToken('my-secret-token');
+    assert.strictEqual(localStorage.getItem('nai_admin_token'), 'my-secret-token');
+
+    settingsManager.clearAdminToken();
+    assert.strictEqual(localStorage.getItem('nai_admin_token'), null);
+
+    settingsManager.saveUserKey('my-vip-card');
+    assert.strictEqual(localStorage.getItem('nai_user_key'), 'my-vip-card');
+
+    settingsManager.clearUserKey();
+    assert.strictEqual(localStorage.getItem('nai_user_key'), null);
+
+    // 4. Low Performance Toggle
+    settingsManager.toggleLowPerf(true);
+    assert.strictEqual(mockStore.getSetting('low_perf'), 'true');
+    settingsManager.toggleLowPerf(false);
+    assert.strictEqual(mockStore.getSetting('low_perf'), 'false');
+
+    // 5. Experimental Mode Toggle
+    settingsManager.toggleV45Experimental(true);
+    assert.strictEqual(mockStore.getSetting('v4_5_experimental'), 'true');
+    assert.strictEqual(mockStore.getSetting('nai_v45_euler_bug'), 'true');
+
+    settingsManager.toggleV45Experimental(false);
+    assert.strictEqual(mockStore.getSetting('v4_5_experimental'), 'false');
+    assert.strictEqual(mockStore.getSetting('nai_v45_euler_bug'), 'false');
   });
 
   it('should run CryptoHelper tests', async () => {
