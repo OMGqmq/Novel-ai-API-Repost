@@ -140,18 +140,22 @@ export class UIController {
     }
 
     _initCustomSelects() {
-        const selectIds = ['resolution', 'sampler', 'noise_schedule'];
-        selectIds.forEach(id => {
-            const selectEl = document.getElementById(id);
-            if (!selectEl) return;
+        const selects = document.querySelectorAll('select');
+        selects.forEach(selectEl => {
+            if (!selectEl || selectEl.dataset.customized === 'true') return;
+            selectEl.dataset.customized = 'true';
 
             // Hide original select
             selectEl.classList.add('hidden');
 
             // Create custom select container
             const container = document.createElement('div');
-            container.className = 'custom-select-container relative w-full';
-            container.setAttribute('data-select-id', id);
+            const originalClasses = selectEl.className || '';
+            const hasWFull = originalClasses.includes('w-full');
+            container.className = `custom-select-container relative ${hasWFull ? 'w-full' : 'inline-block min-w-[120px]'}`;
+            if (selectEl.id) {
+                container.setAttribute('data-select-id', selectEl.id);
+            }
 
             // Get selected option
             const selectedOpt = selectEl.options[selectEl.selectedIndex] || selectEl.options[0];
@@ -160,10 +164,23 @@ export class UIController {
             // Create trigger button
             const trigger = document.createElement('button');
             trigger.type = 'button';
-            trigger.className = 'custom-select-trigger art-input w-full px-4 py-3 rounded-xl text-xs font-medium outline-none shadow-sm flex items-center justify-between cursor-pointer';
+            
+            // Extract spacing, styling, font size classes from original select to match layout
+            const classesToCopy = [];
+            originalClasses.split(' ').forEach(cls => {
+                const c = cls.trim();
+                if (!c || c === 'art-input' || c.startsWith('bg-') || c.startsWith('border-') || c.startsWith('w-') || c.startsWith('cursor-')) return;
+                const cleanC = c.includes(':') ? c.split(':').pop() : c;
+                if (cleanC.startsWith('py-') || cleanC.startsWith('px-') || cleanC.startsWith('rounded-') || cleanC.startsWith('text-') || cleanC.startsWith('font-') || cleanC.startsWith('shadow-') || cleanC.startsWith('h-')) {
+                    classesToCopy.push(c);
+                }
+            });
+
+            const extraClasses = classesToCopy.length > 0 ? ` ${classesToCopy.join(' ')}` : ' px-4 py-3 rounded-xl text-xs font-medium';
+            trigger.className = `custom-select-trigger art-input w-full flex items-center justify-between outline-none shadow-sm cursor-pointer${extraClasses}`;
             trigger.innerHTML = `
-                <span class="custom-select-label">${selectedText}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-gray-400 custom-select-arrow transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <span class="custom-select-label truncate">${selectedText}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-gray-400 custom-select-arrow transition-transform duration-200 flex-shrink-0 ml-1.5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
             `;
@@ -220,14 +237,31 @@ export class UIController {
                 syncOptions();
             });
 
+            // Handle dynamically added/changed options via MutationObserver
+            if (typeof MutationObserver !== 'undefined') {
+                const observer = new MutationObserver(() => {
+                    syncOptions();
+                    const updatedOpt = selectEl.options[selectEl.selectedIndex];
+                    if (updatedOpt) {
+                        trigger.querySelector('.custom-select-label').textContent = updatedOpt.textContent;
+                    }
+                });
+                observer.observe(selectEl, { childList: true, subtree: true });
+            }
+
             container.appendChild(trigger);
             container.appendChild(optionsPanel);
 
-            // Hide select's sibling elements inside parent (like native chevron icon) and append custom select
+            // Hide select's sibling icons/chevrons and append custom select
             const wrapper = selectEl.parentElement;
             if (wrapper) {
                 Array.from(wrapper.children).forEach(child => {
-                    if (child !== selectEl) {
+                    if (child !== selectEl && (
+                        child.tagName === 'I' || 
+                        child.tagName === 'SVG' || 
+                        child.classList.contains('pointer-events-none') ||
+                        (child.getAttribute && child.getAttribute('data-lucide') === 'chevron-down')
+                    )) {
                         child.classList.add('hidden');
                     }
                 });
