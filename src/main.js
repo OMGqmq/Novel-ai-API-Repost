@@ -18,6 +18,7 @@ import { AdminController } from './admin-controller.js';
 import { XyPlotManager } from './xy-plot-manager.js';
 import { RandomPromptManager } from './random-prompt-manager.js';
 import { RandomPromptController } from './random-prompt-controller.js';
+import { InspirationManager } from './inspiration-manager.js?v=20260625';
 
 
 
@@ -1215,7 +1216,7 @@ Object.assign(window, {
     toggleDrawer: () => ui.toggleDrawer(),
     switchDrawerTab: (t) => ui.switchDrawerTab(t, renderNotebookCallback),
     openNotebook: () => ui.openNotebook(renderNotebookCallback),
-    handleInitImage, clearInitImage, doGenerate,
+    handleInitImage, clearInitImage, doGenerate, saveToHistory,
     useCurrentPrompt: () => galleryController.useCurrentPrompt(),
     deleteCurrentImage, clearAllHistory,
     switchGalleryTab: (tab) => galleryController.switchGalleryTab(tab),
@@ -1245,6 +1246,14 @@ const promptHelper = new PromptHelper({
 });
 
 randomPromptController.bind(randomPromptManager, promptHelper);
+
+// 初始化灵感激发器
+const inspirationManager = new InspirationManager({
+    engine: engine,
+    promptHelper: promptHelper,
+    store: store,
+    onShowToast: (msg, type) => window.showToast ? window.showToast(msg, type) : console.log(msg)
+});
 
 function toggleTheme() {
     ui.toggleTheme();

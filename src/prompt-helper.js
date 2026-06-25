@@ -11,6 +11,30 @@ function debounce(func, wait) {
     };
 }
 
+const CATEGORY_COLORS = {
+    clothing: 'bg-green-50 text-green-700 border-green-250 dark:bg-green-950/20 dark:text-green-400 dark:border-green-900/30',
+    action: 'bg-amber-50 text-amber-700 border-amber-250 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30',
+    nsfw: 'bg-rose-50 text-rose-700 border-rose-250 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30',
+    style: 'bg-purple-50 text-purple-700 border-purple-250 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30',
+    object: 'bg-blue-50 text-blue-700 border-blue-250 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30',
+    character: 'bg-indigo-50 text-indigo-700 border-indigo-250 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30',
+    lighting: 'bg-yellow-50 text-yellow-700 border-yellow-250 dark:bg-yellow-950/20 dark:text-yellow-400 dark:border-yellow-900/30',
+    perspective: 'bg-cyan-50 text-cyan-700 border-cyan-250 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/30',
+    composition: 'bg-teal-50 text-teal-700 border-teal-250 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30'
+};
+
+const CATEGORY_NAMES_CN = {
+    clothing: '服装',
+    action: '动作',
+    nsfw: '限制级',
+    style: '画风',
+    object: '物品',
+    character: 'IP角色',
+    lighting: '光影',
+    perspective: '视角',
+    composition: '构图'
+};
+
 export class PromptHelper {
     constructor(config = {}) {
         this.promptEl = config.promptEl;
@@ -38,8 +62,8 @@ export class PromptHelper {
     }
 
     async loadTagDatabase() {
-        const TAGS_URL = 'all_tags.txt';
-        const CACHE_NAME = 'nai-tags-cache-v1';
+        const TAGS_URL = 'classified_tags.json';
+        const CACHE_NAME = 'nai-tags-cache-v2';
         let data = null;
 
         try {
@@ -48,10 +72,8 @@ export class PromptHelper {
                 const cachedResponse = await cache.match(TAGS_URL);
                 
                 if (cachedResponse) {
-                    // Cache hit: immediately return data
                     data = await cachedResponse.json();
                     
-                    // Background refetch and cache update
                     fetch(TAGS_URL)
                         .then(response => {
                             if (response.ok) {
@@ -63,7 +85,6 @@ export class PromptHelper {
                         })
                         .catch(() => {});
                 } else {
-                    // Cache miss: fetch and write to cache
                     const response = await fetch(TAGS_URL);
                     if (response.ok) {
                         await cache.put(TAGS_URL, response.clone());
@@ -73,7 +94,6 @@ export class PromptHelper {
                     }
                 }
             } else {
-                // Fallback for browsers without Caches API
                 const r = await fetch(TAGS_URL);
                 data = await r.json();
             }
@@ -93,10 +113,34 @@ export class PromptHelper {
     }
 
     updateTagData(newTagData) {
-        this.tagData = newTagData;
-        this.tagArray = Object.entries(newTagData);
+        this.classifiedData = newTagData;
+        
+        const flatData = {};
+        const categoryMap = {};
+        
+        for (const [category, tagsObj] of Object.entries(newTagData)) {
+            if (tagsObj && typeof tagsObj === 'object') {
+                for (const [tagEn, tagCn] of Object.entries(tagsObj)) {
+                    const lowerTag = tagEn.toLowerCase();
+                    flatData[lowerTag] = tagCn;
+                    categoryMap[lowerTag] = category;
+                }
+            }
+        }
+        
+        this.tagData = flatData;
+        this.tagArray = Object.entries(flatData);
+        this.tagCategoryMap = categoryMap;
+        
+        // 绑定全局实例，便于外部直接调用搜词联动
+        window.promptHelperInstance = this;
+        
         this.updateTranslations();
+        
+        // 分类筛选和首屏九宫格渲染调用
+        this.initSearchCategoriesUI();
     }
+
 
     initUI() {
         if (!this.containerEl) return;
@@ -386,22 +430,60 @@ export class PromptHelper {
 
         this.searchBtnEl.onclick = () => {
             const q = this.searchInputEl.value.toLowerCase().trim();
-            if (!q) {
-                if (this.searchResultsEl) this.searchResultsEl.innerHTML = '';
+            
+            // 如果没有搜索关键词且选择了“全部”，恢复渲染九宫格
+            if (!q && this.selectedSearchCategory === 'all') {
+                this.renderCategoryGrid();
                 return;
             }
             
-            // Limit to top 100 results to prevent massive DOM rendering lag
-            const res = this.tagArray
-                .filter(([e, c]) => e.includes(q) || c.includes(q))
-                .slice(0, 100);
+            let res = [];
+            if (this.selectedSearchCategory && this.selectedSearchCategory !== 'all') {
+                res = Object.entries(this.classifiedData[this.selectedSearchCategory] || {});
+            } else {
+                res = this.tagArray;
+            }
+
+            // 过滤匹配
+            if (q) {
+                res = res.filter(([e, c]) => e.includes(q) || c.includes(q));
+            }
+            
+            // 限制前100个结果
+            const topRes = res.slice(0, 100);
 
             if (this.searchResultsEl) {
                 this.searchResultsEl.innerHTML = '';
-                res.forEach(([en, cn]) => {
+                if (topRes.length === 0) {
+                    this.searchResultsEl.innerHTML = `
+                        <div class="text-center mt-20 text-xs text-gray-400 font-light tracking-wide flex flex-col items-center justify-center gap-2">
+                            <i data-lucide="search-code" class="w-6 h-6 opacity-40"></i>
+                            <span>未找到匹配的提示词</span>
+                        </div>
+                    `;
+                    if (window.safeCreateIcons) window.safeCreateIcons();
+                    return;
+                }
+                
+                topRes.forEach(([en, cn]) => {
                     const d = document.createElement('div');
-                    d.className = "p-3 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors";
-                    d.innerHTML = `<div class="text-sm font-medium text-gray-800 dark:text-gray-200">${en}</div><div class="text-xs text-gray-400 dark:text-gray-500">${cn}</div>`;
+                    d.className = "p-3 hover:bg-gray-50 dark:hover:bg-slate-800/40 border-b border-gray-100 dark:border-gray-800/60 cursor-pointer transition-all flex items-center justify-between group";
+                    
+                    const cat = this.tagCategoryMap[en.toLowerCase()] || 'object';
+                    const col = CATEGORY_COLORS[cat] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+                    const cnName = CATEGORY_NAMES_CN[cat] || '物品';
+                    const badgeHtml = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold border transition-colors ${col}">${cnName}</span>`;
+
+                    d.innerHTML = `
+                        <div class="flex-1 min-w-0 pr-2">
+                            <div class="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono truncate group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">${en}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">${cn}</div>
+                        </div>
+                        <div class="shrink-0 flex items-center gap-1.5">
+                            ${badgeHtml}
+                        </div>
+                    `;
+                    
                     d.onclick = () => {
                         this.promptEl.value += (this.promptEl.value ? ', ' : '') + en;
                         this.promptEl.dispatchEvent(new Event('input', { bubbles: true }));
@@ -426,6 +508,98 @@ export class PromptHelper {
             }, 300);
         });
     }
+
+    initSearchCategoriesUI() {
+        if (!this.searchInputEl) return;
+        
+        let tabsEl = document.getElementById('tagSearchCategoryTabs');
+        if (!tabsEl) {
+            tabsEl = document.createElement('div');
+            tabsEl.id = 'tagSearchCategoryTabs';
+            tabsEl.className = 'px-4 pb-2 flex gap-1.5 overflow-x-auto custom-scroll-x shrink-0 select-none';
+            const searchContainer = this.searchInputEl.parentNode.parentNode;
+            if (searchContainer) {
+                searchContainer.appendChild(tabsEl);
+            }
+        }
+        
+        this.selectedSearchCategory = 'all';
+        this.renderCategoryTabs(tabsEl);
+        this.renderCategoryGrid();
+    }
+
+    renderCategoryTabs(tabsEl) {
+        if (!tabsEl) return;
+        tabsEl.innerHTML = '';
+        
+        const allBtn = document.createElement('button');
+        allBtn.type = 'button';
+        allBtn.className = `px-3 py-1 text-[10px] font-bold rounded-lg border transition-all shrink-0 ${
+            this.selectedSearchCategory === 'all' 
+            ? 'bg-gray-900 text-white border-transparent dark:bg-white dark:text-gray-900 shadow-sm' 
+            : 'bg-gray-50 border-gray-100 text-gray-500 hover:text-gray-900 dark:bg-slate-800 dark:border-slate-700/50 dark:text-slate-400 dark:hover:text-white'
+        }`;
+        allBtn.textContent = '全部';
+        allBtn.onclick = () => this.setSearchCategory('all');
+        tabsEl.appendChild(allBtn);
+        
+        Object.entries(CATEGORY_NAMES_CN).forEach(([key, cnName]) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            
+            let btnClass = 'px-3 py-1 text-[10px] font-semibold rounded-lg border transition-all shrink-0 ';
+            if (this.selectedSearchCategory === key) {
+                const col = CATEGORY_COLORS[key];
+                btnClass += `${col} border-transparent shadow-sm ring-1 ring-offset-1 ring-gray-205 dark:ring-slate-800`;
+            } else {
+                btnClass += 'bg-gray-50 border-gray-100 text-gray-450 hover:text-gray-700 dark:bg-slate-800/40 dark:border-slate-700/30 dark:text-slate-400 dark:hover:text-slate-300';
+            }
+            
+            btn.className = btnClass;
+            btn.textContent = cnName;
+            btn.onclick = () => this.setSearchCategory(key);
+            tabsEl.appendChild(btn);
+        });
+    }
+
+    setSearchCategory(cat) {
+        this.selectedSearchCategory = cat;
+        const tabsEl = document.getElementById('tagSearchCategoryTabs');
+        if (tabsEl) {
+            this.renderCategoryTabs(tabsEl);
+        }
+        if (this.searchBtnEl) {
+            this.searchBtnEl.click();
+        }
+    }
+
+    renderCategoryGrid() {
+        if (!this.searchResultsEl) return;
+        this.searchResultsEl.innerHTML = `
+            <div class="px-3 py-2 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest select-none">按大类浏览常用词</div>
+            <div class="grid grid-cols-2 gap-2 p-2">
+                ${Object.entries(CATEGORY_NAMES_CN).map(([key, name]) => {
+                    const color = CATEGORY_COLORS[key];
+                    const tagCount = Object.keys(this.classifiedData[key] || {}).length;
+                    return `
+                        <button type="button" onclick="window.selectSearchCategoryTab('${key}')"
+                            class="p-3.5 rounded-xl border text-left transition-all active:scale-95 hover:shadow-sm ${color} border-transparent flex flex-col justify-between h-20 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                            <div class="font-bold text-xs flex justify-between items-center w-full">
+                                <span>${name}</span>
+                                <span class="text-[9px] opacity-70 font-mono font-normal bg-white/50 dark:bg-slate-900/30 px-1.5 py-0.2 rounded-full">${tagCount}词</span>
+                            </div>
+                            <div class="text-[9px] opacity-60 mt-1 select-none pointer-events-none truncate">点击展开探索列表</div>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        `;
+        
+        window.selectSearchCategoryTab = (cat) => {
+            this.setSearchCategory(cat);
+        };
+    }
+
 
     registerInput(inputEl, placeholderEl) {
         if (!inputEl || !placeholderEl) return;
@@ -502,10 +676,21 @@ export class PromptHelper {
             topMatches.forEach(({ en, cn }) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'px-3 py-1.5 text-xs bg-white dark:bg-slate-700/60 hover:bg-yellow-50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-600 hover:border-yellow-200 dark:hover:border-yellow-500/50 rounded-lg text-gray-700 dark:text-gray-200 flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-left';
+                btn.className = 'px-3 py-1.5 text-xs bg-white dark:bg-slate-700/60 hover:bg-indigo-50/50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-650 hover:border-indigo-200 dark:hover:border-indigo-500/50 rounded-lg text-gray-700 dark:text-gray-200 flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-left min-w-[120px] max-w-[240px] truncate';
+                
+                const cat = this.tagCategoryMap[en.toLowerCase()] || 'object';
+                const col = CATEGORY_COLORS[cat] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+                const cnName = CATEGORY_NAMES_CN[cat] || '物品';
+                const badgeHtml = `<span class="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-bold border ${col} scale-90 origin-right shrink-0">${cnName}</span>`;
+
                 btn.innerHTML = `
-                    <span class="font-mono font-medium text-gray-900 dark:text-white">${en}</span>
-                    <span class="text-[10px] text-gray-400 dark:text-slate-400 border-l border-gray-100 dark:border-slate-600/80 pl-1.5">${cn}</span>
+                    <div class="flex items-center justify-between w-full gap-2 overflow-hidden">
+                        <span class="font-mono font-medium text-gray-900 dark:text-white truncate">${en}</span>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <span class="text-[10px] text-gray-400 dark:text-slate-400 border-l border-gray-100 dark:border-slate-600/85 pl-1.5 truncate max-w-[70px]">${cn}</span>
+                            ${badgeHtml}
+                        </div>
+                    </div>
                 `;
                 
                 btn.addEventListener('mousedown', (e) => {
