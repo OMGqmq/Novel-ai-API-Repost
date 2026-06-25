@@ -117,9 +117,11 @@ export class PromptHelper {
         
         const flatData = {};
         const categoryMap = {};
+        const categoryEntries = {};
         
         for (const [category, tagsObj] of Object.entries(newTagData)) {
             if (tagsObj && typeof tagsObj === 'object') {
+                categoryEntries[category] = Object.entries(tagsObj);
                 for (const [tagEn, tagCn] of Object.entries(tagsObj)) {
                     const lowerTag = tagEn.toLowerCase();
                     flatData[lowerTag] = tagCn;
@@ -131,6 +133,7 @@ export class PromptHelper {
         this.tagData = flatData;
         this.tagArray = Object.entries(flatData);
         this.tagCategoryMap = categoryMap;
+        this.categoryEntries = categoryEntries;
         
         // 绑定全局实例，便于外部直接调用搜词联动
         window.promptHelperInstance = this;
@@ -439,7 +442,23 @@ export class PromptHelper {
             
             let res = [];
             if (this.selectedSearchCategory && this.selectedSearchCategory !== 'all') {
-                res = Object.entries(this.classifiedData[this.selectedSearchCategory] || {});
+                const entries = this.categoryEntries[this.selectedSearchCategory] || [];
+                if (!q) {
+                    // 没有搜索关键词时，采用不克隆、不排序的 O(N) 高性能随机无卡顿抽样，抽取前 100 个词
+                    const sampleSize = 100;
+                    const len = entries.length;
+                    if (len <= sampleSize) {
+                        res = entries;
+                    } else {
+                        const selectedIndices = new Set();
+                        while (selectedIndices.size < sampleSize) {
+                            selectedIndices.add(Math.floor(Math.random() * len));
+                        }
+                        res = Array.from(selectedIndices).map(idx => entries[idx]);
+                    }
+                } else {
+                    res = entries;
+                }
             } else {
                 res = this.tagArray;
             }
