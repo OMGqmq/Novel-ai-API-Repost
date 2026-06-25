@@ -24,12 +24,17 @@ export class PromptHelper {
             else console.log(`[Toast] ${type}: ${msg}`);
         });
         
-        this.tagData = {};
-        this.tagArray = [];
+        this.tagData = config.tagData || {};
+        this.tagArray = Object.entries(this.tagData);
         this.isTranslationExpanded = localStorage.getItem('nai_translation_expanded') !== 'false';
         
         this.initUI();
-        this.loadTagDatabase();
+        this.bindEvents();
+        this.bindSearchEvents();
+        
+        if (Object.keys(this.tagData).length === 0) {
+            this.loadTagDatabase();
+        }
     }
 
     async loadTagDatabase() {
@@ -90,10 +95,6 @@ export class PromptHelper {
     updateTagData(newTagData) {
         this.tagData = newTagData;
         this.tagArray = Object.entries(newTagData);
-        
-        // Once tags are loaded, bind events
-        this.bindEvents();
-        this.bindSearchEvents();
         this.updateTranslations();
     }
 
