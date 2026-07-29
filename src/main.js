@@ -2258,7 +2258,7 @@ async function verifyCustomApiKey() {
         try {
             statusEl.innerHTML = '<span class="text-gray-400">⭮ 尝试直接连接 NovelAI 批量验证...</span>';
             const directPromises = keys.map(async (key) => {
-                const directRes = await fetch('https://api.novelai.net/user/subscription', {
+                const directRes = await fetch('https://image.novelai.net/user/subscription', {
                     headers: { 'Authorization': `Bearer ${key}` }
                 });
                 if (!directRes.ok) {

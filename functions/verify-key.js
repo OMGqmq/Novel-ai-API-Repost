@@ -57,7 +57,7 @@ export async function onRequest(context) {
       }
 
       const promises = keysToVerify.map(async (key) => {
-        const res = await fetch('https://api.novelai.net/user/data', {
+        const res = await fetch('https://image.novelai.net/user/data', {
           headers: { 'Authorization': `Bearer ${key}` }
         });
         if (!res.ok) {
@@ -72,7 +72,7 @@ export async function onRequest(context) {
         let rawInfoVal = info;
         if (!emailVal) {
           try {
-            const resInfo = await fetch('https://api.novelai.net/user/information', {
+            const resInfo = await fetch('https://image.novelai.net/user/information', {
               headers: { 'Authorization': `Bearer ${key}` }
             });
             if (resInfo.ok) {
@@ -180,7 +180,7 @@ export async function onRequest(context) {
     }
 
     // 向 NovelAI 请求用户完整数据以验证 Key 并获取 Anlas 余额及账号信息
-    const res = await fetch('https://api.novelai.net/user/data', {
+    const res = await fetch('https://image.novelai.net/user/data', {
       headers: { 'Authorization': `Bearer ${apiKey.trim()}` }
     });
 
@@ -206,7 +206,7 @@ export async function onRequest(context) {
     let rawInfoVal = info;
     if (!emailVal) {
       try {
-        const resInfo = await fetch('https://api.novelai.net/user/information', {
+        const resInfo = await fetch('https://image.novelai.net/user/information', {
           headers: { 'Authorization': `Bearer ${apiKey.trim()}` }
         });
         if (resInfo.ok) {

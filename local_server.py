@@ -392,7 +392,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     for key in keys_to_verify:
                         try:
                             req = urllib.request.Request(
-                                'https://api.novelai.net/user/data',
+                                'https://image.novelai.net/user/data',
                                 headers={
                                     'Authorization': f'Bearer {key}',
                                     'User-Agent': 'Mozilla/5.0'
@@ -421,7 +421,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                 if not email_val:
                                     try:
                                         info_req = urllib.request.Request(
-                                            'https://api.novelai.net/user/information',
+                                            'https://image.novelai.net/user/information',
                                             headers={
                                                 'Authorization': f'Bearer {key}',
                                                 'User-Agent': 'Mozilla/5.0'
@@ -507,7 +507,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 
                 print("--- 正在验证 API Key 有效性... ---")
                 req = urllib.request.Request(
-                    'https://api.novelai.net/user/data',
+                    'https://image.novelai.net/user/data',
                     headers={
                         'Authorization': f'Bearer {api_key}',
                         'User-Agent': 'Mozilla/5.0'
@@ -537,7 +537,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     if not email_val:
                         try:
                             info_req = urllib.request.Request(
-                                'https://api.novelai.net/user/information',
+                                'https://image.novelai.net/user/information',
                                 headers={
                                     'Authorization': f'Bearer {api_key}',
                                     'User-Agent': 'Mozilla/5.0'
