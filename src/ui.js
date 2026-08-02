@@ -46,6 +46,7 @@ export class UIController {
             adminLockBtn: document.getElementById('adminLockBtn'),
             adminLockBtnMobile: document.getElementById('adminLockBtnMobile'),
             adminControls: document.getElementById('adminControls'),
+            xyPlotSettingsWrapper: document.getElementById('xyPlotSettingsWrapper'),
             batchCount: document.getElementById('batchCount'),
             batchValue: document.getElementById('batchValue'),
             keyBtn: document.getElementById('keyBtn'),
@@ -688,6 +689,13 @@ export class UIController {
                 this.els.adminControls.classList.remove('hidden');
             } else {
                 this.els.adminControls.classList.add('hidden');
+            }
+        }
+        if (this.els.xyPlotSettingsWrapper) {
+            if (isAdmin) {
+                this.els.xyPlotSettingsWrapper.classList.remove('hidden');
+            } else {
+                this.els.xyPlotSettingsWrapper.classList.add('hidden');
             }
         }
 
