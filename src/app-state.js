@@ -8,4 +8,6 @@ export const appState = {
     currentImageData: null,
     showcaseData: [],
     currentGalleryTab: 'showcase',
+    isGenerating: false,
+    cancelRequested: false,
 };

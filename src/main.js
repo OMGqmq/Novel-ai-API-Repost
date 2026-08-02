@@ -409,6 +409,13 @@ async function doGenerateZImage() {
 }
 
 async function doGenerate() {
+    if (appState.isGenerating) {
+        appState.cancelRequested = true;
+        const deskText = document.getElementById('deskBtnText');
+        if (deskText) deskText.textContent = "正在停止...";
+        return;
+    }
+
     // Check if outpaint is active
     const outpaintArea = document.getElementById('outpaintArea');
     if (outpaintArea && !outpaintArea.classList.contains('hidden')) {
@@ -422,6 +429,9 @@ async function doGenerate() {
     if (selectedVersion === 'zimage') {
         return doGenerateZImage();
     }
+
+    appState.isGenerating = true;
+    appState.cancelRequested = false;
 
     try {
         const promptText = els.prompt.value.trim();
@@ -474,12 +484,17 @@ async function doGenerate() {
             return;
         }
 
-        if (xyPlotManager.isEnabled()) {
+        if (isAdmin && xyPlotManager.isEnabled()) {
             return doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, authBase });
         }
 
         for (let i = 0; i < batchTotal; i++) {
-            const statusText = batchTotal > 1 ? `生成中 (${i + 1}/${batchTotal})` : "生成中...";
+            if (appState.cancelRequested) {
+                console.log("用户取消了连续/批量生成");
+                break;
+            }
+
+            const statusText = batchTotal > 1 ? `停止生成 (${i + 1}/${batchTotal})` : "停止生成...";
             ui.setLoading(true, statusText);
 
             const isConcurrent = store.getSetting('nai_custom_key_concurrent') === 'true';
@@ -694,6 +709,11 @@ async function doGenerate() {
                     window.lastSelectedImageUrl = selected.imageUrl;
                 });
 
+                if (appState.cancelRequested) {
+                    console.log("收到停止请求，终止后续循环");
+                    break;
+                }
+
             } catch (err) {
                 console.error(err);
                 ui.setLoading(false);
@@ -708,6 +728,8 @@ async function doGenerate() {
         console.error("Global doGenerate Error:", globalErr);
         alert("发生意外错误: " + globalErr.message);
     } finally {
+        appState.isGenerating = false;
+        appState.cancelRequested = false;
         ui.setLoading(false);
     }
 }

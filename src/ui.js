@@ -464,26 +464,28 @@ export class UIController {
 
     setLoading(loading, text = "生成中...") {
         const { deskBtn, floatBtn, resultGrid } = this.els;
-        // 桌面
-        deskBtn.disabled = loading;
+        // 桌面：不禁用按钮，支持点击暂停/停止生成
+        deskBtn.disabled = false;
         if (loading) {
             deskBtn.querySelector('#deskBtnIcon').classList.add('hidden');
             deskBtn.querySelector('.loader').classList.remove('hidden');
             deskBtn.querySelector('#deskBtnText').textContent = text;
+            deskBtn.classList.add('bg-red-600', 'hover:bg-red-700', 'dark:bg-red-600', 'dark:hover:bg-red-700');
         } else {
             deskBtn.querySelector('#deskBtnIcon').classList.remove('hidden');
             deskBtn.querySelector('.loader').classList.add('hidden');
             deskBtn.querySelector('#deskBtnText').textContent = "免费生成";
+            deskBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'dark:bg-red-600', 'dark:hover:bg-red-700');
         }
 
         // 悬浮
-        floatBtn.disabled = loading;
+        floatBtn.disabled = false;
         if (loading) {
-            floatBtn.innerHTML = '<span class="loader border-gray-800 dark:border-white"></span>';
-            floatBtn.classList.add('scale-90');
+            floatBtn.innerHTML = '<span class="loader border-white"></span>';
+            floatBtn.classList.add('scale-90', 'bg-red-600');
         } else {
             floatBtn.innerHTML = '<i data-lucide="sparkles" class="w-7 h-7 text-yellow-400 dark:text-gray-900"></i>';
-            floatBtn.classList.remove('scale-90');
+            floatBtn.classList.remove('scale-90', 'bg-red-600');
             if (window.safeCreateIcons) window.safeCreateIcons();
         }
 
