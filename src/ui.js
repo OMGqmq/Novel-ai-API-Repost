@@ -681,13 +681,19 @@ export class UIController {
     }
 
     updateAdminUI(isAdmin, hasAdminToken, customKey, toggleBypassLimitsEnabledCallback) {
+        if (this.els.adminControls) {
+            if (isAdmin) {
+                this.els.adminControls.classList.remove('hidden');
+            } else {
+                this.els.adminControls.classList.add('hidden');
+            }
+        }
+
         const updateLock = (btn) => {
             if (isAdmin) {
                 btn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
-                this.els.adminControls?.classList.remove('hidden');
             } else {
                 btn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300 dark:text-gray-500"></i>';
-                this.els.adminControls?.classList.add('hidden');
             }
         };
         if (this.els.adminLockBtn) updateLock(this.els.adminLockBtn);
