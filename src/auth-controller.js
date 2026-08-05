@@ -138,7 +138,17 @@ export class AuthController {
                 body: JSON.stringify({ username, password })
             });
             
-            const data = await res.json();
+            const contentType = res.headers.get('content-type') || '';
+            let data;
+            if (contentType.includes('application/json')) {
+                data = await res.json();
+            } else {
+                const text = await res.text();
+                if (res.status === 404) {
+                    throw new Error('接口未找到(404)，如在本地运行，用户注册/登录功能需要部署在 Cloudflare Pages + D1 数据库下使用');
+                }
+                throw new Error(`服务器响应异常 (${res.status}): 非 JSON 格式数据`);
+            }
             
             if (!res.ok) {
                 throw new Error(data.error || '请求失败');
