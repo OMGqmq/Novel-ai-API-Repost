@@ -22,9 +22,20 @@ import { InspirationManager } from './inspiration-manager.js?v=20260625';
 
 
 
-function dataUrlToBlob(dataUrl) {
+function getMimeFromFilename(filename, fallback = 'image/png') {
+    const ext = (filename.split('.').pop() || '').toLowerCase();
+    if (ext === 'png') return 'image/png';
+    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+    if (ext === 'webp') return 'image/webp';
+    if (ext === 'json') return 'application/json';
+    if (ext === 'zip') return 'application/zip';
+    return fallback;
+}
+
+function dataUrlToBlob(dataUrl, preferredMime = null) {
     const parts = dataUrl.split(',');
-    const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'application/octet-stream';
+    const headerMime = (parts[0].match(/:(.*?);/) || [])[1];
+    const mime = preferredMime || headerMime || 'image/png';
     const binary = atob(parts[1]);
     const array = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
@@ -33,10 +44,10 @@ function dataUrlToBlob(dataUrl) {
     return new Blob([array], { type: mime });
 }
 
-async function triggerDownload(urlOrBlob, filename) {
+function triggerDownload(urlOrBlob, filename) {
     console.log('[DEBUG-dl] triggerDownload called with filename:', filename);
     
-    // 微信环境检测
+    // 微信内置浏览器拦截与提示
     const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
     if (isWeChat) {
         console.warn('[DEBUG-dl] Blocked due to WeChat environment.');
@@ -49,101 +60,68 @@ async function triggerDownload(urlOrBlob, filename) {
         return;
     }
 
-    // 1. 获取标准化 Blob 对象与 MIME 类型
-    let blob = null;
-    let fallbackUrl = typeof urlOrBlob === 'string' ? urlOrBlob : '';
+    const expectedMime = getMimeFromFilename(filename, 'image/png');
+    let finalUrl = '';
+    let isBlobCreated = false;
+
+    // 1. 同步解析与构造标准 Blob (严禁 async/await，确保手机端触摸/点击的手势激活态 User Gesture 不丢失)
     try {
         if (urlOrBlob instanceof Blob) {
-            blob = urlOrBlob;
+            // 确保 Blob 携带明确的图片/文件 MIME 类型，防止手机端系统下载器命名为 .bin
+            const typedBlob = urlOrBlob.type ? urlOrBlob : new Blob([urlOrBlob], { type: expectedMime });
+            finalUrl = URL.createObjectURL(typedBlob);
+            isBlobCreated = true;
         } else if (typeof urlOrBlob === 'string') {
             if (urlOrBlob.startsWith('data:')) {
-                blob = dataUrlToBlob(urlOrBlob);
-            } else if (urlOrBlob.startsWith('blob:') || urlOrBlob.startsWith('http://') || urlOrBlob.startsWith('https://')) {
-                const res = await fetch(urlOrBlob);
-                blob = await res.blob();
+                const blob = dataUrlToBlob(urlOrBlob, expectedMime);
+                finalUrl = URL.createObjectURL(blob);
+                isBlobCreated = true;
+            } else {
+                finalUrl = urlOrBlob;
             }
         }
     } catch (e) {
-        console.warn('[DEBUG-dl] Failed to parse blob from input:', e);
+        console.error('[DEBUG-dl] Error preparing download Blob URL:', e);
+        finalUrl = typeof urlOrBlob === 'string' ? urlOrBlob : '';
     }
 
-    // 2. 方案二：如果浏览器支持 File System Access API (showSaveFilePicker - Edge/Chrome 原生另存为)
-    // 绕过所有浏览器静默拦截与限制，完全由原生系统对话框接管
-    if (blob && typeof window.showSaveFilePicker === 'function') {
-        try {
-            const ext = (filename.split('.').pop() || 'png').toLowerCase();
-            
-            // 精准映射 MIME 类型与文件扩展名，防止 Edge/Windows 原生选择器 fallback 到 application/octet-stream (*.bin)
-            const acceptMap = {
-                'png': { mime: 'image/png', desc: 'PNG 图片 (*.png)', exts: ['.png'] },
-                'jpg': { mime: 'image/jpeg', desc: 'JPEG 图片 (*.jpg; *.jpeg)', exts: ['.jpg', '.jpeg'] },
-                'jpeg': { mime: 'image/jpeg', desc: 'JPEG 图片 (*.jpg; *.jpeg)', exts: ['.jpg', '.jpeg'] },
-                'webp': { mime: 'image/webp', desc: 'WebP 图片 (*.webp)', exts: ['.webp'] },
-                'json': { mime: 'application/json', desc: 'JSON 文件 (*.json)', exts: ['.json'] },
-                'zip': { mime: 'application/zip', desc: 'ZIP 压缩包 (*.zip)', exts: ['.zip'] }
-            };
-
-            const mapping = acceptMap[ext] || { 
-                mime: (blob.type && blob.type !== 'application/octet-stream') ? blob.type : 'application/octet-stream', 
-                desc: `${ext.toUpperCase()} 文件 (*.${ext})`, 
-                exts: [`.${ext}`] 
-            };
-            
-            const handle = await window.showSaveFilePicker({
-                suggestedName: filename,
-                types: [{
-                    description: mapping.desc,
-                    accept: { [mapping.mime]: mapping.exts }
-                }]
-            });
-            const writable = await handle.createWritable();
-            await writable.write(blob);
-            await writable.close();
-            if (window.showToast) {
-                window.showToast('已成功保存文件！', 'success', 2000);
-            }
-            return;
-        } catch (err) {
-            if (err.name === 'AbortError') {
-                console.log('[DEBUG-dl] User cancelled native save picker.');
-                return;
-            }
-            console.warn('[DEBUG-dl] showSaveFilePicker failed or unsupported, falling back to anchor download:', err);
-        }
+    if (!finalUrl) {
+        console.error('[DEBUG-dl] No valid URL to download.');
+        return;
     }
 
-    // 3. 降级方案：标准 FileSaver.js 模式 (创建临时 a 节点 + MouseEvent 异步派发)
-    let finalUrl = fallbackUrl;
-    let isBlobCreated = false;
-    if (blob && !fallbackUrl.startsWith('blob:')) {
-        finalUrl = URL.createObjectURL(blob);
-        isBlobCreated = true;
-    }
-
-    const a = document.createElementNS ? document.createElementNS('http://www.w3.org/1999/xhtml', 'a') : document.createElement('a');
-    a.download = filename || 'download';
-    a.rel = 'noopener';
-    a.href = finalUrl;
+    // 2. 构造并立即同步触发 <a> 点击下载
+    const a = document.createElement('a');
     a.style.display = 'none';
+    a.rel = 'noopener';
+    a.download = filename || `novelai-${Date.now()}.png`;
+    a.href = finalUrl;
     document.body.appendChild(a);
     
     try {
-        a.dispatchEvent(new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-        }));
-    } catch (e) {
         a.click();
+        console.log('[DEBUG-dl] Synchronous anchor download triggered successfully.');
+    } catch (e) {
+        console.error('[DEBUG-dl] Direct click failed, dispatching MouseEvent:', e);
+        try {
+            const event = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+            a.dispatchEvent(event);
+        } catch (err) {
+            console.error('[DEBUG-dl] MouseEvent dispatch failed:', err);
+        }
     } finally {
         setTimeout(() => {
             if (a.parentNode) {
                 a.parentNode.removeChild(a);
             }
-        }, 1000);
+        }, 1500);
     }
 
-    // 4. 超长延迟 40 秒回收 Blob URL，确保大文件下载完成且不影响并发
+    // 3. 超长延迟 (40秒) 释放 Blob URL，确保手机端后台下载管理器完成文件写入
     if (isBlobCreated && finalUrl.startsWith('blob:')) {
         setTimeout(() => {
             try {
