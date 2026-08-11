@@ -72,13 +72,28 @@ async function triggerDownload(urlOrBlob, filename) {
     if (blob && typeof window.showSaveFilePicker === 'function') {
         try {
             const ext = (filename.split('.').pop() || 'png').toLowerCase();
-            const mimeType = blob.type || (ext === 'json' ? 'application/json' : ext === 'zip' ? 'application/zip' : (ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png'));
+            
+            // 精准映射 MIME 类型与文件扩展名，防止 Edge/Windows 原生选择器 fallback 到 application/octet-stream (*.bin)
+            const acceptMap = {
+                'png': { mime: 'image/png', desc: 'PNG 图片 (*.png)', exts: ['.png'] },
+                'jpg': { mime: 'image/jpeg', desc: 'JPEG 图片 (*.jpg; *.jpeg)', exts: ['.jpg', '.jpeg'] },
+                'jpeg': { mime: 'image/jpeg', desc: 'JPEG 图片 (*.jpg; *.jpeg)', exts: ['.jpg', '.jpeg'] },
+                'webp': { mime: 'image/webp', desc: 'WebP 图片 (*.webp)', exts: ['.webp'] },
+                'json': { mime: 'application/json', desc: 'JSON 文件 (*.json)', exts: ['.json'] },
+                'zip': { mime: 'application/zip', desc: 'ZIP 压缩包 (*.zip)', exts: ['.zip'] }
+            };
+
+            const mapping = acceptMap[ext] || { 
+                mime: (blob.type && blob.type !== 'application/octet-stream') ? blob.type : 'application/octet-stream', 
+                desc: `${ext.toUpperCase()} 文件 (*.${ext})`, 
+                exts: [`.${ext}`] 
+            };
             
             const handle = await window.showSaveFilePicker({
                 suggestedName: filename,
                 types: [{
-                    description: 'File',
-                    accept: { [mimeType]: [`.${ext}`] }
+                    description: mapping.desc,
+                    accept: { [mapping.mime]: mapping.exts }
                 }]
             });
             const writable = await handle.createWritable();
