@@ -22,68 +22,104 @@ import { InspirationManager } from './inspiration-manager.js?v=20260625';
 
 
 
-function triggerDownload(url, filename) {
+function dataUrlToBlob(dataUrl) {
+    const parts = dataUrl.split(',');
+    const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'application/octet-stream';
+    const binary = atob(parts[1]);
+    const array = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        array[i] = binary.charCodeAt(i);
+    }
+    return new Blob([array], { type: mime });
+}
+
+async function triggerDownload(urlOrBlob, filename) {
     console.log('[DEBUG-dl] triggerDownload called with filename:', filename);
     
-    // 检测是否在微信浏览器中
+    // 微信环境检测
     const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
     if (isWeChat) {
         console.warn('[DEBUG-dl] Blocked due to WeChat environment.');
+        const msg = '微信内无法直接下载，请长按图片选择“保存图片”，或在右上角选择在浏览器中打开。';
         if (window.showToast) {
-            window.showToast('微信内无法直接下载，请长按图片选择“保存图片”，或在右上角选择在浏览器中打开。', 'warning');
+            window.showToast(msg, 'warning');
         } else {
-            alert('微信内无法直接下载，请长按图片选择“保存图片”，或在右上角选择在浏览器中打开。');
+            alert(msg);
         }
         return;
     }
 
-    let finalUrl = url;
-    let isBlobCreated = false;
-
-    // 1. 如果是 data: Base64，同步转换为 Blob URL
-    // 这能有效规避 Chrome/Edge 对 data: 协议大文件多次下载的安全拦截
-    if (url.startsWith('data:')) {
-        try {
-            const parts = url.split(',');
-            const mime = parts[0].match(/:(.*?);/)[1];
-            const binary = atob(parts[1]);
-            const array = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                array[i] = binary.charCodeAt(i);
+    // 1. 获取标准化 Blob 对象与 MIME 类型
+    let blob = null;
+    let fallbackUrl = typeof urlOrBlob === 'string' ? urlOrBlob : '';
+    try {
+        if (urlOrBlob instanceof Blob) {
+            blob = urlOrBlob;
+        } else if (typeof urlOrBlob === 'string') {
+            if (urlOrBlob.startsWith('data:')) {
+                blob = dataUrlToBlob(urlOrBlob);
+            } else if (urlOrBlob.startsWith('blob:') || urlOrBlob.startsWith('http://') || urlOrBlob.startsWith('https://')) {
+                const res = await fetch(urlOrBlob);
+                blob = await res.blob();
             }
-            const blob = new Blob([array], { type: mime });
-            finalUrl = URL.createObjectURL(blob);
-            isBlobCreated = true;
-            console.log('[DEBUG-dl] Converted data URL to Blob URL successfully.');
-        } catch (e) {
-            console.error('[DEBUG-dl] Failed to convert data URL, using original:', e);
-            finalUrl = url;
+        }
+    } catch (e) {
+        console.warn('[DEBUG-dl] Failed to parse blob from input:', e);
+    }
+
+    // 2. 方案二：如果浏览器支持 File System Access API (showSaveFilePicker - Edge/Chrome 原生另存为)
+    // 绕过所有浏览器静默拦截与限制，完全由原生系统对话框接管
+    if (blob && typeof window.showSaveFilePicker === 'function') {
+        try {
+            const ext = (filename.split('.').pop() || 'png').toLowerCase();
+            const mimeType = blob.type || (ext === 'json' ? 'application/json' : ext === 'zip' ? 'application/zip' : (ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png'));
+            
+            const handle = await window.showSaveFilePicker({
+                suggestedName: filename,
+                types: [{
+                    description: 'File',
+                    accept: { [mimeType]: [`.${ext}`] }
+                }]
+            });
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            if (window.showToast) {
+                window.showToast('已成功保存文件！', 'success', 2000);
+            }
+            return;
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                console.log('[DEBUG-dl] User cancelled native save picker.');
+                return;
+            }
+            console.warn('[DEBUG-dl] showSaveFilePicker failed or unsupported, falling back to anchor download:', err);
         }
     }
 
-    // 2. 动态创建独立临时锚点，触发下载并及时清理，避免 Edge/Chrome 复用同一节点产生状态锁与多文件安全拦截
-    const a = document.createElement('a');
-    a.style.display = 'none';
+    // 3. 降级方案：标准 FileSaver.js 模式 (创建临时 a 节点 + MouseEvent 异步派发)
+    let finalUrl = fallbackUrl;
+    let isBlobCreated = false;
+    if (blob && !fallbackUrl.startsWith('blob:')) {
+        finalUrl = URL.createObjectURL(blob);
+        isBlobCreated = true;
+    }
+
+    const a = document.createElementNS ? document.createElementNS('http://www.w3.org/1999/xhtml', 'a') : document.createElement('a');
+    a.download = filename || 'download';
     a.rel = 'noopener';
-    a.download = filename;
     a.href = finalUrl;
+    a.style.display = 'none';
     document.body.appendChild(a);
     
     try {
-        a.click();
-        console.log('[DEBUG-dl] Sync download triggered successfully.');
+        a.dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+        }));
     } catch (e) {
-        console.error('[DEBUG-dl] Direct click failed, attempting MouseEvent dispatch:', e);
-        try {
-            const event = new MouseEvent('click', {
-                bubbles: true,
-                cancelable: true,
-                view: window
-            });
-            a.dispatchEvent(event);
-        } catch (err) {
-            console.error('[DEBUG-dl] Dispatch failed too:', err);
-        }
+        a.click();
     } finally {
         setTimeout(() => {
             if (a.parentNode) {
@@ -92,16 +128,15 @@ function triggerDownload(url, filename) {
         }, 1000);
     }
 
-    // 3. 延迟注销 Blob URL 防止内存泄漏，同时绝不阻断当前下载
+    // 4. 超长延迟 40 秒回收 Blob URL，确保大文件下载完成且不影响并发
     if (isBlobCreated && finalUrl.startsWith('blob:')) {
         setTimeout(() => {
             try {
                 URL.revokeObjectURL(finalUrl);
-                console.log('[DEBUG-dl] Blob URL revoked successfully after delay.');
             } catch (err) {
                 console.error('[DEBUG-dl] Failed to revoke Blob URL:', err);
             }
-        }, 15000); // 延迟 15 秒，确保浏览器已经开始并完成了下载的处理
+        }, 40000);
     }
 }
 
