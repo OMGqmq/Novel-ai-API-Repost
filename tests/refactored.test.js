@@ -744,46 +744,47 @@ describe('Refactored Suite', () => {
     global.fetch = async (url, options = {}) => {
       fetchUrl = url;
       fetchOptions = options;
+      const headersObj = { 'content-type': 'application/json' };
+      const createResponse = (obj, status = 200, ok = true) => ({
+        ok,
+        status,
+        headers: { get: (name) => headersObj[name.toLowerCase()] || null },
+        json: async () => obj
+      });
+
       if (url === '/api/auth/profile') {
         if (options.headers && options.headers['Authorization'] === 'Bearer invalid-token') {
-          return { ok: false, status: 401, json: async () => ({ success: false }) };
+          return createResponse({ success: false }, 401, false);
         }
-        return {
-          ok: true,
-          json: async () => ({
-            success: true,
-            user: { username: 'alice', credits: 100, daily_limit: 10, daily_count: 3 }
-          })
-        };
+        return createResponse({
+          success: true,
+          user: { username: 'alice', credits: 100, daily_limit: 10, daily_count: 3 }
+        });
       }
       if (url === '/api/auth/login' || url === '/api/auth/register') {
         const body = JSON.parse(options.body);
         if (body.username === 'error') {
-          return { ok: false, status: 400, json: async () => ({ error: 'Bad request' }) };
+          return createResponse({ error: 'Bad request' }, 400, false);
         }
-        return {
-          ok: true,
-          json: async () => ({
-            success: true,
-            token: 'mock-jwt-token',
-            user: { username: body.username, credits: 100 }
-          })
-        };
+        return createResponse({
+          success: true,
+          token: 'mock-jwt-token',
+          user: { username: body.username, credits: 100 }
+        });
       }
       if (url === '/api/auth/recharge') {
         const body = JSON.parse(options.body);
         if (body.cardKey === 'invalid') {
-          return { ok: false, status: 400, json: async () => ({ error: 'Card invalid' }) };
+          return createResponse({ error: '卡密无效' }, 400, false);
         }
-        return {
-          ok: true,
-          json: async () => ({
-            success: true,
-            message: '充值成功'
-          })
-        };
+        return createResponse({
+          success: true,
+          message: '充值成功',
+          addedCredits: 50,
+          user: { username: 'alice', credits: 150 }
+        });
       }
-      return { ok: false, status: 404 };
+      return createResponse({ ok: false }, 404, false);
     };
 
     // Elements mock

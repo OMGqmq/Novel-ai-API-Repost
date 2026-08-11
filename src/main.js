@@ -61,18 +61,13 @@ function triggerDownload(url, filename) {
         }
     }
 
-    // 2. 传统静态锚点点击下载 (完全同步，确保用户手势生命周期不丢失)
-    let a = document.getElementById('globalDownloadAnchor');
-    if (!a) {
-        a = document.createElement('a');
-        a.id = 'globalDownloadAnchor';
-        a.style.display = 'none';
-        a.rel = 'noopener';
-        document.body.appendChild(a);
-    }
-
+    // 2. 动态创建独立临时锚点，触发下载并及时清理，避免 Edge/Chrome 复用同一节点产生状态锁与多文件安全拦截
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.rel = 'noopener';
     a.download = filename;
     a.href = finalUrl;
+    document.body.appendChild(a);
     
     try {
         a.click();
@@ -89,6 +84,12 @@ function triggerDownload(url, filename) {
         } catch (err) {
             console.error('[DEBUG-dl] Dispatch failed too:', err);
         }
+    } finally {
+        setTimeout(() => {
+            if (a.parentNode) {
+                a.parentNode.removeChild(a);
+            }
+        }, 1000);
     }
 
     // 3. 延迟注销 Blob URL 防止内存泄漏，同时绝不阻断当前下载
