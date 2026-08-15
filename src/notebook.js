@@ -327,17 +327,22 @@ export class NotebookManager {
         };
 
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `novelai-notebook-backup-${new Date().toISOString().split('T')[0]}.json`;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 300);
+        const filename = `novelai-notebook-backup-${new Date().toISOString().split('T')[0]}.json`;
+        if (typeof window !== 'undefined' && typeof window.triggerDownload === 'function') {
+            window.triggerDownload(blob, filename);
+        } else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 300);
+        }
         this.onShowToast('导出备份成功', 'success');
     }
 

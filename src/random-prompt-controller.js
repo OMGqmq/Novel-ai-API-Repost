@@ -168,12 +168,17 @@ export class RandomPromptController {
     exportFile() {
         const dataStr = this.manager.exportData();
         const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `novelai_random_prompts_${new Date().toISOString().slice(0,10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+        const filename = `novelai_random_prompts_${new Date().toISOString().slice(0,10)}.json`;
+        if (typeof window !== 'undefined' && typeof window.triggerDownload === 'function') {
+            window.triggerDownload(blob, filename);
+        } else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
     }
 
     importFile(event) {
