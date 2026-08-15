@@ -2,6 +2,7 @@ export class OutpaintEditor {
     constructor(dependencies) {
         this.engine = dependencies.engine;
         this.store = dependencies.store;
+        this.getExtraParams = dependencies.getExtraParams;
 
         this.els = {
             area: document.getElementById('outpaintArea'),
@@ -412,6 +413,8 @@ export class OutpaintEditor {
             const sampler = document.getElementById('sampler')?.value || 'k_euler';
             const strength = hasPaintedMask ? 0.7 : 1.0; // Use partial strength for inpaint if needed, though infill 1.0 is standard
 
+            const extraParams = this.getExtraParams ? this.getExtraParams(modelVersion, customKeys.length > 0) : {};
+
             const params = {
                 version: modelVersion,
                 prompt,
@@ -421,7 +424,8 @@ export class OutpaintEditor {
                 steps,
                 scale,
                 sampler,
-                add_original_image: true
+                add_original_image: true,
+                ...extraParams
             };
 
             if (isPureGeneration) {

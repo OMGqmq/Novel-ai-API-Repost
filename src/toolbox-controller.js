@@ -6,6 +6,8 @@ import { processImageScrambler } from './image-scrambler.js?v=20260620';
 import { extractMetadata } from './png-metadata.js';
 
 let store = null;
+let charRefManager = null;
+let vibeManager = null;
 let scrambleSourceImageBase64 = null;
 let isScrambleDecryptMode = false;
 let isHistoryListOpen = false;
@@ -32,10 +34,12 @@ function closeModal(id) {
 }
 
 /**
- * Initialize the toolbox controller with required store instance
+ * Initialize the toolbox controller with required store instance and dependencies
  */
-export function initToolbox(storeInstance) {
+export function initToolbox(storeInstance, deps = {}) {
     store = storeInstance;
+    charRefManager = deps.charRefManager || window.charRefManager || null;
+    vibeManager = deps.vibeManager || window.vibeManager || null;
 }
 
 export function openToolboxModal() {
@@ -455,6 +459,7 @@ export function applyMetadataParameters() {
     
     try {
         let appliedCount = 0;
+        const modelVer = document.getElementById('modelSelect')?.value || 'v4.5';
         
         if (parsedMetadata.Description) {
             const promptInput = document.getElementById('prompt');
@@ -466,50 +471,198 @@ export function applyMetadataParameters() {
         }
         
         if (parsedMetadata.Comment) {
-            const commentObj = JSON.parse(parsedMetadata.Comment);
-            
-            if (commentObj.uc) {
-                const negInput = document.getElementById('negativePrompt');
-                if (negInput) {
-                    negInput.value = commentObj.uc;
-                    negInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    appliedCount++;
-                }
+            let commentObj = null;
+            try {
+                commentObj = JSON.parse(parsedMetadata.Comment);
+            } catch (err) {
+                console.warn("Could not parse Comment metadata as JSON:", err);
             }
             
-            if (commentObj.steps) {
-                const stepsInput = document.getElementById('steps');
-                if (stepsInput) {
-                    stepsInput.value = commentObj.steps;
-                    stepsInput.dispatchEvent(new Event('input', { bubbles: true }));
+            if (commentObj) {
+                if (commentObj.uc) {
+                    const negInput = document.getElementById('negativePrompt');
+                    if (negInput) {
+                        negInput.value = commentObj.uc;
+                        negInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+                
+                if (commentObj.steps) {
+                    const stepsInput = document.getElementById('steps');
+                    if (stepsInput) {
+                        stepsInput.value = commentObj.steps;
+                        stepsInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+                
+                if (commentObj.scale) {
+                    const scaleInput = document.getElementById('scale');
+                    if (scaleInput) {
+                        scaleInput.value = commentObj.scale;
+                        scaleInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+                
+                if (commentObj.seed) {
+                    const seedInput = document.getElementById('seed');
+                    if (seedInput) {
+                        seedInput.value = commentObj.seed;
+                        seedInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+                
+                if (commentObj.sampler) {
+                    const samplerInput = document.getElementById('sampler');
+                    if (samplerInput) {
+                        samplerInput.value = commentObj.sampler;
+                        samplerInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        samplerInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+
+                if (commentObj.width && commentObj.height) {
+                    const resSelect = document.getElementById('resolution');
+                    if (resSelect) {
+                        const targetVal = `${commentObj.width},${commentObj.height}`;
+                        let found = false;
+                        for (let opt of resSelect.options) {
+                            if (opt.value === targetVal) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            resSelect.add(new Option(`${commentObj.width} x ${commentObj.height}`, targetVal));
+                        }
+                        resSelect.value = targetVal;
+                        resSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+
+                if (commentObj.sm !== undefined) {
+                    const smEl = document.getElementById('smEnabled');
+                    if (smEl) {
+                        smEl.checked = Boolean(commentObj.sm);
+                        smEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+
+                if (commentObj.sm_dyn !== undefined) {
+                    const smDynEl = document.getElementById('smDynEnabled');
+                    if (smDynEl) {
+                        smDynEl.checked = Boolean(commentObj.sm_dyn);
+                        smDynEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+
+                if (commentObj.cfg_rescale !== undefined) {
+                    const cfgEl = document.getElementById('cfgRescale');
+                    if (cfgEl) {
+                        cfgEl.value = commentObj.cfg_rescale;
+                        cfgEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+
+                if (commentObj.uncond_scale !== undefined) {
+                    const ucEl = document.getElementById('uncondScale');
+                    if (ucEl) {
+                        ucEl.value = commentObj.uncond_scale;
+                        ucEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+
+                if (commentObj.skip_cfg_above_sigma !== undefined && commentObj.skip_cfg_above_sigma !== null) {
+                    const skipCfgEl = document.getElementById('skipCfg');
+                    if (skipCfgEl) {
+                        skipCfgEl.value = commentObj.skip_cfg_above_sigma;
+                        skipCfgEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        appliedCount++;
+                    }
+                }
+
+                // 恢复多角色提示词 (Character Prompts)
+                let charList = commentObj.char_captions || commentObj.characterPrompts;
+                if (!charList && commentObj.v4_prompt?.caption?.char_captions) {
+                    charList = commentObj.v4_prompt.caption.char_captions;
+                }
+                if (Array.isArray(charList) && window.addCharacterPromptRow) {
+                    const container = document.getElementById('characterPromptsContainer');
+                    if (container) container.innerHTML = '';
+                    const useCoords = commentObj.v4_prompt_use_coords !== undefined 
+                        ? commentObj.v4_prompt_use_coords 
+                        : (commentObj.v4_prompt ? commentObj.v4_prompt.use_coords : false);
+
+                    charList.forEach((char, idx) => {
+                        const promptVal = char.prompt || char.char_caption || '';
+                        let negVal = char.negative_prompt || '';
+                        if (!negVal && commentObj.v4_negative_prompt?.caption?.char_captions?.[idx]) {
+                            negVal = commentObj.v4_negative_prompt.caption.char_captions[idx].char_caption || '';
+                        }
+                        let cx = 0.5, cy = 0.5;
+                        if (typeof char.x === 'number') cx = char.x;
+                        else if (char.centers?.[0]?.x !== undefined) cx = char.centers[0].x;
+                        if (typeof char.y === 'number') cy = char.y;
+                        else if (char.centers?.[0]?.y !== undefined) cy = char.centers[0].y;
+
+                        window.addCharacterPromptRow(promptVal, negVal, cx, cy, !useCoords, true);
+                    });
+                    if (window.saveCharacterPromptsState) window.saveCharacterPromptsState();
                     appliedCount++;
                 }
-            }
-            
-            if (commentObj.scale) {
-                const scaleInput = document.getElementById('scale');
-                if (scaleInput) {
-                    scaleInput.value = commentObj.scale;
-                    scaleInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+                // 恢复角色参考 (Char Ref)
+                const charMgr = charRefManager || window.charRefManager;
+                if (charMgr && store && commentObj.director_reference_images && commentObj.director_reference_images.length > 0) {
+                    const charRefImgB64 = commentObj.director_reference_images[0];
+                    const str = commentObj.director_reference_strength_values && commentObj.director_reference_strength_values[0] !== undefined
+                        ? commentObj.director_reference_strength_values[0]
+                        : 1.0;
+                    const secStr = commentObj.director_reference_secondary_strength_values && commentObj.director_reference_secondary_strength_values[0] !== undefined
+                        ? commentObj.director_reference_secondary_strength_values[0]
+                        : 0.2;
+                    const fidelity = (1.0 - secStr);
+                    const desc = commentObj.director_reference_descriptions && commentObj.director_reference_descriptions[0]
+                        ? (commentObj.director_reference_descriptions[0].caption?.base_caption || commentObj.director_reference_descriptions[0])
+                        : 'character&style';
+
+                    charMgr.currentCharRefImageBase64 = charRefImgB64;
+                    store.setSetting(charMgr.getCharRefKey('nai_char_ref_image', modelVer), charRefImgB64);
+                    store.setSetting(charMgr.getCharRefKey('nai_char_ref_enabled', modelVer), 'true');
+                    store.setSetting(charMgr.getCharRefKey('nai_char_ref_strength', modelVer), str.toString());
+                    store.setSetting(charMgr.getCharRefKey('nai_char_ref_fidelity', modelVer), fidelity.toFixed(2));
+                    store.setSetting(charMgr.getCharRefKey('nai_char_ref_mode', modelVer), typeof desc === 'string' ? desc : 'character&style');
+                    charMgr.loadState(modelVer);
                     appliedCount++;
                 }
-            }
-            
-            if (commentObj.seed) {
-                const seedInput = document.getElementById('seed');
-                if (seedInput) {
-                    seedInput.value = commentObj.seed;
-                    seedInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    appliedCount++;
-                }
-            }
-            
-            if (commentObj.sampler) {
-                const samplerInput = document.getElementById('sampler');
-                if (samplerInput) {
-                    samplerInput.value = commentObj.sampler;
-                    samplerInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    samplerInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+                // 恢复风格参考 (Vibe Transfer)
+                const vibeMgr = vibeManager || window.vibeManager;
+                const vibeImgs = commentObj.reference_image_multiple || (commentObj.vibe_image ? [commentObj.vibe_image] : null);
+                if (vibeMgr && store && vibeImgs && vibeImgs.length > 0) {
+                    const vibeImgB64 = vibeImgs[0];
+                    const str = commentObj.reference_strength_multiple && commentObj.reference_strength_multiple[0] !== undefined
+                        ? commentObj.reference_strength_multiple[0]
+                        : (commentObj.vibe_strength !== undefined ? commentObj.vibe_strength : 0.6);
+                    const info = commentObj.reference_information_extracted_multiple && commentObj.reference_information_extracted_multiple[0] !== undefined
+                        ? commentObj.reference_information_extracted_multiple[0]
+                        : (commentObj.vibe_info !== undefined ? commentObj.vibe_info : 1.0);
+
+                    vibeMgr.currentVibeImageBase64 = vibeImgB64;
+                    store.setSetting(vibeMgr.getVibeKey('nai_vibe_image', modelVer), vibeImgB64);
+                    store.setSetting(vibeMgr.getVibeKey('nai_vibe_enabled', modelVer), 'true');
+                    store.setSetting(vibeMgr.getVibeKey('nai_vibe_strength', modelVer), str.toString());
+                    store.setSetting(vibeMgr.getVibeKey('nai_vibe_info', modelVer), info.toString());
+                    vibeMgr.loadState(modelVer);
                     appliedCount++;
                 }
             }

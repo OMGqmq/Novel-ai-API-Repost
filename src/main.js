@@ -65,12 +65,101 @@ const charRefManager = new CharRefManager({
     onShowToast: (msg, type) => window.showToast ? window.showToast(msg, type) : console.log(msg)
 });
 
+window.vibeManager = vibeManager;
+window.charRefManager = charRefManager;
+initToolbox(store, { charRefManager, vibeManager });
+
 const galleryController = new GalleryController({ store, ui, appState });
 
 function loadVibeState(model) {
     vibeManager.loadState(model);
     charRefManager.loadState(model);
     charRefManager.initEventListeners(model);
+}
+
+function collectAdvancedAndModelParams(selectedVersion) {
+    const extraParams = {};
+
+    if (selectedVersion === 'v4.5') {
+        const isExp = store.getSetting('v4_5_experimental', 'false') === 'true';
+        extraParams.v4_5_experimental = isExp;
+
+        // 搜集多角色提示词 (Character Prompts)
+        const charRows = document.querySelectorAll('.character-prompt-row');
+        const charCaptions = [];
+        let hasCustomCoords = false;
+        charRows.forEach(row => {
+            const enableToggle = row.querySelector('.char-enable-toggle');
+            if (enableToggle && !enableToggle.checked) return;
+
+            const promptInput = row.querySelector('.char-prompt-input');
+            const negInput = row.querySelector('.char-neg-input');
+            const posXInput = row.querySelector('.char-pos-x');
+            const posYInput = row.querySelector('.char-pos-y');
+            const autoPosCheckbox = row.querySelector('.char-auto-pos');
+
+            const promptVal = promptInput ? promptInput.value.trim() : "";
+            const negVal = negInput ? negInput.value.trim() : "";
+            const x = posXInput ? parseFloat(posXInput.value) : 0.5;
+            const y = posYInput ? parseFloat(posYInput.value) : 0.5;
+            const isAutoPos = autoPosCheckbox ? autoPosCheckbox.checked : true;
+
+            if (promptVal) {
+                charCaptions.push({
+                    prompt: promptVal,
+                    negative_prompt: negVal,
+                    x: x,
+                    y: y
+                });
+                if (!isAutoPos) hasCustomCoords = true;
+            }
+        });
+
+        if (charCaptions.length > 0) extraParams.char_captions = charCaptions;
+
+        if (isExp) {
+            const eulerBugEl = document.getElementById('v45EulerBug');
+            const preferBrownianEl = document.getElementById('v45PreferBrownian');
+            const useCoordsEl = document.getElementById('v45UseCoords');
+            const useOrderEl = document.getElementById('v45UseOrder');
+            const negUseOrderEl = document.getElementById('v45NegUseOrder');
+
+            if (eulerBugEl) extraParams.deliberate_euler_ancestral_bug = eulerBugEl.checked;
+            if (preferBrownianEl) extraParams.prefer_brownian = preferBrownianEl.checked;
+            if (useCoordsEl) extraParams.v4_prompt_use_coords = useCoordsEl.checked;
+            if (useOrderEl) extraParams.v4_prompt_use_order = useOrderEl.checked;
+            if (negUseOrderEl) extraParams.v4_neg_use_order = negUseOrderEl.checked;
+        }
+        if (hasCustomCoords) extraParams.v4_prompt_use_coords = true;
+
+        const skipCfgEl = document.getElementById('skipCfg');
+        if (skipCfgEl) {
+            extraParams.skip_cfg_above_sigma = isExp && skipCfgEl.value ? parseInt(skipCfgEl.value) : null;
+        }
+    }
+
+    const vibeParams = vibeManager.getPayloadParams(selectedVersion);
+    Object.assign(extraParams, vibeParams);
+    const charRefParams = charRefManager.getPayloadParams(selectedVersion);
+    Object.assign(extraParams, charRefParams);
+
+    const smEl = document.getElementById('smEnabled');
+    const smDynEl = document.getElementById('smDynEnabled');
+    const cfgRescaleEl = document.getElementById('cfgRescale');
+    const uncondScaleEl = document.getElementById('uncondScale');
+    const decrispEl = document.getElementById('decrisp');
+    const noiseScheduleEl = document.getElementById('noiseSchedule');
+    const qualityToggleEl = document.getElementById('qualityToggle');
+
+    extraParams.sm = (selectedVersion === 'v4.5') ? false : (smEl ? smEl.checked : true);
+    extraParams.sm_dyn = (selectedVersion === 'v4.5') ? false : (smDynEl ? smDynEl.checked : true);
+    extraParams.cfg_rescale = cfgRescaleEl ? parseFloat(cfgRescaleEl.value) : 0.0;
+    extraParams.uncond_scale = uncondScaleEl ? parseFloat(uncondScaleEl.value) : 1.0;
+    if (decrispEl) extraParams.dynamic_thresholding = decrispEl.checked;
+    if (noiseScheduleEl) extraParams.noise_schedule = noiseScheduleEl.value;
+    if (qualityToggleEl) extraParams.qualityToggle = qualityToggleEl.checked;
+
+    return extraParams;
 }
 
 const settingsManager = new SettingsManager();
@@ -425,15 +514,7 @@ async function doGenerate() {
                 : [{ ...authBase, customApiKey: (customApiKeys.length > 0 ? customApiKeys[i % customApiKeys.length] : "") }];
 
             try {
-                const nsEl = document.getElementById('noise_schedule');
-                const smEl = document.getElementById('smEnabled');
-                const smDynEl = document.getElementById('smDynEnabled');
-                const qualityEl = document.getElementById('qualityToggleEnabled');
-                const dynThresholdEl = document.getElementById('dynThresholdEnabled');
-                const cfgRescaleEl = document.getElementById('cfgRescale');
-                const uncondScaleEl = document.getElementById('uncondScale');
-                const skipCfgEl = document.getElementById('skipCfg');
-
+                const extraParams = collectAdvancedAndModelParams(selectedVersion);
                 const params = {
                     version: selectedVersion,
                     prompt: promptText,
@@ -442,81 +523,8 @@ async function doGenerate() {
                     steps: parseInt(els.steps.value),
                     scale: parseFloat(els.scale.value),
                     sampler: els.sampler.value,
-                    noise_schedule: nsEl ? nsEl.value : "exponential",
-                    sm: (selectedVersion === 'v4.5') ? false : (smEl ? smEl.checked : true),
-                    sm_dyn: (selectedVersion === 'v4.5') ? false : (smDynEl ? smDynEl.checked : true),
-                    qualityToggle: qualityEl ? qualityEl.checked : false,
-                    dynamic_thresholding: dynThresholdEl ? dynThresholdEl.checked : false,
-                    cfg_rescale: cfgRescaleEl ? parseFloat(cfgRescaleEl.value) : 0.0,
-                    uncond_scale: uncondScaleEl ? parseFloat(uncondScaleEl.value) : 1.0
+                    ...extraParams
                 };
-
-                if (selectedVersion === 'v4.5') {
-                    const isExp = store.getSetting('v4_5_experimental', 'false') === 'true';
-                    params.v4_5_experimental = isExp;
-                    
-                    // 搜集多角色提示词 (Character Prompts)
-                    const charRows = document.querySelectorAll('.character-prompt-row');
-                    const charCaptions = [];
-                    let hasCustomCoords = false;
-                    charRows.forEach(row => {
-                        const enableToggle = row.querySelector('.char-enable-toggle');
-                        if (enableToggle && !enableToggle.checked) {
-                            return; // 忽略未启用的角色框
-                        }
-                        
-                        const promptInput = row.querySelector('.char-prompt-input');
-                        const negInput = row.querySelector('.char-neg-input');
-                        const posXInput = row.querySelector('.char-pos-x');
-                        const posYInput = row.querySelector('.char-pos-y');
-                        const autoPosCheckbox = row.querySelector('.char-auto-pos');
-                        
-                        const promptVal = promptInput ? promptInput.value.trim() : "";
-                        const negVal = negInput ? negInput.value.trim() : "";
-                        const x = posXInput ? parseFloat(posXInput.value) : 0.5;
-                        const y = posYInput ? parseFloat(posYInput.value) : 0.5;
-                        const isAutoPos = autoPosCheckbox ? autoPosCheckbox.checked : true;
-                        
-                        if (promptVal) {
-                            charCaptions.push({
-                                prompt: promptVal,
-                                negative_prompt: negVal,
-                                x: x,
-                                y: y
-                            });
-                            if (!isAutoPos) {
-                                hasCustomCoords = true;
-                            }
-                        }
-                    });
-
-                    if (charCaptions.length > 0) {
-                        params.char_captions = charCaptions;
-                    }
-                    
-                    if (isExp) {
-                        const eulerBugEl = document.getElementById('v45EulerBug');
-                        const preferBrownianEl = document.getElementById('v45PreferBrownian');
-                        const useCoordsEl = document.getElementById('v45UseCoords');
-                        const useOrderEl = document.getElementById('v45UseOrder');
-                        const negUseOrderEl = document.getElementById('v45NegUseOrder');
-                        
-                        if (eulerBugEl) params.deliberate_euler_ancestral_bug = eulerBugEl.checked;
-                        if (preferBrownianEl) params.prefer_brownian = preferBrownianEl.checked;
-                        if (useCoordsEl) params.v4_prompt_use_coords = useCoordsEl.checked;
-                        if (useOrderEl) params.v4_prompt_use_order = useOrderEl.checked;
-                        if (negUseOrderEl) params.v4_neg_use_order = negUseOrderEl.checked;
-                    }
-                    
-                    // 如果存在自定义坐标，则强行覆盖开启坐标解析功能
-                    if (hasCustomCoords) {
-                        params.v4_prompt_use_coords = true;
-                    }
-                    
-                    if (skipCfgEl) {
-                        params.skip_cfg_above_sigma = isExp ? parseInt(skipCfgEl.value) : null;
-                    }
-                }
 
                 if (appState.currentInitImageBase64) {
                     const strEl = document.getElementById('strength');
@@ -525,11 +533,6 @@ async function doGenerate() {
                     params.strength = strEl ? parseFloat(strEl.value) : 0.5;
                     params.noise = noiEl ? parseFloat(noiEl.value) : 0;
                 }
-                
-                const vibeParams = vibeManager.getPayloadParams(selectedVersion);
-                Object.assign(params, vibeParams);
-                const charRefParams = charRefManager.getPayloadParams(selectedVersion);
-                Object.assign(params, charRefParams);
 
 
                 // 读取用户指定的 Seed
@@ -591,6 +594,21 @@ async function doGenerate() {
                             seed: localParams.seed,
                             strength: localParams.strength || null,
                             noise: localParams.noise || null,
+
+                            // Char Ref 元数据
+                            director_reference_images: localParams.director_reference_images || null,
+                            director_reference_descriptions: localParams.director_reference_descriptions || null,
+                            director_reference_strength_values: localParams.director_reference_strength_values || null,
+                            director_reference_secondary_strength_values: localParams.director_reference_secondary_strength_values || null,
+                            director_reference_information_extracted: localParams.director_reference_information_extracted || null,
+
+                            // Vibe Transfer 元数据
+                            vibe_image: localParams.vibe_image || null,
+                            vibe_info: localParams.vibe_info !== undefined ? localParams.vibe_info : null,
+                            vibe_strength: localParams.vibe_strength !== undefined ? localParams.vibe_strength : null,
+                            reference_image_multiple: localParams.reference_image_multiple || null,
+                            reference_information_extracted_multiple: localParams.reference_information_extracted_multiple || null,
+                            reference_strength_multiple: localParams.reference_strength_multiple || null,
 
                             // 以下为新增套用支持的高级/微调参数与多角色数据
                             sm: localParams.sm !== undefined ? localParams.sm : false,
@@ -680,75 +698,18 @@ async function doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, aut
             }
         }
 
+        const extraParams = collectAdvancedAndModelParams(selectedVersion);
         const baseParams = {
             version: selectedVersion,
             prompt: finalPrompt,
             negative_prompt: els.negative.value.trim(),
-            width: w, height: h,
+            width: w,
+            height: h,
             steps: parseInt(els.steps.value),
             scale: parseFloat(els.scale.value),
             sampler: els.sampler.value,
-            noise_schedule: nsEl ? nsEl.value : "exponential",
-            sm: (selectedVersion === 'v4.5') ? false : (smEl ? smEl.checked : true),
-            sm_dyn: (selectedVersion === 'v4.5') ? false : (smDynEl ? smDynEl.checked : true),
-            qualityToggle: qualityEl ? qualityEl.checked : false,
-            dynamic_thresholding: dynThresholdEl ? dynThresholdEl.checked : false,
-            cfg_rescale: cfgRescaleEl ? parseFloat(cfgRescaleEl.value) : 0.0,
-            uncond_scale: uncondScaleEl ? parseFloat(uncondScaleEl.value) : 1.0
+            ...extraParams
         };
-
-        if (selectedVersion === 'v4.5') {
-            const isExp = store.getSetting('v4_5_experimental', 'false') === 'true';
-            baseParams.v4_5_experimental = isExp;
-            
-            const charRows = document.querySelectorAll('.character-prompt-row');
-            const charCaptions = [];
-            let hasCustomCoords = false;
-            charRows.forEach(row => {
-                const enableToggle = row.querySelector('.char-enable-toggle');
-                if (enableToggle && !enableToggle.checked) return;
-                
-                const promptInput = row.querySelector('.char-prompt-input');
-                const negInput = row.querySelector('.char-neg-input');
-                const posXInput = row.querySelector('.char-pos-x');
-                const posYInput = row.querySelector('.char-pos-y');
-                const autoPosCheckbox = row.querySelector('.char-auto-pos');
-                
-                const promptVal = promptInput ? promptInput.value.trim() : "";
-                const negVal = negInput ? negInput.value.trim() : "";
-                const x = posXInput ? parseFloat(posXInput.value) : 0.5;
-                const y = posYInput ? parseFloat(posYInput.value) : 0.5;
-                const isAutoPos = autoPosCheckbox ? autoPosCheckbox.checked : true;
-                
-                if (promptVal) {
-                    charCaptions.push({
-                        prompt: promptVal,
-                        negative_prompt: negVal,
-                        x: x,
-                        y: y
-                    });
-                    if (!isAutoPos) hasCustomCoords = true;
-                }
-            });
-
-            if (charCaptions.length > 0) baseParams.char_captions = charCaptions;
-            
-            if (isExp) {
-                const eulerBugEl = document.getElementById('v45EulerBug');
-                const preferBrownianEl = document.getElementById('v45PreferBrownian');
-                const useCoordsEl = document.getElementById('v45UseCoords');
-                const useOrderEl = document.getElementById('v45UseOrder');
-                const negUseOrderEl = document.getElementById('v45NegUseOrder');
-                
-                if (eulerBugEl) baseParams.deliberate_euler_ancestral_bug = eulerBugEl.checked;
-                if (preferBrownianEl) baseParams.prefer_brownian = preferBrownianEl.checked;
-                if (useCoordsEl) baseParams.v4_prompt_use_coords = useCoordsEl.checked;
-                if (useOrderEl) baseParams.v4_prompt_use_order = useOrderEl.checked;
-                if (negUseOrderEl) baseParams.v4_neg_use_order = negUseOrderEl.checked;
-            }
-            if (hasCustomCoords) baseParams.v4_prompt_use_coords = true;
-            if (skipCfgEl) baseParams.skip_cfg_above_sigma = isExp ? parseInt(skipCfgEl.value) : null;
-        }
 
         if (appState.currentInitImageBase64) {
             const strEl = document.getElementById('strength');
@@ -757,11 +718,6 @@ async function doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, aut
             baseParams.strength = strEl ? parseFloat(strEl.value) : 0.5;
             baseParams.noise = noiEl ? parseFloat(noiEl.value) : 0;
         }
-        
-        const vibeParams = vibeManager.getPayloadParams(selectedVersion);
-        Object.assign(baseParams, vibeParams);
-        const charRefParams = charRefManager.getPayloadParams(selectedVersion);
-        Object.assign(baseParams, charRefParams);
 
         const seedEl = document.getElementById('seed');
         const userSeedVal = seedEl ? seedEl.value.trim() : "";
@@ -820,6 +776,21 @@ async function doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, aut
                     seed: cell.params.seed,
                     strength: cell.params.strength || null,
                     noise: cell.params.noise || null,
+                    // Char Ref 元数据
+                    director_reference_images: cell.params.director_reference_images || null,
+                    director_reference_descriptions: cell.params.director_reference_descriptions || null,
+                    director_reference_strength_values: cell.params.director_reference_strength_values || null,
+                    director_reference_secondary_strength_values: cell.params.director_reference_secondary_strength_values || null,
+                    director_reference_information_extracted: cell.params.director_reference_information_extracted || null,
+
+                    // Vibe Transfer 元数据
+                    vibe_image: cell.params.vibe_image || null,
+                    vibe_info: cell.params.vibe_info !== undefined ? cell.params.vibe_info : null,
+                    vibe_strength: cell.params.vibe_strength !== undefined ? cell.params.vibe_strength : null,
+                    reference_image_multiple: cell.params.reference_image_multiple || null,
+                    reference_information_extracted_multiple: cell.params.reference_information_extracted_multiple || null,
+                    reference_strength_multiple: cell.params.reference_strength_multiple || null,
+
                     sm: cell.params.sm !== undefined ? cell.params.sm : false,
                     sm_dyn: cell.params.sm_dyn !== undefined ? cell.params.sm_dyn : false,
                     cfg_rescale: cell.params.cfg_rescale !== undefined ? cell.params.cfg_rescale : 0.0,
@@ -2272,12 +2243,20 @@ const inpaintEditor = new InpaintEditor({
     ui: ui,
     engine: engine,
     store: store,
-    onComplete: async (successfulResults, promptText, selectedVersion) => {
+    getExtraParams: (model, hasCustomKey) => {
+        const charRefVal = charRefManager.isValidForModel(model, hasCustomKey);
+        if (!charRefVal.isValid) {
+            throw new Error(charRefVal.error);
+        }
+        return collectAdvancedAndModelParams(model);
+    },
+    onComplete: async (successfulResults, promptText, selectedVersion, inpaintParams = null) => {
         for (const result of successfulResults) {
             const reader = new FileReader();
             reader.readAsDataURL(result.blob);
             reader.onloadend = async () => {
-                await saveToHistory(reader.result, promptText + ' [inpaint]', selectedVersion, result, true);
+                const meta = inpaintParams ? { ...inpaintParams, inpaint: true } : null;
+                await saveToHistory(reader.result, promptText + ' [inpaint]', selectedVersion, result, true, meta);
             };
         }
 
@@ -2291,7 +2270,14 @@ const inpaintEditor = new InpaintEditor({
 
 const outpaintEditor = new OutpaintEditor({
     engine: engine,
-    store: store
+    store: store,
+    getExtraParams: (model, hasCustomKey) => {
+        const charRefVal = charRefManager.isValidForModel(model, hasCustomKey);
+        if (!charRefVal.isValid) {
+            throw new Error(charRefVal.error);
+        }
+        return collectAdvancedAndModelParams(model);
+    }
 });
 
 // =================== 图库大图详情弹窗 (Lightbox) ===================
@@ -2642,6 +2628,48 @@ function lightboxApplyParams() {
         
         // 自动将恢复后的数据落盘到 LocalStorage
         saveCharacterPromptsState();
+
+        // 8. 恢复角色参考图 (Character Reference)
+        if (meta.director_reference_images && meta.director_reference_images.length > 0) {
+            const charRefImgB64 = meta.director_reference_images[0];
+            const str = meta.director_reference_strength_values && meta.director_reference_strength_values[0] !== undefined
+                ? meta.director_reference_strength_values[0]
+                : 1.0;
+            const secStr = meta.director_reference_secondary_strength_values && meta.director_reference_secondary_strength_values[0] !== undefined
+                ? meta.director_reference_secondary_strength_values[0]
+                : 0.2;
+            const fidelity = (1.0 - secStr);
+            const desc = meta.director_reference_descriptions && meta.director_reference_descriptions[0]
+                ? (meta.director_reference_descriptions[0].caption?.base_caption || meta.director_reference_descriptions[0])
+                : 'character&style';
+
+            charRefManager.currentCharRefImageBase64 = charRefImgB64;
+            store.setSetting(charRefManager.getCharRefKey('nai_char_ref_image', modelVer), charRefImgB64);
+            store.setSetting(charRefManager.getCharRefKey('nai_char_ref_enabled', modelVer), 'true');
+            store.setSetting(charRefManager.getCharRefKey('nai_char_ref_strength', modelVer), str.toString());
+            store.setSetting(charRefManager.getCharRefKey('nai_char_ref_fidelity', modelVer), fidelity.toFixed(2));
+            store.setSetting(charRefManager.getCharRefKey('nai_char_ref_mode', modelVer), typeof desc === 'string' ? desc : 'character&style');
+            charRefManager.loadState(modelVer);
+        }
+
+        // 9. 恢复风格参考图 (Vibe Transfer)
+        const vibeImgs = meta.reference_image_multiple || (meta.vibe_image ? [meta.vibe_image] : null);
+        if (vibeImgs && vibeImgs.length > 0) {
+            const vibeImgB64 = vibeImgs[0];
+            const str = meta.reference_strength_multiple && meta.reference_strength_multiple[0] !== undefined
+                ? meta.reference_strength_multiple[0]
+                : (meta.vibe_strength !== undefined ? meta.vibe_strength : 0.6);
+            const info = meta.reference_information_extracted_multiple && meta.reference_information_extracted_multiple[0] !== undefined
+                ? meta.reference_information_extracted_multiple[0]
+                : (meta.vibe_info !== undefined ? meta.vibe_info : 1.0);
+
+            vibeManager.currentVibeImageBase64 = vibeImgB64;
+            store.setSetting(vibeManager.getVibeKey('nai_vibe_image', modelVer), vibeImgB64);
+            store.setSetting(vibeManager.getVibeKey('nai_vibe_enabled', modelVer), 'true');
+            store.setSetting(vibeManager.getVibeKey('nai_vibe_strength', modelVer), str.toString());
+            store.setSetting(vibeManager.getVibeKey('nai_vibe_info', modelVer), info.toString());
+            vibeManager.loadState(modelVer);
+        }
     }
     
     window.showToast("生成参数已载入主控制台！", "success");

@@ -8,6 +8,7 @@ export class InpaintEditor {
         this.engine = dependencies.engine;
         this.store = dependencies.store;
         this.onComplete = dependencies.onComplete;
+        this.getExtraParams = dependencies.getExtraParams;
 
         this.modal = document.getElementById('inpaintModal');
         this.baseCanvas = document.getElementById('inpaintBaseCanvas');
@@ -127,6 +128,16 @@ export class InpaintEditor {
             return;
         }
         this.originalImgSrc = imgEl.src;
+
+        const mainPrompt = document.getElementById('prompt')?.value || '';
+        const inpaintPrompt = document.getElementById('inpaintPrompt');
+        const inpaintPromptMobile = document.getElementById('inpaintPromptMobile');
+        if (inpaintPrompt && !inpaintPrompt.value.trim()) {
+            inpaintPrompt.value = mainPrompt;
+        }
+        if (inpaintPromptMobile && !inpaintPromptMobile.value.trim()) {
+            inpaintPromptMobile.value = inpaintPrompt ? inpaintPrompt.value : mainPrompt;
+        }
 
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -412,6 +423,8 @@ export class InpaintEditor {
                 ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
                 : [{ ...authBase, customApiKey: "" }];
 
+            const extraParams = this.getExtraParams ? this.getExtraParams(selectedVersion, customApiKeys.length > 0) : {};
+
             const params = {
                 version: selectedVersion,
                 prompt: inpaintPromptText,
@@ -425,7 +438,8 @@ export class InpaintEditor {
                 mask: maskB64,
                 strength: parseFloat(document.getElementById('inpaintStrength').value),
                 action: 'infill',
-                add_original_image: true
+                add_original_image: true,
+                ...extraParams
             };
 
             const fetchPromises = auths.map(auth => this.engine.generate(params, auth));
@@ -453,7 +467,7 @@ export class InpaintEditor {
             if (this.ui.currentRightView !== 'preview') this.ui.switchRightView('preview');
 
             if (this.onComplete) {
-                await this.onComplete(successfulResults, inpaintPromptText, selectedVersion);
+                await this.onComplete(successfulResults, inpaintPromptText, selectedVersion, params);
             }
 
         } catch (err) {

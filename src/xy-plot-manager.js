@@ -64,7 +64,26 @@ export class XyPlotManager {
             if (type === 'seed') return 'Seed';
             if (type === 'strength') return 'Strength';
             if (type === 'noise') return 'Noise';
+            if (type === 'char_ref_strength') return 'Char Ref Strength';
+            if (type === 'char_ref_fidelity') return 'Char Ref Fidelity';
+            if (type === 'vibe_strength') return 'Vibe Strength';
+            if (type === 'cfg_rescale') return 'CFG Rescale';
+            if (type === 'uncond_scale') return 'Uncond Scale';
             return type;
+        };
+
+        const applyOverride = (params, type, val) => {
+            if (type === 'none' || val === null) return;
+            if (type === 'char_ref_strength') {
+                params.director_reference_strength_values = [val];
+            } else if (type === 'char_ref_fidelity') {
+                params.director_reference_secondary_strength_values = [Math.max(0, parseFloat((1.0 - val).toFixed(4)))];
+            } else if (type === 'vibe_strength') {
+                params.reference_strength_multiple = [val];
+                params.vibe_strength = val;
+            } else {
+                params[type] = val;
+            }
         };
 
         for (const yVal of yValues) {
@@ -72,12 +91,8 @@ export class XyPlotManager {
                 const params = { ...baseParams };
 
                 // Apply overrides if not 'none'
-                if (xType !== 'none' && xVal !== null) {
-                    params[xType] = xVal;
-                }
-                if (yType !== 'none' && yVal !== null) {
-                    params[yType] = yVal;
-                }
+                applyOverride(params, xType, xVal);
+                applyOverride(params, yType, yVal);
 
                 let xyInfo = '';
                 if (xType !== 'none' && xVal !== null && yType !== 'none' && yVal !== null) {
