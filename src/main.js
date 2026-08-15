@@ -6,6 +6,7 @@ import { OutpaintEditor } from './outpaint.js?v=202605292218';
 import { PromptHelper } from './prompt-helper.js?v=202605292218';
 import { NotebookManager } from './notebook.js?v=202605292218';
 import { VibeManager } from './vibe-manager.js?v=202605292218';
+import { CharRefManager } from './char-ref-manager.js?v=20260816_2';
 import { AiHelperService, AI_PROVIDER_PRESETS, AI_SYSTEM_PROMPTS } from './ai-helper-service.js?v=20260816_2';
 import { AiChatManager } from './ai-chat-manager.js?v=20260816_2';
 import { appState } from './app-state.js';
