@@ -1,9 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AiHelperService } from '../src/ai-helper-service.js';
+import { AiHelperService, AI_PROVIDER_PRESETS, AI_SYSTEM_PROMPTS } from '../src/ai-helper-service.js';
 
 describe('AiHelperService Configuration', () => {
   it('should initialize with default configuration when no settings exist', () => {
-    // Mock the store
     const mockStore = {
       settings: {},
       getSetting(key, defaultValue) {
@@ -23,6 +22,14 @@ describe('AiHelperService Configuration', () => {
     expect(settings.systemPrompt).toContain('You are an expert AI prompt generator');
   });
 
+  it('should have predefined provider presets and system prompts', () => {
+    expect(AI_PROVIDER_PRESETS.deepseek.baseUrl).toBe('https://api.deepseek.com/v1');
+    expect(AI_PROVIDER_PRESETS.siliconflow.baseUrl).toBe('https://api.siliconflow.cn/v1');
+    expect(AI_PROVIDER_PRESETS.openrouter.baseUrl).toBe('https://openrouter.ai/api/v1');
+    expect(AI_SYSTEM_PROMPTS.novelai_master).toBeDefined();
+    expect(AI_SYSTEM_PROMPTS.creative_artist).toBeDefined();
+  });
+
   it('should throw an error when apiKey is missing on prompt generation', async () => {
     const mockStore = {
       getSetting(key, defaultValue) {
@@ -32,6 +39,17 @@ describe('AiHelperService Configuration', () => {
     };
     const service = new AiHelperService(mockStore);
     await expect(service.generatePrompt('test idea')).rejects.toThrow('请先在设置中配置 AI 提示词助手的 API Key');
+  });
+
+  it('should throw an error when apiKey is missing on chat', async () => {
+    const mockStore = {
+      getSetting(key, defaultValue) {
+        if (key === 'ai_helper_api_key') return '';
+        return defaultValue;
+      }
+    };
+    const service = new AiHelperService(mockStore);
+    await expect(service.chat([{ role: 'user', content: 'hello' }])).rejects.toThrow('请先配置自定义 AI API Key');
   });
 
   it('should call fetch with correct arguments and return generated prompt', async () => {
@@ -80,6 +98,66 @@ describe('AiHelperService Configuration', () => {
         messages: [
           { role: 'system', content: 'system instruction' },
           { role: 'user', content: 'girl' }
+        ],
+        temperature: 0.7
+      })
+    });
+  });
+
+  it('should execute multi-turn chat conversation properly', async () => {
+    const mockStore = {
+      settings: {
+        ai_helper_base_url: 'https://api.deepseek.com/v1',
+        ai_helper_api_key: 'sk-deepseek-key',
+        ai_helper_model: 'deepseek-chat',
+        ai_helper_system_prompt: 'You are an anime art expert.'
+      },
+      getSetting(key, defaultValue) {
+        return this.settings[key] !== undefined ? this.settings[key] : defaultValue;
+      }
+    };
+
+    const mockResponseData = {
+      choices: [
+        {
+          message: {
+            role: 'assistant',
+            content: '1girl, cyberpunk jacket, neon rain'
+          }
+        }
+      ]
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponseData
+    });
+    global.fetch = fetchMock;
+
+    const service = new AiHelperService(mockStore);
+    const messages = [
+      { role: 'user', content: 'Design a character' },
+      { role: 'assistant', content: '1girl, silver hair' },
+      { role: 'user', content: 'Add cyberpunk style and neon lights' }
+    ];
+
+    const result = await service.chat(messages);
+
+    expect(result).toBe('1girl, cyberpunk jacket, neon rain');
+    expect(fetchMock).toHaveBeenCalledWith('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sk-deepseek-key'
+      },
+      signal: undefined,
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: 'You are an anime art expert.' },
+          { role: 'user', content: 'Design a character' },
+          { role: 'assistant', content: '1girl, silver hair' },
+          { role: 'user', content: 'Add cyberpunk style and neon lights' }
         ],
         temperature: 0.7
       })

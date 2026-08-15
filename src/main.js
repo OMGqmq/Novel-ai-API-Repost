@@ -6,8 +6,8 @@ import { OutpaintEditor } from './outpaint.js?v=202605292218';
 import { PromptHelper } from './prompt-helper.js?v=202605292218';
 import { NotebookManager } from './notebook.js?v=202605292218';
 import { VibeManager } from './vibe-manager.js?v=202605292218';
-import { CharRefManager } from './char-ref-manager.js?v=20260611';
-import { AiHelperService } from './ai-helper-service.js?v=20260618';
+import { AiHelperService, AI_PROVIDER_PRESETS, AI_SYSTEM_PROMPTS } from './ai-helper-service.js?v=20260816_2';
+import { AiChatManager } from './ai-chat-manager.js?v=20260816_2';
 import { appState } from './app-state.js';
 import { GalleryController } from './gallery.js';
 import { initToolbox, openToolboxModal, closeToolboxModal, switchToolboxTab, toggleScrambleHistoryList, handleScrambleFileUpload, setScrambleMode, onScrambleAlgorithmChange, toggleScramblePasswordInput, executeScrambleProcess, downloadScrambleResult, toggleMetadataHistoryList, handleMetadataFileUpload, applyMetadataParameters } from './toolbox-controller.js?v=20260620';
@@ -34,6 +34,22 @@ initToolbox(store);
 const ui = new UIController();
 const els = ui.els;
 const aiHelper = new AiHelperService(store);
+const aiChatManager = new AiChatManager({
+    service: aiHelper,
+    onApplyPrompt: (text, mode) => {
+        if (mode === 'append') {
+            const existing = els.prompt.value.trim();
+            els.prompt.value = existing ? `${existing}, ${text}` : text;
+        } else {
+            els.prompt.value = text;
+        }
+        els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+    onShowToast: window.showToast
+});
+window.aiChatManager = aiChatManager;
+window.openAiChatModal = () => aiChatManager.open();
+window.closeAiChatModal = () => aiChatManager.close();
 
 const notebookManager = new NotebookManager({
     listContainerEl: document.getElementById('notebookList'),
@@ -1222,6 +1238,27 @@ function toggleKeyConcurrent(forceState) {
     window.showToast(enabled ? "已启用多 Key 并发生成" : "已切换为多 Key 轮询生成", "success");
 }
 
+function onSettingsAiHelperProviderChange() {
+    const key = document.getElementById('settingsAiHelperProviderSelect')?.value;
+    if (key && AI_PROVIDER_PRESETS[key] && key !== 'custom') {
+        const preset = AI_PROVIDER_PRESETS[key];
+        const baseEl = document.getElementById('aiHelperBaseUrl');
+        const modelEl = document.getElementById('aiHelperModel');
+        if (baseEl) baseEl.value = preset.baseUrl;
+        if (modelEl) modelEl.value = preset.model;
+    }
+}
+window.onSettingsAiHelperProviderChange = onSettingsAiHelperProviderChange;
+
+function onSettingsAiHelperPresetChange() {
+    const key = document.getElementById('settingsAiHelperPresetSelect')?.value;
+    if (key && AI_SYSTEM_PROMPTS[key]) {
+        const sysEl = document.getElementById('aiHelperSystemPrompt');
+        if (sysEl) sysEl.value = AI_SYSTEM_PROMPTS[key].prompt;
+    }
+}
+window.onSettingsAiHelperPresetChange = onSettingsAiHelperPresetChange;
+
 function saveAiHelperSettings() {
     const baseUrl = document.getElementById('aiHelperBaseUrl')?.value.trim() || "";
     const apiKey = document.getElementById('aiHelperApiKey')?.value.trim() || "";
@@ -1233,8 +1270,22 @@ function saveAiHelperSettings() {
     store.setSetting('ai_helper_model', model);
     store.setSetting('ai_helper_system_prompt', systemPrompt);
 
-    window.showToast("AI 提示词助手配置已保存", "success");
+    // Sync to aiChatManager inline inputs
+    const inlineBase = document.getElementById('aiChatBaseUrl');
+    const inlineKey = document.getElementById('aiChatApiKey');
+    const inlineModel = document.getElementById('aiChatModel');
+    const inlineSys = document.getElementById('aiChatSystemPrompt');
+    const badge = document.getElementById('aiChatModelBadge');
+
+    if (inlineBase) inlineBase.value = baseUrl;
+    if (inlineKey) inlineKey.value = apiKey;
+    if (inlineModel) inlineModel.value = model;
+    if (inlineSys) inlineSys.value = systemPrompt;
+    if (badge) badge.textContent = model || '未配置模型';
+
+    window.showToast("AI 对话助手配置已保存", "success");
 }
+window.saveAiHelperSettings = saveAiHelperSettings;
 
 async function testAiHelperConnection() {
     const statusEl = document.getElementById('aiHelperStatus');
@@ -1257,7 +1308,6 @@ async function testAiHelperConnection() {
             }
         };
         const tempService = new AiHelperService(tempStore);
-        // 用最简问题快速测试
         const res = await tempService.generatePrompt("Say 'ok'");
         
         if (statusEl) {
@@ -1275,42 +1325,18 @@ async function testAiHelperConnection() {
         if (testBtn) testBtn.disabled = false;
     }
 }
+window.testAiHelperConnection = testAiHelperConnection;
 
 async function optimizePromptWithAi() {
-    const btn = document.getElementById('promptAiBtn');
+    // Open the full AI Chat modal and trigger prompt optimization
+    aiChatManager.open();
     const promptInput = document.getElementById('prompt');
-    if (!promptInput) return;
-
-    const originalHtml = btn ? btn.innerHTML : "";
-    const userIdea = promptInput.value.trim();
-
-    if (!userIdea) {
-        window.showToast("请先在正向提示词中输入一些简单想法", "warning");
-        promptInput.focus();
-        return;
-    }
-
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `<svg class="w-3.5 h-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 优化中...`;
-    }
-
-    try {
-        const expandedPrompt = await aiHelper.generatePrompt(userIdea);
-        promptInput.value = expandedPrompt;
-        promptInput.dispatchEvent(new Event('input', { bubbles: true }));
-        window.showToast("提示词优化成功!", "success");
-    } catch (err) {
-        console.error("AI Optimize Error:", err);
-        window.showToast(`优化失败: ${err.message}`, "error");
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-            if (window.lucide) window.lucide.createIcons();
-        }
+    const userIdea = promptInput ? promptInput.value.trim() : '';
+    if (userIdea) {
+        aiChatManager.handleQuickPrompt('optimize');
     }
 }
+window.optimizePromptWithAi = optimizePromptWithAi;
 
 function toggleV45Experimental(forceState) {
     const checkbox = document.getElementById('settingsV45ExperimentalCheckbox');
