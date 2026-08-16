@@ -147,26 +147,39 @@ describe('Download Functionality Tests', () => {
             });
         });
 
-        it('should call navigator.share on mobile devices when supported', async () => {
+        it('should trigger direct synchronous <a> tag download on mobile devices', async () => {
             const originalUA = global.navigator.userAgent;
             Object.defineProperty(global.navigator, 'userAgent', {
                 value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1',
                 configurable: true
             });
 
-            global.navigator.share = vi.fn().mockResolvedValue();
-            global.navigator.canShare = vi.fn().mockReturnValue(true);
+            let createdAnchor = null;
+            vi.spyOn(global.document, 'createElement').mockImplementation((tag) => {
+                const el = {
+                    tagName: tag.toUpperCase(),
+                    style: {},
+                    download: '',
+                    href: '',
+                    rel: '',
+                    click: vi.fn(),
+                    parentNode: {
+                        removeChild: vi.fn()
+                    }
+                };
+                if (tag === 'a') {
+                    createdAnchor = el;
+                }
+                return el;
+            });
 
             const testBlob = new Blob(['test-image'], { type: 'image/png' });
             await triggerDownload(testBlob, 'mobile_art.png');
 
-            expect(global.navigator.canShare).toHaveBeenCalled();
-            expect(global.navigator.share).toHaveBeenCalledWith(expect.objectContaining({
-                title: 'mobile_art.png'
-            }));
+            expect(createdAnchor).not.toBeNull();
+            expect(createdAnchor.download).toBe('mobile_art.png');
+            expect(createdAnchor.click).toHaveBeenCalled();
 
-            delete global.navigator.share;
-            delete global.navigator.canShare;
             Object.defineProperty(global.navigator, 'userAgent', {
                 value: originalUA,
                 configurable: true

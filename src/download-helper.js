@@ -50,13 +50,22 @@ export async function triggerDownload(urlOrBlob, filename) {
     let fallbackUrl = typeof urlOrBlob === 'string' ? urlOrBlob : '';
     let isBlobCreated = false;
 
-    // 1. 同步解析与构造标准 Blob (严禁无谓的异步等待，以保证用户手势上下文)
+    // 1. 解析与构造标准 Blob (支持 Blob, data URL, 以及 HTTP/Blob URL)
     try {
         if (typeof Blob !== 'undefined' && urlOrBlob instanceof Blob) {
             blob = urlOrBlob.type ? urlOrBlob : new Blob([urlOrBlob], { type: expectedMime });
         } else if (typeof urlOrBlob === 'string') {
             if (urlOrBlob.startsWith('data:')) {
                 blob = dataUrlToBlob(urlOrBlob, expectedMime);
+            } else if (typeof fetch === 'function') {
+                try {
+                    const resp = await fetch(urlOrBlob);
+                    if (resp.ok) {
+                        blob = await resp.blob();
+                    }
+                } catch (fetchErr) {
+                    console.warn('[DEBUG-dl] Fetch URL to Blob failed, using direct URL fallback:', fetchErr);
+                }
             }
         }
     } catch (e) {
@@ -68,7 +77,7 @@ export async function triggerDownload(urlOrBlob, filename) {
         (typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent || ''))
     );
 
-    // 2. 方案 A：PC 桌面端系统原生“另存为” (File System Access API - Chrome/Edge)
+    // 2. PC 桌面端：系统原生“另存为”对话框 (File System Access API - Chrome/Edge 等支持的浏览器)
     if (!isMobile && blob && typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
         try {
             const ext = (filename.split('.').pop() || 'png').toLowerCase();
@@ -106,32 +115,11 @@ export async function triggerDownload(urlOrBlob, filename) {
                 console.log('[DEBUG-dl] User cancelled native save picker.');
                 return;
             }
-            console.warn('[DEBUG-dl] showSaveFilePicker failed, falling back to anchor download:', err);
+            console.warn('[DEBUG-dl] showSaveFilePicker failed, falling back to direct download:', err);
         }
     }
 
-    // 3. 方案 B：手机移动端原生“存储图像/另存为” (Web Share API - iOS Safari / Android Chrome)
-    const FileConstructor = typeof File !== 'undefined' ? File : (typeof window !== 'undefined' ? window.File : null);
-    if (isMobile && blob && typeof navigator !== 'undefined' && typeof navigator.share === 'function' && FileConstructor) {
-        try {
-            const file = new FileConstructor([blob], filename, { type: expectedMime, lastModified: Date.now() });
-            if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: filename
-                });
-                return;
-            }
-        } catch (err) {
-            if (err.name === 'AbortError') {
-                console.log('[DEBUG-dl] User cancelled mobile share sheet.');
-                return;
-            }
-            console.warn('[DEBUG-dl] navigator.share failed or unsupported, falling back to anchor download:', err);
-        }
-    }
-
-    // 4. 方案 C：通用标准 <a> 标签触发下载 (兜底方案，确保全平台 100% 可靠)
+    // 3. 手机端与通用标准：100% 纯同步 <a> 标签触发直接保存 (避免手势过期，强类型 Blob 入库系统相册)
     let finalUrl = fallbackUrl;
     if (blob && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
         finalUrl = URL.createObjectURL(blob);
