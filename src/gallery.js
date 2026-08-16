@@ -239,9 +239,8 @@ export class GalleryController {
                 folder.file(filename, item.image.split(',')[1], { base64: true });
             });
             const content = await zip.generateAsync({ type: "blob" });
-            const url = URL.createObjectURL(content);
             const filename = `history_${Date.now()}.zip`;
-            window.triggerDownload(url, filename);
+            window.triggerDownload(content, filename);
         } catch (e) {
             console.error("Failed to download gallery zip", e);
             if (window.showToast) window.showToast("打包下载失败: " + e.message, "error");

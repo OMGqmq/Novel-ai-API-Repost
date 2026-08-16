@@ -118,4 +118,35 @@ describe('GalleryController', () => {
         expect(appState.currentImageId).toBe(item.id);
         expect(appState.currentImageData.prompt).toBe(item.prompt);
     });
+
+    it('should call unified triggerDownload with zip blob on downloadZip', async () => {
+        const ui = createMockUi();
+        const mockBlob = new Blob(['mock-zip-binary'], { type: 'application/zip' });
+        const mockZipInstance = {
+            folder: vi.fn().mockReturnThis(),
+            file: vi.fn().mockReturnThis(),
+            generateAsync: vi.fn().mockResolvedValue(mockBlob)
+        };
+        global.window.JSZip = vi.fn().mockImplementation(function () {
+            return mockZipInstance;
+        });
+
+        const store = createMockStore();
+        store.getAllImages = vi.fn().mockResolvedValue([
+            { id: 1, image: 'data:image/png;base64,AAAA', prompt: 'masterpiece girl' }
+        ]);
+        const appState = createMockAppState();
+
+        const controller = new GalleryController({ store, ui, appState });
+        await controller.downloadZip();
+
+        expect(store.getAllImages).toHaveBeenCalled();
+        expect(mockZipInstance.generateAsync).toHaveBeenCalledWith({ type: 'blob' });
+        expect(global.window.triggerDownload).toHaveBeenCalledWith(
+            mockBlob,
+            expect.stringMatching(/^history_\d+\.zip$/)
+        );
+
+        delete global.window.JSZip;
+    });
 });
