@@ -188,3 +188,22 @@ describe('AiHelperService Configuration', () => {
     await expect(service.generatePrompt('girl')).rejects.toThrow('AI API 错误 (500): Internal Server Error');
   });
 });
+
+describe('AiChatManager Logic & Extraction', () => {
+  it('should extract prompts accurately from code blocks and plain text', async () => {
+    const { AiChatManager } = await import('../src/ai-chat-manager.js');
+    const manager = new AiChatManager({ service: {} });
+
+    // Plain text
+    expect(manager.extractPrompt('1girl, blue eyes, white dress')).toBe('1girl, blue eyes, white dress');
+
+    // Code block
+    const markdownWithBlock = "Here is your optimized prompt:\n```tags\nmasterpiece, 1girl, glowing neon, cyberpunk city\n```\nHope you like it!";
+    expect(manager.extractPrompt(markdownWithBlock)).toBe('masterpiece, 1girl, glowing neon, cyberpunk city');
+
+    // Multiple code blocks
+    const multiBlock = "Positive:\n```tags\n1girl, solo\n```\nNegative:\n```negative\nlowres, bad anatomy\n```";
+    expect(manager.extractPrompt(multiBlock, 0)).toBe('1girl, solo');
+    expect(manager.extractPrompt(multiBlock, 1)).toBe('lowres, bad anatomy');
+  });
+});
