@@ -77,8 +77,8 @@ export async function triggerDownload(urlOrBlob, filename) {
         (typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent || ''))
     );
 
-    // 2. PC 桌面端：系统原生“另存为”对话框 (File System Access API - Chrome/Edge 等支持的浏览器)
-    if (!isMobile && blob && typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
+    // 2. 优先方案：现代浏览器原生 showSaveFilePicker (File System Access API) - 调起系统级“另存为”
+    if (blob && typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
         try {
             const ext = (filename.split('.').pop() || 'png').toLowerCase();
             const acceptMap = {
@@ -115,11 +115,11 @@ export async function triggerDownload(urlOrBlob, filename) {
                 console.log('[DEBUG-dl] User cancelled native save picker.');
                 return;
             }
-            console.warn('[DEBUG-dl] showSaveFilePicker failed, falling back to direct download:', err);
+            console.warn('[DEBUG-dl] showSaveFilePicker failed, falling back to direct anchor download:', err);
         }
     }
 
-    // 3. 手机端与通用标准：100% 纯同步 <a> 标签触发直接保存 (避免手势过期，强类型 Blob 入库系统相册)
+    // 3. 兜底方案：纯同步强类型 <a> 标签下载 (确保多连点无阻断，40s 延迟释放 Blob)
     let finalUrl = fallbackUrl;
     if (blob && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
         finalUrl = URL.createObjectURL(blob);
@@ -137,10 +137,15 @@ export async function triggerDownload(urlOrBlob, filename) {
     }
 
     const a = document.createElement('a');
-    a.style.display = 'none';
+    a.style.position = 'fixed';
+    a.style.left = '-9999px';
+    a.style.top = '-9999px';
+    a.style.opacity = '0';
     a.rel = 'noopener';
+    a.target = '_self';
     a.download = filename || `novelai-${Date.now()}.png`;
     a.href = finalUrl;
+
     if (document.body && typeof document.body.appendChild === 'function') {
         document.body.appendChild(a);
     }
@@ -148,13 +153,20 @@ export async function triggerDownload(urlOrBlob, filename) {
     try {
         if (typeof a.click === 'function') {
             a.click();
+        } else {
+            const event = new MouseEvent('click', {
+                bubbles: false,
+                cancelable: true,
+                view: window
+            });
+            a.dispatchEvent(event);
         }
-        console.log('[DEBUG-dl] Synchronous anchor download triggered successfully.');
+        console.log('[DEBUG-dl] Anchor download triggered successfully.');
     } catch (e) {
-        console.error('[DEBUG-dl] Direct click failed, dispatching MouseEvent:', e);
+        console.error('[DEBUG-dl] Click failed, dispatching MouseEvent fallback:', e);
         try {
             const event = new MouseEvent('click', {
-                bubbles: true,
+                bubbles: false,
                 cancelable: true,
                 view: window
             });
