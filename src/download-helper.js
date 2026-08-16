@@ -98,6 +98,7 @@ export async function triggerDownload(urlOrBlob, filename) {
 
             const handle = await window.showSaveFilePicker({
                 suggestedName: filename,
+                startIn: 'downloads',
                 types: [{
                     description: mapping.desc,
                     accept: { [mapping.mime]: mapping.exts }
