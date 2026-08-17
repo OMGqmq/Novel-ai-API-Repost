@@ -29,6 +29,8 @@ if (typeof window !== 'undefined') {
     window.MotionController = MotionController;
     window.motionController = motionController;
 }
+// Start single-run entrance animation lifecycle
+motionController.startEntrance();
 
 export { getMimeFromFilename, dataUrlToBlob, triggerDownload, doGenerate, doAugment, doGenerateXyPlot, motionController, MotionController };
 
@@ -3048,15 +3050,4 @@ function exportRandomPromptFile() {
 
 function importRandomPromptFile(event) {
     randomPromptController.importFile(event);
-}
-
-// --- Modular UI Entrance Motion Initialization (Milestone 2) ---
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            motionController.startEntrance();
-        });
-    } else {
-        motionController.startEntrance();
-    }
 }
