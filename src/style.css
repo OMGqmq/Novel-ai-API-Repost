@@ -963,4 +963,19 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     touch-action: none;
 }
 
+/* --- Outpainting Container & Zero-Flicker Selection Dimming Overlay --- */
+#outpaintContainer {
+    will-change: transform;
+    transform-origin: 0 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+#outpaintSelection {
+    outline: 100000px solid rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6);
+    box-sizing: border-box;
+    will-change: transform, width, height;
+}
+
 

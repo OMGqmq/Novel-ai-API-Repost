@@ -797,7 +797,8 @@ export class OutpaintEditor {
         if (this.els.container) {
             const tx = Math.round(this.transform.x * 100) / 100;
             const ty = Math.round(this.transform.y * 100) / 100;
-            this.els.container.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${this.transform.scale})`;
+            const scale = Math.round(this.transform.scale * 10000) / 10000;
+            this.els.container.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
         }
     }
 
