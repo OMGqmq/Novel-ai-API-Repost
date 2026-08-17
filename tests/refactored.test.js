@@ -507,6 +507,93 @@ describe('Refactored Suite', () => {
     assert.strictEqual(resJson.success, true);
     assert.strictEqual(typeof resJson.token, 'string');
     assert.strictEqual(resJson.user.credits, 15);
+
+    // D. 缺少 JWT_SECRET 时必须严格返回 500
+    const loginNoSecretCtx = {
+      request: {
+        method: 'POST',
+        json: async () => ({ username: 'bob_test', password: 'password123' })
+      },
+      env: { DB: mockDbLogin } // Missing JWT_SECRET
+    };
+    const resNoSecret = await loginHandler(loginNoSecretCtx);
+    assert.strictEqual(resNoSecret.status, 500);
+    const resNoSecretJson = await resNoSecret.json();
+    assert.strictEqual(resNoSecretJson.error, '服务器未配置 JWT_SECRET');
+  });
+
+  it('should prevent double-recharge race condition in recharge.js', async () => {
+    const { onRequest: rechargeHandler } = await import('../functions/api/auth/recharge.js');
+
+    const jwtSecret = 'test-secret-key-123';
+    const userPayload = { id: 1, username: 'testuser', role: 'User' };
+    const token = await signJwt(userPayload, jwtSecret);
+
+    let cardIsUsed = 0;
+    let userCredits = 10;
+    let batchCalls = 0;
+
+    const mockDb = {
+      prepare: (sql) => ({
+        bind: (...args) => ({
+          first: async () => {
+            if (sql.includes('FROM cards WHERE card_key = ?')) {
+              return { card_key: args[0], credits: 50, is_used: cardIsUsed };
+            }
+            if (sql.includes('FROM users WHERE id = ?')) {
+              return { id: args[0], credits: userCredits };
+            }
+            return null;
+          },
+          run: async () => {
+            if (sql.includes('UPDATE cards SET is_used = 1')) {
+              if (cardIsUsed === 0) {
+                cardIsUsed = 1;
+                return { success: true, meta: { changes: 1 } };
+              }
+              return { success: true, meta: { changes: 0 } };
+            }
+            return { success: true, meta: { changes: 1 } };
+          }
+        })
+      }),
+      batch: async (statements) => {
+        batchCalls++;
+        userCredits += 50;
+        return [{ meta: { changes: 1 } }, { meta: { changes: 1 } }];
+      }
+    };
+
+    const makeContext = () => ({
+      request: {
+        method: 'POST',
+        headers: new Map([
+          ['Authorization', `Bearer ${token}`]
+        ]),
+        json: async () => ({ cardKey: 'VIP-RECHARGE-KEY-999' })
+      },
+      env: {
+        DB: mockDb,
+        JWT_SECRET: jwtSecret
+      }
+    });
+
+    // 第一次充值：成功
+    const res1 = await rechargeHandler(makeContext());
+    assert.strictEqual(res1.status, 200);
+    const res1Json = await res1.json();
+    assert.strictEqual(res1Json.success, true);
+    assert.strictEqual(res1Json.credits, 60);
+    assert.strictEqual(batchCalls, 1);
+    assert.strictEqual(userCredits, 60);
+
+    // 第二次并发抢充（卡密已被标记为 used）：被 Gatekeeper 拦截，返回 400，且绝对不执行 batch 增加额度
+    const res2 = await rechargeHandler(makeContext());
+    assert.strictEqual(res2.status, 400);
+    const res2Json = await res2.json();
+    assert.ok(res2Json.error.includes('已被使用') || res2Json.error.includes('请勿重复充值'));
+    assert.strictEqual(batchCalls, 1); // 没有第二次 batch 调用
+    assert.strictEqual(userCredits, 60); // 点数没有被重复增加
   });
 
   it('should run CharPromptManager tests', () => {

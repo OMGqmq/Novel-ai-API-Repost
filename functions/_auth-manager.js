@@ -135,6 +135,8 @@ export async function authenticate(request, env) {
       isVip: false,
       userRole: "Free",
       remainingCredits: 0,
+      globalKey,
+      ipKey,
       async recordUsage(waitUntil) {
         const sql = `
           INSERT INTO free_limits (key, count, updated_at) 
@@ -151,6 +153,106 @@ export async function authenticate(request, env) {
 
   // 若无数据库绑定，且未通过自定义 Key 或 Admin Token 校验，则禁止访问以保障官方 Key 额度安全
   throw new AuthError("系统未配置或无法连接数据库，暂不支持免费体验", 503);
+}
+
+export async function preDeductQuota(auth, env) {
+  if (!auth || !env || !env.DB) {
+    return { type: 'none' };
+  }
+
+  const { isVip, userRole, authType, userId, useDailyLimit, userLimitKey, userKey, globalKey, ipKey } = auth;
+
+  // 1. 自定义 API Key 或管理员无需扣费
+  if (userRole === 'CustomAPI' || userRole === 'Admin') {
+    return { type: 'none' };
+  }
+
+  // 2. JWT 注册用户
+  if (authType === 'JWT' && userId) {
+    // 优先尝试原子自增每日免费额度
+    if (useDailyLimit && userLimitKey) {
+      const dailyFreeLimit = USER_DAILY_FREE_LIMIT;
+      const sql = `
+        INSERT INTO free_limits (key, count, updated_at) 
+        VALUES (?, 1, datetime('now', '+8 hours'))
+        ON CONFLICT(key) DO UPDATE SET count = count + 1, updated_at = datetime('now', '+8 hours')
+        WHERE free_limits.count < ?
+      `;
+      const res = await env.DB.prepare(sql).bind(userLimitKey, dailyFreeLimit).run();
+      if (res && res.meta && res.meta.changes > 0) {
+        return { type: 'user_daily', key: userLimitKey };
+      }
+      // 如果免费额度已在并发中用尽，则降级尝试扣减账户长期余额
+    }
+
+    // 原子扣减用户长期余额
+    const updateStmt = env.DB.prepare(
+      "UPDATE users SET credits = credits - 1, updated_at = datetime('now', '+8 hours') WHERE id = ? AND credits > 0"
+    );
+    const res = await updateStmt.bind(userId).run();
+    if (!res || !res.meta || res.meta.changes === 0) {
+      throw new AuthError("您的每日免费额度和长期余额已用尽，请充值后使用。", 402);
+    }
+    return { type: 'user_credits', userId };
+  }
+
+  // 3. VIP 卡密用户
+  if (userKey && userRole && userRole.startsWith("VIP")) {
+    const updateStmt = env.DB.prepare(
+      "UPDATE cards SET credits = credits - 1, updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND credits > 0"
+    );
+    const res = await updateStmt.bind(userKey).run();
+    if (!res || !res.meta || res.meta.changes === 0) {
+      throw new AuthError("您的卡密余额已耗尽，请购买新卡密。", 402);
+    }
+    return { type: 'card_credits', userKey };
+  }
+
+  // 4. 免费访客 (记录全局与 IP 限制预增)
+  if (!isVip && globalKey && ipKey) {
+    const sql = `
+      INSERT INTO free_limits (key, count, updated_at) 
+      VALUES (?, 1, datetime('now', '+8 hours'))
+      ON CONFLICT(key) DO UPDATE SET count = count + 1, updated_at = datetime('now', '+8 hours')
+    `;
+    await Promise.all([
+      env.DB.prepare(sql).bind(globalKey).run(),
+      env.DB.prepare(sql).bind(ipKey).run()
+    ]);
+    return { type: 'guest_limit', globalKey, ipKey };
+  }
+
+  return { type: 'none' };
+}
+
+export async function rollbackQuota(receipt, env) {
+  if (!receipt || !receipt.type || receipt.type === 'none' || !env || !env.DB) {
+    return;
+  }
+
+  try {
+    if (receipt.type === 'user_credits' && receipt.userId) {
+      await env.DB.prepare(
+        "UPDATE users SET credits = credits + 1, updated_at = datetime('now', '+8 hours') WHERE id = ?"
+      ).bind(receipt.userId).run();
+    } else if (receipt.type === 'user_daily' && receipt.key) {
+      await env.DB.prepare(
+        "UPDATE free_limits SET count = MAX(0, count - 1), updated_at = datetime('now', '+8 hours') WHERE key = ?"
+      ).bind(receipt.key).run();
+    } else if (receipt.type === 'card_credits' && receipt.userKey) {
+      await env.DB.prepare(
+        "UPDATE cards SET credits = credits + 1, updated_at = datetime('now', '+8 hours') WHERE card_key = ?"
+      ).bind(receipt.userKey).run();
+    } else if (receipt.type === 'guest_limit' && receipt.globalKey && receipt.ipKey) {
+      const sql = "UPDATE free_limits SET count = MAX(0, count - 1), updated_at = datetime('now', '+8 hours') WHERE key = ?";
+      await Promise.all([
+        env.DB.prepare(sql).bind(receipt.globalKey).run(),
+        env.DB.prepare(sql).bind(receipt.ipKey).run()
+      ]);
+    }
+  } catch (err) {
+    console.error("Rollback quota failed:", err);
+  }
 }
 
 export class AuthError extends Error {

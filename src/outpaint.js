@@ -38,6 +38,7 @@ export class OutpaintEditor {
         this.history = [];
         this.maskHistory = [];
         this.maxHistory = 10;
+        this.maxMaskHistory = 10;
         
         // Interaction state
         this.isPanning = false;
@@ -179,6 +180,8 @@ export class OutpaintEditor {
     }
 
     close() {
+        this.history = [];
+        this.maskHistory = [];
         this.els.area.classList.add('hidden');
     }
 
@@ -235,7 +238,7 @@ export class OutpaintEditor {
     clearMask() {
         if (this.maskHistory.length > 0 || this._hasPaintedMask()) {
             this.maskHistory.push(this.maskCtx.getImageData(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height));
-            if (this.maskHistory.length > 20) this.maskHistory.shift();
+            if (this.maskHistory.length > this.maxMaskHistory) this.maskHistory.shift();
         }
         this.maskCtx.clearRect(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height);
     }
@@ -376,7 +379,7 @@ export class OutpaintEditor {
 
             // Check model version
             const modelVersionEl = document.getElementById('modelValue');
-            const modelVersion = modelVersionEl ? modelVersionEl.value : 'v4.5';
+            const modelVersion = (modelVersionEl && modelVersionEl.value) ? modelVersionEl.value : 'v4.5';
             const isV4 = modelVersion.includes('v4');
 
             // Format mask
@@ -413,6 +416,17 @@ export class OutpaintEditor {
             const sampler = document.getElementById('sampler')?.value || 'k_euler';
             const strength = hasPaintedMask ? 0.7 : 1.0; // Use partial strength for inpaint if needed, though infill 1.0 is standard
 
+            // Handling Multi-API Keys gracefully
+            const adminToken = this.store.getSetting('nai_admin_token');
+            const userKey = this.store.getSetting('nai_user_key');
+            const customApiKeyRaw = this.store.getSetting('nai_custom_api_key', '');
+            const customKeys = customApiKeyRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k);
+            
+            const authBase = { adminToken, userKey, userToken: localStorage.getItem('nai_user_token') || "" };
+            const authsToTry = customKeys.length > 0 
+                ? customKeys.map(key => ({ ...authBase, customApiKey: key }))
+                : [{ ...authBase, customApiKey: "" }];
+
             const extraParams = this.getExtraParams ? this.getExtraParams(modelVersion, customKeys.length > 0) : {};
 
             const params = {
@@ -436,18 +450,6 @@ export class OutpaintEditor {
                 params.strength = strength;
                 params.action = action;
             }
-
-            // ... (Rest of the generate method for API call and stitching)
-            // Handling Multi-API Keys gracefully
-            const adminToken = this.store.getSetting('nai_admin_token');
-            const userKey = this.store.getSetting('nai_user_key');
-            const customApiKeyRaw = this.store.getSetting('nai_custom_api_key', '');
-            const customKeys = customApiKeyRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k);
-            
-            const authBase = { adminToken, userKey, userToken: localStorage.getItem('nai_user_token') || "" };
-            const authsToTry = customKeys.length > 0 
-                ? customKeys.map(key => ({ ...authBase, customApiKey: key }))
-                : [{ ...authBase, customApiKey: "" }];
 
             let result = null;
             let lastError = null;
@@ -690,7 +692,7 @@ export class OutpaintEditor {
             if (this.mode === 'paint' && (e.target === this.els.maskCanvas || e.target === this.els.selection)) {
                 this.isPainting = true;
                 this.maskHistory.push(this.maskCtx.getImageData(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height));
-                if (this.maskHistory.length > 20) this.maskHistory.shift();
+                if (this.maskHistory.length > this.maxMaskHistory) this.maskHistory.shift();
                 this._drawOnMask(this._getMaskPos(e), true);
                 return;
             }

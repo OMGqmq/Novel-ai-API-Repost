@@ -157,6 +157,7 @@ export class InpaintEditor {
     }
 
     close() {
+        this.history = [];
         this.modal.classList.add('modal-hidden');
         this.modal.classList.remove('modal-visible');
         setTimeout(() => {
@@ -182,14 +183,48 @@ export class InpaintEditor {
     }
 
     saveMaskState() {
-        this.history.push(this.maskCtx.getImageData(0, 0, this.maskCanvas.width, this.maskCanvas.height));
-        if (this.history.length > 50) this.history.shift();
+        const w = this.maskCanvas.width;
+        const h = this.maskCanvas.height;
+        if (!w || !h) return;
+        const imageData = this.maskCtx.getImageData(0, 0, w, h);
+        const data = imageData.data;
+        const alpha = new Uint8Array(w * h);
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            alpha[j] = (data[i + 3] === 255 && data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0) ? 0 : data[i + 3];
+        }
+        this.history.push({ width: w, height: h, alpha });
+        if (this.history.length > 20) this.history.shift();
     }
 
     undo() {
         if (this.history.length === 0) return;
         const state = this.history.pop();
-        this.maskCtx.putImageData(state, 0, 0);
+        if (typeof ImageData !== 'undefined' && state instanceof ImageData) {
+            this.maskCtx.putImageData(state, 0, 0);
+            return;
+        }
+        if (state && state.alpha) {
+            const w = state.width || this.maskCanvas.width;
+            const h = state.height || this.maskCanvas.height;
+            let imgData;
+            if (this.maskCtx.createImageData) {
+                imgData = this.maskCtx.createImageData(w, h);
+            } else if (typeof ImageData !== 'undefined') {
+                imgData = new ImageData(w, h);
+            } else {
+                imgData = { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) };
+            }
+            const data = imgData.data;
+            const alpha = state.alpha;
+            for (let j = 0, i = 0; j < alpha.length; j++, i += 4) {
+                const a = alpha[j];
+                data[i] = 255;
+                data[i + 1] = 255;
+                data[i + 2] = 255;
+                data[i + 3] = a;
+            }
+            this.maskCtx.putImageData(imgData, 0, 0);
+        }
     }
 
     clearMask() {

@@ -5,3 +5,9 @@ package-lock.json
 .idea/
 .DS_Store
 Thumbs.db
+.agents/
+ORIGINAL_REQUEST.md
+__pycache__/
+*.py[cod]
+nodes.py
+run_full_validation_suite.py

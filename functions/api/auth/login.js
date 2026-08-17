@@ -19,6 +19,14 @@ export async function onRequest(context) {
     });
   }
 
+  const jwtSecret = env.JWT_SECRET;
+  if (!jwtSecret) {
+    return new Response(JSON.stringify({ error: '服务器未配置 JWT_SECRET' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   try {
     const { username, password } = await request.json();
 
@@ -64,7 +72,6 @@ export async function onRequest(context) {
     }
 
     // 签发 JWT
-    const jwtSecret = env.JWT_SECRET || "novelai-default-jwt-secret-key-987654";
     const payload = {
       id: user.id,
       username: user.username,

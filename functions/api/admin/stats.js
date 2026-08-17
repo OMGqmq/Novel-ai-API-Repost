@@ -35,80 +35,90 @@ export async function onRequest(context) {
       formatStr = '%m-%d';
     }
 
-    // 统一生成 SQL 过滤的时间起点
-    // 我们使用的是 datetime('now', '+8 hours') 写入，所以查询也需要按此偏移计算
-    const timeFilterSql = `datetime('now', '+8 hours', '${timeModifier}')`;
-
-    // 3. 执行 SQL 聚合查询
-
+    // 3. 构造参数化 Prepared Statements 并通过 db.batch 一次性执行
     // 3.1 总体指标 (请求次数, 成功率, 平均耗时)
-    const summaryQuery = await db.prepare(`
+    const summaryStmt = db.prepare(`
       SELECT 
         COUNT(*) as total_requests,
         AVG(CASE WHEN status_code = 200 THEN 1.0 ELSE 0.0 END) * 100 as success_rate,
         AVG(duration_ms) as avg_duration
       FROM request_logs
-      WHERE created_at >= ${timeFilterSql}
-    `).first();
+      WHERE created_at >= datetime('now', '+8 hours', ?)
+    `).bind(timeModifier);
 
     // 3.2 趋势数据
-    const trendResults = await db.prepare(`
+    const trendStmt = db.prepare(`
       SELECT 
-        strftime('${formatStr}', created_at) as time_bucket,
+        strftime(?, created_at) as time_bucket,
         COUNT(*) as request_count,
         AVG(duration_ms) as avg_duration
       FROM request_logs
-      WHERE created_at >= ${timeFilterSql}
+      WHERE created_at >= datetime('now', '+8 hours', ?)
       GROUP BY time_bucket
       ORDER BY time_bucket ASC
-    `).all();
+    `).bind(formatStr, timeModifier);
 
     // 3.3 模型分布比例
-    const modelResults = await db.prepare(`
+    const modelStmt = db.prepare(`
       SELECT 
         model,
         COUNT(*) as count
       FROM request_logs
-      WHERE created_at >= ${timeFilterSql}
+      WHERE created_at >= datetime('now', '+8 hours', ?)
       GROUP BY model
       ORDER BY count DESC
-    `).all();
+    `).bind(timeModifier);
 
     // 3.4 常见报错 TOP 5
-    const errorResults = await db.prepare(`
+    const errorStmt = db.prepare(`
       SELECT 
         error_message,
         COUNT(*) as count
       FROM request_logs
-      WHERE created_at >= ${timeFilterSql} AND status_code != 200 AND error_message IS NOT NULL
+      WHERE created_at >= datetime('now', '+8 hours', ?) AND status_code != 200 AND error_message IS NOT NULL
       GROUP BY error_message
       ORDER BY count DESC
       LIMIT 5
-    `).all();
+    `).bind(timeModifier);
 
     // 3.5 活跃 IP TOP 10
-    const ipResults = await db.prepare(`
+    const ipStmt = db.prepare(`
       SELECT 
         ip,
         COUNT(*) as count
       FROM request_logs
-      WHERE created_at >= ${timeFilterSql}
+      WHERE created_at >= datetime('now', '+8 hours', ?)
       GROUP BY ip
       ORDER BY count DESC
       LIMIT 10
-    `).all();
+    `).bind(timeModifier);
+
+    // 单次 D1 RPC 往返批量执行 5 个查询
+    const [summaryRes, trendRes, modelRes, errorRes, ipRes] = await db.batch([
+      summaryStmt,
+      trendStmt,
+      modelStmt,
+      errorStmt,
+      ipStmt
+    ]);
+
+    const summaryRow = summaryRes?.results?.[0] || null;
 
     return new Response(JSON.stringify({
       success: true,
       summary: {
-        total_requests: summaryQuery?.total_requests || 0,
-        success_rate: summaryQuery?.success_rate !== null ? parseFloat(summaryQuery.success_rate.toFixed(2)) : 100,
-        avg_duration: summaryQuery?.avg_duration !== null ? Math.round(summaryQuery.avg_duration) : 0
+        total_requests: summaryRow?.total_requests || 0,
+        success_rate: (summaryRow?.success_rate !== null && summaryRow?.success_rate !== undefined)
+          ? parseFloat(Number(summaryRow.success_rate).toFixed(2))
+          : 100,
+        avg_duration: (summaryRow?.avg_duration !== null && summaryRow?.avg_duration !== undefined)
+          ? Math.round(Number(summaryRow.avg_duration))
+          : 0
       },
-      trend: trendResults.results || [],
-      models: modelResults.results || [],
-      errors: errorResults.results || [],
-      ips: ipResults.results || []
+      trend: trendRes?.results || [],
+      models: modelRes?.results || [],
+      errors: errorRes?.results || [],
+      ips: ipRes?.results || []
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }

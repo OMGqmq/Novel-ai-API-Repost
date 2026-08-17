@@ -25,7 +25,7 @@ import { InspirationManager } from './inspiration-manager.js?v=20260625';
 
 import { getMimeFromFilename, dataUrlToBlob, triggerDownload } from './download-helper.js';
 
-export { getMimeFromFilename, dataUrlToBlob, triggerDownload };
+export { getMimeFromFilename, dataUrlToBlob, triggerDownload, doGenerate, doAugment, doGenerateXyPlot };
 
 // PromptHelper is now imported from './prompt-helper.js'
 const engine = new ImageEngine();
@@ -526,9 +526,6 @@ async function doGenerate() {
             ui.setLoading(true, statusText);
 
             const isConcurrent = store.getSetting('nai_custom_key_concurrent') === 'true';
-            const auths = (isConcurrent && customApiKeys.length > 0)
-                ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
-                : [{ ...authBase, customApiKey: (customApiKeys.length > 0 ? customApiKeys[i % customApiKeys.length] : "") }];
 
             try {
                 const extraParams = collectAdvancedAndModelParams(selectedVersion);
@@ -551,19 +548,14 @@ async function doGenerate() {
                     params.noise = noiEl ? parseFloat(noiEl.value) : 0;
                 }
 
-
                 // 读取用户指定的 Seed
                 const seedEl = document.getElementById('seed');
                 const userSeedVal = seedEl ? seedEl.value.trim() : "";
 
-                // 为每个 API 实例生成 seed，避免产生的图片完全相同
-                const localParamsList = auths.map((auth, idx) => {
+                const buildLocalParams = (seedOffset) => {
                     let finalSeed;
                     if (userSeedVal && !isNaN(userSeedVal)) {
-                        // 用户指定了 Seed。在批量循环第 i 次，多 API 轮询第 idx 个时，
-                        // 我们使用 userSeedVal + i + idx，既保证批量各不相同，也保证多 API 并发时不重复，
-                        // 同时也保证了单张生成时完全等于用户输入的 Seed。
-                        finalSeed = (parseInt(userSeedVal) + i + idx) % 4294967296;
+                        finalSeed = (parseInt(userSeedVal) + i + seedOffset) % 4294967296;
                     } else {
                         finalSeed = Math.floor(Math.random() * 4294967295);
                     }
@@ -584,79 +576,118 @@ async function doGenerate() {
                         seed: finalSeed,
                         randomSelections
                     };
-                });
-
-                // 并发执行！
-                const fetchPromises = auths.map((auth, idx) => engine.generate(localParamsList[idx], auth));
-                const results = await Promise.allSettled(fetchPromises);
+                };
 
                 const successfulResults = [];
-                results.forEach((res, idx) => {
-                    if (res.status === 'fulfilled') {
-                        const result = res.value;
-                        const localParams = localParamsList[idx];
-                        if (result.userRole) {
-                            ui.updateCreditDisplay(result.userRole);
+
+                if (isConcurrent && customApiKeys.length > 0) {
+                    const auths = customApiKeys.map(key => ({ ...authBase, customApiKey: key }));
+                    const localParamsList = auths.map((_, idx) => buildLocalParams(idx));
+                    const fetchPromises = auths.map((auth, idx) => engine.generate(localParamsList[idx], auth));
+                    const results = await Promise.allSettled(fetchPromises);
+
+                    results.forEach((res, idx) => {
+                        if (res.status === 'fulfilled') {
+                            const result = res.value;
+                            const localParams = localParamsList[idx];
+                            if (result.userRole) {
+                                ui.updateCreditDisplay(result.userRole);
+                            }
+                            result._localParams = localParams;
+                            successfulResults.push(result);
+                        } else {
+                            console.error("Concurrent Gen Error:", res.reason);
                         }
-                        successfulResults.push(result);
+                    });
 
-                        // 组装元数据
-                        const metaData = {
-                            negative_prompt: localParams.negative_prompt,
-                            width: localParams.width,
-                            height: localParams.height,
-                            steps: localParams.steps,
-                            scale: localParams.scale,
-                            sampler: localParams.sampler,
-                            seed: localParams.seed,
-                            strength: localParams.strength || null,
-                            noise: localParams.noise || null,
+                    if (successfulResults.length === 0) {
+                        const firstError = results.find(r => r.status === 'rejected')?.reason || new Error("所有 API 请求均失败");
+                        throw firstError;
+                    }
+                } else {
+                    const candidateKeys = customApiKeys.length > 0
+                        ? customApiKeys.slice(i % customApiKeys.length).concat(customApiKeys.slice(0, i % customApiKeys.length))
+                        : [""];
+                    const authsToTry = candidateKeys.map(key => ({ ...authBase, customApiKey: key }));
+                    const localParams = buildLocalParams(0);
 
-                            // Char Ref 元数据
-                            director_reference_images: localParams.director_reference_images || null,
-                            director_reference_descriptions: localParams.director_reference_descriptions || null,
-                            director_reference_strength_values: localParams.director_reference_strength_values || null,
-                            director_reference_secondary_strength_values: localParams.director_reference_secondary_strength_values || null,
-                            director_reference_information_extracted: localParams.director_reference_information_extracted || null,
+                    let result = null;
+                    let lastError = null;
+                    for (const auth of authsToTry) {
+                        try {
+                            result = await engine.generate(localParams, auth);
+                            break;
+                        } catch (err) {
+                            console.warn("API Key 请求失败，尝试下一个候选 Key...", err);
+                            lastError = err;
+                        }
+                    }
 
-                            // Vibe Transfer 元数据
-                            vibe_image: localParams.vibe_image || null,
-                            vibe_info: localParams.vibe_info !== undefined ? localParams.vibe_info : null,
-                            vibe_strength: localParams.vibe_strength !== undefined ? localParams.vibe_strength : null,
-                            reference_image_multiple: localParams.reference_image_multiple || null,
-                            reference_information_extracted_multiple: localParams.reference_information_extracted_multiple || null,
-                            reference_strength_multiple: localParams.reference_strength_multiple || null,
+                    if (!result) {
+                        throw lastError || new Error("所有配置的 API Key 均请求失败");
+                    }
 
-                            // 以下为新增套用支持的高级/微调参数与多角色数据
-                            sm: localParams.sm !== undefined ? localParams.sm : false,
-                            sm_dyn: localParams.sm_dyn !== undefined ? localParams.sm_dyn : false,
-                            cfg_rescale: localParams.cfg_rescale !== undefined ? localParams.cfg_rescale : 0.0,
-                            uncond_scale: localParams.uncond_scale !== undefined ? localParams.uncond_scale : 1.0,
-                            skip_cfg_above_sigma: localParams.skip_cfg_above_sigma !== undefined ? localParams.skip_cfg_above_sigma : null,
-                            v4_5_experimental: localParams.v4_5_experimental !== undefined ? localParams.v4_5_experimental : false,
-                            v4_prompt_use_coords: localParams.v4_prompt_use_coords !== undefined ? localParams.v4_prompt_use_coords : false,
-                            v4_prompt_use_order: localParams.v4_prompt_use_order !== undefined ? localParams.v4_prompt_use_order : true,
-                            v4_neg_use_order: localParams.v4_neg_use_order !== undefined ? localParams.v4_neg_use_order : false,
-                            deliberate_euler_ancestral_bug: localParams.deliberate_euler_ancestral_bug !== undefined ? localParams.deliberate_euler_ancestral_bug : false,
-                            prefer_brownian: localParams.prefer_brownian !== undefined ? localParams.prefer_brownian : true,
-                            char_captions: localParams.char_captions || null,
-                            random_prompt_selections: localParams.randomSelections || null
-                        };
+                    if (result.userRole) {
+                        ui.updateCreditDisplay(result.userRole);
+                    }
+                    result._localParams = localParams;
+                    successfulResults.push(result);
+                }
 
-                        // 转Base64存历史
+                // 组装元数据并保存历史
+                for (const result of successfulResults) {
+                    const localParams = result._localParams || buildLocalParams(0);
+                    delete result._localParams;
+
+                    const metaData = {
+                        negative_prompt: localParams.negative_prompt,
+                        width: localParams.width,
+                        height: localParams.height,
+                        steps: localParams.steps,
+                        scale: localParams.scale,
+                        sampler: localParams.sampler,
+                        seed: localParams.seed,
+                        strength: localParams.strength || null,
+                        noise: localParams.noise || null,
+
+                        // Char Ref 元数据
+                        director_reference_images: localParams.director_reference_images || null,
+                        director_reference_descriptions: localParams.director_reference_descriptions || null,
+                        director_reference_strength_values: localParams.director_reference_strength_values || null,
+                        director_reference_secondary_strength_values: localParams.director_reference_secondary_strength_values || null,
+                        director_reference_information_extracted: localParams.director_reference_information_extracted || null,
+
+                        // Vibe Transfer 元数据
+                        vibe_image: localParams.vibe_image || null,
+                        vibe_info: localParams.vibe_info !== undefined ? localParams.vibe_info : null,
+                        vibe_strength: localParams.vibe_strength !== undefined ? localParams.vibe_strength : null,
+                        reference_image_multiple: localParams.reference_image_multiple || null,
+                        reference_information_extracted_multiple: localParams.reference_information_extracted_multiple || null,
+                        reference_strength_multiple: localParams.reference_strength_multiple || null,
+
+                        // 以下为新增套用支持的高级/微调参数与多角色数据
+                        sm: localParams.sm !== undefined ? localParams.sm : false,
+                        sm_dyn: localParams.sm_dyn !== undefined ? localParams.sm_dyn : false,
+                        cfg_rescale: localParams.cfg_rescale !== undefined ? localParams.cfg_rescale : 0.0,
+                        uncond_scale: localParams.uncond_scale !== undefined ? localParams.uncond_scale : 1.0,
+                        skip_cfg_above_sigma: localParams.skip_cfg_above_sigma !== undefined ? localParams.skip_cfg_above_sigma : null,
+                        v4_5_experimental: localParams.v4_5_experimental !== undefined ? localParams.v4_5_experimental : false,
+                        v4_prompt_use_coords: localParams.v4_prompt_use_coords !== undefined ? localParams.v4_prompt_use_coords : false,
+                        v4_prompt_use_order: localParams.v4_prompt_use_order !== undefined ? localParams.v4_prompt_use_order : true,
+                        v4_neg_use_order: localParams.v4_neg_use_order !== undefined ? localParams.v4_neg_use_order : false,
+                        deliberate_euler_ancestral_bug: localParams.deliberate_euler_ancestral_bug !== undefined ? localParams.deliberate_euler_ancestral_bug : false,
+                        prefer_brownian: localParams.prefer_brownian !== undefined ? localParams.prefer_brownian : true,
+                        char_captions: localParams.char_captions || null,
+                        random_prompt_selections: localParams.randomSelections || null
+                    };
+
+                    if (result.blob) {
                         const reader = new FileReader();
                         reader.readAsDataURL(result.blob);
                         reader.onloadend = async () => {
                             await saveToHistory(reader.result, localParams.prompt, selectedVersion, result, false, metaData);
-                        }
-                    } else {
-                        console.error("Concurrent Gen Error:", res.reason);
+                        };
                     }
-                });
-
-                if (successfulResults.length === 0) {
-                    const firstError = results.find(r => r.status === 'rejected')?.reason || new Error("所有 API 请求均失败");
-                    throw firstError;
                 }
 
                 // 批量展示！
@@ -763,10 +794,10 @@ async function doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, aut
                 .map(k => k.trim())
                 .filter(k => k);
 
-            const auth = {
-                ...authBase,
-                customApiKey: (customApiKeys.length > 0 ? customApiKeys[idx % customApiKeys.length] : "")
-            };
+            const candidateKeys = customApiKeys.length > 0
+                ? customApiKeys.slice(idx % customApiKeys.length).concat(customApiKeys.slice(0, idx % customApiKeys.length))
+                : [""];
+            const authsToTry = candidateKeys.map(key => ({ ...authBase, customApiKey: key }));
 
             const isSeedPlot = (xyPlotManager.getXyConfigs().xType === 'seed' || xyPlotManager.getXyConfigs().yType === 'seed');
             if (!isSeedPlot) {
@@ -774,7 +805,20 @@ async function doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, aut
             }
 
             try {
-                const result = await engine.generate(cell.params, auth);
+                let result = null;
+                let lastError = null;
+                for (const auth of authsToTry) {
+                    try {
+                        result = await engine.generate(cell.params, auth);
+                        break;
+                    } catch (err) {
+                        console.warn(`X/Y Plot API Key failed, trying next...`, err);
+                        lastError = err;
+                    }
+                }
+                if (!result) {
+                    throw lastError || new Error("所有配置的 API Key 均请求失败");
+                }
 
                 if (result.userRole) {
                     ui.updateCreditDisplay(result.userRole);
@@ -946,9 +990,9 @@ async function doAugment(reqType) {
     };
     const customApiKeyRaw = store.getSetting('nai_custom_api_key');
     const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
-    const auth = customApiKeys.length > 0 
-        ? { ...authBase, customApiKey: customApiKeys[0] } 
-        : { ...authBase, customApiKey: "" };
+    const authsToTry = customApiKeys.length > 0 
+        ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
+        : [{ ...authBase, customApiKey: "" }];
 
     ui.setLoading(true, "处理中...");
     try {
@@ -994,7 +1038,20 @@ async function doAugment(reqType) {
             image: base64Data
         };
 
-        const result = await engine.augment(params, auth);
+        let result = null;
+        let lastError = null;
+        for (const auth of authsToTry) {
+            try {
+                result = await engine.augment(params, auth);
+                break;
+            } catch (err) {
+                console.warn('Augment API Key failed, trying next...', err);
+                lastError = err;
+            }
+        }
+        if (!result) {
+            throw lastError || new Error("所有配置的 API Key 均请求失败");
+        }
         
         if (result.userRole) {
             ui.updateCreditDisplay(result.userRole);

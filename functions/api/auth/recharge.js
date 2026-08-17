@@ -85,11 +85,19 @@ export async function onRequest(context) {
     const addedCredits = card.credits;
     const newCredits = currentCredits + addedCredits;
 
-    // 4. 原子性操作：使用 D1 batch 执行事务
-    const updateCard = db.prepare(
+    // 4. 原子性操作：先独占式更新卡密状态（作为 Gatekeeper 防重防并发）
+    const cardUpdateResult = await db.prepare(
       "UPDATE cards SET is_used = 1, used_by_id = ?, used_at = datetime('now', '+8 hours'), updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND is_used = 0"
-    ).bind(payload.id, trimmedCardKey);
+    ).bind(payload.id, trimmedCardKey).run();
 
+    if (!cardUpdateResult || !cardUpdateResult.meta || cardUpdateResult.meta.changes === 0) {
+      return new Response(JSON.stringify({ error: '卡密已被使用或不存在，请勿重复充值。' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 5. 抢占成功后，给用户增加点数并记录日志
     const updateUser = db.prepare(
       "UPDATE users SET credits = credits + ?, updated_at = datetime('now', '+8 hours') WHERE id = ?"
     ).bind(addedCredits, payload.id);
@@ -98,17 +106,7 @@ export async function onRequest(context) {
       "INSERT INTO credit_logs (user_id, action, amount, description, created_at) VALUES (?, 'recharge', ?, ?, datetime('now', '+8 hours'))"
     ).bind(payload.id, addedCredits, `充值卡密: ${trimmedCardKey}`);
 
-    // D1 batch 会原子性地运行这三条 SQL
-    const results = await db.batch([updateCard, updateUser, writeLog]);
-    
-    // 检查更新行数确保卡密没有被并发抢充
-    const cardUpdateResult = results[0];
-    if (cardUpdateResult.meta.changes === 0) {
-      return new Response(JSON.stringify({ error: '卡密已被充值，请刷新后重试。' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    await db.batch([updateUser, writeLog]);
 
     return new Response(JSON.stringify({
       success: true,
