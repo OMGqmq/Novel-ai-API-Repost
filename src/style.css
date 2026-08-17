@@ -376,25 +376,25 @@ html.dark .view-toggle-bg {
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(15, 23, 42, 0.9);
+    background: rgba(15, 23, 42, 0.94);
     backdrop-filter: blur(30px);
     -webkit-backdrop-filter: blur(30px);
-    border-top: 1px solid rgba(255,255,255,0.1);
-    border-radius: 32px 32px 0 0;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    border-radius: 28px 28px 0 0;
     z-index: 150;
-    transform: translateY(calc(100% - 70px));
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    padding: 0 24px 34px 24px;
+    transform: translateY(calc(100% - 56px));
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
 }
 #inpaintMobileDrawer.expanded {
     transform: translateY(0);
 }
 .drawer-handle {
-    width: 40px;
+    width: 36px;
     height: 4px;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.25);
     border-radius: 2px;
-    margin: 12px auto 20px auto;
+    margin: 0 auto 6px auto;
 }
 .brush-size-slider {
     width: 140px;
@@ -408,15 +408,14 @@ html.dark .view-toggle-bg {
     position: fixed;
     top: 0;
     left: 0;
-    border: 1.5px solid #fff;
-    box-shadow: 0 0 0 1.5px rgba(0,0,0,0.5);
+    border: 2px solid #3b82f6;
+    box-shadow: 0 0 0 1.5px rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.5);
     border-radius: 50%;
     pointer-events: none;
     z-index: 10000;
     display: block;
-    mix-blend-mode: difference;
-    transform: translate3d(0, 0, 0);
-    will-change: transform, width, height;
+    transform: translate3d(-1000px, -1000px, 0);
+    will-change: transform;
 }
 
 /* --- Universal Modal & Lightbox Styles --- */

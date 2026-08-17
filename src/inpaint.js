@@ -24,6 +24,7 @@ export class InpaintEditor {
         this.imgNaturalW = 0;
         this.imgNaturalH = 0;
         this.lastPos = null;
+        this._cursorRaf = null;
 
         this._bindEvents();
     }
@@ -45,79 +46,126 @@ export class InpaintEditor {
 
         document.getElementById('inpaintStrengthMobile')?.addEventListener('input', e => {
             const val = parseFloat(e.target.value).toFixed(2);
-            document.getElementById('inpaintStrength').value = e.target.value;
-            document.getElementById('inpaintStrengthVal').textContent = val;
-            document.getElementById('inpaintStrengthValMobile').textContent = val;
+            const strDesktop = document.getElementById('inpaintStrength');
+            if (strDesktop) strDesktop.value = e.target.value;
+            const v1 = document.getElementById('inpaintStrengthVal');
+            const v2 = document.getElementById('inpaintStrengthValMobile');
+            if (v1) v1.textContent = val;
+            if (v2) v2.textContent = val;
+        });
+
+        document.getElementById('inpaintStrength')?.addEventListener('input', e => {
+            const val = parseFloat(e.target.value).toFixed(2);
+            const strMobile = document.getElementById('inpaintStrengthMobile');
+            if (strMobile) strMobile.value = e.target.value;
+            const v1 = document.getElementById('inpaintStrengthVal');
+            const v2 = document.getElementById('inpaintStrengthValMobile');
+            if (v1) v1.textContent = val;
+            if (v2) v2.textContent = val;
         });
 
         document.getElementById('inpaintPromptMobile')?.addEventListener('input', e => {
-            document.getElementById('inpaintPrompt').value = e.target.value;
+            const p = document.getElementById('inpaintPrompt');
+            if (p) p.value = e.target.value;
+        });
+        document.getElementById('inpaintPrompt')?.addEventListener('input', e => {
+            const pm = document.getElementById('inpaintPromptMobile');
+            if (pm) pm.value = e.target.value;
         });
 
         document.getElementById('inpaintBlurStrength')?.addEventListener('input', e => {
-            document.getElementById('inpaintBlurStrengthVal').textContent = e.target.value;
+            const v = document.getElementById('inpaintBlurStrengthVal');
+            if (v) v.textContent = e.target.value;
         });
         document.getElementById('inpaintFillTolerance')?.addEventListener('input', e => {
-            document.getElementById('inpaintFillToleranceVal').textContent = e.target.value;
+            const v = document.getElementById('inpaintFillToleranceVal');
+            if (v) v.textContent = e.target.value;
         });
 
-        // Canvas events
-        this.maskCanvas.addEventListener('click', e => {
-            if (this.tool !== 'fill') return;
-            const pos = this._getCanvasPos(e);
-            const tolerance = parseInt(document.getElementById('inpaintFillTolerance')?.value || 15);
-            this.saveMaskState();
-            this._floodFill(pos.x, pos.y, tolerance);
-        });
+        // 统一 Pointer Events 保证笔刷绘制无频闪、连续且不丢失事件
+        this.maskCanvas.addEventListener('pointerdown', e => {
+            e.preventDefault();
+            if (this.tool === 'fill') {
+                const pos = this._getCanvasPos(e);
+                const tolerance = parseInt(document.getElementById('inpaintFillTolerance')?.value || 15);
+                this.saveMaskState();
+                this._floodFill(pos.x, pos.y, tolerance);
+                return;
+            }
 
-        this.maskCanvas.addEventListener('mousedown', e => {
-            this.saveMaskState();
+            try {
+                this.maskCanvas.setPointerCapture(e.pointerId);
+            } catch (_) {}
+
             this.drawing = true;
-            this._drawOnMask(this._getCanvasPos(e), true);
+            this.saveMaskState();
+            const pos = this._getCanvasPos(e);
+            this.lastPos = pos;
+            this._drawDotOrStart(pos);
         });
-        this.maskCanvas.addEventListener('mousemove', e => {
-            const rect = this.maskCanvas.getBoundingClientRect();
-            const scaleX = this.maskCanvas.width / rect.width;
-            const visualBs = this.getBrushSize() / scaleX;
-            
-            this.brushCursor.style.width = visualBs + 'px';
-            this.brushCursor.style.height = visualBs + 'px';
+
+        this.maskCanvas.addEventListener('pointermove', e => {
+            this._updateCursor(e);
+            if (!this.drawing) return;
+            const pos = this._getCanvasPos(e);
+            if (this.lastPos) {
+                this._drawStroke(this.lastPos, pos);
+            } else {
+                this._drawDotOrStart(pos);
+            }
+            this.lastPos = pos;
+        });
+
+        const stopDrawing = (e) => {
+            if (this.drawing) {
+                this.drawing = false;
+                this.lastPos = null;
+                if (e && e.pointerId) {
+                    try {
+                        this.maskCanvas.releasePointerCapture(e.pointerId);
+                    } catch (_) {}
+                }
+            }
+        };
+
+        this.maskCanvas.addEventListener('pointerup', stopDrawing);
+        this.maskCanvas.addEventListener('pointercancel', stopDrawing);
+
+        this.maskCanvas.addEventListener('mouseleave', () => {
+            if (!this.drawing) {
+                if (this.brushCursor) this.brushCursor.classList.add('hidden');
+            }
+        });
+    }
+
+    _updateCursor(e) {
+        if (!this.brushCursor) return;
+        const rect = this.maskCanvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const scaleX = this.maskCanvas.width / rect.width;
+        const visualBs = Math.max(4, this.getBrushSize() / scaleX);
+
+        const rAF = typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame : (typeof window !== 'undefined' && window.requestAnimationFrame ? window.requestAnimationFrame : setTimeout);
+        const cancelRAF = typeof cancelAnimationFrame !== 'undefined' ? cancelAnimationFrame : (typeof window !== 'undefined' && window.cancelAnimationFrame ? window.cancelAnimationFrame : clearTimeout);
+
+        if (this._cursorRaf) cancelRAF(this._cursorRaf);
+        this._cursorRaf = rAF(() => {
+            this.brushCursor.style.width = `${visualBs}px`;
+            this.brushCursor.style.height = `${visualBs}px`;
             this.brushCursor.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
             this.brushCursor.classList.remove('hidden');
-
-            if (!this.drawing) return;
-            this._drawOnMask(this._getCanvasPos(e), false);
-        });
-        this.maskCanvas.addEventListener('mouseup', () => {
-            this.drawing = false;
-            this.lastPos = null;
-        });
-        this.maskCanvas.addEventListener('mouseleave', () => {
-            this.drawing = false;
-            this.lastPos = null;
-            this.brushCursor.classList.add('hidden');
-        });
-
-        this.maskCanvas.addEventListener('touchstart', e => {
-            e.preventDefault();
-            this.saveMaskState();
-            this.drawing = true;
-            this._drawOnMask(this._getCanvasPos(e), true);
-        }, { passive: false });
-        this.maskCanvas.addEventListener('touchmove', e => {
-            e.preventDefault();
-            if (!this.drawing) return;
-            this._drawOnMask(this._getCanvasPos(e), false);
-        }, { passive: false });
-        this.maskCanvas.addEventListener('touchend', () => {
-            this.drawing = false;
-            this.lastPos = null;
         });
     }
 
     toggleDrawer() {
         const drawer = document.getElementById('inpaintMobileDrawer');
-        if (drawer) drawer.classList.toggle('expanded');
+        const label = document.getElementById('drawerToggleLabel');
+        if (drawer) {
+            const isExpanded = drawer.classList.toggle('expanded');
+            if (label) {
+                label.textContent = isExpanded ? '收起 ▼' : '展开 ▲';
+            }
+        }
     }
 
     open() {
@@ -137,6 +185,13 @@ export class InpaintEditor {
         }
         if (inpaintPromptMobile && !inpaintPromptMobile.value.trim()) {
             inpaintPromptMobile.value = inpaintPrompt ? inpaintPrompt.value : mainPrompt;
+        }
+
+        const drawer = document.getElementById('inpaintMobileDrawer');
+        const label = document.getElementById('drawerToggleLabel');
+        if (drawer) {
+            drawer.classList.remove('expanded');
+            if (label) label.textContent = '展开 ▲';
         }
 
         const img = new Image();
@@ -164,6 +219,7 @@ export class InpaintEditor {
             this.modal.style.display = 'none';
         }, 300);
         if (this.brushCursor) this.brushCursor.classList.add('hidden');
+        if (this._cursorRaf) cancelAnimationFrame(this._cursorRaf);
     }
 
     setTool(tool) {
@@ -244,22 +300,47 @@ export class InpaintEditor {
         };
     }
 
-    _stampBrush(x, y, radius) {
+    _drawDotOrStart(pos) {
+        const r = this.getBrushSize();
+        const tool = this.tool;
+        this.maskCtx.save();
+        if (tool === 'eraser') {
+            this.maskCtx.globalCompositeOperation = 'destination-out';
+            this.maskCtx.fillStyle = 'rgba(0,0,0,1)';
+        } else {
+            this.maskCtx.globalCompositeOperation = 'source-over';
+            this.maskCtx.fillStyle = '#FFFFFF';
+        }
         this.maskCtx.beginPath();
-        this.maskCtx.arc(Math.round(x), Math.round(y), radius / 2, 0, Math.PI * 2);
+        this.maskCtx.arc(pos.x, pos.y, r / 2, 0, Math.PI * 2);
         this.maskCtx.fill();
+        this.maskCtx.restore();
     }
 
-    _drawInterpolated(from, to, radius, stampFn) {
-        const dx = to.x - from.x;
-        const dy = to.y - from.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const step = Math.max(1, Math.floor(radius / 8));
-        const numSteps = Math.max(1, Math.ceil(dist / step));
-        for (let i = 0; i <= numSteps; i++) {
-            const t = i / numSteps;
-            stampFn.call(this, from.x + dx * t, from.y + dy * t, radius);
+    _drawStroke(from, to) {
+        const r = this.getBrushSize();
+        const tool = this.tool;
+        this.maskCtx.save();
+        this.maskCtx.lineCap = 'round';
+        this.maskCtx.lineJoin = 'round';
+        this.maskCtx.lineWidth = r;
+
+        if (tool === 'eraser') {
+            this.maskCtx.globalCompositeOperation = 'destination-out';
+            this.maskCtx.strokeStyle = 'rgba(0,0,0,1)';
+            this.maskCtx.beginPath();
+            this.maskCtx.moveTo(from.x, from.y);
+            this.maskCtx.lineTo(to.x, to.y);
+            this.maskCtx.stroke();
+        } else if (tool === 'brush') {
+            this.maskCtx.globalCompositeOperation = 'source-over';
+            this.maskCtx.strokeStyle = '#FFFFFF';
+            this.maskCtx.beginPath();
+            this.maskCtx.moveTo(from.x, from.y);
+            this.maskCtx.lineTo(to.x, to.y);
+            this.maskCtx.stroke();
         }
+        this.maskCtx.restore();
     }
 
     _floodFill(startX, startY, tolerance) {
@@ -318,44 +399,6 @@ export class InpaintEditor {
             }
         }
         this.maskCtx.putImageData(imageData, 0, 0);
-    }
-
-    _drawOnMask(pos, isStart = false) {
-        const r = this.getBrushSize();
-        const tool = this.tool;
-
-        if (tool === 'eraser') {
-            this.maskCtx.globalCompositeOperation = 'destination-out';
-            this.maskCtx.fillStyle = 'rgba(0,0,0,1)';
-            this.maskCtx.beginPath();
-            this.maskCtx.arc(Math.round(pos.x), Math.round(pos.y), r / 2, 0, Math.PI * 2);
-            this.maskCtx.fill();
-            this.maskCtx.globalCompositeOperation = 'source-over';
-        } else if (tool === 'brush') {
-            this.maskCtx.globalCompositeOperation = 'source-over';
-            this.maskCtx.fillStyle = '#FFFFFF';
-            if (isStart || !this.lastPos) {
-                this._stampBrush(pos.x, pos.y, r);
-            } else {
-                this._drawInterpolated(this.lastPos, pos, r, this._stampBrush);
-            }
-        } else if (tool === 'blur') {
-            const intensity = parseInt(document.getElementById('inpaintBlurStrength')?.value || 50);
-            if (isStart || !this.lastPos) {
-                this._blurMask(pos, r, intensity);
-            } else {
-                const dx = pos.x - this.lastPos.x;
-                const dy = pos.y - this.lastPos.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const step = Math.max(1, Math.floor(r / 4));
-                const numSteps = Math.max(1, Math.ceil(dist / step));
-                for (let i = 0; i <= numSteps; i++) {
-                    const t = i / numSteps;
-                    this._blurMask({x: this.lastPos.x + dx * t, y: this.lastPos.y + dy * t}, r, intensity);
-                }
-            }
-        }
-        this.lastPos = pos;
     }
 
     _fitCanvasToContainer(img) {

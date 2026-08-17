@@ -2192,35 +2192,42 @@
         </div>
 
         <!-- 移动端抽屉 (仅手机显示) -->
-        <div id="inpaintMobileDrawer" class="md:hidden">
-            <div class="drawer-handle" onclick="toggleInpaintDrawer()"></div>
+        <div id="inpaintMobileDrawer" class="md:hidden flex flex-col">
+            <!-- 抽屉头部把手与状态栏 (点击可自由折叠/展开) -->
+            <div class="drawer-header w-full flex flex-col items-center pt-2.5 pb-2 cursor-pointer touch-none select-none" onclick="toggleInpaintDrawer()" id="inpaintDrawerHeader">
+                <div class="drawer-handle"></div>
+                <div class="flex items-center justify-between w-full px-5 text-[11px] font-medium text-white/70">
+                    <span class="flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-blue-400"></i> 重绘参数</span>
+                    <span id="drawerToggleLabel" class="text-[10px] text-blue-400 font-mono font-bold">展开 ▲</span>
+                </div>
+            </div>
             
-            <div class="flex flex-col gap-6 pt-2">
+            <div class="drawer-content flex flex-col gap-4 px-5 pb-6 overflow-y-auto custom-scroll max-h-[70vh]">
                 <!-- 第一行: 画笔大小调节 -->
-                <div class="flex items-center gap-4 bg-white/5 rounded-2xl px-4 py-3">
-                    <span class="text-[10px] font-bold text-white/20 uppercase tracking-widest w-8">Size</span>
-                    <input type="range" id="inpaintBrushSizeMobile" min="5" max="300" value="60" class="flex-1 accent-blue-500 h-1 bg-white/10 rounded-full appearance-none cursor-pointer">
-                    <span id="inpaintBrushSizeValMobile" class="text-xs font-mono text-white/40 w-8 text-right">60</span>
+                <div class="flex items-center gap-4 bg-white/5 rounded-2xl px-4 py-3 border border-white/5">
+                    <span class="text-[10px] font-bold text-white/40 uppercase tracking-widest w-8">Size</span>
+                    <input type="range" id="inpaintBrushSizeMobile" min="5" max="300" value="60" class="flex-1 accent-blue-500 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer">
+                    <span id="inpaintBrushSizeValMobile" class="text-xs font-mono text-white/60 w-8 text-right">60</span>
                 </div>
 
                 <!-- 第二行: 提示词 -->
                 <div class="relative group">
-                    <textarea id="inpaintPromptMobile" placeholder="重绘提示词..." rows="2"
-                        class="w-full px-5 py-4 rounded-2xl text-sm bg-white/5 border border-white/10 text-white placeholder-white/20 outline-none focus:border-blue-500/50 transition-all resize-none"></textarea>
+                    <textarea id="inpaintPromptMobile" placeholder="重绘提示词 (留空则沿用当前提示词)..." rows="2"
+                        class="w-full px-4 py-3 rounded-2xl text-xs bg-white/5 border border-white/10 text-white placeholder-white/30 outline-none focus:border-blue-500/50 transition-all resize-none"></textarea>
                 </div>
 
                 <!-- 第三行: 强度 & 提交 -->
-                <div class="flex flex-col gap-5">
-                    <div class="flex flex-col gap-2">
-                        <div class="flex justify-between text-[10px] font-bold text-white/20 uppercase tracking-widest">
-                            <span>Strength</span>
+                <div class="flex flex-col gap-4">
+                    <div class="flex flex-col gap-1.5 bg-white/5 rounded-2xl px-4 py-3 border border-white/5">
+                        <div class="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                            <span>Strength (重绘幅度)</span>
                             <span id="inpaintStrengthValMobile" class="text-blue-400 font-mono">1.00</span>
                         </div>
-                        <input type="range" id="inpaintStrengthMobile" min="0.1" max="1.0" value="1.0" step="0.01" class="w-full accent-blue-500 h-1 bg-white/10 rounded-full appearance-none cursor-pointer">
+                        <input type="range" id="inpaintStrengthMobile" min="0.1" max="1.0" value="1.0" step="0.01" class="w-full accent-blue-500 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer">
                     </div>
                     <button onclick="doInpaint()" id="inpaintSubmitBtnMobile"
-                        class="w-full py-4 bg-blue-600 text-white text-sm font-black rounded-2xl shadow-lg active:scale-[0.95] flex items-center justify-center gap-3">
-                        <i data-lucide="sparkles" class="w-5 h-5"></i> 确认重绘
+                        class="w-full py-3.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘
                     </button>
                 </div>
             </div>
