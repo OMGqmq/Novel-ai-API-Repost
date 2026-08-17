@@ -908,3 +908,59 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     }
 }
 
+/* --- Outpainting Floating Toolbar & Smooth Transitions (R1) --- */
+#outpaintToolbar {
+    position: absolute;
+    z-index: 50;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+    user-select: none;
+    touch-action: none;
+}
+
+.dark #outpaintToolbar {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+#outpaintToolbarInner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    max-height: 600px;
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: top center;
+    transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.2s ease,
+                transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+}
+
+#outpaintToolbarInner.collapsed {
+    max-height: 0 !important;
+    opacity: 0 !important;
+    transform: scaleY(0.9) !important;
+    pointer-events: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+}
+
+#outpaintToolbarToggleBtn .toggle-icon {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#outpaintToolbarToggleBtn.collapsed .toggle-icon {
+    transform: rotate(180deg);
+}
+
+#outpaintBrushControl input[type="range"] {
+    touch-action: none;
+}
+
+

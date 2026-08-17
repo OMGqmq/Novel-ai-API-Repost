@@ -192,11 +192,11 @@
                     </div>
                 </div>
                 <!-- Outpaint UI overlay (Vertical) -->
-                <div id="outpaintToolbar" class="absolute top-1/2 right-4 -translate-y-1/2 flex flex-col items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur p-2 rounded-2xl shadow-lg z-50 transition-all">
+                <div id="outpaintToolbar" class="absolute top-1/2 right-4 -translate-y-1/2 flex flex-col items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur p-2 rounded-2xl shadow-lg z-50">
                     <!-- 收缩/展开按钮 -->
-                    <button onclick="document.getElementById('outpaintToolbarInner').classList.toggle('hidden')" class="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl text-gray-700 dark:text-gray-300" title="折叠/展开工具栏"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                    <button id="outpaintToolbarToggleBtn" onclick="window.outpaintEditor ? window.outpaintEditor.toggleToolbar() : null" class="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl text-gray-700 dark:text-gray-300 transition-colors" title="折叠/展开工具栏"><i data-lucide="chevron-up" class="w-5 h-5 toggle-icon"></i></button>
                     
-                    <div id="outpaintToolbarInner" class="flex flex-col items-center gap-2">
+                    <div id="outpaintToolbarInner">
                         <button onclick="window.outpaintEditor.zoomIn()" class="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl text-gray-700 dark:text-gray-300"><i data-lucide="zoom-in" class="w-5 h-5"></i></button>
                         <button onclick="window.outpaintEditor.zoomOut()" class="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl text-gray-700 dark:text-gray-300"><i data-lucide="zoom-out" class="w-5 h-5"></i></button>
                         <button onclick="window.outpaintEditor.resetView()" class="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl text-gray-700 dark:text-gray-300"><i data-lucide="focus" class="w-5 h-5"></i></button>

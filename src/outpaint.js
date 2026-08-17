@@ -17,11 +17,14 @@ export class OutpaintEditor {
             brushSizeVal: document.getElementById('outpaintBrushSizeVal'),
             modeMoveBtn: document.getElementById('outpaintModeMove'),
             modePaintBtn: document.getElementById('outpaintModePaint'),
-            toolbar: document.getElementById('outpaintToolbar')
+            toolbar: document.getElementById('outpaintToolbar'),
+            toolbarInner: document.getElementById('outpaintToolbarInner'),
+            toolbarToggleBtn: document.getElementById('outpaintToolbarToggleBtn'),
+            snapToggleBtn: document.getElementById('outpaintSnapToggle')
         };
 
-        this.ctx = this.els.canvas.getContext('2d');
-        this.maskCtx = this.els.maskCanvas.getContext('2d');
+        this.ctx = this.els.canvas ? this.els.canvas.getContext('2d') : null;
+        this.maskCtx = this.els.maskCanvas ? this.els.maskCanvas.getContext('2d') : null;
 
         // Transform state
         this.transform = { x: 0, y: 0, scale: 1 };
@@ -31,8 +34,12 @@ export class OutpaintEditor {
         
         // Mode state
         this.mode = 'move'; // 'move' or 'paint'
+        this.tool = 'brush'; // 'brush' or 'eraser'
         this.isPainting = false;
         this.lastPos = null;
+
+        // Toolbar state
+        this.isToolbarCollapsed = false;
 
         // History state
         this.history = [];
@@ -44,23 +51,94 @@ export class OutpaintEditor {
         this.isPanning = false;
         this.isDraggingSelection = false;
         this.isResizing = false;
+        this.isDraggingToolbar = false;
         this.resizeHandle = null;
         this.lastMouse = { x: 0, y: 0 };
         this.startTransform = null;
         this.startSelection = null;
         this.isSnapEnabled = false;
 
+        // rAF Render Scheduler
+        this._renderPending = false;
+        this._rafId = null;
+
         this._bindEvents();
     }
 
     get maxPixels() {
-        const bypass = this.store.getSetting('nai_bypass_limits') === 'true';
+        const bypass = this.store && this.store.getSetting ? this.store.getSetting('nai_bypass_limits') === 'true' : false;
         return bypass ? 1024 * 1024 * 1.5 : 1024 * 1024; // 解锁限制后放宽至 1.5M 像素，否则限制在 1M 像素
     }
 
-    toggleSnap() {
-        this.isSnapEnabled = !this.isSnapEnabled;
-        const btn = document.getElementById('outpaintSnapToggle');
+    toggleToolbar(forceState) {
+        if (typeof forceState === 'boolean') {
+            this.isToolbarCollapsed = !forceState;
+        } else {
+            this.isToolbarCollapsed = !this.isToolbarCollapsed;
+        }
+
+        const inner = this.els.toolbarInner || document.getElementById('outpaintToolbarInner');
+        const btn = this.els.toolbarToggleBtn || document.getElementById('outpaintToolbarToggleBtn');
+
+        if (inner) {
+            if (this.isToolbarCollapsed) {
+                inner.classList.add('collapsed');
+            } else {
+                inner.classList.remove('collapsed');
+            }
+        }
+
+        if (btn) {
+            if (this.isToolbarCollapsed) {
+                btn.classList.add('collapsed');
+            } else {
+                btn.classList.remove('collapsed');
+            }
+        }
+
+        if (!this.isToolbarCollapsed) {
+            this.clampToolbarPosition();
+        }
+    }
+
+    clampToolbarPosition() {
+        const toolbar = this.els.toolbar || document.getElementById('outpaintToolbar');
+        const area = this.els.area || document.getElementById('outpaintArea');
+        if (!toolbar || !area) return;
+
+        const parentRect = area.getBoundingClientRect ? area.getBoundingClientRect() : { left: 0, top: 0, width: 800, height: 600 };
+        const rect = toolbar.getBoundingClientRect ? toolbar.getBoundingClientRect() : { width: 60, height: 400 };
+
+        if (!parentRect.width || !parentRect.height) return;
+
+        const hasLeft = toolbar.style.left && toolbar.style.left !== 'auto';
+        const hasTop = toolbar.style.top && toolbar.style.top !== 'auto';
+
+        if (hasLeft || hasTop) {
+            let left = parseFloat(toolbar.style.left) || 0;
+            let top = parseFloat(toolbar.style.top) || 0;
+
+            const maxLeft = Math.max(0, parentRect.width - (rect.width || 60));
+            const maxTop = Math.max(0, parentRect.height - (rect.height || 60));
+
+            left = Math.max(0, Math.min(left, maxLeft));
+            top = Math.max(0, Math.min(top, maxTop));
+
+            toolbar.style.right = 'auto';
+            toolbar.style.bottom = 'auto';
+            toolbar.style.transform = 'none';
+            toolbar.style.left = `${Math.round(left)}px`;
+            toolbar.style.top = `${Math.round(top)}px`;
+        }
+    }
+
+    toggleSnap(forceState) {
+        if (typeof forceState === 'boolean') {
+            this.isSnapEnabled = forceState;
+        } else {
+            this.isSnapEnabled = !this.isSnapEnabled;
+        }
+        const btn = this.els.snapToggleBtn || document.getElementById('outpaintSnapToggle');
         if (btn) {
             if (this.isSnapEnabled) {
                 btn.classList.remove('text-gray-500');
@@ -77,65 +155,98 @@ export class OutpaintEditor {
     setMode(mode) {
         this.mode = mode;
         if (mode === 'move') {
-            this.els.selection.classList.remove('cursor-crosshair');
-            this.els.selection.classList.add('cursor-move');
-            this.els.maskCanvas.classList.add('pointer-events-none');
-            this.els.brushControl.classList.remove('flex');
-            this.els.brushControl.classList.add('hidden');
-            this.els.modeMoveBtn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-            this.els.modeMoveBtn.classList.remove('text-gray-500');
-            this.els.modePaintBtn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-            this.els.modePaintBtn.classList.add('text-gray-500');
+            if (this.els.selection) {
+                this.els.selection.classList.remove('cursor-crosshair');
+                this.els.selection.classList.add('cursor-move');
+            }
+            if (this.els.maskCanvas) {
+                this.els.maskCanvas.classList.add('pointer-events-none');
+            }
+            if (this.els.brushControl) {
+                this.els.brushControl.classList.remove('flex');
+                this.els.brushControl.classList.add('hidden');
+            }
+            if (this.els.modeMoveBtn) {
+                this.els.modeMoveBtn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+                this.els.modeMoveBtn.classList.remove('text-gray-500');
+            }
+            if (this.els.modePaintBtn) {
+                this.els.modePaintBtn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+                this.els.modePaintBtn.classList.add('text-gray-500');
+            }
         } else {
-            this.els.selection.classList.remove('cursor-move');
-            this.els.selection.classList.add('cursor-crosshair');
-            this.els.maskCanvas.classList.remove('pointer-events-none');
-            this.els.brushControl.classList.remove('hidden');
-            this.els.brushControl.classList.add('flex');
-            this.els.modePaintBtn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-            this.els.modePaintBtn.classList.remove('text-gray-500');
-            this.els.modeMoveBtn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-            this.els.modeMoveBtn.classList.add('text-gray-500');
+            if (this.els.selection) {
+                this.els.selection.classList.remove('cursor-move');
+                this.els.selection.classList.add('cursor-crosshair');
+            }
+            if (this.els.maskCanvas) {
+                this.els.maskCanvas.classList.remove('pointer-events-none');
+            }
+            if (this.els.brushControl) {
+                this.els.brushControl.classList.remove('hidden');
+                this.els.brushControl.classList.add('flex');
+            }
+            if (this.els.modePaintBtn) {
+                this.els.modePaintBtn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+                this.els.modePaintBtn.classList.remove('text-gray-500');
+            }
+            if (this.els.modeMoveBtn) {
+                this.els.modeMoveBtn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+                this.els.modeMoveBtn.classList.add('text-gray-500');
+            }
         }
     }
 
+    setTool(tool) {
+        this.tool = tool; // 'brush' or 'eraser'
+    }
+
     _getBrushSize() {
-        return parseInt(this.els.brushSizeInput.value || 60);
+        return parseInt(this.els.brushSizeInput?.value || 60);
     }
 
     _drawOnMask(pos, isStart = false) {
+        if (!this.maskCtx || !pos) return;
         const r = this._getBrushSize();
-        this.maskCtx.globalCompositeOperation = 'source-over';
-        this.maskCtx.fillStyle = '#FFFFFF';
-        
+        const tool = this.tool || 'brush';
+        this.maskCtx.save();
+
+        if (tool === 'eraser') {
+            this.maskCtx.globalCompositeOperation = 'destination-out';
+            this.maskCtx.fillStyle = 'rgba(0,0,0,1)';
+            this.maskCtx.strokeStyle = 'rgba(0,0,0,1)';
+        } else {
+            this.maskCtx.globalCompositeOperation = 'source-over';
+            this.maskCtx.fillStyle = '#FFFFFF';
+            this.maskCtx.strokeStyle = '#FFFFFF';
+        }
+
         if (isStart || !this.lastPos) {
             this.maskCtx.beginPath();
             this.maskCtx.arc(Math.round(pos.x), Math.round(pos.y), r / 2, 0, Math.PI * 2);
             this.maskCtx.fill();
         } else {
-            const dx = pos.x - this.lastPos.x;
-            const dy = pos.y - this.lastPos.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const step = Math.max(1, Math.floor(r / 8));
-            const numSteps = Math.max(1, Math.ceil(dist / step));
-            for (let i = 0; i <= numSteps; i++) {
-                const t = i / numSteps;
-                const tx = this.lastPos.x + dx * t;
-                const ty = this.lastPos.y + dy * t;
-                this.maskCtx.beginPath();
-                this.maskCtx.arc(Math.round(tx), Math.round(ty), r / 2, 0, Math.PI * 2);
-                this.maskCtx.fill();
-            }
+            this.maskCtx.lineCap = 'round';
+            this.maskCtx.lineJoin = 'round';
+            this.maskCtx.lineWidth = r;
+            this.maskCtx.beginPath();
+            this.maskCtx.moveTo(this.lastPos.x, this.lastPos.y);
+            this.maskCtx.lineTo(pos.x, pos.y);
+            this.maskCtx.stroke();
         }
+        this.maskCtx.restore();
         this.lastPos = pos;
     }
 
     _getMaskPos(e) {
-        const rect = this.els.maskCanvas.getBoundingClientRect();
+        if (!this.els.maskCanvas) return { x: 0, y: 0 };
+        const rect = this.els.maskCanvas.getBoundingClientRect ? this.els.maskCanvas.getBoundingClientRect() : { left: 0, top: 0, width: 512, height: 512 };
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const scaleX = this.els.maskCanvas.width / rect.width;
-        const scaleY = this.els.maskCanvas.height / rect.height;
+        const width = rect.width || this.els.maskCanvas.width || 512;
+        const height = rect.height || this.els.maskCanvas.height || 512;
+        const scaleX = this.els.maskCanvas.width / width;
+        const scaleY = this.els.maskCanvas.height / height;
         return {
             x: (clientX - rect.left) * scaleX,
             y: (clientY - rect.top) * scaleY
@@ -146,9 +257,14 @@ export class OutpaintEditor {
         this.history = [];
         this.maskHistory = [];
         this.setMode('move');
-        this.els.brushSizeInput.value = 60;
-        this.els.brushSizeVal.textContent = 60;
-        this.maskCtx.clearRect(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height);
+        this.toggleToolbar(true); // Ensure toolbar is visible / expanded
+        this.toggleSnap(false); // Reset snap state
+        
+        if (this.els.brushSizeInput) this.els.brushSizeInput.value = 60;
+        if (this.els.brushSizeVal) this.els.brushSizeVal.textContent = 60;
+        if (this.els.maskCanvas && this.maskCtx) {
+            this.maskCtx.clearRect(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height);
+        }
 
         if (!this.els.sourceImg || !this.els.sourceImg.src) {
             alert('请先选择一张图片进行扩图');
@@ -172,8 +288,9 @@ export class OutpaintEditor {
 
             this._updateSelectionDOM();
             this.resetView();
+            this.clampToolbarPosition();
 
-            this.els.area.classList.remove('hidden');
+            if (this.els.area) this.els.area.classList.remove('hidden');
             if (window.safeCreateIcons) window.safeCreateIcons();
         };
         img.src = this.els.sourceImg.src;
@@ -182,7 +299,19 @@ export class OutpaintEditor {
     close() {
         this.history = [];
         this.maskHistory = [];
-        this.els.area.classList.add('hidden');
+        this.isPainting = false;
+        this.isPanning = false;
+        this.isDraggingSelection = false;
+        this.isResizing = false;
+        this.isDraggingToolbar = false;
+        if (this._rafId) {
+            const cancelRAF = typeof cancelAnimationFrame !== 'undefined' ? cancelAnimationFrame : (typeof window !== 'undefined' && window.cancelAnimationFrame ? window.cancelAnimationFrame : clearTimeout);
+            cancelRAF(this._rafId);
+            this._renderPending = false;
+        }
+        if (this.els.area) {
+            this.els.area.classList.add('hidden');
+        }
     }
 
     saveState() {
@@ -198,14 +327,74 @@ export class OutpaintEditor {
         if (this.history.length > this.maxHistory) this.history.shift();
     }
 
+    saveMaskState() {
+        if (!this.els.maskCanvas || !this.maskCtx) return;
+        const w = this.els.maskCanvas.width;
+        const h = this.els.maskCanvas.height;
+        if (!w || !h) return;
+        const imgData = this.maskCtx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+        const alpha = new Uint8Array(w * h);
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            alpha[j] = data[i + 3];
+        }
+        this.maskHistory.push({ width: w, height: h, alpha });
+        if (this.maskHistory.length > this.maxMaskHistory) this.maskHistory.shift();
+    }
+
+    _restoreMaskState(state) {
+        if (!state || !this.maskCtx) return;
+        if (typeof ImageData !== 'undefined' && state instanceof ImageData) {
+            this.maskCtx.putImageData(state, 0, 0);
+            return;
+        }
+        if (state.data && typeof state.width === 'number') {
+            this.maskCtx.putImageData(state, 0, 0);
+            return;
+        }
+        if (state.alpha) {
+            const w = state.width || this.els.maskCanvas.width;
+            const h = state.height || this.els.maskCanvas.height;
+            if (this.els.maskCanvas.width !== w || this.els.maskCanvas.height !== h) {
+                this.els.maskCanvas.width = w;
+                this.els.maskCanvas.height = h;
+            }
+            let imgData;
+            if (this.maskCtx.createImageData) {
+                imgData = this.maskCtx.createImageData(w, h);
+            } else if (typeof ImageData !== 'undefined') {
+                imgData = new ImageData(w, h);
+            } else {
+                imgData = { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) };
+            }
+            const data = imgData.data;
+            const alpha = state.alpha;
+            for (let j = 0, i = 0; j < alpha.length; j++, i += 4) {
+                const a = alpha[j];
+                if (a > 0) {
+                    data[i] = 255;
+                    data[i + 1] = 255;
+                    data[i + 2] = 255;
+                    data[i + 3] = a;
+                }
+            }
+            this.maskCtx.putImageData(imgData, 0, 0);
+        }
+    }
+
     undo() {
         if (this.mode === 'paint' && this.maskHistory.length > 0) {
             const state = this.maskHistory.pop();
-            this.maskCtx.putImageData(state, 0, 0);
+            this._restoreMaskState(state);
             return;
         }
 
         if (this.history.length === 0) {
+            if (this.maskHistory.length > 0) {
+                const state = this.maskHistory.pop();
+                this._restoreMaskState(state);
+                return;
+            }
             alert('没有可撤销的操作');
             return;
         }
@@ -228,6 +417,7 @@ export class OutpaintEditor {
     }
 
     _hasPaintedMask() {
+        if (!this.els.maskCanvas || !this.maskCtx) return false;
         const data = this.maskCtx.getImageData(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height).data;
         for (let i = 0; i < data.length; i += 4) {
             if (data[i] > 200 && data[i + 3] > 128) return true;
@@ -237,10 +427,11 @@ export class OutpaintEditor {
 
     clearMask() {
         if (this.maskHistory.length > 0 || this._hasPaintedMask()) {
-            this.maskHistory.push(this.maskCtx.getImageData(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height));
-            if (this.maskHistory.length > this.maxMaskHistory) this.maskHistory.shift();
+            this.saveMaskState();
         }
-        this.maskCtx.clearRect(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height);
+        if (this.els.maskCanvas && this.maskCtx) {
+            this.maskCtx.clearRect(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height);
+        }
     }
 
     async saveToHistory() {
@@ -250,12 +441,10 @@ export class OutpaintEditor {
         const prompt = document.getElementById('prompt')?.value || '';
         
         await this.store.saveImage(finalBase64, prompt, modelVersion);
-        // 静默保存，控制台记录
         console.log("Image saved to history");
         if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
         window.lastSelectedImageUrl = finalBase64;
         if (window.switchGalleryTab) window.switchGalleryTab('history');
-        // Let the global scope update the grid if needed
         if (window.loadGallery) window.loadGallery();
     }
 
@@ -277,15 +466,17 @@ export class OutpaintEditor {
 
         try {
             const { w, h, x, y } = this.selection;
-            const targetW = Math.round(w / 64) * 64;
-            const targetH = Math.round(h / 64) * 64;
+            const targetW = Math.max(64, Math.round(w / 64) * 64);
+            const targetH = Math.max(64, Math.round(h / 64) * 64);
+            const roundX = Math.round(x);
+            const roundY = Math.round(y);
 
-            // Crop image
+            // Crop image 1:1
             const cropCanvas = document.createElement('canvas');
             cropCanvas.width = targetW;
             cropCanvas.height = targetH;
             const cropCtx = cropCanvas.getContext('2d');
-            cropCtx.drawImage(this.els.canvas, -x, -y);
+            cropCtx.drawImage(this.els.canvas, -roundX, -roundY);
 
             // Check if there is a painted mask
             const hasPaintedMask = this._hasPaintedMask();
@@ -295,13 +486,15 @@ export class OutpaintEditor {
             let isPureGeneration = false;
 
             if (hasPaintedMask) {
-                // INPAINT MODE: Use the painted mask
+                // INPAINT MODE: Use the painted mask (1:1 aligned)
                 finalMaskCanvas = document.createElement('canvas');
                 finalMaskCanvas.width = targetW;
                 finalMaskCanvas.height = targetH;
                 const fmcCtx = finalMaskCanvas.getContext('2d');
-                fmcCtx.drawImage(this.els.maskCanvas, 0, 0, targetW, targetH);
-                action = 'infill'; // NovelAI's inpaint action is often called 'infill' in their UI for legacy reasons, or handled by strength
+                fmcCtx.fillStyle = '#000000';
+                fmcCtx.fillRect(0, 0, targetW, targetH);
+                fmcCtx.drawImage(this.els.maskCanvas, 0, 0, Math.min(this.els.maskCanvas.width, targetW), Math.min(this.els.maskCanvas.height, targetH));
+                action = 'infill';
             } else {
                 // OUTPAINT MODE: Generate mask based on alpha channel
                 const imgData = cropCtx.getImageData(0, 0, targetW, targetH);
@@ -320,7 +513,6 @@ export class OutpaintEditor {
                     const alpha = imgData.data[i + 3];
                     if (alpha > 128) {
                         hasOpaquePixels = true;
-                        // If pixel is opaque, we want to KEEP it, so Mask = Black
                         maskData.data[i] = 0;
                         maskData.data[i + 1] = 0;
                         maskData.data[i + 2] = 0;
@@ -332,7 +524,7 @@ export class OutpaintEditor {
                     isPureGeneration = true;
                 }
 
-                // DILATE MASK: Expand the white area (generate) slightly into the black area (keep).
+                // DILATE MASK
                 finalMaskCanvas = document.createElement('canvas');
                 finalMaskCanvas.width = targetW;
                 finalMaskCanvas.height = targetH;
@@ -347,27 +539,23 @@ export class OutpaintEditor {
                 }
             }
 
-            // SMEAR IMAGE EDGES: 精准的边缘像素 Clamp-to-Edge 拉伸，为 AI 提供自然的上下文，消除接缝割裂感
+            // SMEAR IMAGE EDGES: 精准的边缘像素 Clamp-to-Edge 拉伸
             cropCtx.globalCompositeOperation = 'destination-over';
-            const left = Math.max(0, -x);
-            const right = Math.min(targetW, -x + this.els.canvas.width);
-            const top = Math.max(0, -y);
-            const bottom = Math.min(targetH, -y + this.els.canvas.height);
+            const left = Math.max(0, -roundX);
+            const right = Math.min(targetW, -roundX + this.els.canvas.width);
+            const top = Math.max(0, -roundY);
+            const bottom = Math.min(targetH, -roundY + this.els.canvas.height);
 
             if (right > left && bottom > top) {
-                // 1. 向上拉伸
                 if (top > 0) {
                     cropCtx.drawImage(cropCanvas, left, top, right - left, 1, left, 0, right - left, top);
                 }
-                // 2. 向下拉伸
                 if (bottom < targetH) {
                     cropCtx.drawImage(cropCanvas, left, bottom - 1, right - left, 1, left, bottom, right - left, targetH - bottom);
                 }
-                // 3. 向左拉伸（包含已拉伸的上下边缘）
                 if (left > 0) {
                     cropCtx.drawImage(cropCanvas, left, 0, 1, targetH, 0, 0, left, targetH);
                 }
-                // 4. 向右拉伸（包含已拉伸的上下边缘）
                 if (right < targetW) {
                     cropCtx.drawImage(cropCanvas, right - 1, 0, 1, targetH, right, 0, targetW - right, targetH);
                 }
@@ -414,7 +602,7 @@ export class OutpaintEditor {
             const steps = parseInt(document.getElementById('steps')?.value || 28);
             const scale = parseFloat(document.getElementById('scale')?.value || 5);
             const sampler = document.getElementById('sampler')?.value || 'k_euler';
-            const strength = hasPaintedMask ? 0.7 : 1.0; // Use partial strength for inpaint if needed, though infill 1.0 is standard
+            const strength = hasPaintedMask ? 0.7 : 1.0;
 
             // Handling Multi-API Keys gracefully
             const adminToken = this.store.getSetting('nai_admin_token');
@@ -422,7 +610,7 @@ export class OutpaintEditor {
             const customApiKeyRaw = this.store.getSetting('nai_custom_api_key', '');
             const customKeys = customApiKeyRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k);
             
-            const authBase = { adminToken, userKey, userToken: localStorage.getItem('nai_user_token') || "" };
+            const authBase = { adminToken, userKey, userToken: (typeof localStorage !== 'undefined' ? localStorage.getItem('nai_user_token') : null) || "" };
             const authsToTry = customKeys.length > 0 
                 ? customKeys.map(key => ({ ...authBase, customApiKey: key }))
                 : [{ ...authBase, customApiKey: "" }];
@@ -470,19 +658,19 @@ export class OutpaintEditor {
 
             // Stitch the resulting image back
             const newImg = new Image();
+            newImg.crossOrigin = 'anonymous';
             newImg.onload = () => {
                 this.saveState();
                 
-                // Clear the mask after successful generation if it was an inpaint
                 if (hasPaintedMask) {
                     this.maskCtx.clearRect(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height);
                     this.maskHistory = [];
                 }
 
-                const newCanvasW = Math.max(this.els.canvas.width, x + targetW);
-                const newCanvasH = Math.max(this.els.canvas.height, y + targetH);
-                const newCanvasX = Math.min(0, x);
-                const newCanvasY = Math.min(0, y);
+                const newCanvasW = Math.max(this.els.canvas.width, roundX + targetW);
+                const newCanvasH = Math.max(this.els.canvas.height, roundY + targetH);
+                const newCanvasX = Math.min(0, roundX);
+                const newCanvasY = Math.min(0, roundY);
 
                 const finalW = newCanvasW - newCanvasX;
                 const finalH = newCanvasH - newCanvasY;
@@ -493,7 +681,7 @@ export class OutpaintEditor {
                 const combinedCtx = combinedCanvas.getContext('2d');
 
                 combinedCtx.drawImage(this.els.canvas, -newCanvasX, -newCanvasY);
-                combinedCtx.drawImage(newImg, x - newCanvasX, y - newCanvasY, targetW, targetH);
+                combinedCtx.drawImage(newImg, roundX - newCanvasX, roundY - newCanvasY, targetW, targetH);
 
                 this.els.canvas.width = finalW;
                 this.els.canvas.height = finalH;
@@ -510,17 +698,17 @@ export class OutpaintEditor {
                 this._updateSelectionDOM();
 
                 const finalBase64 = this.els.canvas.toDataURL('image/png');
-                // 静默更新，不弹窗
                 console.log(hasPaintedMask ? "Inpaint generated" : "Outpaint generated");
                 if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
                 window.lastSelectedImageUrl = finalBase64;
             };
-            newImg.src = result.imageUrl;
+            newImg.src = result.imageUrl || (result.blob ? URL.createObjectURL(result.blob) : 'data:image/png;base64,mock');
 
             if (result.userRole && document.getElementById('creditDisplayDesktop')) {
                 const text = result.userRole.replace(" (Limited)", "").replace(" (Unlimited)", "");
                 document.getElementById('creditDisplayDesktop').textContent = text;
-                document.getElementById('creditDisplayMobile').textContent = text;
+                const mob = document.getElementById('creditDisplayMobile');
+                if (mob) mob.textContent = text;
             }
 
         } catch (err) {
@@ -539,21 +727,23 @@ export class OutpaintEditor {
     }
 
     resetView() {
-        const areaRect = this.els.area.getBoundingClientRect();
-        const contentW = this.els.canvas.width;
-        const contentH = this.els.canvas.height;
+        const areaRect = this.els.area ? this.els.area.getBoundingClientRect() : { left: 0, top: 0, width: 800, height: 600 };
+        const contentW = this.els.canvas ? this.els.canvas.width : 512;
+        const contentH = this.els.canvas ? this.els.canvas.height : 512;
 
-        // Fit content into view with some padding
         const padding = 100;
-        const scaleX = (areaRect.width - padding) / contentW;
-        const scaleY = (areaRect.height - padding) / contentH;
-        this.transform.scale = Math.min(scaleX, scaleY, 1); // Don't scale up past 1x initially
+        const availableW = Math.max(10, (areaRect.width || 800) - padding);
+        const availableH = Math.max(10, (areaRect.height || 600) - padding);
+        const scaleX = availableW / contentW;
+        const scaleY = availableH / contentH;
+        this.transform.scale = Math.min(scaleX, scaleY, 1);
         if (isNaN(this.transform.scale) || this.transform.scale <= 0) this.transform.scale = 1;
 
-        this.transform.x = (areaRect.width - contentW * this.transform.scale) / 2;
-        this.transform.y = (areaRect.height - contentH * this.transform.scale) / 2;
+        this.transform.x = ((areaRect.width || 800) - contentW * this.transform.scale) / 2;
+        this.transform.y = ((areaRect.height || 600) - contentH * this.transform.scale) / 2;
 
         this._applyTransform();
+        this._scheduleRender();
     }
 
     zoomIn() {
@@ -564,58 +754,86 @@ export class OutpaintEditor {
         this._zoom(1 / 1.2);
     }
 
-    _zoom(factor, originX = null, originY = null) {
-        if (originX === null) {
-            const rect = this.els.area.getBoundingClientRect();
-            originX = rect.width / 2;
-            originY = rect.height / 2;
+    _zoom(factor, clientX = null, clientY = null) {
+        const areaRect = this.els.area ? this.els.area.getBoundingClientRect() : { left: 0, top: 0, width: 800, height: 600 };
+        
+        let originX, originY;
+        if (clientX !== null && clientY !== null) {
+            originX = clientX - areaRect.left;
+            originY = clientY - areaRect.top;
+        } else {
+            originX = (areaRect.width || 800) / 2;
+            originY = (areaRect.height || 600) / 2;
         }
 
-        const newScale = Math.max(0.05, Math.min(this.transform.scale * factor, 10));
-        const ratio = newScale / (this.transform.scale || 1);
+        const currentScale = this.transform.scale || 1;
+        const newScale = Math.max(0.05, Math.min(currentScale * factor, 10));
+        const ratio = newScale / currentScale;
 
         this.transform.x = originX - (originX - this.transform.x) * ratio;
         this.transform.y = originY - (originY - this.transform.y) * ratio;
         this.transform.scale = newScale;
 
         this._applyTransform();
+        this._scheduleRender();
+    }
+
+    _scheduleRender() {
+        if (this._renderPending) return;
+        this._renderPending = true;
+        const rAF = typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame : (typeof window !== 'undefined' && window.requestAnimationFrame ? window.requestAnimationFrame : (cb) => setTimeout(cb, 0));
+        this._rafId = rAF(() => {
+            this._renderPending = false;
+            this._renderTransforms();
+        });
+    }
+
+    _renderTransforms() {
+        this._applyTransform();
+        this._updateSelectionDOM();
     }
 
     _applyTransform() {
-        this.els.container.style.transform = `translate3d(${this.transform.x}px, ${this.transform.y}px, 0) scale(${this.transform.scale})`;
+        if (this.els.container) {
+            const tx = Math.round(this.transform.x * 100) / 100;
+            const ty = Math.round(this.transform.y * 100) / 100;
+            this.els.container.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${this.transform.scale})`;
+        }
     }
 
     _updateSelectionDOM() {
         const w = Math.round(this.selection.w);
         const h = Math.round(this.selection.h);
+        const x = Math.round(this.selection.x);
+        const y = Math.round(this.selection.y);
         
-        // Update mask canvas resolution if selection size changed
-        if (this.els.maskCanvas.width !== w || this.els.maskCanvas.height !== h) {
-            // Backup current mask
+        if (this.els.maskCanvas && (this.els.maskCanvas.width !== w || this.els.maskCanvas.height !== h)) {
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = this.els.maskCanvas.width;
-            tempCanvas.height = this.els.maskCanvas.height;
+            tempCanvas.width = this.els.maskCanvas.width || 512;
+            tempCanvas.height = this.els.maskCanvas.height || 512;
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.drawImage(this.els.maskCanvas, 0, 0);
             
             this.els.maskCanvas.width = w;
             this.els.maskCanvas.height = h;
             
-            // Rescale mask to new size
             this.maskCtx.imageSmoothingEnabled = false;
             this.maskCtx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, w, h);
         }
 
-        this.els.selection.style.width = `${w}px`;
-        this.els.selection.style.height = `${h}px`;
-        this.els.selection.style.transform = `translate(${this.selection.x}px, ${this.selection.y}px)`;
+        if (this.els.selection) {
+            this.els.selection.style.width = `${w}px`;
+            this.els.selection.style.height = `${h}px`;
+            this.els.selection.style.transform = `translate(${x}px, ${y}px)`;
+        }
         
-        this.els.sizeLabel.textContent = `${w} x ${h}`;
-        
-        if (this.selection.w * this.selection.h > this.maxPixels) {
-            this.els.sizeLabel.classList.add('text-red-400');
-        } else {
-            this.els.sizeLabel.classList.remove('text-red-400');
+        if (this.els.sizeLabel) {
+            this.els.sizeLabel.textContent = `${w} x ${h}`;
+            if (this.selection.w * this.selection.h > this.maxPixels) {
+                this.els.sizeLabel.classList.add('text-red-400');
+            } else {
+                this.els.sizeLabel.classList.remove('text-red-400');
+            }
         }
     }
 
@@ -627,12 +845,16 @@ export class OutpaintEditor {
         let tbInitialLeft = 0, tbInitialTop = 0;
 
         const startToolbarDrag = (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || (e.target.closest && e.target.closest('button'))) return;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             
+            tbStartX = clientX;
+            tbStartY = clientY;
+
             dragTimer = setTimeout(() => {
                 isDraggingToolbar = true;
+                this.isDraggingToolbar = true;
                 const rect = this.els.toolbar.getBoundingClientRect();
                 const parentRect = this.els.area.getBoundingClientRect();
                 
@@ -647,19 +869,19 @@ export class OutpaintEditor {
                 this.els.toolbar.style.top = `${tbInitialTop}px`;
                 this.els.toolbar.style.transition = 'none';
                 this.els.toolbar.style.cursor = 'grabbing';
-                
-                tbStartX = clientX;
-                tbStartY = clientY;
             }, 300); // 300ms long press to drag
         };
 
         const stopToolbarDrag = (e) => {
             if (dragTimer) clearTimeout(dragTimer);
-            if (isDraggingToolbar) {
+            if (isDraggingToolbar || this.isDraggingToolbar) {
                 isDraggingToolbar = false;
-                this.els.toolbar.style.transition = '';
-                this.els.toolbar.style.cursor = 'move';
-                if (e) e.preventDefault();
+                this.isDraggingToolbar = false;
+                if (this.els.toolbar) {
+                    this.els.toolbar.style.transition = '';
+                    this.els.toolbar.style.cursor = 'move';
+                }
+                if (e && e.preventDefault && e.cancelable) e.preventDefault();
             }
         };
 
@@ -670,29 +892,29 @@ export class OutpaintEditor {
         }
 
         // --- Panning & Zooming (Area) ---
-        this.els.area.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            if (e.ctrlKey) {
-                // Zoom
-                const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-                this._zoom(factor, e.clientX, e.clientY);
-            } else {
-                // Pan
-                this.transform.x -= e.deltaX;
-                this.transform.y -= e.deltaY;
-                this._applyTransform();
-            }
-        }, { passive: false });
+        if (this.els.area) {
+            this.els.area.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                if (e.ctrlKey) {
+                    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+                    this._zoom(factor, e.clientX, e.clientY);
+                } else {
+                    this.transform.x -= e.deltaX;
+                    this.transform.y -= e.deltaY;
+                    this._applyTransform();
+                    this._scheduleRender();
+                }
+            }, { passive: false });
+        }
 
         this.els.brushSizeInput?.addEventListener('input', e => {
-            this.els.brushSizeVal.textContent = e.target.value;
+            if (this.els.brushSizeVal) this.els.brushSizeVal.textContent = e.target.value;
         });
 
         const handlePanStart = (e) => {
             if (this.mode === 'paint' && (e.target === this.els.maskCanvas || e.target === this.els.selection)) {
                 this.isPainting = true;
-                this.maskHistory.push(this.maskCtx.getImageData(0, 0, this.els.maskCanvas.width, this.els.maskCanvas.height));
-                if (this.maskHistory.length > this.maxMaskHistory) this.maskHistory.shift();
+                this.saveMaskState();
                 this._drawOnMask(this._getMaskPos(e), true);
                 return;
             }
@@ -703,35 +925,39 @@ export class OutpaintEditor {
                 this.isPanning = true;
                 this.lastMouse = { x: clientX, y: clientY };
                 this.startTransform = { ...this.transform };
-                this.els.area.style.cursor = 'grabbing';
+                if (this.els.area) this.els.area.style.cursor = 'grabbing';
             }
         };
 
-        this.els.area.addEventListener('mousedown', handlePanStart);
-        this.els.area.addEventListener('touchstart', handlePanStart, { passive: false });
+        if (this.els.area) {
+            this.els.area.addEventListener('mousedown', handlePanStart);
+            this.els.area.addEventListener('touchstart', handlePanStart, { passive: false });
+        }
 
         // --- Selection Interaction ---
         const handleSelectionStart = (e) => {
-            if (this.mode === 'paint') return; // Handled in handlePanStart for painting
+            if (this.mode === 'paint') return;
 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             
-            if (e.target.classList.contains('resize-handle')) {
+            if (e.target && e.target.classList && e.target.classList.contains('resize-handle')) {
                 this.isResizing = true;
-                this.resizeHandle = e.target.dataset.handle;
+                this.resizeHandle = e.target.dataset ? e.target.dataset.handle : 'se';
             } else {
                 this.isDraggingSelection = true;
             }
             
             this.lastMouse = { x: clientX, y: clientY };
             this.startSelection = { ...this.selection };
-            e.stopPropagation(); // Prevent panning
-            if(e.touches) e.preventDefault(); // Prevent scrolling on mobile
+            if (e.stopPropagation) e.stopPropagation();
+            if (e.touches && e.preventDefault && e.cancelable) e.preventDefault();
         };
 
-        this.els.selection.addEventListener('mousedown', handleSelectionStart);
-        this.els.selection.addEventListener('touchstart', handleSelectionStart, { passive: false });
+        if (this.els.selection) {
+            this.els.selection.addEventListener('mousedown', handleSelectionStart);
+            this.els.selection.addEventListener('touchstart', handleSelectionStart, { passive: false });
+        }
 
         // --- Global Move & Up/End ---
         const handleMove = (e) => {
@@ -739,24 +965,26 @@ export class OutpaintEditor {
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
             // Handle Toolbar dragging first
-            if (isDraggingToolbar) {
-                if(e.touches) e.preventDefault();
+            if (isDraggingToolbar || this.isDraggingToolbar) {
+                if(e.touches && e.cancelable) e.preventDefault();
                 const dx = clientX - tbStartX;
                 const dy = clientY - tbStartY;
                 
-                // Restrict toolbar within the area
                 const rect = this.els.toolbar.getBoundingClientRect();
                 const parentRect = this.els.area.getBoundingClientRect();
                 
                 let newLeft = tbInitialLeft + dx;
                 let newTop = tbInitialTop + dy;
                 
-                newLeft = Math.max(0, Math.min(newLeft, parentRect.width - rect.width));
-                newTop = Math.max(0, Math.min(newTop, parentRect.height - rect.height));
+                const maxLeft = Math.max(0, parentRect.width - rect.width);
+                const maxTop = Math.max(0, parentRect.height - rect.height);
 
-                this.els.toolbar.style.left = `${newLeft}px`;
-                this.els.toolbar.style.top = `${newTop}px`;
-                return; // Stop other interactions
+                newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+                newTop = Math.max(0, Math.min(newTop, maxTop));
+
+                this.els.toolbar.style.left = `${Math.round(newLeft)}px`;
+                this.els.toolbar.style.top = `${Math.round(newTop)}px`;
+                return;
             }
             
             // Abort toolbar drag timer if moving too much before timeout
@@ -771,14 +999,15 @@ export class OutpaintEditor {
             }
 
             if (this.isPanning) {
-                if(e.touches) e.preventDefault();
+                if (e.touches && e.cancelable) e.preventDefault();
                 const dx = clientX - this.lastMouse.x;
                 const dy = clientY - this.lastMouse.y;
                 this.transform.x = this.startTransform.x + dx;
                 this.transform.y = this.startTransform.y + dy;
                 this._applyTransform();
+                this._scheduleRender();
             } else if (this.isDraggingSelection) {
-                if(e.touches) e.preventDefault();
+                if (e.touches && e.cancelable) e.preventDefault();
                 const dx = (clientX - this.lastMouse.x) / this.transform.scale;
                 const dy = (clientY - this.lastMouse.y) / this.transform.scale;
                 
@@ -786,7 +1015,7 @@ export class OutpaintEditor {
                 let newY = this.startSelection.y + dy;
 
                 if (this.isSnapEnabled) {
-                    const snapThreshold = 10 / this.transform.scale; // Reduced to 1/2 roughly
+                    const snapThreshold = 12 / this.transform.scale;
                     const canvasW = this.els.canvas.width;
                     const canvasH = this.els.canvas.height;
                     
@@ -799,8 +1028,9 @@ export class OutpaintEditor {
                 this.selection.x = newX;
                 this.selection.y = newY;
                 this._updateSelectionDOM();
+                this._scheduleRender();
             } else if (this.isResizing) {
-                if(e.touches) e.preventDefault();
+                if (e.touches && e.cancelable) e.preventDefault();
                 const dx = (clientX - this.lastMouse.x) / this.transform.scale;
                 const dy = (clientY - this.lastMouse.y) / this.transform.scale;
                 
@@ -821,7 +1051,7 @@ export class OutpaintEditor {
                 }
 
                 if (this.isSnapEnabled) {
-                    const snapThreshold = 10 / this.transform.scale;
+                    const snapThreshold = 12 / this.transform.scale;
                     const canvasW = this.els.canvas.width;
                     const canvasH = this.els.canvas.height;
 
@@ -845,11 +1075,9 @@ export class OutpaintEditor {
                     }
                 }
 
-                // Snap to 64 increment optionally, but definitely min size limit
                 newW = Math.max(64, newW);
                 newH = Math.max(64, newH);
 
-                // Enforce max pixel area limit (1024x1024 = 1048576)
                 if (newW * newH > this.maxPixels) {
                     const maxAllowedArea = this.maxPixels;
                     if (this.resizeHandle === 'e' || this.resizeHandle === 'w') {
@@ -875,6 +1103,7 @@ export class OutpaintEditor {
                 this.selection.y = newY;
                 
                 this._updateSelectionDOM();
+                this._scheduleRender();
             }
         };
 
@@ -887,11 +1116,10 @@ export class OutpaintEditor {
             }
             if (this.isPanning) {
                 this.isPanning = false;
-                this.els.area.style.cursor = 'default';
+                if (this.els.area) this.els.area.style.cursor = 'default';
             }
             if (this.isDraggingSelection) {
                 this.isDraggingSelection = false;
-                // Snap position to integers
                 this.selection.x = Math.round(this.selection.x);
                 this.selection.y = Math.round(this.selection.y);
                 this._updateSelectionDOM();
@@ -904,10 +1132,9 @@ export class OutpaintEditor {
 
                 this.isResizing = false;
                 this.resizeHandle = null;
-                // Snap dimensions to 64px multiples on release for optimal NovelAI generation
-                this.selection.w = Math.round(this.selection.w / 64) * 64;
-                this.selection.h = Math.round(this.selection.h / 64) * 64;
-                // Double check max pixels
+                this.selection.w = Math.max(64, Math.round(this.selection.w / 64) * 64);
+                this.selection.h = Math.max(64, Math.round(this.selection.h / 64) * 64);
+                
                 if (this.selection.w * this.selection.h > this.maxPixels) {
                     if (this.selection.w > this.selection.h) {
                         this.selection.w -= 64;
@@ -916,11 +1143,13 @@ export class OutpaintEditor {
                     }
                 }
 
-                // If we were snapped to an edge, adjust position after dimension rounding
                 if (isAtRight) this.selection.x = this.els.canvas.width - this.selection.w;
                 if (isAtBottom) this.selection.y = this.els.canvas.height - this.selection.h;
                 if (isAtLeft) this.selection.x = 0;
                 if (isAtTop) this.selection.y = 0;
+
+                this.selection.x = Math.round(this.selection.x);
+                this.selection.y = Math.round(this.selection.y);
 
                 this._updateSelectionDOM();
             }
@@ -930,5 +1159,8 @@ export class OutpaintEditor {
         window.addEventListener('touchmove', handleMove, { passive: false });
         window.addEventListener('mouseup', handleUp);
         window.addEventListener('touchend', handleUp);
+        window.addEventListener('resize', () => {
+            this.clampToolbarPosition();
+        });
     }
 }
