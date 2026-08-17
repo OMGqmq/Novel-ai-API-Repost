@@ -20,12 +20,17 @@ import { XyPlotManager } from './xy-plot-manager.js';
 import { RandomPromptManager } from './random-prompt-manager.js';
 import { RandomPromptController } from './random-prompt-controller.js';
 import { InspirationManager } from './inspiration-manager.js?v=20260625';
-
-
+import { MotionController } from './motion-controller.js';
 
 import { getMimeFromFilename, dataUrlToBlob, triggerDownload } from './download-helper.js';
 
-export { getMimeFromFilename, dataUrlToBlob, triggerDownload, doGenerate, doAugment, doGenerateXyPlot };
+const motionController = new MotionController();
+if (typeof window !== 'undefined') {
+    window.MotionController = MotionController;
+    window.motionController = motionController;
+}
+
+export { getMimeFromFilename, dataUrlToBlob, triggerDownload, doGenerate, doAugment, doGenerateXyPlot, motionController, MotionController };
 
 // PromptHelper is now imported from './prompt-helper.js'
 const engine = new ImageEngine();
@@ -3045,6 +3050,13 @@ function importRandomPromptFile(event) {
     randomPromptController.importFile(event);
 }
 
-
-
-
+// --- Modular UI Entrance Motion Initialization (Milestone 2) ---
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            motionController.startEntrance();
+        });
+    } else {
+        motionController.startEntrance();
+    }
+}
