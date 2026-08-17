@@ -191,6 +191,11 @@
                         <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-2 py-0.5 rounded shadow whitespace-nowrap" id="outpaintSizeLabel">512 x 512</div>
                     </div>
                 </div>
+                <!-- Viewport Dimming Overlay (Cutout Window) -->
+                <svg id="outpaintDimOverlay" class="absolute inset-0 w-full h-full pointer-events-none z-10" xmlns="http://www.w3.org/2000/svg">
+                    <path id="outpaintDimPath" fill="rgba(0, 0, 0, 0.55)" fill-rule="evenodd" d="" />
+                </svg>
+
                 <!-- Outpaint UI overlay (Vertical) -->
                 <div id="outpaintToolbar" class="absolute top-1/2 right-4 -translate-y-1/2 flex flex-col items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur p-2 rounded-2xl shadow-lg z-50">
                     <!-- 收缩/展开按钮 -->

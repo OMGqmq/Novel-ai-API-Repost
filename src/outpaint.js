@@ -20,7 +20,9 @@ export class OutpaintEditor {
             toolbar: document.getElementById('outpaintToolbar'),
             toolbarInner: document.getElementById('outpaintToolbarInner'),
             toolbarToggleBtn: document.getElementById('outpaintToolbarToggleBtn'),
-            snapToggleBtn: document.getElementById('outpaintSnapToggle')
+            snapToggleBtn: document.getElementById('outpaintSnapToggle'),
+            dimPath: document.getElementById('outpaintDimPath'),
+            dimOverlay: document.getElementById('outpaintDimOverlay')
         };
 
         this.ctx = this.els.canvas ? this.els.canvas.getContext('2d') : null;
@@ -791,6 +793,7 @@ export class OutpaintEditor {
     _renderTransforms() {
         this._applyTransform();
         this._updateSelectionDOM();
+        this._updateDimOverlay();
     }
 
     _applyTransform() {
@@ -799,6 +802,27 @@ export class OutpaintEditor {
             const ty = Math.round(this.transform.y * 100) / 100;
             const scale = Math.round(this.transform.scale * 10000) / 10000;
             this.els.container.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
+        }
+    }
+
+    _updateDimOverlay() {
+        const path = this.els.dimPath || document.getElementById('outpaintDimPath');
+        const area = this.els.area || document.getElementById('outpaintArea');
+        if (!path || !area) return;
+
+        const areaRect = area.getBoundingClientRect ? area.getBoundingClientRect() : { width: 1920, height: 1080 };
+        const vw = Math.max(1, Math.round(areaRect.width || (typeof window !== 'undefined' ? window.innerWidth : 1920) || 1920));
+        const vh = Math.max(1, Math.round(areaRect.height || (typeof window !== 'undefined' ? window.innerHeight : 1080) || 1080));
+
+        const scale = this.transform.scale || 1;
+        const x = Math.round((this.transform.x + this.selection.x * scale) * 100) / 100;
+        const y = Math.round((this.transform.y + this.selection.y * scale) * 100) / 100;
+        const w = Math.round((this.selection.w * scale) * 100) / 100;
+        const h = Math.round((this.selection.h * scale) * 100) / 100;
+
+        // Outer full viewport rectangle + Inner selection cutout window (evenodd creates a transparent hole)
+        if (path.setAttribute) {
+            path.setAttribute('d', `M 0 0 H ${vw} V ${vh} H 0 Z M ${x} ${y} V ${y + h} H ${x + w} V ${y} Z`);
         }
     }
 
