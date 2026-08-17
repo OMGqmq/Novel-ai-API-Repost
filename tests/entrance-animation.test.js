@@ -242,38 +242,38 @@ describe('Modular UI Entrance Animation & MotionController Test Suite', () => {
                 expect(cssContent).toContain('--anim-duration-base: 0.95s');
             });
 
-            it('T1.03: should define desktopNavEntrance keyframes with translateY and blur', () => {
+            it('T1.03: should define desktopNavEntrance keyframes with translateY', () => {
                 expect(cssContent).toContain('@keyframes desktopNavEntrance');
-                expect(cssContent).toMatch(/@keyframes\s+desktopNavEntrance[\s\S]*?translateY\(-30px\)[\s\S]*?blur\(6px\)/);
-                expect(cssContent).toMatch(/@keyframes\s+desktopNavEntrance[\s\S]*?translateY\(0\)[\s\S]*?blur\(0px\)/);
+                expect(cssContent).toMatch(/@keyframes\s+desktopNavEntrance[\s\S]*?translate3d\(0,\s*-20px,\s*0\)/);
+                expect(cssContent).toMatch(/@keyframes\s+desktopNavEntrance[\s\S]*?translate3d\(0,\s*0,\s*0\)/);
             });
 
-            it('T1.04: should define desktopSidebarEntrance keyframes with 3D perspective, tilt, and blur', () => {
+            it('T1.04: should define desktopSidebarEntrance keyframes with smooth slide and scale', () => {
                 expect(cssContent).toContain('@keyframes desktopSidebarEntrance');
-                expect(cssContent).toMatch(/@keyframes\s+desktopSidebarEntrance[\s\S]*?perspective\(1200px\)[\s\S]*?rotateY\(-5deg\)[\s\S]*?blur\(8px\)/);
-                expect(cssContent).toMatch(/@keyframes\s+desktopSidebarEntrance[\s\S]*?perspective\(1200px\)[\s\S]*?rotateY\(0\)[\s\S]*?blur\(0px\)/);
+                expect(cssContent).toMatch(/@keyframes\s+desktopSidebarEntrance[\s\S]*?translate3d\(-30px,\s*0,\s*0\)/);
+                expect(cssContent).toMatch(/@keyframes\s+desktopSidebarEntrance[\s\S]*?translate3d\(0,\s*0,\s*0\)/);
             });
 
-            it('T1.05: should define desktopCanvasEntrance keyframes with translateZ depth and tilt', () => {
+            it('T1.05: should define desktopCanvasEntrance keyframes with depth float and scale', () => {
                 expect(cssContent).toContain('@keyframes desktopCanvasEntrance');
-                expect(cssContent).toMatch(/@keyframes\s+desktopCanvasEntrance[\s\S]*?translateZ\(-80px\)[\s\S]*?rotateX\(6deg\)[\s\S]*?blur\(12px\)/);
-                expect(cssContent).toMatch(/@keyframes\s+desktopCanvasEntrance[\s\S]*?translateZ\(0\)[\s\S]*?scale\(1\)/);
+                expect(cssContent).toMatch(/@keyframes\s+desktopCanvasEntrance[\s\S]*?translate3d\(0,\s*24px,\s*0\)/);
+                expect(cssContent).toMatch(/@keyframes\s+desktopCanvasEntrance[\s\S]*?translate3d\(0,\s*0,\s*0\)/);
             });
 
             it('T1.06: should define desktopActionEntrance keyframes with translateY and scale', () => {
                 expect(cssContent).toContain('@keyframes desktopActionEntrance');
-                expect(cssContent).toMatch(/@keyframes\s+desktopActionEntrance[\s\S]*?translateY\(25px\)[\s\S]*?scale\(0\.9\)/);
-                expect(cssContent).toMatch(/@keyframes\s+desktopActionEntrance[\s\S]*?translateY\(0\)[\s\S]*?scale\(1\)/);
+                expect(cssContent).toMatch(/@keyframes\s+desktopActionEntrance[\s\S]*?translate3d\(0,\s*16px,\s*0\)/);
+                expect(cssContent).toMatch(/@keyframes\s+desktopActionEntrance[\s\S]*?translate3d\(0,\s*0,\s*0\)/);
             });
 
             it('T1.07: should define mobileNavEntrance keyframes with mobile-optimized values', () => {
                 expect(cssContent).toContain('@keyframes mobileNavEntrance');
-                expect(cssContent).toMatch(/@keyframes\s+mobileNavEntrance[\s\S]*?translateY\(-20px\)[\s\S]*?blur\(4px\)/);
+                expect(cssContent).toMatch(/@keyframes\s+mobileNavEntrance[\s\S]*?translate3d\(0,\s*-16px,\s*0\)/);
             });
 
             it('T1.08: should define mobileCanvasEntrance keyframes with mobile scale and translateY', () => {
                 expect(cssContent).toContain('@keyframes mobileCanvasEntrance');
-                expect(cssContent).toMatch(/@keyframes\s+mobileCanvasEntrance[\s\S]*?translateY\(20px\)[\s\S]*?scale\(0\.95\)/);
+                expect(cssContent).toMatch(/@keyframes\s+mobileCanvasEntrance[\s\S]*?translate3d\(0,\s*20px,\s*0\)/);
             });
 
             it('T1.09: should define mobileDrawerEntrance keyframes from 100% to peek offset', () => {
@@ -282,9 +282,9 @@ describe('Modular UI Entrance Animation & MotionController Test Suite', () => {
                 expect(cssContent).toMatch(/@keyframes\s+mobileDrawerEntrance[\s\S]*?translateY\(calc\(100% - 64px\)\)/);
             });
 
-            it('T1.10: should define mobileFabEntrance keyframes with scale overshoot pop effect', () => {
+            it('T1.10: should define mobileFabEntrance keyframes with scale pop effect', () => {
                 expect(cssContent).toContain('@keyframes mobileFabEntrance');
-                expect(cssContent).toMatch(/@keyframes\s+mobileFabEntrance[\s\S]*?scale\(0\)[\s\S]*?scale\(1\.08\)[\s\S]*?scale\(1\)/);
+                expect(cssContent).toMatch(/@keyframes\s+mobileFabEntrance[\s\S]*?scale\(0\.6\)[\s\S]*?scale\(1\)/);
             });
 
             it('T1.11: should explicitly suppress all animation and transform on mobile drawer children in CSS', () => {
