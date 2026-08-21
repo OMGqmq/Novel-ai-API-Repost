@@ -44,34 +44,29 @@ export class InpaintEditor {
         document.getElementById('inpaintBrushSize')?.addEventListener('input', e => syncBrushSize(e.target.value));
         document.getElementById('inpaintBrushSizeMobile')?.addEventListener('input', e => syncBrushSize(e.target.value));
 
-        document.getElementById('inpaintStrengthMobile')?.addEventListener('input', e => {
-            const val = parseFloat(e.target.value).toFixed(2);
+        const syncStrength = (val) => {
+            const formatted = parseFloat(val).toFixed(2);
             const strDesktop = document.getElementById('inpaintStrength');
-            if (strDesktop) strDesktop.value = e.target.value;
-            const v1 = document.getElementById('inpaintStrengthVal');
-            const v2 = document.getElementById('inpaintStrengthValMobile');
-            if (v1) v1.textContent = val;
-            if (v2) v2.textContent = val;
-        });
-
-        document.getElementById('inpaintStrength')?.addEventListener('input', e => {
-            const val = parseFloat(e.target.value).toFixed(2);
             const strMobile = document.getElementById('inpaintStrengthMobile');
-            if (strMobile) strMobile.value = e.target.value;
             const v1 = document.getElementById('inpaintStrengthVal');
             const v2 = document.getElementById('inpaintStrengthValMobile');
-            if (v1) v1.textContent = val;
-            if (v2) v2.textContent = val;
-        });
+            if (strDesktop && strDesktop.value !== val) strDesktop.value = val;
+            if (strMobile && strMobile.value !== val) strMobile.value = val;
+            if (v1) v1.textContent = formatted;
+            if (v2) v2.textContent = formatted;
+        };
 
-        document.getElementById('inpaintPromptMobile')?.addEventListener('input', e => {
+        document.getElementById('inpaintStrengthMobile')?.addEventListener('input', e => syncStrength(e.target.value));
+        document.getElementById('inpaintStrength')?.addEventListener('input', e => syncStrength(e.target.value));
+
+        const syncPrompt = (val) => {
             const p = document.getElementById('inpaintPrompt');
-            if (p) p.value = e.target.value;
-        });
-        document.getElementById('inpaintPrompt')?.addEventListener('input', e => {
             const pm = document.getElementById('inpaintPromptMobile');
-            if (pm) pm.value = e.target.value;
-        });
+            if (p && p.value !== val) p.value = val;
+            if (pm && pm.value !== val) pm.value = val;
+        };
+        document.getElementById('inpaintPromptMobile')?.addEventListener('input', e => syncPrompt(e.target.value));
+        document.getElementById('inpaintPrompt')?.addEventListener('input', e => syncPrompt(e.target.value));
 
         document.getElementById('inpaintBlurStrength')?.addEventListener('input', e => {
             const v = document.getElementById('inpaintBlurStrengthVal');

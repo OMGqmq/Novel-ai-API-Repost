@@ -82,10 +82,18 @@ def extract_vibe_arrays(data):
         vibe_strength.append(v_strength)
     return vibe_images, vibe_info, vibe_strength
 
-def create_v3_payload(data, width, height, steps, seed, is_inpaint, action):
+def create_v3_payload(data, width=None, height=None, steps=None):
     prompt = data.get('prompt', '')
     negative_prompt = data.get('negative_prompt', '')
+    is_inpaint = bool(data.get('action') == 'infill' and data.get('mask'))
+    action = 'infill' if is_inpaint else ('img2img' if data.get('image') else 'generate')
     model = "nai-diffusion-3-inpainting" if is_inpaint else "nai-diffusion-3"
+    
+    width = width or int(data.get('width', 832))
+    height = height or int(data.get('height', 1216))
+    steps = steps or int(data.get('steps', 28))
+    seed = int(data.get('seed', 0)) if data.get('seed') is not None else random.randint(0, 4294967295)
+    
     vibe_images, vibe_info, vibe_strength = extract_vibe_arrays(data)
     
     payload = {
@@ -137,10 +145,18 @@ def create_v3_payload(data, width, height, steps, seed, is_inpaint, action):
         payload["parameters"]["noise"] = float(data.get('noise', 0))
     return payload
 
-def create_v45_payload(data, width, height, steps, seed, is_inpaint, action):
+def create_v45_payload(data, width=None, height=None, steps=None):
     prompt = data.get('prompt', '')
     negative_prompt = data.get('negative_prompt', '')
+    is_inpaint = bool(data.get('action') == 'infill' and data.get('mask'))
+    action = 'infill' if is_inpaint else ('img2img' if data.get('image') else 'generate')
     model = "nai-diffusion-4-5-full-inpainting" if is_inpaint else "nai-diffusion-4-5-full"
+    
+    width = width or int(data.get('width', 832))
+    height = height or int(data.get('height', 1216))
+    steps = steps or int(data.get('steps', 28))
+    seed = int(data.get('seed', 0)) if data.get('seed') is not None else random.randint(0, 4294967295)
+    
     is_experimental = data.get('v4_5_experimental') is True
     char_captions, neg_char_captions = extract_char_captions(data.get('char_captions'))
     
@@ -236,10 +252,18 @@ def create_v45_payload(data, width, height, steps, seed, is_inpaint, action):
         payload["parameters"]["noise"] = float(data.get('noise', 0))
     return payload
 
-def create_v5_payload(data, width, height, steps, seed, is_inpaint, action):
+def create_v5_payload(data, width=None, height=None, steps=None):
     prompt = data.get('prompt', '')
     negative_prompt = data.get('negative_prompt', '')
+    is_inpaint = bool(data.get('action') == 'infill' and data.get('mask'))
+    action = 'infill' if is_inpaint else ('img2img' if data.get('image') else 'generate')
     model = "nai-diffusion-5-full-inpainting" if is_inpaint else "nai-diffusion-5-full"
+    
+    width = width or int(data.get('width', 832))
+    height = height or int(data.get('height', 1216))
+    steps = steps or int(data.get('steps', 28))
+    seed = int(data.get('seed', 0)) if data.get('seed') is not None else random.randint(0, 4294967295)
+    
     char_captions, neg_char_captions = extract_char_captions(data.get('char_captions'))
     inpaint_strength = float(data.get('strength', 1.0))
 
@@ -324,13 +348,13 @@ def create_v5_payload(data, width, height, steps, seed, is_inpaint, action):
         payload["parameters"]["noise"] = float(data.get('noise', 0))
     return payload
 
-def create_payload(version, data, width, height, steps, seed, is_inpaint, action):
+def create_payload(version, data, width=None, height=None, steps=None):
     norm_ver = str(version or "").lower().strip()
     if norm_ver in ("v5", "nai5", "v5.0"):
-        return create_v5_payload(data, width, height, steps, seed, is_inpaint, action)
+        return create_v5_payload(data, width, height, steps)
     if norm_ver in ("v4.5", "v4", "v4-full", "v4-curated"):
-        return create_v45_payload(data, width, height, steps, seed, is_inpaint, action)
-    return create_v3_payload(data, width, height, steps, seed, is_inpaint, action)
+        return create_v45_payload(data, width, height, steps)
+    return create_v3_payload(data, width, height, steps)
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
@@ -387,12 +411,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
                 # Payload 构造 (与 Cloudflare Workers 的 _payload-factory.js 保持 100% 对齐)
                 version = data.get('version', 'v3')
-                seed = int(data.get('seed', 0))
-                
-                isInpaint = bool(data.get('action') == 'infill' and data.get('mask'))
-                action = 'infill' if isInpaint else ('img2img' if data.get('image') else 'generate')
-                
-                payload = create_payload(version, data, width, height, steps, seed, isInpaint, action)
+                payload = create_payload(version, data, width=width, height=height, steps=steps)
 
                 req_data = json.dumps(payload).encode('utf-8')
                 content_type = 'application/json'

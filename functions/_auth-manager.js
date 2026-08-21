@@ -6,6 +6,10 @@
 import { verifyJwt } from './_crypto-helper.js';
 import { GUEST_DAILY_IP_LIMIT, GUEST_DAILY_GLOBAL_LIMIT, USER_DAILY_FREE_LIMIT } from './_config.js';
 
+function getBeijingDateString() {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+}
+
 export async function authenticate(request, env) {
   const SERVER_API_KEY = env.NOVELAI_API_KEY;
   const db = env.DB;
@@ -56,7 +60,7 @@ export async function authenticate(request, env) {
       }
 
       // 获取当前北京时间日期并计算用户的每日免费已用额度
-      const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const today = getBeijingDateString();
       const userLimitKey = `user_limit:${today}:${user.id}`;
       const userLimitRow = await db.prepare("SELECT count FROM free_limits WHERE key = ?").bind(userLimitKey).first();
       const userLimitCount = userLimitRow ? userLimitRow.count : 0;
@@ -110,7 +114,7 @@ export async function authenticate(request, env) {
   // E. Free Guest
   if (db) {
     // 使用北京时间 (UTC+8) 避免在 00:00 - 08:00 期间因 UTC 时区差被判定为前一天
-    const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const today = getBeijingDateString();
     const globalKey = `global:${today}`;
     const ipKey = `limit:${today}:${clientIP}`;
 

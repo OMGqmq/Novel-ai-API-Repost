@@ -110,37 +110,8 @@ function collectAdvancedAndModelParams(selectedVersion) {
             extraParams.v4_5_experimental = isExp;
         }
 
-        // 搜集多角色提示词 (Character Prompts)
-        const charRows = document.querySelectorAll('.character-prompt-row');
-        const charCaptions = [];
-        let hasCustomCoords = false;
-        charRows.forEach(row => {
-            const enableToggle = row.querySelector('.char-enable-toggle');
-            if (enableToggle && !enableToggle.checked) return;
-
-            const promptInput = row.querySelector('.char-prompt-input');
-            const negInput = row.querySelector('.char-neg-input');
-            const posXInput = row.querySelector('.char-pos-x');
-            const posYInput = row.querySelector('.char-pos-y');
-            const autoPosCheckbox = row.querySelector('.char-auto-pos');
-
-            const promptVal = promptInput ? promptInput.value.trim() : "";
-            const negVal = negInput ? negInput.value.trim() : "";
-            const x = posXInput ? parseFloat(posXInput.value) : 0.5;
-            const y = posYInput ? parseFloat(posYInput.value) : 0.5;
-            const isAutoPos = autoPosCheckbox ? autoPosCheckbox.checked : true;
-
-            if (promptVal) {
-                charCaptions.push({
-                    prompt: promptVal,
-                    negative_prompt: negVal,
-                    x: x,
-                    y: y
-                });
-                if (!isAutoPos) hasCustomCoords = true;
-            }
-        });
-
+        // 使用 CharPromptManager 集中提取多角色提示词 (Character Prompts)
+        const { charCaptions, hasCustomCoords } = charPromptManager.getCharacterCaptions();
         if (charCaptions.length > 0) extraParams.char_captions = charCaptions;
 
         if (selectedVersion === 'v4.5' && isExp) {
@@ -1573,32 +1544,7 @@ function toggleBypassLimitsEnabled(forceState) {
 }
 
 function updateAnlasUI(data) {
-    const anlasVal = typeof data.totalAnlas === 'number' ? data.totalAnlas : (typeof data.anlas === 'number' ? data.anlas : 0);
-    const keyCountVal = typeof data.keyCount === 'number' ? data.keyCount : 1;
-    const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
-    
-    let text = "";
-    const keyPart = keyCountVal > 1 ? ` | ${keyCountVal}Key` : "";
-    if (opusUsage && typeof opusUsage.percent === 'number') {
-        text = `CustomAPI (Anlas: ${anlasVal}${keyPart} |\nOpus免费: ${opusUsage.percent}% (约${opusUsage.estimatedImages}张))`;
-    } else {
-        text = `CustomAPI (Anlas: ${anlasVal}${keyPart})`;
-    }
-
-    const desktopDisplay = document.getElementById('creditDisplayDesktop');
-    const mobileDisplay = document.getElementById('creditDisplayMobile');
-    
-    if (desktopDisplay) {
-        desktopDisplay.textContent = text;
-        desktopDisplay.classList.remove('hidden');
-        if (opusUsage && typeof opusUsage.percent === 'number') {
-            desktopDisplay.title = `Opus 免费生成额度: 剩余 ${opusUsage.percent}% (约 ${opusUsage.estimatedImages} 张图片)`;
-        }
-    }
-    if (mobileDisplay) {
-        mobileDisplay.textContent = text;
-        mobileDisplay.classList.remove('hidden');
-    }
+    ui.updateCustomApiCredit(data);
 }
 
 window.refreshAnlasDisplay = async function() {
@@ -2281,56 +2227,16 @@ async function verifyCustomApiKey() {
                     }
                     setTimeout(() => closeApiKeyModal(), 2000);
                     verified = true;
-                } else if (data.error) {
-                    statusEl.innerHTML = `<span class="text-red-500">✗ ${data.error}</span>`;
-                    return;
-                }
+            } else if (data.error) {
+                statusEl.innerHTML = `<span class="text-red-500">✗ ${data.error}</span>`;
+            } else {
+                statusEl.innerHTML = `<span class="text-red-500">✗ 验证失败，请检查 Key 是否有效</span>`;
             }
-        } catch (serverErr) {
-            console.warn('后端验证接口不可用, 尝试直接验证:', serverErr.message);
+        } else {
+            statusEl.innerHTML = `<span class="text-red-500">✗ 验证服务无响应，请确保后端代理正在运行</span>`;
         }
-
-        if (verified) return;
-
-        try {
-            statusEl.innerHTML = '<span class="text-gray-400">⭮ 尝试直接连接 NovelAI 批量验证...</span>';
-            const directPromises = keys.map(async (key) => {
-                const directRes = await fetch('https://image.novelai.net/user/subscription', {
-                    headers: { 'Authorization': `Bearer ${key}` }
-                });
-                if (!directRes.ok) {
-                    throw new Error(`Key (${key.substring(0, 10)}...) 验证失败或已过期`);
-                }
-                return await directRes.json();
-            });
-
-            const subDatas = await Promise.all(directPromises);
-            const subData = subDatas[0];
-            const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
-            const tierName = tierNames[subData.tier] || `Tier ${subData.tier}`;
-            localStorage.setItem('nai_custom_api_key', keysRaw);
-            statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${tierName}</b>。已激活 ${keys.length} 个 Key 并发模式。</span>`;
-            document.getElementById('apiKeyClearBtn').classList.remove('hidden');
-            checkAdminStatus();
-            if (window.fetchAndShowAllKeysBalances) {
-                window.fetchAndShowAllKeysBalances(keys);
-            }
-            setTimeout(() => closeApiKeyModal(), 2000);
-            return;
-        } catch (directErr) {
-            console.warn('直接验证失败(可能 CORS 或存在无效 Key), 使用本地保存模式:', directErr.message);
-            statusEl.innerHTML = `<span class="text-red-500">✗ 验证失败: ${directErr.message}</span>`;
-            return;
-        }
-
-        localStorage.setItem('nai_custom_api_key', keysRaw);
-        statusEl.innerHTML = `<span class="text-yellow-500">⚠ 无法在线验证(后端不可用)，已保存全部 ${keys.length} 个 Key 并激活并发。</span>`;
-        document.getElementById('apiKeyClearBtn').classList.remove('hidden');
-        checkAdminStatus();
-        setTimeout(() => closeApiKeyModal(), 2500);
-
     } catch (e) {
-        statusEl.innerHTML = `<span class="text-red-500">✗ 验证异常: ${e.message}</span>`;
+        statusEl.innerHTML = `<span class="text-red-500">✗ 验证异常: ${e.message}（请确保后端服务正常运行）</span>`;
     } finally {
         verifyBtn.disabled = false;
         verifyBtn.textContent = '验证并保存';

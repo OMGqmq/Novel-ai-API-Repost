@@ -552,6 +552,40 @@ export class UIController {
         }
     }
 
+    updateCustomApiCredit(data) {
+        if (!data) return;
+        const anlasVal = typeof data.totalAnlas === 'number' ? data.totalAnlas : (typeof data.anlas === 'number' ? data.anlas : 0);
+        const keyCountVal = typeof data.keyCount === 'number' ? data.keyCount : 1;
+        const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
+        
+        let text = "";
+        const keyPart = keyCountVal > 1 ? ` | ${keyCountVal}Key` : "";
+        if (opusUsage && typeof opusUsage.percent === 'number') {
+            text = `CustomAPI (Anlas: ${anlasVal}${keyPart} |\nOpus免费: ${opusUsage.percent}% (约${opusUsage.estimatedImages}张))`;
+        } else {
+            text = `CustomAPI (Anlas: ${anlasVal}${keyPart})`;
+        }
+
+        const { creditDisplayMobile, creditDisplayDesktop } = this.els;
+        const userCreditsDisplay = document.getElementById('userCreditsDisplay');
+        const userCreditsDisplayMobile = document.getElementById('userCreditsDisplayMobile');
+
+        if (userCreditsDisplay) userCreditsDisplay.classList.add('hidden');
+        if (userCreditsDisplayMobile) userCreditsDisplayMobile.classList.add('hidden');
+
+        if (creditDisplayDesktop) {
+            creditDisplayDesktop.textContent = text;
+            creditDisplayDesktop.classList.remove('hidden');
+            if (opusUsage && typeof opusUsage.percent === 'number') {
+                creditDisplayDesktop.title = `Opus 免费生成额度: 剩余 ${opusUsage.percent}% (约 ${opusUsage.estimatedImages} 张图片)`;
+            }
+        }
+        if (creditDisplayMobile) {
+            creditDisplayMobile.textContent = text;
+            creditDisplayMobile.classList.remove('hidden');
+        }
+    }
+
     showImageActions(show) {
         if (show) this.els.imageActions.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
         else this.els.imageActions.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');

@@ -11,9 +11,51 @@ export class CharPromptManager {
         this.store = store;
     }
 
+    /**
+     * Extracts active character prompts and coordinate metadata for payload building
+     */
+    getCharacterCaptions() {
+        const container = document.getElementById('characterPromptsContainer');
+        if (!container) return { charCaptions: [], hasCustomCoords: false };
+        
+        const rows = container.querySelectorAll('.character-prompt-row');
+        const charCaptions = [];
+        let hasCustomCoords = false;
+
+        rows.forEach(row => {
+            const enableToggle = row.querySelector('.char-enable-toggle');
+            if (enableToggle && !enableToggle.checked) return;
+
+            const promptInput = row.querySelector('.char-prompt-input');
+            const negInput = row.querySelector('.char-neg-input');
+            const posXInput = row.querySelector('.char-pos-x');
+            const posYInput = row.querySelector('.char-pos-y');
+            const autoPosCheckbox = row.querySelector('.char-auto-pos');
+
+            const promptVal = promptInput ? promptInput.value.trim() : "";
+            const negVal = negInput ? negInput.value.trim() : "";
+            const x = posXInput ? parseFloat(posXInput.value) : 0.5;
+            const y = posYInput ? parseFloat(posYInput.value) : 0.5;
+            const isAutoPos = autoPosCheckbox ? autoPosCheckbox.checked : true;
+
+            if (promptVal) {
+                charCaptions.push({
+                    prompt: promptVal,
+                    negative_prompt: negVal,
+                    x,
+                    y,
+                    autoPos: isAutoPos
+                });
+                if (!isAutoPos) hasCustomCoords = true;
+            }
+        });
+
+        return { charCaptions, hasCustomCoords };
+    }
+
     saveCharacterPromptsState() {
         const container = document.getElementById('characterPromptsContainer');
-        if (!container) return;
+        if (!container || !this.store) return;
         const rows = container.querySelectorAll('.character-prompt-row');
         const list = [];
         rows.forEach(row => {
