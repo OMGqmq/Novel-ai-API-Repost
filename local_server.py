@@ -22,6 +22,308 @@ def load_env():
             print(f"读取 .env 文件失败: {e}")
     return env_vars
 
+def extract_opus_usage(sub_data):
+    if not sub_data or sub_data.get('tier', 0) < 3:
+        return None
+    usage = sub_data.get('usage', {})
+    if not isinstance(usage, dict):
+        return None
+    is_negative = bool(usage.get('isNegative', False))
+    try:
+        raw_pct = int(usage.get('percent', 0))
+    except (ValueError, TypeError):
+        raw_pct = 0
+    percent = 0 if is_negative else min(100, max(0, raw_pct))
+    estimated_images = round(17.3 * percent)
+    time_until_next = usage.get('timeUntilNextPercent', 0)
+    refill_rate = round((86400 / time_until_next) * 10) / 10 if time_until_next > 0 else 0
+    return {
+        "percent": percent,
+        "isNegative": is_negative,
+        "timeUntilNextPercent": time_until_next,
+        "estimatedImages": estimated_images,
+        "refillRatePerDay": refill_rate
+    }
+
+def extract_char_captions(char_list):
+    char_captions = []
+    neg_char_captions = []
+    if isinstance(char_list, list) and len(char_list) > 0:
+        for c in char_list:
+            x_val = float(c.get('x', 0.5)) if c.get('x') is not None else 0.5
+            y_val = float(c.get('y', 0.5)) if c.get('y') is not None else 0.5
+            char_captions.append({
+                "char_caption": c.get('prompt', ''),
+                "centers": [{"x": x_val, "y": y_val}]
+            })
+            neg_char_captions.append({
+                "char_caption": c.get('negative_prompt', ''),
+                "centers": [{"x": x_val, "y": y_val}]
+            })
+    return char_captions, neg_char_captions
+
+def extract_vibe_arrays(data):
+    vibe_images = []
+    vibe_info = []
+    vibe_strength = []
+    if data.get('vibe_image'):
+        vibe_images.append(data.get('vibe_image'))
+        v_info = 1.0
+        try:
+            v_info = float(data.get('vibe_info', 1.0))
+        except:
+            pass
+        vibe_info.append(v_info)
+        v_strength = 0.6
+        try:
+            v_strength = float(data.get('vibe_strength', 0.6))
+        except:
+            pass
+        vibe_strength.append(v_strength)
+    return vibe_images, vibe_info, vibe_strength
+
+def create_v3_payload(data, width, height, steps, seed, is_inpaint, action):
+    prompt = data.get('prompt', '')
+    negative_prompt = data.get('negative_prompt', '')
+    model = "nai-diffusion-3-inpainting" if is_inpaint else "nai-diffusion-3"
+    vibe_images, vibe_info, vibe_strength = extract_vibe_arrays(data)
+    
+    payload = {
+        "input": prompt,
+        "model": model,
+        "action": action,
+        "parameters": {
+            "params_version": 1,
+            "width": width,
+            "height": height,
+            "scale": float(data.get('scale', 5.0)),
+            "sampler": data.get('sampler', "k_euler"),
+            "steps": steps,
+            "seed": seed,
+            "n_samples": 1,
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "ucPreset": data.get('ucPreset', 3),
+            "qualityToggle": data.get('qualityToggle', False),
+            "sm": data.get('sm', True),
+            "sm_dyn": data.get('sm_dyn', True),
+            "dynamic_thresholding": data.get('dynamic_thresholding', False),
+            "controlnet_strength": 1,
+            "legacy": False,
+            "add_original_image": True,
+            "cfg_rescale": float(data.get('cfg_rescale', 0)),
+            "noise_schedule": "native",
+            "legacy_v3_extend": False,
+            "uncond_scale": float(data.get('uncond_scale', 1.0)),
+            "reference_image_multiple": vibe_images,
+            "reference_information_extracted_multiple": vibe_info,
+            "reference_strength_multiple": vibe_strength,
+            "extra_noise_seed": seed
+        }
+    }
+    if is_inpaint:
+        inpaint_strength = float(data.get('strength', 1.0))
+        payload["parameters"]["image"] = data.get('image')
+        payload["parameters"]["mask"] = data.get('mask')
+        payload["parameters"]["add_original_image"] = data.get('add_original_image', True)
+        payload["parameters"]["inpaintImg2ImgStrength"] = inpaint_strength
+        payload["parameters"]["strength"] = 1.0
+        payload["parameters"]["noise"] = 0
+        payload["parameters"]["sm"] = False
+        payload["parameters"]["sm_dyn"] = False
+    elif data.get('image'):
+        payload["parameters"]["image"] = data.get('image')
+        payload["parameters"]["strength"] = float(data.get('strength', 0.5))
+        payload["parameters"]["noise"] = float(data.get('noise', 0))
+    return payload
+
+def create_v45_payload(data, width, height, steps, seed, is_inpaint, action):
+    prompt = data.get('prompt', '')
+    negative_prompt = data.get('negative_prompt', '')
+    model = "nai-diffusion-4-5-full-inpainting" if is_inpaint else "nai-diffusion-4-5-full"
+    is_experimental = data.get('v4_5_experimental') is True
+    char_captions, neg_char_captions = extract_char_captions(data.get('char_captions'))
+    
+    use_coords = data.get('v4_prompt_use_coords') if data.get('v4_prompt_use_coords') is not None else (not is_experimental)
+    use_order = data.get('v4_prompt_use_order') if data.get('v4_prompt_use_order') is not None else True
+    neg_use_order = data.get('v4_neg_use_order') if data.get('v4_neg_use_order') is not None else is_experimental
+    deliberate_euler_bug = data.get('deliberate_euler_ancestral_bug') if data.get('deliberate_euler_ancestral_bug') is not None else is_experimental
+    prefer_brownian = data.get('prefer_brownian') if data.get('prefer_brownian') is not None else (not is_experimental)
+    
+    skip_cfg = 0.0 if is_experimental else None
+    if data.get('skip_cfg_above_sigma') is not None:
+        if data.get('skip_cfg_above_sigma') == 'null':
+            skip_cfg = None
+        else:
+            try:
+                skip_cfg = float(data.get('skip_cfg_above_sigma'))
+            except:
+                pass
+
+    vibe_images, vibe_info, vibe_strength = extract_vibe_arrays(data)
+    
+    payload = {
+        "input": prompt,
+        "model": model,
+        "action": action,
+        "use_new_shared_trial": True,
+        "parameters": {
+            "params_version": 3,
+            "width": width,
+            "height": height,
+            "scale": float(data.get('scale', 5.0)),
+            "sampler": data.get('sampler', "k_euler"),
+            "steps": steps,
+            "seed": seed,
+            "n_samples": 1,
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "v4_prompt": {
+                "caption": {"base_caption": prompt, "char_captions": char_captions},
+                "use_coords": use_coords,
+                "use_order": use_order
+            },
+            "v4_negative_prompt": {
+                "caption": {"base_caption": negative_prompt, "char_captions": neg_char_captions},
+                "use_order": neg_use_order,
+                "legacy_uc": data.get('legacy_uc', False)
+            },
+            "ucPreset": data.get('ucPreset', 4),
+            "qualityToggle": data.get('qualityToggle', False),
+            "sm": data.get('sm', False),
+            "sm_dyn": data.get('sm_dyn', False),
+            "dynamic_thresholding": data.get('dynamic_thresholding', False),
+            "controlnet_strength": 1,
+            "legacy": False,
+            "add_original_image": True,
+            "cfg_rescale": float(data.get('cfg_rescale', 0)),
+            "noise_schedule": data.get('noise_schedule', 'exponential'),
+            "legacy_v3_extend": False,
+            "legacy_uc": data.get('legacy_uc', False),
+            "characterPrompts": data.get('characterPrompts', []),
+            "normalize_reference_strength_multiple": True,
+            "uncond_scale": float(data.get('uncond_scale', 1.0)),
+            "skip_cfg_above_sigma": skip_cfg,
+            "deliberate_euler_ancestral_bug": deliberate_euler_bug,
+            "prefer_brownian": prefer_brownian,
+            "reference_image_multiple": vibe_images,
+            "reference_information_extracted_multiple": vibe_info,
+            "reference_strength_multiple": vibe_strength,
+            "extra_noise_seed": seed
+        }
+    }
+    
+    if data.get('director_reference_images') and len(data.get('director_reference_images')) > 0:
+        payload["parameters"]["director_reference_images"] = data.get('director_reference_images')
+        payload["parameters"]["director_reference_descriptions"] = data.get('director_reference_descriptions', [])
+        payload["parameters"]["director_reference_strength_values"] = data.get('director_reference_strength_values', [])
+        payload["parameters"]["director_reference_secondary_strength_values"] = data.get('director_reference_secondary_strength_values', [])
+        payload["parameters"]["director_reference_information_extracted"] = data.get('director_reference_information_extracted', [])
+
+    if is_inpaint:
+        inpaint_strength = float(data.get('strength', 1.0))
+        payload["parameters"]["image"] = data.get('image')
+        payload["parameters"]["mask"] = data.get('mask')
+        payload["parameters"]["add_original_image"] = data.get('add_original_image', True)
+        payload["parameters"]["inpaintImg2ImgStrength"] = inpaint_strength
+        payload["parameters"]["strength"] = 1.0
+        payload["parameters"]["noise"] = 0
+        payload["parameters"]["sm"] = False
+        payload["parameters"]["sm_dyn"] = False
+    elif data.get('image'):
+        payload["parameters"]["image"] = data.get('image')
+        payload["parameters"]["strength"] = float(data.get('strength', 0.5))
+        payload["parameters"]["noise"] = float(data.get('noise', 0))
+    return payload
+
+def create_v5_payload(data, width, height, steps, seed, is_inpaint, action):
+    prompt = data.get('prompt', '')
+    negative_prompt = data.get('negative_prompt', '')
+    model = "nai-diffusion-5-full-inpainting" if is_inpaint else "nai-diffusion-5-full"
+    char_captions, neg_char_captions = extract_char_captions(data.get('char_captions'))
+    vibe_images, vibe_info, vibe_strength = extract_vibe_arrays(data)
+    inpaint_strength = float(data.get('strength', 1.0))
+
+    payload = {
+        "input": prompt,
+        "model": model,
+        "action": action,
+        "use_new_shared_trial": True,
+        "parameters": {
+            "params_version": 4,
+            "width": width,
+            "height": height,
+            "scale": float(data.get('scale', 1.9)),
+            "sampler": data.get('sampler', "k_euler_ancestral"),
+            "steps": steps,
+            "seed": seed,
+            "n_samples": 1,
+            "ucPresetId": data.get('ucPresetId', "heavy"),
+            "qualityPresetId": data.get('qualityPresetId', "standard"),
+            "autoSmea": data.get('autoSmea', False),
+            "dynamic_thresholding": data.get('dynamic_thresholding', False),
+            "controlnet_strength": 1,
+            "legacy": False,
+            "add_original_image": data.get('add_original_image', True),
+            "cfg_rescale": float(data.get('cfg_rescale', 0)),
+            "legacy_v3_extend": False,
+            "use_coords": data.get('v4_prompt_use_coords', False),
+            "legacy_uc": False,
+            "normalize_reference_strength_multiple": True,
+            "inpaintImg2ImgStrength": inpaint_strength if is_inpaint else 1,
+            "characterPrompts": data.get('characterPrompts', []),
+            "straight_alpha": True,
+            "tag_hint_qt": data.get('tag_hint_qt', 1),
+            "tag_hint_uc_preset": data.get('tag_hint_uc_preset', 2),
+            "v4_prompt": {
+                "caption": {"base_caption": prompt, "char_captions": char_captions},
+                "use_coords": data.get('v4_prompt_use_coords', False),
+                "use_order": data.get('v4_prompt_use_order', True)
+            },
+            "v4_negative_prompt": {
+                "caption": {"base_caption": negative_prompt, "char_captions": neg_char_captions},
+                "legacy_uc": False
+            },
+            "negative_prompt": negative_prompt,
+            "deliberate_euler_ancestral_bug": data.get('deliberate_euler_ancestral_bug', False),
+            "prefer_brownian": data.get('prefer_brownian', True),
+            "noise_schedule": data.get('noise_schedule', 'karras'),
+            "image_format": data.get('image_format', 'webp'),
+            "stream": data.get('stream', 'msgpack')
+        }
+    }
+    if vibe_images:
+        payload["parameters"]["reference_image_multiple"] = vibe_images
+        payload["parameters"]["reference_information_extracted_multiple"] = vibe_info
+        payload["parameters"]["reference_strength_multiple"] = vibe_strength
+        payload["parameters"]["extra_noise_seed"] = seed
+
+    if data.get('director_reference_images') and len(data.get('director_reference_images')) > 0:
+        payload["parameters"]["director_reference_images"] = data.get('director_reference_images')
+        payload["parameters"]["director_reference_descriptions"] = data.get('director_reference_descriptions', [])
+        payload["parameters"]["director_reference_strength_values"] = data.get('director_reference_strength_values', [])
+        payload["parameters"]["director_reference_secondary_strength_values"] = data.get('director_reference_secondary_strength_values', [])
+        payload["parameters"]["director_reference_information_extracted"] = data.get('director_reference_information_extracted', [])
+
+    if is_inpaint:
+        payload["parameters"]["image"] = data.get('image')
+        payload["parameters"]["mask"] = data.get('mask')
+        payload["parameters"]["strength"] = 1.0
+        payload["parameters"]["noise"] = 0
+    elif data.get('image'):
+        payload["parameters"]["image"] = data.get('image')
+        payload["parameters"]["strength"] = float(data.get('strength', 0.5))
+        payload["parameters"]["noise"] = float(data.get('noise', 0))
+    return payload
+
+def create_payload(version, data, width, height, steps, seed, is_inpaint, action):
+    norm_ver = str(version or "").lower().strip()
+    if norm_ver in ("v5", "nai5", "v5.0"):
+        return create_v5_payload(data, width, height, steps, seed, is_inpaint, action)
+    if norm_ver in ("v4.5", "v4", "v4-full", "v4-curated"):
+        return create_v45_payload(data, width, height, steps, seed, is_inpaint, action)
+    return create_v3_payload(data, width, height, steps, seed, is_inpaint, action)
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         # 1. /generate 接口
@@ -76,188 +378,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 steps = min(int(data.get('steps', 28)), 28) if is_restricted else int(data.get('steps', 28))
 
                 # Payload 构造 (与 Cloudflare Workers 的 _payload-factory.js 保持 100% 对齐)
-                prompt = data.get('prompt', '')
-                negative_prompt = data.get('negative_prompt', '')
                 version = data.get('version', 'v3')
-                seed = data.get('seed', 0)
+                seed = int(data.get('seed', 0))
                 
-                isInpaint = data.get('action') == 'infill' and data.get('mask')
-                action = 'generate'
-                if isInpaint:
-                    action = 'infill'
-                elif data.get('image'):
-                    action = 'img2img'
-                    
-                # 处理 Vibe Transfer (氛围传输)
-                vibe_images = []
-                vibe_info = []
-                vibe_strength = []
-                if data.get('vibe_image'):
-                    vibe_images.append(data.get('vibe_image'))
-                    
-                    v_info = 1.0
-                    try:
-                        v_info = float(data.get('vibe_info', 1.0))
-                    except:
-                        pass
-                    vibe_info.append(v_info)
-                    
-                    v_strength = 0.6
-                    try:
-                        v_strength = float(data.get('vibe_strength', 0.6))
-                    except:
-                        pass
-                    vibe_strength.append(v_strength)
-                    
-                payload = {}
-                if version == 'v4.5':
-                    model = "nai-diffusion-4-5-full-inpainting" if isInpaint else "nai-diffusion-4-5-full"
-                    is_experimental = data.get('v4_5_experimental') is True
-                    
-                    char_captions = []
-                    neg_char_captions = []
-                    req_char_captions = data.get('char_captions')
-                    if isinstance(req_char_captions, list) and len(req_char_captions) > 0:
-                        for c in req_char_captions:
-                            x_val = float(c.get('x', 0.5)) if c.get('x') is not None else 0.5
-                            y_val = float(c.get('y', 0.5)) if c.get('y') is not None else 0.5
-                            char_captions.append({
-                                "char_caption": c.get('prompt', ''),
-                                "centers": [{"x": x_val, "y": y_val}]
-                            })
-                            neg_char_captions.append({
-                                "char_caption": c.get('negative_prompt', ''),
-                                "centers": [{"x": x_val, "y": y_val}]
-                            })
-                    
-                    use_coords = data.get('v4_prompt_use_coords') if data.get('v4_prompt_use_coords') is not None else (not is_experimental)
-                    use_order = data.get('v4_prompt_use_order') if data.get('v4_prompt_use_order') is not None else True
-                    neg_use_order = data.get('v4_neg_use_order') if data.get('v4_neg_use_order') is not None else is_experimental
-                    deliberate_euler_bug = data.get('deliberate_euler_ancestral_bug') if data.get('deliberate_euler_ancestral_bug') is not None else is_experimental
-                    prefer_brownian = data.get('prefer_brownian') if data.get('prefer_brownian') is not None else (not is_experimental)
-                    
-                    skip_cfg = 0.0 if is_experimental else None
-                    if data.get('skip_cfg_above_sigma') is not None:
-                        if data.get('skip_cfg_above_sigma') == 'null':
-                            skip_cfg = None
-                        else:
-                            try:
-                                skip_cfg = float(data.get('skip_cfg_above_sigma'))
-                            except:
-                                pass
-
-                    payload = {
-                        "input": prompt,
-                        "model": model,
-                        "action": action,
-                        "use_new_shared_trial": True,
-                        "parameters": {
-                            "params_version": 3,
-                            "width": width,
-                            "height": height,
-                            "scale": data.get('scale', 5.0),
-                            "sampler": data.get('sampler', "k_euler"),
-                            "steps": steps,
-                            "seed": seed,
-                            "n_samples": 1,
-                            "prompt": prompt,
-                            "negative_prompt": negative_prompt,
-                            "v4_prompt": {
-                                "caption": {"base_caption": prompt, "char_captions": char_captions},
-                                "use_coords": use_coords,
-                                "use_order": use_order
-                            },
-                            "v4_negative_prompt": {
-                                "caption": {"base_caption": negative_prompt, "char_captions": neg_char_captions},
-                                "legacy_uc": data.get('legacy_uc', False)
-                            },
-                            "ucPreset": 4,
-                            "qualityToggle": data.get('qualityToggle', False),
-                            "sm": data.get('sm', False),
-                            "sm_dyn": data.get('sm_dyn', False),
-                            "dynamic_thresholding": data.get('dynamic_thresholding', False),
-                            "controlnet_strength": 1,
-                            "legacy": False,
-                            "add_original_image": True,
-                            "cfg_rescale": data.get('cfg_rescale', 0),
-                            "noise_schedule": data.get('noise_schedule', 'exponential'),
-                            "legacy_v3_extend": False,
-                            "legacy_uc": data.get('legacy_uc', False),
-                            "characterPrompts": data.get('characterPrompts', []),
-                            "normalize_reference_strength_multiple": True,
-                            "uncond_scale": data.get('uncond_scale', 1.0),
-                            "skip_cfg_above_sigma": skip_cfg,
-                            "deliberate_euler_ancestral_bug": deliberate_euler_bug,
-                            "prefer_brownian": prefer_brownian,
-                            "reference_image_multiple": vibe_images,
-                            "reference_information_extracted_multiple": vibe_info,
-                            "reference_strength_multiple": vibe_strength,
-                            "extra_noise_seed": seed
-                        }
-                    }
-                else:
-                    model = "nai-diffusion-3-inpainting" if isInpaint else "nai-diffusion-3"
-                    payload = {
-                        "input": prompt,
-                        "model": model,
-                        "action": action,
-                        "parameters": {
-                            "params_version": 1,
-                            "width": width,
-                            "height": height,
-                            "scale": data.get('scale', 5.0),
-                            "sampler": data.get('sampler', "k_euler"),
-                            "steps": steps,
-                            "seed": seed,
-                            "n_samples": 1,
-                            "prompt": prompt,
-                            "negative_prompt": negative_prompt,
-                            "ucPreset": 3,
-                            "qualityToggle": data.get('qualityToggle', False),
-                            "sm": data.get('sm', True),
-                            "sm_dyn": data.get('sm_dyn', True),
-                            "dynamic_thresholding": data.get('dynamic_thresholding', False),
-                            "controlnet_strength": 1,
-                            "legacy": False,
-                            "add_original_image": True,
-                            "cfg_rescale": data.get('cfg_rescale', 0),
-                            "noise_schedule": "native",
-                            "legacy_v3_extend": False,
-                            "uncond_scale": data.get('uncond_scale', 1.0),
-                            "reference_image_multiple": vibe_images,
-                            "reference_information_extracted_multiple": vibe_info,
-                            "reference_strength_multiple": vibe_strength,
-                            "extra_noise_seed": seed
-                        }
-                    }
+                isInpaint = bool(data.get('action') == 'infill' and data.get('mask'))
+                action = 'infill' if isInpaint else ('img2img' if data.get('image') else 'generate')
                 
-                # 处理局部重绘 (infill) 和 图生图 (img2img) 专有字段
-                if isInpaint:
-                    inpaint_strength = 1.0
-                    try:
-                        inpaint_strength = float(data.get('strength', 1.0))
-                    except:
-                        pass
-                    payload["parameters"]["image"] = data.get('image')
-                    payload["parameters"]["mask"] = data.get('mask')
-                    payload["parameters"]["add_original_image"] = data.get('add_original_image', True)
-                    payload["parameters"]["inpaintImg2ImgStrength"] = inpaint_strength
-                    payload["parameters"]["strength"] = 1.0
-                    payload["parameters"]["noise"] = 0
-                    payload["parameters"]["sm"] = False
-                    payload["parameters"]["sm_dyn"] = False
-                elif data.get('image'):
-                    payload["parameters"]["image"] = data.get('image')
-                    payload["parameters"]["strength"] = data.get('strength', 0.5)
-                    payload["parameters"]["noise"] = data.get('noise', 0)
-                
-                # 处理 Character Reference (角色参考) (V4.5+)
-                if version == 'v4.5' and data.get('director_reference_images') and len(data.get('director_reference_images')) > 0:
-                    payload["parameters"]["director_reference_images"] = data.get('director_reference_images')
-                    payload["parameters"]["director_reference_descriptions"] = data.get('director_reference_descriptions', [])
-                    payload["parameters"]["director_reference_strength_values"] = data.get('director_reference_strength_values', [])
-                    payload["parameters"]["director_reference_secondary_strength_values"] = data.get('director_reference_secondary_strength_values', [])
-                    payload["parameters"]["director_reference_information_extracted"] = data.get('director_reference_information_extracted', [])
+                payload = create_payload(version, data, width, height, steps, seed, isInpaint, action)
 
                 req_data = json.dumps(payload).encode('utf-8')
                 content_type = 'application/json'
@@ -382,6 +509,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                         raw_info_val = {"error": "fetch_failed", "message": str(info_err)}
                                         print(f"获取邮箱失败: {info_err}")
 
+                                opus_usage = extract_opus_usage(sub_data)
+
                                 success_results.append({
                                     "key": key,
                                     "tier": tier,
@@ -392,7 +521,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                     "accountCreatedAt": info_data.get("accountCreatedAt", 0),
                                     "expiresAt": sub_data.get("expiresAt", 0),
                                     "email": email_val,
-                                    "rawInfo": raw_info_val
+                                    "rawInfo": raw_info_val,
+                                    "opusUsage": opus_usage
                                 })
                         except Exception as e:
                             failed_keys.append(f"{key[:10]}...")
@@ -420,7 +550,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             "accountCreatedAt": item.get("accountCreatedAt", 0),
                             "expiresAt": item.get("expiresAt", 0),
                             "email": item.get("email", ""),
-                            "rawInfo": item.get("rawInfo", {})
+                            "rawInfo": item.get("rawInfo", {}),
+                            "opusUsage": item.get("opusUsage")
                         })
 
                     self.send_response(200)
@@ -435,6 +566,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         "totalAnlas": total_anlas,
                         "keyCount": len(success_results),
                         "allKeysValid": True,
+                        "opusUsage": first_success.get("opusUsage"),
                         "details": details
                     }).encode('utf-8'))
                     print(f"--- 验证成功! 共 {len(success_results)} 个 Key 均有效。首个 Key 订阅等级: {first_success['tierName']} ---")
@@ -493,6 +625,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         except Exception as info_err:
                             print(f"获取邮箱失败: {info_err}")
 
+                    single_opus_usage = extract_opus_usage(sub_data)
+
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
                     self.end_headers()
@@ -504,6 +638,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         "anlas": anlas_val,
                         "totalAnlas": anlas_val,
                         "keyCount": 1,
+                        "opusUsage": single_opus_usage,
                         "details": [{
                             "key": api_key,
                             "valid": True,
@@ -514,7 +649,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                             "emailVerified": info_data.get("emailVerified", False),
                             "accountCreatedAt": info_data.get("accountCreatedAt", 0),
                             "expiresAt": sub_data.get("expiresAt", 0),
-                            "email": email_val
+                            "email": email_val,
+                            "opusUsage": single_opus_usage
                         }]
                     }).encode('utf-8'))
                     print(f"--- 验证成功! 订阅等级: {tier_name} ---")

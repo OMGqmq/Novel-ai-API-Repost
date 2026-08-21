@@ -78,9 +78,11 @@
         <div id="view-notebook" class="flex flex-col flex-1 overflow-hidden hidden">
             <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex gap-2 justify-center shrink-0">
                 <button onclick="switchNotebookModel('v3')" id="btn-nb-v3"
-                    class="px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-gray-900 text-white dark:bg-slate-100 dark:text-gray-900 border-transparent shadow-md">V3</button>
+                    class="px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-gray-900 text-white dark:bg-slate-100 dark:text-gray-900 border-transparent shadow-md">V3</button>
                 <button onclick="switchNotebookModel('v4.5')" id="btn-nb-v4"
-                    class="px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-white text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-gray-700">V4.5</button>
+                    class="px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-white text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-gray-700">V4.5</button>
+                <button onclick="switchNotebookModel('v5')" id="btn-nb-v5"
+                    class="px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-white text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-gray-700">V5</button>
             </div>
             <div class="px-4 pt-3 shrink-0">
                 <button onclick="saveCurrentPromptToNotebook()"
@@ -318,7 +320,7 @@
             <div class="relative bg-gray-100/50 dark:bg-slate-800/50 p-1 rounded-xl flex border border-gray-200/50 dark:border-gray-700/50"
                 id="modelToggleContainer" data-model="v3">
                 <div
-                    class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(33.33%-4px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0">
+                    class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(25%-2px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0">
                 </div>
                 <button onclick="setModel('v3')"
                     class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative transition-colors">NAI
@@ -326,6 +328,9 @@
                 <button onclick="setModel('v4.5')"
                     class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative flex items-center justify-center gap-1 transition-colors">V4.5
                     <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span></button>
+                <button onclick="setModel('v5')"
+                    class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative flex items-center justify-center gap-1 transition-colors">NAI V5
+                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span></button>
                 <button onclick="setModel('zimage')"
                     class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative transition-colors">ZImage</button>
                 <input type="hidden" id="modelValue" value="v3">
@@ -352,7 +357,7 @@
             <div
                 class="md:hidden relative bg-gray-100/50 dark:bg-slate-800/50 p-1 rounded-xl flex border border-gray-200/50 dark:border-gray-700/50 mb-2">
                 <div
-                    class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(33.33%-4px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0">
+                    class="switch-bg absolute top-1 bottom-1 left-1 w-[calc(25%-2px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-transform duration-300 z-0">
                 </div>
                 <button onclick="setModel('v3')"
                     class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative transition-colors">NAI
@@ -360,6 +365,9 @@
                 <button onclick="setModel('v4.5')"
                     class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative transition-colors">V4.5
                     <span class="w-1.5 h-1.5 rounded-full bg-blue-500 ml-1"></span></button>
+                <button onclick="setModel('v5')"
+                    class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative transition-colors">NAI V5
+                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 ml-1"></span></button>
                 <button onclick="setModel('zimage')"
                     class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-gray-500 dark:text-gray-400 relative transition-colors">ZImage</button>
             </div>

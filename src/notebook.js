@@ -114,20 +114,22 @@ export class NotebookManager {
 
         notes.unshift(note);
         this.saveNotebookNotes(model, notes);
-        this.onShowToast(`已保存到 ${model === 'v4.5' ? 'V4.5' : 'V3'} 笔记本`, 'success');
+        this.onShowToast(`已保存到 ${model === 'v5' ? 'V5' : (model === 'v4.5' ? 'V4.5' : 'V3')} 笔记本`, 'success');
 
         this.render(model);
     }
 
     switchModel(model) {
         this.currentModel = model;
-        const active = "px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-gray-900 text-white dark:bg-slate-100 dark:text-gray-900 border-transparent shadow-md";
-        const inactive = "px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-white text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-gray-700";
+        const active = "px-3.5 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-gray-900 text-white dark:bg-slate-100 dark:text-gray-900 border-transparent shadow-md";
+        const inactive = "px-3.5 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-white text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-gray-700";
         
         const btnV3 = document.getElementById('btn-nb-v3');
         const btnV4 = document.getElementById('btn-nb-v4');
+        const btnV5 = document.getElementById('btn-nb-v5');
         if (btnV3) btnV3.className = model === 'v3' ? active : inactive;
-        if (btnV4) btnV4.className = model !== 'v3' ? active : inactive;
+        if (btnV4) btnV4.className = model === 'v4.5' ? active : inactive;
+        if (btnV5) btnV5.className = model === 'v5' ? active : inactive;
 
         this.render(model);
     }
@@ -313,8 +315,9 @@ export class NotebookManager {
     exportNotebook() {
         const v3Notes = this.getNotebookNotes('v3');
         const v4Notes = this.getNotebookNotes('v4.5');
+        const v5Notes = this.getNotebookNotes('v5');
         
-        if (v3Notes.length === 0 && v4Notes.length === 0) {
+        if (v3Notes.length === 0 && v4Notes.length === 0 && v5Notes.length === 0) {
             this.onShowToast('笔记本为空，无需导出', 'warning');
             return;
         }
@@ -323,7 +326,8 @@ export class NotebookManager {
             type: 'nai_notebook_backup',
             version: 1,
             v3: v3Notes,
-            'v4.5': v4Notes
+            'v4.5': v4Notes,
+            'v5': v5Notes
         };
 
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -369,13 +373,14 @@ export class NotebookManager {
 
                 const v3Import = Array.isArray(data.v3) ? data.v3 : [];
                 const v4Import = Array.isArray(data['v4.5']) ? data['v4.5'] : [];
+                const v5Import = Array.isArray(data['v5']) ? data['v5'] : [];
 
-                if (v3Import.length === 0 && v4Import.length === 0) {
+                if (v3Import.length === 0 && v4Import.length === 0 && v5Import.length === 0) {
                     this.onShowToast('备份文件中没有笔记数据', 'warning');
                     return;
                 }
 
-                const confirmMsg = `确定要导入备份吗？将合并导入 ${v3Import.length} 条 V3 笔记和 ${v4Import.length} 条 V4.5 笔记（自动过滤重复项）。`;
+                const confirmMsg = `确定要导入备份吗？将合并导入 ${v3Import.length} 条 V3 笔记、${v4Import.length} 条 V4.5 笔记和 ${v5Import.length} 条 V5 笔记（自动过滤重复项）。`;
                 const confirm = await this.onConfirm(confirmMsg, '导入备份', 'upload-cloud');
                 if (!confirm) {
                     return;
@@ -411,8 +416,23 @@ export class NotebookManager {
                     this.saveNotebookNotes('v4.5', mergedV4);
                 }
 
+                let v5Added = 0;
+                if (v5Import.length > 0) {
+                    const currentV5 = this.getNotebookNotes('v5');
+                    const preparedImportV5 = v5Import.map(imp => ({
+                        id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+                        prompt: imp.prompt,
+                        negative: imp.negative || '',
+                        preview: imp.preview || null,
+                        createdAt: imp.createdAt || Date.now()
+                    }));
+                    const mergedV5 = this._mergeNotes(currentV5, preparedImportV5);
+                    v5Added = mergedV5.length - currentV5.length;
+                    this.saveNotebookNotes('v5', mergedV5);
+                }
+
                 this.render(this.currentModel);
-                this.onShowToast(`导入成功！新增 V3: ${v3Added}条, V4.5: ${v4Added}条`, 'success');
+                this.onShowToast(`导入成功！新增 V3: ${v3Added}条, V4.5: ${v4Added}条, V5: ${v5Added}条`, 'success');
             } catch (err) {
                 console.error('Failed to import notebook:', err);
                 this.onShowToast('解析备份文件失败: ' + err.message, 'error');

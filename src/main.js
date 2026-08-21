@@ -104,9 +104,11 @@ function loadVibeState(model) {
 function collectAdvancedAndModelParams(selectedVersion) {
     const extraParams = {};
 
-    if (selectedVersion === 'v4.5') {
+    if (selectedVersion === 'v4.5' || selectedVersion === 'v5') {
         const isExp = store.getSetting('v4_5_experimental', 'false') === 'true';
-        extraParams.v4_5_experimental = isExp;
+        if (selectedVersion === 'v4.5') {
+            extraParams.v4_5_experimental = isExp;
+        }
 
         // 搜集多角色提示词 (Character Prompts)
         const charRows = document.querySelectorAll('.character-prompt-row');
@@ -141,7 +143,7 @@ function collectAdvancedAndModelParams(selectedVersion) {
 
         if (charCaptions.length > 0) extraParams.char_captions = charCaptions;
 
-        if (isExp) {
+        if (selectedVersion === 'v4.5' && isExp) {
             const eulerBugEl = document.getElementById('v45EulerBug');
             const preferBrownianEl = document.getElementById('v45PreferBrownian');
             const useCoordsEl = document.getElementById('v45UseCoords');
@@ -156,9 +158,16 @@ function collectAdvancedAndModelParams(selectedVersion) {
         }
         if (hasCustomCoords) extraParams.v4_prompt_use_coords = true;
 
-        const skipCfgEl = document.getElementById('skipCfg');
-        if (skipCfgEl) {
-            extraParams.skip_cfg_above_sigma = isExp && skipCfgEl.value ? parseInt(skipCfgEl.value) : null;
+        if (selectedVersion === 'v4.5') {
+            const skipCfgEl = document.getElementById('skipCfg');
+            if (skipCfgEl) {
+                extraParams.skip_cfg_above_sigma = isExp && skipCfgEl.value ? parseInt(skipCfgEl.value) : null;
+            }
+        } else if (selectedVersion === 'v5') {
+            extraParams.ucPresetId = 'heavy';
+            extraParams.qualityPresetId = 'standard';
+            extraParams.noise_schedule = 'karras';
+            extraParams.straight_alpha = true;
         }
     }
 
@@ -175,12 +184,12 @@ function collectAdvancedAndModelParams(selectedVersion) {
     const noiseScheduleEl = document.getElementById('noiseSchedule');
     const qualityToggleEl = document.getElementById('qualityToggle');
 
-    extraParams.sm = (selectedVersion === 'v4.5') ? false : (smEl ? smEl.checked : true);
-    extraParams.sm_dyn = (selectedVersion === 'v4.5') ? false : (smDynEl ? smDynEl.checked : true);
+    extraParams.sm = (selectedVersion === 'v4.5' || selectedVersion === 'v5') ? false : (smEl ? smEl.checked : true);
+    extraParams.sm_dyn = (selectedVersion === 'v4.5' || selectedVersion === 'v5') ? false : (smDynEl ? smDynEl.checked : true);
     extraParams.cfg_rescale = cfgRescaleEl ? parseFloat(cfgRescaleEl.value) : 0.0;
     extraParams.uncond_scale = uncondScaleEl ? parseFloat(uncondScaleEl.value) : 1.0;
     if (decrispEl) extraParams.dynamic_thresholding = decrispEl.checked;
-    if (noiseScheduleEl) extraParams.noise_schedule = noiseScheduleEl.value;
+    if (noiseScheduleEl && selectedVersion !== 'v5') extraParams.noise_schedule = noiseScheduleEl.value;
     if (qualityToggleEl) extraParams.qualityToggle = qualityToggleEl.checked;
 
     return extraParams;

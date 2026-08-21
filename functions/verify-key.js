@@ -43,6 +43,23 @@ export async function onRequest(context) {
       return 0;
     };
 
+    // Helper: 提取 Opus 免费额度与生成张数估算
+    const extractOpusUsage = (sub) => {
+      if (!sub || sub.tier < 3) return null;
+      const usage = sub.usage || {};
+      const percent = usage.isNegative ? 0 : Math.min(100, Math.max(0, (typeof usage.percent === 'number' ? usage.percent : 0)));
+      const estimatedImages = Math.round(17.3 * percent);
+      const timeUntilNextPercent = usage.timeUntilNextPercent || 0;
+      const refillRatePerDay = timeUntilNextPercent > 0 ? Math.round((86400 / timeUntilNextPercent) * 10) / 10 : 0;
+      return {
+        percent,
+        isNegative: !!usage.isNegative,
+        timeUntilNextPercent,
+        estimatedImages,
+        refillRatePerDay
+      };
+    };
+
     // 1. 如果传了 apiKeys 数组，支持并发验证所有 Key
     if (apiKeys && Array.isArray(apiKeys)) {
       const keysToVerify = apiKeys.map(k => k.trim()).filter(k => k);
@@ -88,6 +105,8 @@ export async function onRequest(context) {
           }
         }
 
+        const opusUsage = extractOpusUsage(sub);
+
         return {
           key,
           valid: true,
@@ -99,7 +118,8 @@ export async function onRequest(context) {
           accountCreatedAt: info.accountCreatedAt || 0,
           expiresAt: sub.expiresAt || 0,
           email: emailVal,
-          rawInfo: rawInfoVal
+          rawInfo: rawInfoVal,
+          opusUsage: opusUsage
         };
       });
 
@@ -138,7 +158,8 @@ export async function onRequest(context) {
             accountCreatedAt: r.value.accountCreatedAt,
             expiresAt: r.value.expiresAt,
             email: r.value.email,
-            rawInfo: r.value.rawInfo
+            rawInfo: r.value.rawInfo,
+            opusUsage: r.value.opusUsage
           };
         } else {
           return {
@@ -158,6 +179,7 @@ export async function onRequest(context) {
         totalAnlas: totalAnlas,
         keyCount: keysToVerify.length,
         allKeysValid: true,
+        opusUsage: firstSuccess.opusUsage,
         details: details
       }), {
         status: 200,
@@ -222,6 +244,8 @@ export async function onRequest(context) {
       }
     }
 
+    const opusUsage = extractOpusUsage(sub);
+
     return new Response(JSON.stringify({
       valid: true,
       tier: sub.tier,
@@ -230,6 +254,7 @@ export async function onRequest(context) {
       anlas: anlasVal,
       totalAnlas: anlasVal,
       keyCount: 1,
+      opusUsage: opusUsage,
       details: [{
         key: apiKey,
         valid: true,
@@ -241,7 +266,8 @@ export async function onRequest(context) {
         accountCreatedAt: info.accountCreatedAt || 0,
         expiresAt: sub.expiresAt || 0,
         email: emailVal,
-        rawInfo: rawInfoVal
+        rawInfo: rawInfoVal,
+        opusUsage: opusUsage
       }]
     }), {
       status: 200,

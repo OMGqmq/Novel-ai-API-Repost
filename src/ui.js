@@ -294,16 +294,30 @@ export class UIController {
     }
 
     setModel(ver) {
-        document.getElementById('modelValue').value = ver;
+        const modelInput = document.getElementById('modelValue');
+        if (modelInput) modelInput.value = ver;
         document.querySelectorAll('.switch-bg').forEach(bg => {
             if (ver === 'v4.5') bg.style.transform = 'translateX(100%)';
-            else if (ver === 'zimage') bg.style.transform = 'translateX(200%)';
+            else if (ver === 'v5') bg.style.transform = 'translateX(200%)';
+            else if (ver === 'zimage') bg.style.transform = 'translateX(300%)';
             else bg.style.transform = 'translateX(0)';
         });
         const badge = document.getElementById('modelBadge');
-        if (badge) badge.innerText = (ver === 'zimage' ? 'ZIMAGE' : ver === 'v4.5' ? 'V4.5' : 'V3') + ' MODE';
+        if (badge) {
+            let label = 'V3';
+            if (ver === 'zimage') label = 'ZIMAGE';
+            else if (ver === 'v5') label = 'V5';
+            else if (ver === 'v4.5') label = 'V4.5';
+            badge.innerText = label + ' MODE';
+        }
         const mini = document.getElementById('modelStatusMini');
-        if (mini) mini.innerText = ver === 'zimage' ? 'ZImage' : ver === 'v4.5' ? 'V4.5' : 'V3';
+        if (mini) {
+            let miniLabel = 'V3';
+            if (ver === 'zimage') miniLabel = 'ZImage';
+            else if (ver === 'v5') miniLabel = 'V5';
+            else if (ver === 'v4.5') miniLabel = 'V4.5';
+            mini.innerText = miniLabel;
+        }
 
         // 控制 V4.5 专属参数面板的显示/隐藏（仅在 V4.5 且开启了实验性配置时显示）
         const isV45Exp = localStorage.getItem('v4_5_experimental') === 'true';
@@ -336,17 +350,17 @@ export class UIController {
             }
         }
 
-        // 控制 Character Prompts 角色提示词面板的显示/隐藏（仅在 V4.5 模型下显示）
+        // 控制 Character Prompts 角色提示词面板的显示/隐藏（在 V4.5 和 V5 模型下均支持显示）
         const charWrapper = document.getElementById('characterPromptsWrapper');
         if (charWrapper) {
-            if (ver === 'v4.5') {
+            if (ver === 'v4.5' || ver === 'v5') {
                 charWrapper.classList.remove('hidden');
             } else {
                 charWrapper.classList.add('hidden');
             }
         }
 
-        // 控制 NAI 专属组件在 zimage 模式下隐藏，而在 NAI 模型（v3, v4.5）下显示
+        // 控制 NAI 专属组件在 zimage 模式下隐藏，而在 NAI 模型（v3, v4.5, v5）下显示
         const isZImage = ver === 'zimage';
         
         const negPromptWrap = document.getElementById('negativePromptWrapper');
