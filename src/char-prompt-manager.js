@@ -447,4 +447,279 @@ export class CharPromptManager {
     selectCharGridCell(btn, x, y) {
         this.setCharPosition(btn, x, y);
     }
+
+    /**
+     * =========================================================================
+     * V5 全屏大画布角色自由位置编排 Stage (Official-grade Character Position Stage)
+     * =========================================================================
+     */
+    openStage(activeIdx = 0) {
+        const stageEl = document.getElementById('charPositionStage');
+        if (!stageEl) return;
+
+        const container = document.getElementById('characterPromptsContainer');
+        const rows = container ? container.querySelectorAll('.character-prompt-row') : [];
+        if (rows.length === 0) {
+            this.addCharacterPromptRow();
+        }
+
+        this.activeStageCharIndex = activeIdx;
+        this.stageGridMode = this.stageGridMode || 'thirds';
+
+        // 依据当前设置的分辨率自适应画板宽高比
+        const resSelect = document.getElementById('resolution');
+        let ratio = 832 / 1216; // 默认 Portrait
+        if (resSelect && resSelect.value) {
+            const [w, h] = resSelect.value.split(',').map(Number);
+            if (w && h) ratio = w / h;
+        }
+
+        const boxEl = document.getElementById('charStageBox');
+        if (boxEl) {
+            const maxH = Math.min(window.innerHeight * 0.58, 520);
+            const calcW = maxH * ratio;
+            boxEl.style.height = `${maxH}px`;
+            boxEl.style.width = `${calcW}px`;
+        }
+
+        stageEl.classList.remove('hidden');
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+
+        this.renderStage();
+        this._initStageInteractions();
+    }
+
+    closeStage() {
+        const stageEl = document.getElementById('charPositionStage');
+        if (stageEl) stageEl.classList.add('hidden');
+        this.saveCharacterPromptsState();
+    }
+
+    setStageGridMode(mode) {
+        this.stageGridMode = mode;
+        const modes = ['thirds', 'phi', 'center', 'none'];
+        modes.forEach(m => {
+            const btn = document.getElementById(`charGridMode${m.charAt(0).toUpperCase() + m.slice(1)}`);
+            if (btn) {
+                if (m === mode) {
+                    btn.className = 'px-2.5 py-1 rounded-lg bg-indigo-600 font-semibold transition-all text-white shadow-sm';
+                } else {
+                    btn.className = 'px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all text-gray-300';
+                }
+            }
+        });
+        this._renderStageGridSvg();
+    }
+
+    _renderStageGridSvg() {
+        const svg = document.getElementById('charStageGridSvg');
+        if (!svg) return;
+
+        const mode = this.stageGridMode || 'thirds';
+        if (mode === 'none') {
+            svg.innerHTML = '';
+            return;
+        }
+
+        if (mode === 'thirds') {
+            svg.innerHTML = `
+                <line x1="33.33%" y1="0" x2="33.33%" y2="100%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
+                <line x1="66.67%" y1="0" x2="66.67%" y2="100%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
+                <line x1="0" y1="33.33%" x2="100%" y2="33.33%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
+                <line x1="0" y1="66.67%" x2="100%" y2="66.67%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
+            `;
+        } else if (mode === 'phi') {
+            svg.innerHTML = `
+                <line x1="38.2%" y1="0" x2="38.2%" y2="100%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
+                <line x1="61.8%" y1="0" x2="61.8%" y2="100%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
+                <line x1="0" y1="38.2%" x2="100%" y2="38.2%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
+                <line x1="0" y1="61.8%" x2="100%" y2="61.8%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
+            `;
+        } else if (mode === 'center') {
+            svg.innerHTML = `
+                <line x1="50%" y1="0" x2="50%" y2="100%" stroke="rgba(99,102,241,0.6)" stroke-dasharray="5 5" stroke-width="1.5"/>
+                <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(99,102,241,0.6)" stroke-dasharray="5 5" stroke-width="1.5"/>
+                <circle cx="50%" cy="50%" r="8" fill="none" stroke="rgba(99,102,241,0.8)" stroke-width="1.5"/>
+            `;
+        }
+    }
+
+    autoArrange() {
+        const container = document.getElementById('characterPromptsContainer');
+        if (!container) return;
+        const rows = Array.from(container.querySelectorAll('.character-prompt-row'));
+        if (rows.length === 0) return;
+
+        // 依据角色总数进行黄金螺旋 / 审美离散布局
+        const presets = [
+            [0.5, 0.5],
+            [0.3, 0.5],
+            [0.7, 0.5],
+            [0.2, 0.35],
+            [0.8, 0.35],
+            [0.5, 0.75],
+            [0.35, 0.7],
+            [0.65, 0.7],
+            [0.15, 0.5],
+            [0.85, 0.5]
+        ];
+
+        rows.forEach((row, i) => {
+            const coord = presets[i] || [0.1 + (i * 0.15) % 0.8, 0.2 + (i * 0.2) % 0.6];
+            this.setCharPosition(row, coord[0], coord[1]);
+            const autoPosCheckbox = row.querySelector('.char-auto-pos');
+            if (autoPosCheckbox) autoPosCheckbox.checked = false;
+        });
+
+        this.renderStage();
+        if (typeof window !== 'undefined' && window.showToast) {
+            window.showToast("已自动对齐与分散排布角色位置", "success");
+        }
+    }
+
+    renderStage() {
+        const container = document.getElementById('characterPromptsContainer');
+        if (!container) return;
+        const rows = Array.from(container.querySelectorAll('.character-prompt-row'));
+
+        const chipsContainer = document.getElementById('charStageChips');
+        const pinsContainer = document.getElementById('charStagePinsContainer');
+        const activeCoordsLabel = document.getElementById('charStageActiveCoords');
+
+        if (chipsContainer) chipsContainer.innerHTML = '';
+        if (pinsContainer) pinsContainer.innerHTML = '';
+
+        if (this.activeStageCharIndex >= rows.length) {
+            this.activeStageCharIndex = Math.max(0, rows.length - 1);
+        }
+
+        this._renderStageGridSvg();
+
+        // 收集所有角色的当前位置，用于碰撞检测 (距离 < 0.1 警告)
+        const charPositions = rows.map(r => {
+            const x = parseFloat(r.querySelector('.char-pos-x')?.value || '0.5');
+            const y = parseFloat(r.querySelector('.char-pos-y')?.value || '0.5');
+            const prompt = r.querySelector('.char-prompt-input')?.value.trim() || '';
+            const enabled = r.querySelector('.char-enable-toggle')?.checked !== false;
+            return { x, y, prompt, enabled };
+        });
+
+        rows.forEach((row, idx) => {
+            const { x, y, prompt, enabled } = charPositions[idx];
+            const isActive = idx === this.activeStageCharIndex;
+
+            // 1. 顶部角色选择 Chip
+            if (chipsContainer) {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                const summary = prompt ? (prompt.length > 8 ? prompt.slice(0, 8) + '...' : prompt) : `角色 ${idx + 1}`;
+                chip.className = `px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all flex-shrink-0 cursor-pointer ${
+                    isActive 
+                        ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-400' 
+                        : 'bg-white/10 hover:bg-white/20 text-gray-300'
+                } ${!enabled ? 'opacity-50' : ''}`;
+                chip.innerHTML = `
+                    <span class="w-4 h-4 rounded-full ${isActive ? 'bg-white text-indigo-700' : 'bg-white/20 text-white'} flex items-center justify-center text-[10px] font-bold">${idx + 1}</span>
+                    <span>${summary}</span>
+                `;
+                chip.onclick = () => {
+                    this.activeStageCharIndex = idx;
+                    this.renderStage();
+                };
+                chipsContainer.appendChild(chip);
+            }
+
+            // 2. 检测该角色是否与其他角色过于接近 (< 0.1 欧氏距离)
+            let isTooClose = false;
+            charPositions.forEach((other, otherIdx) => {
+                if (otherIdx !== idx && enabled && other.enabled) {
+                    const dist = Math.hypot(x - other.x, y - other.y);
+                    if (dist < 0.1) isTooClose = true;
+                }
+            });
+
+            // 3. 画板上的 Marker Pin
+            if (pinsContainer) {
+                const pin = document.createElement('div');
+                pin.className = `char-stage-pin absolute w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold cursor-grab active:cursor-grabbing select-none transition-transform ${
+                    isActive 
+                        ? 'bg-white text-slate-900 shadow-2xl ring-4 ring-indigo-500 scale-110 z-20' 
+                        : 'bg-slate-900/90 text-white border-2 border-white/60 shadow-lg z-10 hover:scale-105'
+                } ${isTooClose ? 'ring-4 !ring-amber-500 animate-pulse' : ''} ${!enabled ? 'opacity-40' : ''}`;
+                pin.style.left = `${x * 100}%`;
+                pin.style.top = `${y * 100}%`;
+                pin.style.transform = 'translate(-50%, -50%)';
+                pin.setAttribute('data-index', idx);
+                pin.title = `角色 ${idx + 1} (${(x * 100).toFixed(0)}%, ${(y * 100).toFixed(0)}%)${isTooClose ? ' - 提示: 角色距离较近' : ''}`;
+                pin.innerHTML = `<span>${idx + 1}</span>`;
+                pinsContainer.appendChild(pin);
+            }
+
+            if (isActive && activeCoordsLabel) {
+                activeCoordsLabel.innerHTML = `角色 <b>${idx + 1}</b>: X <b>${(x * 100).toFixed(0)}%</b> | Y <b>${(y * 100).toFixed(0)}%</b>${isTooClose ? ' <span class="text-amber-400">⚠ 距离过近</span>' : ''}`;
+            }
+        });
+    }
+
+    _initStageInteractions() {
+        const box = document.getElementById('charStageBox');
+        if (!box || box.dataset.interactionBound === 'true') return;
+        box.dataset.interactionBound = 'true';
+
+        let isDragging = false;
+        let activeDragIndex = this.activeStageCharIndex;
+
+        const updateCoord = (clientX, clientY) => {
+            const container = document.getElementById('characterPromptsContainer');
+            if (!container) return;
+            const rows = Array.from(container.querySelectorAll('.character-prompt-row'));
+            const targetRow = rows[this.activeStageCharIndex];
+            if (!targetRow) return;
+
+            const rect = box.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+
+            let normX = (clientX - rect.left) / rect.width;
+            let normY = (clientY - rect.top) / rect.height;
+            normX = Math.max(0.01, Math.min(0.99, normX));
+            normY = Math.max(0.01, Math.min(0.99, normY));
+
+            const finalX = parseFloat(normX.toFixed(3));
+            const finalY = parseFloat(normY.toFixed(3));
+
+            this.setCharPosition(targetRow, finalX, finalY);
+            const autoPosCheckbox = targetRow.querySelector('.char-auto-pos');
+            if (autoPosCheckbox) autoPosCheckbox.checked = false;
+
+            this.renderStage();
+        };
+
+        box.addEventListener('pointerdown', (e) => {
+            const pinTarget = e.target.closest('.char-stage-pin');
+            if (pinTarget) {
+                const idx = parseInt(pinTarget.getAttribute('data-index') || '0');
+                this.activeStageCharIndex = idx;
+                activeDragIndex = idx;
+            }
+            isDragging = true;
+            try { box.setPointerCapture(e.pointerId); } catch (_) {}
+            updateCoord(e.clientX, e.clientY);
+        });
+
+        box.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            updateCoord(e.clientX, e.clientY);
+        });
+
+        const endDrag = (e) => {
+            if (isDragging) {
+                isDragging = false;
+                try { box.releasePointerCapture(e.pointerId); } catch (_) {}
+                this.saveCharacterPromptsState();
+            }
+        };
+
+        box.addEventListener('pointerup', endDrag);
+        box.addEventListener('pointercancel', endDrag);
+    }
 }

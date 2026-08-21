@@ -1859,6 +1859,26 @@ function saveCharacterPromptsState() {
 }
 window.saveCharacterPromptsState = saveCharacterPromptsState;
 
+function openCharPositionStage(idx = 0) {
+    charPromptManager.openStage(idx);
+}
+window.openCharPositionStage = openCharPositionStage;
+
+function closeCharPositionStage() {
+    charPromptManager.closeStage();
+}
+window.closeCharPositionStage = closeCharPositionStage;
+
+function setCharStageGridMode(mode) {
+    charPromptManager.setStageGridMode(mode);
+}
+window.setCharStageGridMode = setCharStageGridMode;
+
+function autoArrangeCharPositions() {
+    charPromptManager.autoArrange();
+}
+window.autoArrangeCharPositions = autoArrangeCharPositions;
+
 async function forceReloadApp() {
     if (window.showToast) window.showToast("正在清理页面离线缓存...", "info");
     
@@ -2860,6 +2880,7 @@ Object.assign(window, {
     saveAdminToken, clearAdminToken,
     addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleKeyConcurrent, toggleV45Experimental, randomizeSeed, toggleBypassLimitsEnabled,
     addCharacterPromptRow, removeCharacterPromptRow, selectCharGridCell, setCharPosition, toggleCharacterPromptsPanel,
+    openCharPositionStage, closeCharPositionStage, setCharStageGridMode, autoArrangeCharPositions,
     saveCurrentPromptToNotebook, switchNotebookModel, renderNotebookNotes,
     applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote,
     bindCurrentCanvasToNote, removeNotePreview, viewNotebookNotePreview,
