@@ -946,6 +946,9 @@ async function saveToHistory(imgData, prompt, model, resultObj = null, forceFocu
         }
         
         galleryController.loadGallery();
+        if (window.refreshAnlasDisplay) {
+            window.refreshAnlasDisplay();
+        }
         return savedItem;
     } catch (e) {
         console.error("Failed to save to history", e);
@@ -1572,10 +1575,16 @@ function toggleBypassLimitsEnabled(forceState) {
 function updateAnlasUI(data) {
     const anlasVal = typeof data.totalAnlas === 'number' ? data.totalAnlas : (typeof data.anlas === 'number' ? data.anlas : 0);
     const keyCountVal = typeof data.keyCount === 'number' ? data.keyCount : 1;
+    const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
     
-    let text = `CustomAPI (Anlas: ${anlasVal})`;
+    let opusText = '';
+    if (opusUsage && typeof opusUsage.percent === 'number') {
+        opusText = ` | Opus免费: ${opusUsage.percent}% (约${opusUsage.estimatedImages}张)`;
+    }
+
+    let text = `CustomAPI (Anlas: ${anlasVal}${opusText})`;
     if (keyCountVal > 1) {
-        text = `CustomAPI (Anlas: ${anlasVal} | ${keyCountVal}个Key)`;
+        text = `CustomAPI (Anlas: ${anlasVal}${opusText} | ${keyCountVal}个Key)`;
     }
 
     const desktopDisplay = document.getElementById('creditDisplayDesktop');
@@ -1584,6 +1593,9 @@ function updateAnlasUI(data) {
     if (desktopDisplay) {
         desktopDisplay.textContent = text;
         desktopDisplay.classList.remove('hidden');
+        if (opusUsage && typeof opusUsage.percent === 'number') {
+            desktopDisplay.title = `Opus 免费生成额度: 剩余 ${opusUsage.percent}% (约 ${opusUsage.estimatedImages} 张图片)`;
+        }
     }
     if (mobileDisplay) {
         mobileDisplay.textContent = text;
@@ -1594,7 +1606,7 @@ function updateAnlasUI(data) {
 window.refreshAnlasDisplay = async function() {
     const keysRaw = localStorage.getItem('nai_custom_api_key');
     if (!keysRaw) return;
-    const keys = keysRaw.split('\n').map(k => k.trim()).filter(k => k);
+    const keys = keysRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k);
     if (keys.length === 0) return;
     const keyToVerify = keys[0];
 
@@ -1611,7 +1623,7 @@ window.refreshAnlasDisplay = async function() {
             }
         }
     } catch (e) {
-        console.warn('自动刷新 Anlas 余额失败:', e.message);
+        console.warn('自动刷新 Anlas/Opus 额度失败:', e.message);
     }
 };
 
@@ -2170,6 +2182,10 @@ window.fetchAndShowAllKeysBalances = async function(keys) {
                 if (data.valid) {
                     let detailText = `✔ 订阅: ${data.tierName} | 余额: ${data.anlas} Anlas`;
                     const detail = data.details && data.details[0];
+                    const opusUsage = (detail && detail.opusUsage) || data.opusUsage;
+                    if (opusUsage && typeof opusUsage.percent === 'number') {
+                        detailText += ` | Opus免费生成: 剩余 ${opusUsage.percent}% (约 ${opusUsage.estimatedImages} 张)`;
+                    }
                     if (detail) {
                         if (detail.email) {
                             detailText += ` | 邮箱: ${detail.email}`;
@@ -2253,9 +2269,15 @@ async function verifyCustomApiKey() {
                 const data = JSON.parse(text);
                 if (res.ok && data.valid) {
                     localStorage.setItem('nai_custom_api_key', keysRaw);
-                    statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${data.tierName}</b>。已激活 ${keys.length} 个 Key 并发模式。</span>`;
+                    const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
+                    let opusInfo = '';
+                    if (opusUsage && typeof opusUsage.percent === 'number') {
+                        opusInfo = ` | Opus免费生成额度: 剩余 <b>${opusUsage.percent}%</b> (约 ${opusUsage.estimatedImages} 张)`;
+                    }
+                    statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${data.tierName}</b>${opusInfo}。已激活 ${keys.length} 个 Key 并发模式。</span>`;
                     document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                     checkAdminStatus();
+                    updateAnlasUI(data);
                     if (window.fetchAndShowAllKeysBalances) {
                         window.fetchAndShowAllKeysBalances(keys);
                     }
@@ -2968,6 +2990,10 @@ if (localStorage.getItem('nai_user_token')) {
 // 无论是否拥有 token，在页面加载时都初始化一次设置里的用户卡片
 if (window.updateSettingsUserCard) {
     updateSettingsUserCard();
+}
+// 如果已配置自定义 API Key，自动刷新并显示 Anlas / Opus 免费额度
+if (window.refreshAnlasDisplay) {
+    window.refreshAnlasDisplay();
 }
 
 // --- 管理员后台 (Admin Panel) JS Logic ---
