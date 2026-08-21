@@ -233,7 +233,7 @@ describe('NovelAI V5 Full Upgrade & Integration Tests', () => {
       };
     });
 
-    it('CharRefManager should support V5 model for state keys and payload generation', () => {
+    it('CharRefManager should restrict character reference to V4.5 and disallow V5', () => {
       const mockStore = {
         getSetting: vi.fn((key) => {
           if (key === 'nai_char_ref_enabled_v4') return 'true';
@@ -243,27 +243,36 @@ describe('NovelAI V5 Full Upgrade & Integration Tests', () => {
       };
 
       const manager = new CharRefManager({ store: mockStore });
-      expect(manager.getCharRefKey('test_key', 'v5')).toBe('test_key_v4');
       expect(manager.getCharRefKey('test_key', 'v4.5')).toBe('test_key_v4');
       expect(manager.getCharRefKey('test_key', 'v3')).toBe('test_key');
 
-      // Validation test
+      // Validation test: V5 should NOT be allowed
       manager.currentCharRefImageBase64 = 'data:image/png;base64,xxxx';
       global.document.getElementById('charRefEnabled').checked = true;
 
       const v5Valid = manager.isValidForModel('v5', true);
-      expect(v5Valid.isValid).toBe(true);
+      expect(v5Valid.isValid).toBe(false);
+      expect(v5Valid.error).toContain('暂不支持');
+
+      const v45Valid = manager.isValidForModel('v4.5', true);
+      expect(v45Valid.isValid).toBe(true);
 
       const v3Valid = manager.isValidForModel('v3', true);
       expect(v3Valid.isValid).toBe(false);
     });
 
-    it('VibeManager should support V5 model key calculation', () => {
+    it('VibeManager should restrict vibe transfer and disallow V5', () => {
       const mockStore = { getSetting: vi.fn() };
       const manager = new VibeManager({ store: mockStore });
-      expect(manager.getVibeKey('vibe_test', 'v5')).toBe('vibe_test_v4');
       expect(manager.getVibeKey('vibe_test', 'v4.5')).toBe('vibe_test_v4');
       expect(manager.getVibeKey('vibe_test', 'v3')).toBe('vibe_test');
+
+      manager.currentVibeImageBase64 = 'data:image/png;base64,yyyy';
+      global.document.getElementById('vibeEnabled').checked = true;
+
+      const v5Valid = manager.isValidForModel('v5');
+      expect(v5Valid.isValid).toBe(false);
+      expect(v5Valid.error).toContain('暂不支持');
     });
 
     it('NotebookManager should support V5 notes and multi-model backup', () => {

@@ -130,10 +130,11 @@ describe('PayloadFactory', () => {
       expect(p2.model).toBe('nai-diffusion-5-full');
     });
 
-    it('should handle V5 character captions and custom coordinates', () => {
+    it('should handle V5 character captions, characterPrompts array and single-character custom coordinates', () => {
       const payload = createV5Payload({
         prompt: 'scenery, 2girls',
         negative_prompt: 'ugly',
+        v4_prompt_use_coords: true,
         char_captions: [
           { prompt: 'girl with blue hair', negative_prompt: 'bad eyes', x: 0.25, y: 0.5 },
           { prompt: 'girl with red hair', negative_prompt: 'extra hands', x: 0.75, y: 0.5 }
@@ -141,10 +142,22 @@ describe('PayloadFactory', () => {
       });
 
       expect(payload.parameters.params_version).toBe(4);
+      expect(payload.parameters.use_coords).toBe(true);
+      expect(payload.parameters.v4_prompt.use_coords).toBe(true);
+      expect(payload.parameters.v4_prompt.use_order).toBe(true);
+      
+      // char_captions in v4_prompt
       expect(payload.parameters.v4_prompt.caption.char_captions.length).toBe(2);
       expect(payload.parameters.v4_prompt.caption.char_captions[0].char_caption).toBe('girl with blue hair');
       expect(payload.parameters.v4_prompt.caption.char_captions[0].centers[0].x).toBe(0.25);
       expect(payload.parameters.v4_negative_prompt.caption.char_captions[1].char_caption).toBe('extra hands');
+
+      // characterPrompts in parameters
+      expect(payload.parameters.characterPrompts.length).toBe(2);
+      expect(payload.parameters.characterPrompts[0].prompt).toBe('girl with blue hair');
+      expect(payload.parameters.characterPrompts[0].uc).toBe('bad eyes');
+      expect(payload.parameters.characterPrompts[0].center).toEqual({ x: 0.25, y: 0.5 });
+      expect(payload.parameters.characterPrompts[0].enabled).toBe(true);
     });
 
     it('should handle V5 inpainting (infill) correctly', () => {
@@ -163,7 +176,7 @@ describe('PayloadFactory', () => {
       expect(payload.parameters.inpaintImg2ImgStrength).toBe(0.85);
     });
 
-    it('should include director reference and vibe transfer in V5 when provided', () => {
+    it('V5 should NOT attach director reference or vibe transfer', () => {
       const payload = createV5Payload({
         prompt: 'character test',
         vibe_image: 'base64vibe',
@@ -173,10 +186,8 @@ describe('PayloadFactory', () => {
         director_reference_descriptions: [{ caption: { base_caption: 'character' } }]
       });
 
-      expect(payload.parameters.reference_image_multiple).toEqual(['base64vibe']);
-      expect(payload.parameters.reference_information_extracted_multiple).toEqual([0.8]);
-      expect(payload.parameters.reference_strength_multiple).toEqual([0.6]);
-      expect(payload.parameters.director_reference_images).toEqual(['base64director']);
+      expect(payload.parameters.reference_image_multiple).toBeUndefined();
+      expect(payload.parameters.director_reference_images).toBeUndefined();
     });
   });
 

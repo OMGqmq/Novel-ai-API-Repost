@@ -171,10 +171,12 @@ function collectAdvancedAndModelParams(selectedVersion) {
         }
     }
 
-    const vibeParams = vibeManager.getPayloadParams(selectedVersion);
-    Object.assign(extraParams, vibeParams);
-    const charRefParams = charRefManager.getPayloadParams(selectedVersion);
-    Object.assign(extraParams, charRefParams);
+    if (selectedVersion !== 'v5') {
+        const vibeParams = vibeManager.getPayloadParams(selectedVersion);
+        Object.assign(extraParams, vibeParams);
+        const charRefParams = charRefManager.getPayloadParams(selectedVersion);
+        Object.assign(extraParams, charRefParams);
+    }
 
     const smEl = document.getElementById('smEnabled');
     const smDynEl = document.getElementById('smDynEnabled');

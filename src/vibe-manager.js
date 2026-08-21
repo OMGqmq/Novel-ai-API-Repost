@@ -15,7 +15,7 @@ export class VibeManager {
     }
 
     getVibeKey(key, model) {
-        return key + (model === 'v4.5' || model === 'v5' ? '_v4' : '');
+        return key + (model === 'v4.5' ? '_v4' : '');
     }
 
     loadState(model) {
@@ -336,11 +336,19 @@ export class VibeManager {
         const enabledCheckbox = document.getElementById('vibeEnabled');
         const vibeEnabled = enabledCheckbox ? enabledCheckbox.checked : false;
         
-        if (vibeEnabled && (selectedVersion === 'v4.5' || selectedVersion === 'v5') && this.currentVibeImageBase64 && !this.currentVibeIsJson) {
-            return {
-                isValid: false,
-                error: `${selectedVersion === 'v5' ? 'V5' : 'V4.5'} 模型氛围传输需要上传官方提取的 .nai4vibe 或 .json 编码文件。\n由于直接上传图片会重复消耗 Anlas 去编码，为了您的账号安全，请先在官方获取编码文件后再使用此功能。`
-            };
+        if (vibeEnabled && this.currentVibeImageBase64) {
+            if (selectedVersion === 'v5') {
+                return {
+                    isValid: false,
+                    error: "V5 模型目前暂不支持氛围传输 (Vibe Transfer) 功能，请切换至 V3 或 V4.5 模型后使用。"
+                };
+            }
+            if (selectedVersion === 'v4.5' && !this.currentVibeIsJson) {
+                return {
+                    isValid: false,
+                    error: "V4.5 模型氛围传输需要上传官方提取的 .nai4vibe 或 .json 编码文件。\n由于直接上传图片会重复消耗 Anlas 去编码，为了您的账号安全，请先在官方获取编码文件后再使用此功能。"
+                };
+            }
         }
         return { isValid: true };
     }
@@ -349,7 +357,7 @@ export class VibeManager {
         const enabledCheckbox = document.getElementById('vibeEnabled');
         const vibeEnabled = enabledCheckbox ? enabledCheckbox.checked : false;
 
-        if (vibeEnabled && this.currentVibeImageBase64) {
+        if (vibeEnabled && this.currentVibeImageBase64 && model !== 'v5') {
             const vibeInfoEl = document.getElementById('vibeInfo');
             const vibeStrengthEl = document.getElementById('vibeStrength');
             

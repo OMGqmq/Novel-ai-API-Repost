@@ -245,6 +245,8 @@ export function createV45Payload(data) {
 
 /**
  * V5 Payload Builder (nai-diffusion-5-full)
+ * Supports up to 32 character prompts, single-character positioning, and i2i/infill.
+ * Note: V5 does NOT support Character Reference (Director Reference) or Vibe Transfer.
  */
 export function createV5Payload(data) {
   const prompt = data.prompt || "";
@@ -261,7 +263,25 @@ export function createV5Payload(data) {
   const model = isInpaint ? "nai-diffusion-5-full-inpainting" : "nai-diffusion-5-full";
 
   const { charCaptions, negCharCaptions } = extractCharCaptions(data.char_captions);
-  const { vibe_images, vibe_info, vibe_strength } = extractVibeArrays(data);
+
+  let characterPrompts = [];
+  if (Array.isArray(data.characterPrompts) && data.characterPrompts.length > 0) {
+    characterPrompts = data.characterPrompts;
+  } else if (Array.isArray(data.char_captions) && data.char_captions.length > 0) {
+    characterPrompts = data.char_captions.map(c => ({
+      prompt: c.prompt || "",
+      uc: c.negative_prompt || c.uc || "",
+      center: {
+        x: (c.x !== undefined && !isNaN(c.x)) ? parseFloat(c.x) : (c.center?.x ?? 0.5),
+        y: (c.y !== undefined && !isNaN(c.y)) ? parseFloat(c.y) : (c.center?.y ?? 0.5)
+      },
+      enabled: c.enabled !== undefined ? c.enabled : true
+    }));
+  }
+
+  const useCoords = data.v4_prompt_use_coords !== undefined
+    ? Boolean(data.v4_prompt_use_coords)
+    : (data.use_coords !== undefined ? Boolean(data.use_coords) : false);
 
   const inpaintStrength = (data.strength !== undefined && !isNaN(data.strength)) ? parseFloat(data.strength) : 1.0;
 
@@ -287,11 +307,11 @@ export function createV5Payload(data) {
       add_original_image: data.add_original_image !== undefined ? data.add_original_image : true,
       cfg_rescale: data.cfg_rescale !== undefined ? parseFloat(data.cfg_rescale) : 0,
       legacy_v3_extend: false,
-      use_coords: data.v4_prompt_use_coords !== undefined ? data.v4_prompt_use_coords : false,
+      use_coords: useCoords,
       legacy_uc: false,
       normalize_reference_strength_multiple: true,
       inpaintImg2ImgStrength: isInpaint ? inpaintStrength : 1,
-      characterPrompts: data.characterPrompts || [],
+      characterPrompts: characterPrompts,
       straight_alpha: true,
       tag_hint_qt: data.tag_hint_qt !== undefined ? data.tag_hint_qt : 1,
       tag_hint_uc_preset: data.tag_hint_uc_preset !== undefined ? data.tag_hint_uc_preset : 2,
@@ -300,7 +320,7 @@ export function createV5Payload(data) {
           base_caption: prompt,
           char_captions: charCaptions
         },
-        use_coords: data.v4_prompt_use_coords !== undefined ? data.v4_prompt_use_coords : false,
+        use_coords: useCoords,
         use_order: data.v4_prompt_use_order !== undefined ? data.v4_prompt_use_order : true
       },
       v4_negative_prompt: {
@@ -319,21 +339,6 @@ export function createV5Payload(data) {
     },
     use_new_shared_trial: true
   };
-
-  if (vibe_images.length > 0) {
-    payload.parameters.reference_image_multiple = vibe_images;
-    payload.parameters.reference_information_extracted_multiple = vibe_info;
-    payload.parameters.reference_strength_multiple = vibe_strength;
-    payload.parameters.extra_noise_seed = seed;
-  }
-
-  if (data.director_reference_images && data.director_reference_images.length > 0) {
-    payload.parameters.director_reference_images = data.director_reference_images;
-    payload.parameters.director_reference_descriptions = data.director_reference_descriptions || [];
-    payload.parameters.director_reference_strength_values = data.director_reference_strength_values || [];
-    payload.parameters.director_reference_secondary_strength_values = data.director_reference_secondary_strength_values || [];
-    payload.parameters.director_reference_information_extracted = data.director_reference_information_extracted || [];
-  }
 
   if (data.recaptcha_token) {
     payload.recaptcha_token = data.recaptcha_token;

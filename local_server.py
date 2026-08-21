@@ -241,8 +241,28 @@ def create_v5_payload(data, width, height, steps, seed, is_inpaint, action):
     negative_prompt = data.get('negative_prompt', '')
     model = "nai-diffusion-5-full-inpainting" if is_inpaint else "nai-diffusion-5-full"
     char_captions, neg_char_captions = extract_char_captions(data.get('char_captions'))
-    vibe_images, vibe_info, vibe_strength = extract_vibe_arrays(data)
     inpaint_strength = float(data.get('strength', 1.0))
+
+    raw_char_prompts = data.get('characterPrompts')
+    if isinstance(raw_char_prompts, list) and len(raw_char_prompts) > 0:
+        character_prompts = raw_char_prompts
+    elif isinstance(data.get('char_captions'), list) and len(data.get('char_captions')) > 0:
+        character_prompts = []
+        for c in data.get('char_captions'):
+            c_dict = c if isinstance(c, dict) else {}
+            character_prompts.append({
+                "prompt": c_dict.get('prompt', ''),
+                "uc": c_dict.get('negative_prompt', c_dict.get('uc', '')),
+                "center": {
+                    "x": float(c_dict.get('x', c_dict.get('center', {}).get('x', 0.5))),
+                    "y": float(c_dict.get('y', c_dict.get('center', {}).get('y', 0.5)))
+                },
+                "enabled": c_dict.get('enabled', True)
+            })
+    else:
+        character_prompts = []
+
+    use_coords = bool(data.get('v4_prompt_use_coords', data.get('use_coords', False)))
 
     payload = {
         "input": prompt,
@@ -267,17 +287,17 @@ def create_v5_payload(data, width, height, steps, seed, is_inpaint, action):
             "add_original_image": data.get('add_original_image', True),
             "cfg_rescale": float(data.get('cfg_rescale', 0)),
             "legacy_v3_extend": False,
-            "use_coords": data.get('v4_prompt_use_coords', False),
+            "use_coords": use_coords,
             "legacy_uc": False,
             "normalize_reference_strength_multiple": True,
             "inpaintImg2ImgStrength": inpaint_strength if is_inpaint else 1,
-            "characterPrompts": data.get('characterPrompts', []),
+            "characterPrompts": character_prompts,
             "straight_alpha": True,
             "tag_hint_qt": data.get('tag_hint_qt', 1),
             "tag_hint_uc_preset": data.get('tag_hint_uc_preset', 2),
             "v4_prompt": {
                 "caption": {"base_caption": prompt, "char_captions": char_captions},
-                "use_coords": data.get('v4_prompt_use_coords', False),
+                "use_coords": use_coords,
                 "use_order": data.get('v4_prompt_use_order', True)
             },
             "v4_negative_prompt": {
@@ -292,18 +312,6 @@ def create_v5_payload(data, width, height, steps, seed, is_inpaint, action):
             "stream": data.get('stream', 'msgpack')
         }
     }
-    if vibe_images:
-        payload["parameters"]["reference_image_multiple"] = vibe_images
-        payload["parameters"]["reference_information_extracted_multiple"] = vibe_info
-        payload["parameters"]["reference_strength_multiple"] = vibe_strength
-        payload["parameters"]["extra_noise_seed"] = seed
-
-    if data.get('director_reference_images') and len(data.get('director_reference_images')) > 0:
-        payload["parameters"]["director_reference_images"] = data.get('director_reference_images')
-        payload["parameters"]["director_reference_descriptions"] = data.get('director_reference_descriptions', [])
-        payload["parameters"]["director_reference_strength_values"] = data.get('director_reference_strength_values', [])
-        payload["parameters"]["director_reference_secondary_strength_values"] = data.get('director_reference_secondary_strength_values', [])
-        payload["parameters"]["director_reference_information_extracted"] = data.get('director_reference_information_extracted', [])
 
     if is_inpaint:
         payload["parameters"]["image"] = data.get('image')

@@ -95,7 +95,7 @@ export class CharRefManager {
     }
 
     getCharRefKey(key, model) {
-        return key + (model === 'v4.5' || model === 'v5' ? '_v4' : '');
+        return key + (model === 'v4.5' ? '_v4' : '');
     }
 
     loadState(model) {
@@ -305,10 +305,12 @@ export class CharRefManager {
         const charRefEnabled = enabledCheckbox ? enabledCheckbox.checked : false;
         
         if (charRefEnabled && this.currentCharRefImageBase64) {
-            if (selectedVersion !== 'v4.5' && selectedVersion !== 'v5') {
+            if (selectedVersion !== 'v4.5') {
                 return {
                     isValid: false,
-                    error: "角色参考图功能目前仅支持 V4.5 与 V5 模型，请切换到 V4.5 或 V5 模型后重试。"
+                    error: selectedVersion === 'v5'
+                        ? "角色参考图 (Character Reference) 功能目前仅支持 V4.5 模型，V5 暂不支持。"
+                        : "角色参考图功能目前仅支持 V4.5 模型，请切换到 V4.5 模型后重试。"
                 };
             }
             if (!hasCustomKey) {
@@ -325,7 +327,7 @@ export class CharRefManager {
         const enabledCheckbox = document.getElementById('charRefEnabled');
         const charRefEnabled = enabledCheckbox ? enabledCheckbox.checked : false;
 
-        if (charRefEnabled && this.currentCharRefImageBase64 && (model === 'v4.5' || model === 'v5')) {
+        if (charRefEnabled && this.currentCharRefImageBase64 && model === 'v4.5') {
             const strengthEl = document.getElementById('charRefStrength');
             const fidelityEl = document.getElementById('charRefFidelity');
             const modeEl = document.getElementById('charRefMode');
