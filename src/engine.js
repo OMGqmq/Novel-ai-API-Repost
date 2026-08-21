@@ -6,7 +6,7 @@ export class ImageEngine {
     constructor(config = {}) {
         this.baseUrl = config.baseUrl || '';
         // JSZip is expected to be available globally via CDN
-        this.JSZip = window.JSZip;
+        this.JSZip = (typeof window !== 'undefined' && window.JSZip) ? window.JSZip : null;
     }
 
     /**

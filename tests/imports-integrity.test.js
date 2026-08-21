@@ -33,5 +33,24 @@ describe('Source Modules Import Integrity', () => {
 
     const toolboxMod = await import('../src/toolbox-controller.js');
     expect(toolboxMod.initToolbox).toBeDefined();
+
+    const charPromptMod = await import('../src/char-prompt-manager.js');
+    expect(charPromptMod.CharPromptManager).toBeDefined();
+  });
+
+  it('should verify all source files have 100% valid JavaScript syntax without errors', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const { execSync } = await import('child_process');
+
+    const srcDir = path.resolve('src');
+    const files = fs.readdirSync(srcDir).filter(f => f.endsWith('.js'));
+    
+    for (const file of files) {
+      const filePath = path.join(srcDir, file);
+      expect(() => {
+        execSync(`node --check "${filePath}"`);
+      }).not.toThrow();
+    }
   });
 });

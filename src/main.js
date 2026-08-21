@@ -2230,33 +2230,30 @@ async function verifyCustomApiKey() {
     statusEl.classList.remove('hidden');
 
     try {
-        let verified = false;
-        try {
-            const res = await fetch('/verify-key', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiKey: keyToVerify, apiKeys: keys })
-            });
+        const res = await fetch('/verify-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: keyToVerify, apiKeys: keys })
+        });
 
-            const text = await res.text();
-            if (text) {
-                const data = JSON.parse(text);
-                if (res.ok && data.valid) {
-                    localStorage.setItem('nai_custom_api_key', keysRaw);
-                    const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
-                    let opusInfo = '';
-                    if (opusUsage && typeof opusUsage.percent === 'number') {
-                        opusInfo = ` | Opus免费生成额度: 剩余 <b>${opusUsage.percent}%</b> (约 ${opusUsage.estimatedImages} 张)`;
-                    }
-                    statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${data.tierName}</b>${opusInfo}。已激活 ${keys.length} 个 Key 并发模式。</span>`;
-                    document.getElementById('apiKeyClearBtn').classList.remove('hidden');
-                    checkAdminStatus();
-                    updateAnlasUI(data);
-                    if (window.fetchAndShowAllKeysBalances) {
-                        window.fetchAndShowAllKeysBalances(keys);
-                    }
-                    setTimeout(() => closeApiKeyModal(), 2000);
-                    verified = true;
+        const text = await res.text();
+        if (text) {
+            const data = JSON.parse(text);
+            if (res.ok && data.valid) {
+                localStorage.setItem('nai_custom_api_key', keysRaw);
+                const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
+                let opusInfo = '';
+                if (opusUsage && typeof opusUsage.percent === 'number') {
+                    opusInfo = ` | Opus免费生成额度: 剩余 <b>${opusUsage.percent}%</b> (约 ${opusUsage.estimatedImages} 张)`;
+                }
+                statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${data.tierName}</b>${opusInfo}。已激活 ${keys.length} 个 Key 并发模式。</span>`;
+                document.getElementById('apiKeyClearBtn').classList.remove('hidden');
+                checkAdminStatus();
+                updateAnlasUI(data);
+                if (window.fetchAndShowAllKeysBalances) {
+                    window.fetchAndShowAllKeysBalances(keys);
+                }
+                setTimeout(() => closeApiKeyModal(), 2000);
             } else if (data.error) {
                 statusEl.innerHTML = `<span class="text-red-500">✗ ${data.error}</span>`;
             } else {
