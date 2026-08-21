@@ -645,6 +645,11 @@ describe('Refactored Suite', () => {
           if (sel === '.char-pos-x') return el.posXInput;
           if (sel === '.char-pos-y') return el.posYInput;
           if (sel === '.char-auto-pos') return el.autoPosCheckbox;
+          if (sel === '.char-pos-box-wrapper') return el.posBoxWrapper;
+          if (sel === '.char-pos-pad') return el.posPad;
+          if (sel === '.char-pos-pin') return el.posPin;
+          if (sel === '.char-pos-coords') return el.posCoords;
+          if (sel === '.char-pos-pin-index') return el.pinIndex;
           if (sel === '.char-grid-container') return el.gridContainer;
           if (sel === '.character-index-label') return el.indexLabel;
           if (sel === '.char-row-summary') return el.summarySpan;
@@ -657,6 +662,9 @@ describe('Refactored Suite', () => {
         querySelectorAll(sel) {
           if (sel === '.char-prompt-input, .char-neg-input, .char-auto-pos') {
             return [el.promptInput, el.negInput, el.autoPosCheckbox];
+          }
+          if (sel === '.char-preset-btn') {
+            return el.presetButtons || [];
           }
           if (sel === '.char-grid-cell') {
             return el.gridCells || [];
@@ -685,6 +693,19 @@ describe('Refactored Suite', () => {
       el.posXInput = { value: '0.5' };
       el.posYInput = { value: '0.5' };
       el.autoPosCheckbox = { checked: true, addEventListener: (ev, cb) => { el.autoPosCheckbox.listener = cb; } };
+      el.posBoxWrapper = { classList: el.classList };
+      el.posPad = {
+        addEventListener: (ev, cb) => { el.posPad[ev] = cb; },
+        getBoundingClientRect: () => ({ left: 0, top: 0, width: 200, height: 150 }),
+        setPointerCapture: () => {},
+        releasePointerCapture: () => {}
+      };
+      el.posPin = { style: {} };
+      el.posCoords = { textContent: '' };
+      el.pinIndex = { textContent: '' };
+      el.presetButtons = [
+        { getAttribute: (k) => k === 'data-x' ? '0.2' : '0.5', addEventListener: (ev, cb) => { cb({ stopPropagation: () => {} }); } }
+      ];
       el.gridContainer = {
         classList: el.classList,
         querySelectorAll(sel) {

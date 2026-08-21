@@ -1849,6 +1849,11 @@ function selectCharGridCell(btn, x, y) {
 }
 window.selectCharGridCell = selectCharGridCell;
 
+function setCharPosition(target, x, y) {
+    charPromptManager.setCharPosition(target, x, y);
+}
+window.setCharPosition = setCharPosition;
+
 function saveCharacterPromptsState() {
     charPromptManager.saveCharacterPromptsState();
 }
@@ -2854,7 +2859,7 @@ Object.assign(window, {
     lightboxCreate, toggleLightboxSidebarMobile,
     saveAdminToken, clearAdminToken,
     addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleKeyConcurrent, toggleV45Experimental, randomizeSeed, toggleBypassLimitsEnabled,
-    addCharacterPromptRow, removeCharacterPromptRow, selectCharGridCell, toggleCharacterPromptsPanel,
+    addCharacterPromptRow, removeCharacterPromptRow, selectCharGridCell, setCharPosition, toggleCharacterPromptsPanel,
     saveCurrentPromptToNotebook, switchNotebookModel, renderNotebookNotes,
     applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote,
     bindCurrentCanvasToNote, removeNotePreview, viewNotebookNotePreview,

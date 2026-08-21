@@ -1,6 +1,6 @@
 /**
- * Character Prompt Manager Module (V4.5 Multi-character feature)
- * Encapsulates DOM creation, interactive grid coordinate selection, collapsing panels, and state persistence.
+ * Character Prompt Manager Module (V4.5 & V5 Multi-character feature)
+ * Encapsulates DOM creation, interactive 2D free coordinate positioning, collapsing panels, and state persistence.
  */
 export class CharPromptManager {
     constructor() {
@@ -81,27 +81,21 @@ export class CharPromptManager {
     addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, autoPos = true, enabled = true, isInitializing = false) {
         const container = document.getElementById('characterPromptsContainer');
         if (!container) return;
-        
+
+        // V5 supports up to 22 character prompt rows
+        const currentRows = container.querySelectorAll('.character-prompt-row');
+        if (currentRows.length >= 22) {
+            if (typeof window !== 'undefined' && window.showToast) {
+                window.showToast("已达到最大角色数量限制 (最多 22 个角色)", "warning");
+            }
+            return;
+        }
+
         const div = document.createElement('div');
         div.className = 'flex flex-col gap-2.5 character-prompt-row border border-gray-100 dark:border-slate-800 p-3 rounded-2xl bg-gray-50/50 dark:bg-slate-900/20 transition-all';
-        
-        // Generate 5*5 interactive grid
-        let gridHtml = '';
-        for (let r = 0; r < 5; r++) {
-            for (let c = 0; c < 5; c++) {
-                const cellX = (c * 2 + 1) / 10;
-                const cellY = (r * 2 + 1) / 10;
-                const isTarget = Math.abs(cellX - x) < 0.01 && Math.abs(cellY - y) < 0.01;
-                gridHtml += `
-                    <button type="button" 
-                        onclick="window.selectCharGridCell(this, ${cellX}, ${cellY})"
-                        class="char-grid-cell w-full h-full rounded-md border transition-all ${isTarget ? 'bg-indigo-600 border-indigo-600 dark:bg-indigo-500' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50'}"
-                        style="aspect-ratio: 1/1;"
-                        title="列 ${c+1}, 排 ${r+1} (x: ${cellX}, y: ${cellY})">
-                    </button>
-                `;
-            }
-        }
+
+        const safeX = typeof x === 'number' && !isNaN(x) ? Math.max(0.01, Math.min(0.99, x)) : 0.5;
+        const safeY = typeof y === 'number' && !isNaN(y) ? Math.max(0.01, Math.min(0.99, y)) : 0.5;
 
         div.innerHTML = `
             <div class="flex justify-between items-center select-none cursor-pointer char-row-header">
@@ -124,7 +118,7 @@ export class CharPromptManager {
             <div class="char-row-content space-y-2">
                 <div class="space-y-1">
                     <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">描述提示词 (Character Prompt)</label>
-                    <input type="text" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="${promptVal}" placeholder="填入角色特征tag，例如: boy, 1girl" />
+                    <input type="text" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="${promptVal}" placeholder="填入角色特征tag，例如: 1girl, blond hair, blue eyes" />
                 </div>
                 <div class="space-y-1">
                     <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">排除词 (Character Negative, 可选)</label>
@@ -132,20 +126,54 @@ export class CharPromptManager {
                 </div>
                 <div class="space-y-1 mt-2">
                     <div class="flex justify-between items-center text-[9px] text-gray-400 dark:text-gray-500">
-                        <span>角色定位 (Position)</span>
+                        <span>角色定位 (Position - 自由选点)</span>
                         <label class="flex items-center gap-1 cursor-pointer select-none">
                             <input type="checkbox" class="char-auto-pos sr-only peer" ${autoPos ? 'checked' : ''}>
                             <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600 relative scale-90"></div>
                             <span>AI 自动位置</span>
                         </label>
                     </div>
-                    <!-- 5*5 定位网格 -->
-                    <div class="char-grid-container ${autoPos ? 'hidden' : ''} grid grid-cols-5 gap-1 w-28 h-28 mx-auto mt-2 border border-gray-200 dark:border-gray-700 p-1 rounded-xl bg-gray-100 dark:bg-slate-900/50">
-                        ${gridHtml}
+
+                    <!-- 自由 2D 连续坐标定位画板 -->
+                    <div class="char-pos-box-wrapper ${autoPos ? 'hidden' : ''} mt-2 flex flex-col gap-2">
+                        <div class="char-pos-pad relative w-full h-32 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-100/90 dark:bg-slate-900/80 overflow-hidden cursor-crosshair select-none touch-none shadow-inner">
+                            <!-- 九宫格与中心辅助线 -->
+                            <div class="absolute inset-0 pointer-events-none opacity-25 dark:opacity-35">
+                                <div class="absolute left-1/3 inset-y-0 border-l border-dashed border-gray-400 dark:border-gray-600"></div>
+                                <div class="absolute left-2/3 inset-y-0 border-l border-dashed border-gray-400 dark:border-gray-600"></div>
+                                <div class="absolute top-1/3 inset-x-0 border-t border-dashed border-gray-400 dark:border-gray-600"></div>
+                                <div class="absolute top-2/3 inset-x-0 border-t border-dashed border-gray-400 dark:border-gray-600"></div>
+                                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-indigo-500/60 bg-indigo-500/20"></div>
+                            </div>
+                            
+                            <!-- 坐标实时显示浮标 -->
+                            <div class="absolute top-1.5 right-2 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-mono text-white/90 pointer-events-none select-none char-pos-coords">
+                                X: ${(safeX * 100).toFixed(0)}% | Y: ${(safeY * 100).toFixed(0)}%
+                            </div>
+                            
+                            <!-- 自由定位标记 Pin -->
+                            <div class="char-pos-pin absolute w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-lg border-2 border-white dark:border-slate-800 flex items-center justify-center text-[11px] font-extrabold cursor-grab active:cursor-grabbing hover:scale-110 active:scale-95 transition-[transform,box-shadow] select-none"
+                                 style="left: ${safeX * 100}%; top: ${safeY * 100}%; transform: translate(-50%, -50%);">
+                                <span class="char-pos-pin-index pointer-events-none">1</span>
+                            </div>
+                        </div>
+
+                        <!-- 快速对齐预设 -->
+                        <div class="flex items-center justify-between px-1">
+                            <span class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">快速对齐:</span>
+                            <div class="flex gap-1 char-presets-container">
+                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.2" data-y="0.5">左</button>
+                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.5" data-y="0.5">居中</button>
+                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.8" data-y="0.5">右</button>
+                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.5" data-y="0.25">上方</button>
+                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.5" data-y="0.75">下方</button>
+                            </div>
+                        </div>
+
+                        <!-- 隐藏输入框以保存坐标 -->
+                        <input type="hidden" class="char-pos-x" value="${safeX}" />
+                        <input type="hidden" class="char-pos-y" value="${safeY}" />
                     </div>
-                    <!-- 隐藏输入框以保存坐标 -->
-                    <input type="hidden" class="char-pos-x" value="${x}" />
-                    <input type="hidden" class="char-pos-y" value="${y}" />
                 </div>
             </div>
         `;
@@ -153,7 +181,6 @@ export class CharPromptManager {
         const enableToggle = div.querySelector('.char-enable-toggle');
         const enableText = div.querySelector('.char-enable-text');
         const inputs = div.querySelectorAll('.char-prompt-input, .char-neg-input, .char-auto-pos');
-        const gridCells = div.querySelectorAll('.char-grid-cell');
         
         const applyEnabledState = (isEnabled) => {
             if (isEnabled) {
@@ -161,13 +188,11 @@ export class CharPromptManager {
                 enableText.className = "char-enable-text text-green-600 dark:text-green-500";
                 div.classList.remove('opacity-60');
                 inputs.forEach(input => input.disabled = false);
-                gridCells.forEach(cell => cell.disabled = false);
             } else {
                 enableText.textContent = "已禁用";
                 enableText.className = "char-enable-text text-gray-400 dark:text-gray-500";
                 div.classList.add('opacity-60');
                 inputs.forEach(input => input.disabled = true);
-                gridCells.forEach(cell => cell.disabled = true);
             }
         };
 
@@ -184,26 +209,31 @@ export class CharPromptManager {
         const rowChevron = div.querySelector('.char-row-chevron');
         const rowActions = div.querySelector('.char-row-actions');
 
-        rowHeader.addEventListener('click', () => {
-            const isCollapsed = rowContent.classList.contains('hidden');
-            if (isCollapsed) {
-                rowContent.classList.remove('hidden');
-                rowChevron.classList.add('rotate-90');
-            } else {
-                rowContent.classList.add('hidden');
-                rowChevron.classList.remove('rotate-90');
-            }
-        });
+        if (rowHeader && rowContent && rowChevron) {
+            rowHeader.addEventListener('click', () => {
+                const isCollapsed = rowContent.classList.contains('hidden');
+                if (isCollapsed) {
+                    rowContent.classList.remove('hidden');
+                    rowChevron.classList.add('rotate-90');
+                } else {
+                    rowContent.classList.add('hidden');
+                    rowChevron.classList.remove('rotate-90');
+                }
+            });
+        }
 
         // 阻止右侧按钮冒泡，以防止点击它们时触发折叠
-        rowActions.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
+        if (rowActions) {
+            rowActions.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
 
         // 角色提示词摘要实时显示并保存状态
         const promptInput = div.querySelector('.char-prompt-input');
         const summarySpan = div.querySelector('.char-row-summary');
         const updateSummary = () => {
+            if (!promptInput || !summarySpan) return;
             const val = promptInput.value.trim();
             if (val) {
                 const cleanVal = val.replace(/[\{\}\[\]\(\)]/g, '').trim();
@@ -212,41 +242,112 @@ export class CharPromptManager {
                 summarySpan.textContent = '';
             }
         };
-        promptInput.addEventListener('input', () => {
+        if (promptInput) {
+            promptInput.addEventListener('input', () => {
+                updateSummary();
+                this.saveCharacterPromptsState();
+            });
             updateSummary();
-            this.saveCharacterPromptsState();
-        });
-        updateSummary();
+        }
 
         // 排除词修改保存
         const negInput = div.querySelector('.char-neg-input');
-        negInput.addEventListener('input', () => this.saveCharacterPromptsState());
+        if (negInput) {
+            negInput.addEventListener('input', () => this.saveCharacterPromptsState());
+        }
 
-        // 监听 AI 自动位置开关
-        const autoPosCheckbox = div.querySelector('.char-auto-pos');
-        const gridContainer = div.querySelector('.char-grid-container');
+        // 自由选点交互逻辑 (Pointer Events + Dragging)
+        const pad = div.querySelector('.char-pos-pad');
+        const pin = div.querySelector('.char-pos-pin');
+        const coordsLabel = div.querySelector('.char-pos-coords');
         const posXInput = div.querySelector('.char-pos-x');
         const posYInput = div.querySelector('.char-pos-y');
-        
-        autoPosCheckbox.addEventListener('change', (e) => {
-            if (autoPosCheckbox.disabled) return;
-            if (e.target.checked) {
-                gridContainer.classList.add('hidden');
-                posXInput.value = "0.5";
-                posYInput.value = "0.5";
-                const cells = gridContainer.querySelectorAll('.char-grid-cell');
-                cells.forEach((cell, idx) => {
-                    if (idx === 12) {
-                        cell.className = 'char-grid-cell w-full h-full rounded-md border transition-all bg-indigo-600 border-indigo-600 dark:bg-indigo-500';
-                    } else {
-                        cell.className = 'char-grid-cell w-full h-full rounded-md border transition-all bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50';
-                    }
-                });
-            } else {
-                gridContainer.classList.remove('hidden');
+        const autoPosCheckbox = div.querySelector('.char-auto-pos');
+        const posBoxWrapper = div.querySelector('.char-pos-box-wrapper');
+
+        const updatePosition = (clientX, clientY) => {
+            if (!pad || !posXInput || !posYInput) return;
+            const rect = pad.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+            
+            let normX = (clientX - rect.left) / rect.width;
+            let normY = (clientY - rect.top) / rect.height;
+            normX = Math.max(0.01, Math.min(0.99, normX));
+            normY = Math.max(0.01, Math.min(0.99, normY));
+
+            const finalX = parseFloat(normX.toFixed(2));
+            const finalY = parseFloat(normY.toFixed(2));
+
+            posXInput.value = finalX;
+            posYInput.value = finalY;
+
+            if (pin) {
+                pin.style.left = `${(finalX * 100).toFixed(1)}%`;
+                pin.style.top = `${(finalY * 100).toFixed(1)}%`;
             }
-            this.saveCharacterPromptsState();
+            if (coordsLabel) {
+                coordsLabel.textContent = `X: ${(finalX * 100).toFixed(0)}% | Y: ${(finalY * 100).toFixed(0)}%`;
+            }
+        };
+
+        let isDragging = false;
+        if (pad) {
+            pad.addEventListener('pointerdown', (e) => {
+                if (autoPosCheckbox && autoPosCheckbox.disabled) return;
+                isDragging = true;
+                try { pad.setPointerCapture(e.pointerId); } catch (_) {}
+                updatePosition(e.clientX, e.clientY);
+                this.saveCharacterPromptsState();
+            });
+
+            pad.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                updatePosition(e.clientX, e.clientY);
+            });
+
+            const endDrag = (e) => {
+                if (isDragging) {
+                    isDragging = false;
+                    try { pad.releasePointerCapture(e.pointerId); } catch (_) {}
+                    this.saveCharacterPromptsState();
+                }
+            };
+            pad.addEventListener('pointerup', endDrag);
+            pad.addEventListener('pointercancel', endDrag);
+        }
+
+        // 快速对齐预设点击
+        const presetButtons = div.querySelectorAll('.char-preset-btn');
+        presetButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetX = parseFloat(btn.getAttribute('data-x') || '0.5');
+                const targetY = parseFloat(btn.getAttribute('data-y') || '0.5');
+                this.setCharPosition(div, targetX, targetY);
+            });
         });
+
+        // 监听 AI 自动位置开关
+        if (autoPosCheckbox && posBoxWrapper) {
+            autoPosCheckbox.addEventListener('change', (e) => {
+                if (autoPosCheckbox.disabled) return;
+                if (e.target.checked) {
+                    posBoxWrapper.classList.add('hidden');
+                    if (posXInput) posXInput.value = "0.5";
+                    if (posYInput) posYInput.value = "0.5";
+                    if (pin) {
+                        pin.style.left = "50%";
+                        pin.style.top = "50%";
+                    }
+                    if (coordsLabel) {
+                        coordsLabel.textContent = "X: 50% | Y: 50%";
+                    }
+                } else {
+                    posBoxWrapper.classList.remove('hidden');
+                }
+                this.saveCharacterPromptsState();
+            });
+        }
 
         // 体验防呆：如果折叠面板隐藏，添加卡片时自动展开
         if (!isInitializing) {
@@ -287,6 +388,10 @@ export class CharPromptManager {
             if (label) {
                 label.textContent = `角色 ${idx + 1}`;
             }
+            const pinIndex = row.querySelector('.char-pos-pin-index');
+            if (pinIndex) {
+                pinIndex.textContent = `${idx + 1}`;
+            }
         });
 
         // 动态更新折叠栏的角色数量 Badge
@@ -301,24 +406,45 @@ export class CharPromptManager {
         }
     }
 
-    selectCharGridCell(btn, x, y) {
-        const grid = btn.closest('.char-grid-container');
-        if (!grid) return;
-        
-        const cells = grid.querySelectorAll('.char-grid-cell');
-        cells.forEach(cell => {
-            cell.className = 'char-grid-cell w-full h-full rounded-md border transition-all bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50';
-        });
-        
-        btn.className = 'char-grid-cell w-full h-full rounded-md border transition-all bg-indigo-600 border-indigo-600 dark:bg-indigo-500';
-        
-        const row = grid.closest('.character-prompt-row');
-        if (row) {
-            const posXInput = row.querySelector('.char-pos-x');
-            const posYInput = row.querySelector('.char-pos-y');
-            if (posXInput) posXInput.value = x;
-            if (posYInput) posYInput.value = y;
-            this.saveCharacterPromptsState();
+    setCharPosition(target, x, y) {
+        let row = null;
+        if (target && typeof target.closest === 'function') {
+            row = target.closest('.character-prompt-row');
+            if (!row) {
+                const grid = target.closest('.char-grid-container');
+                if (grid && typeof grid.closest === 'function') {
+                    row = grid.closest('.character-prompt-row');
+                }
+            }
         }
+        if (!row && target && typeof target.querySelector === 'function') {
+            row = target;
+        }
+        if (!row || typeof row.querySelector !== 'function') return;
+
+        const posXInput = row.querySelector('.char-pos-x');
+        const posYInput = row.querySelector('.char-pos-y');
+        const pin = row.querySelector('.char-pos-pin');
+        const coordsLabel = row.querySelector('.char-pos-coords');
+
+        const finalX = Math.max(0.01, Math.min(0.99, parseFloat(x)));
+        const finalY = Math.max(0.01, Math.min(0.99, parseFloat(y)));
+
+        if (posXInput) posXInput.value = finalX;
+        if (posYInput) posYInput.value = finalY;
+
+        if (pin) {
+            pin.style.left = `${(finalX * 100).toFixed(1)}%`;
+            pin.style.top = `${(finalY * 100).toFixed(1)}%`;
+        }
+        if (coordsLabel) {
+            coordsLabel.textContent = `X: ${(finalX * 100).toFixed(0)}% | Y: ${(finalY * 100).toFixed(0)}%`;
+        }
+
+        this.saveCharacterPromptsState();
+    }
+
+    selectCharGridCell(btn, x, y) {
+        this.setCharPosition(btn, x, y);
     }
 }
