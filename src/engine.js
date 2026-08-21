@@ -122,10 +122,22 @@ export class ImageEngine {
         let imgFile = null;
 
         zip.forEach((relativePath, file) => {
-            if (relativePath.endsWith('.png')) {
-                imgFile = file;
+            if (!file.dir && !imgFile) {
+                const lower = relativePath.toLowerCase();
+                if (lower.endsWith('.png') || lower.endsWith('.webp') || lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+                    imgFile = file;
+                }
             }
         });
+
+        // Fallback: 如果没有匹配到常见后缀，获取压缩包内的第一个非目录文件
+        if (!imgFile) {
+            zip.forEach((relativePath, file) => {
+                if (!file.dir && !imgFile) {
+                    imgFile = file;
+                }
+            });
+        }
 
         if (!imgFile) {
             throw new Error("No image found in the received ZIP archive.");

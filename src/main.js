@@ -1577,14 +1577,12 @@ function updateAnlasUI(data) {
     const keyCountVal = typeof data.keyCount === 'number' ? data.keyCount : 1;
     const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
     
-    let opusText = '';
+    let text = "";
+    const keyPart = keyCountVal > 1 ? ` | ${keyCountVal}Key` : "";
     if (opusUsage && typeof opusUsage.percent === 'number') {
-        opusText = ` | Opus免费: ${opusUsage.percent}% (约${opusUsage.estimatedImages}张)`;
-    }
-
-    let text = `CustomAPI (Anlas: ${anlasVal}${opusText})`;
-    if (keyCountVal > 1) {
-        text = `CustomAPI (Anlas: ${anlasVal}${opusText} | ${keyCountVal}个Key)`;
+        text = `CustomAPI (Anlas: ${anlasVal}${keyPart} |\nOpus免费: ${opusUsage.percent}% (约${opusUsage.estimatedImages}张))`;
+    } else {
+        text = `CustomAPI (Anlas: ${anlasVal}${keyPart})`;
     }
 
     const desktopDisplay = document.getElementById('creditDisplayDesktop');
