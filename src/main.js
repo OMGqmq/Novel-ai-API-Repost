@@ -1,17 +1,17 @@
-import { ImageEngine } from './engine.js?v=202605292218';
-import { GalleryStore } from './storage.js?v=202605292218';
-import { UIController } from './ui.js?v=202605292218';
-import { InpaintEditor } from './inpaint.js?v=202605292218';
-import { OutpaintEditor } from './outpaint.js?v=202605292218';
-import { PromptHelper } from './prompt-helper.js?v=202605292218';
-import { NotebookManager } from './notebook.js?v=202605292218';
-import { VibeManager } from './vibe-manager.js?v=202605292218';
-import { CharRefManager } from './char-ref-manager.js?v=20260816_2';
-import { AiHelperService, AI_PROVIDER_PRESETS, AI_SYSTEM_PROMPTS } from './ai-helper-service.js?v=20260816_2';
-import { AiChatManager } from './ai-chat-manager.js?v=20260816_2';
+import { ImageEngine } from './engine.js';
+import { GalleryStore } from './storage.js';
+import { UIController } from './ui.js';
+import { InpaintEditor } from './inpaint.js';
+import { OutpaintEditor } from './outpaint.js';
+import { PromptHelper } from './prompt-helper.js';
+import { NotebookManager } from './notebook.js';
+import { VibeManager } from './vibe-manager.js';
+import { CharRefManager } from './char-ref-manager.js';
+import { AiHelperService, AI_PROVIDER_PRESETS, AI_SYSTEM_PROMPTS } from './ai-helper-service.js';
+import { AiChatManager } from './ai-chat-manager.js';
 import { appState } from './app-state.js';
 import { GalleryController } from './gallery.js';
-import { initToolbox, openToolboxModal, closeToolboxModal, switchToolboxTab, toggleScrambleHistoryList, handleScrambleFileUpload, setScrambleMode, onScrambleAlgorithmChange, toggleScramblePasswordInput, executeScrambleProcess, downloadScrambleResult, toggleMetadataHistoryList, handleMetadataFileUpload, applyMetadataParameters } from './toolbox-controller.js?v=20260620';
+import { initToolbox, openToolboxModal, closeToolboxModal, switchToolboxTab, toggleScrambleHistoryList, handleScrambleFileUpload, setScrambleMode, onScrambleAlgorithmChange, toggleScramblePasswordInput, executeScrambleProcess, downloadScrambleResult, toggleMetadataHistoryList, handleMetadataFileUpload, applyMetadataParameters } from './toolbox-controller.js';
 import { SettingsManager } from './settings-manager.js';
 import { CharPromptManager } from './char-prompt-manager.js';
 import { AuthController } from './auth-controller.js';
@@ -19,7 +19,7 @@ import { AdminController } from './admin-controller.js';
 import { XyPlotManager } from './xy-plot-manager.js';
 import { RandomPromptManager } from './random-prompt-manager.js';
 import { RandomPromptController } from './random-prompt-controller.js';
-import { InspirationManager } from './inspiration-manager.js?v=20260625';
+import { InspirationManager } from './inspiration-manager.js';
 import { MotionController } from './motion-controller.js';
 
 import { getMimeFromFilename, dataUrlToBlob, triggerDownload } from './download-helper.js';
@@ -1544,7 +1544,37 @@ function toggleBypassLimitsEnabled(forceState) {
 }
 
 function updateAnlasUI(data) {
-    ui.updateCustomApiCredit(data);
+    if (ui && typeof ui.updateCustomApiCredit === 'function') {
+        ui.updateCustomApiCredit(data);
+        return;
+    }
+    if (!data) return;
+    const anlasVal = typeof data.totalAnlas === 'number' ? data.totalAnlas : (typeof data.anlas === 'number' ? data.anlas : 0);
+    const keyCountVal = typeof data.keyCount === 'number' ? data.keyCount : 1;
+    const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
+    
+    let text = "";
+    const keyPart = keyCountVal > 1 ? ` | ${keyCountVal}Key` : "";
+    if (opusUsage && typeof opusUsage.percent === 'number') {
+        text = `CustomAPI (Anlas: ${anlasVal}${keyPart} |\nOpus免费: ${opusUsage.percent}% (约${opusUsage.estimatedImages}张))`;
+    } else {
+        text = `CustomAPI (Anlas: ${anlasVal}${keyPart})`;
+    }
+
+    const desktopDisplay = document.getElementById('creditDisplayDesktop');
+    const mobileDisplay = document.getElementById('creditDisplayMobile');
+    
+    if (desktopDisplay) {
+        desktopDisplay.textContent = text;
+        desktopDisplay.classList.remove('hidden');
+        if (opusUsage && typeof opusUsage.percent === 'number') {
+            desktopDisplay.title = `Opus 免费生成额度: 剩余 ${opusUsage.percent}% (约 ${opusUsage.estimatedImages} 张图片)`;
+        }
+    }
+    if (mobileDisplay) {
+        mobileDisplay.textContent = text;
+        mobileDisplay.classList.remove('hidden');
+    }
 }
 
 window.refreshAnlasDisplay = async function() {
@@ -2956,39 +2986,47 @@ window.fetchAdminStats = fetchAdminStats;
 
 
 // --- Random Prompt Library UI Helper Functions ---
-// --- Random Prompt Library UI Helper Delegation ---
 function renderRandomPromptsList() {
     randomPromptController.renderList();
 }
+window.renderRandomPromptsList = renderRandomPromptsList;
 
 function toggleRandomPromptEnabled(checked) {
     randomPromptController.toggleEnabled(checked);
 }
+window.toggleRandomPromptEnabled = toggleRandomPromptEnabled;
 
 function toggleRandomCategory(name, checked) {
     randomPromptController.toggleCategory(name, checked);
 }
+window.toggleRandomCategory = toggleRandomCategory;
 
 function toggleRandomCategoryFold(name, event) {
     randomPromptController.toggleFold(name, event);
 }
+window.toggleRandomCategoryFold = toggleRandomCategoryFold;
 
 function updateRandomCategoryContent(name, content) {
     randomPromptController.updateCategoryContent(name, content);
 }
+window.updateRandomCategoryContent = updateRandomCategoryContent;
 
 async function deleteRandomCategory(name) {
     await randomPromptController.deleteCategory(name);
 }
+window.deleteRandomCategory = deleteRandomCategory;
 
 function addRandomPromptCategory() {
     randomPromptController.addCategory();
 }
+window.addRandomPromptCategory = addRandomPromptCategory;
 
 function exportRandomPromptFile() {
     randomPromptController.exportFile();
 }
+window.exportRandomPromptFile = exportRandomPromptFile;
 
 function importRandomPromptFile(event) {
     randomPromptController.importFile(event);
 }
+window.importRandomPromptFile = importRandomPromptFile;

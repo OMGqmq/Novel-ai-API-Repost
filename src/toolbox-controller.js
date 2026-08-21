@@ -2,7 +2,7 @@
  * Advanced Toolbox Controller Module
  * Handles UI interactions, modal states, and scrambling workflow.
  */
-import { processImageScrambler } from './image-scrambler.js?v=20260620';
+import { processImageScrambler } from './image-scrambler.js';
 import { extractMetadata } from './png-metadata.js';
 
 let store = null;
