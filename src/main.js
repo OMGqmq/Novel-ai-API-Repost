@@ -2686,18 +2686,19 @@ function lightboxApplyParams() {
             updateCharacterIndexLabels();
         }
         
-        let charList = meta.char_captions;
+        let charList = meta.characterPrompts || meta.char_captions;
         if (!charList && meta.v4_prompt && meta.v4_prompt.caption && meta.v4_prompt.caption.char_captions) {
             charList = meta.v4_prompt.caption.char_captions;
         }
         
         if (Array.isArray(charList)) {
-            const useCoords = meta.v4_prompt_use_coords !== undefined ? meta.v4_prompt_use_coords : 
-                              (meta.v4_prompt ? meta.v4_prompt.use_coords : false);
+            const useCoords = meta.use_coords !== undefined ? Boolean(meta.use_coords) :
+                              (meta.v4_prompt_use_coords !== undefined ? meta.v4_prompt_use_coords : 
+                              (meta.v4_prompt ? meta.v4_prompt.use_coords : false));
             
             charList.forEach(char => {
                 const promptVal = char.prompt || char.char_caption || '';
-                let negVal = char.negative_prompt || '';
+                let negVal = char.negative_prompt || char.uc || '';
                 if (!negVal && meta.v4_negative_prompt && meta.v4_negative_prompt.caption && meta.v4_negative_prompt.caption.char_captions) {
                     const idx = charList.indexOf(char);
                     const negChar = meta.v4_negative_prompt.caption.char_captions[idx];
@@ -2709,13 +2710,16 @@ function lightboxApplyParams() {
                 let cx = 0.5;
                 let cy = 0.5;
                 if (typeof char.x === 'number') cx = char.x;
+                else if (char.center && typeof char.center.x === 'number') cx = char.center.x;
                 else if (char.centers && char.centers[0] && typeof char.centers[0].x === 'number') cx = char.centers[0].x;
                 
                 if (typeof char.y === 'number') cy = char.y;
+                else if (char.center && typeof char.center.y === 'number') cy = char.center.y;
                 else if (char.centers && char.centers[0] && typeof char.centers[0].y === 'number') cy = char.centers[0].y;
                 
                 const autoPos = !useCoords;
-                addCharacterPromptRow(promptVal, negVal, cx, cy, autoPos, true);
+                const enabled = char.enabled !== undefined ? char.enabled : true;
+                addCharacterPromptRow(promptVal, negVal, cx, cy, autoPos, enabled);
             });
         }
         

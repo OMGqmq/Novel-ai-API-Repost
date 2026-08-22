@@ -394,7 +394,7 @@ export class UIController {
 
         const vibeWrap = document.getElementById('vibeSettingsWrapper');
         if (vibeWrap) {
-            if (isZImage) vibeWrap.classList.add('hidden');
+            if (isZImage || ver === 'v5') vibeWrap.classList.add('hidden');
             else vibeWrap.classList.remove('hidden');
         }
 

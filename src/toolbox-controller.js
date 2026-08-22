@@ -591,30 +591,35 @@ export function applyMetadataParameters() {
                 }
 
                 // 恢复多角色提示词 (Character Prompts)
-                let charList = commentObj.char_captions || commentObj.characterPrompts;
+                let charList = commentObj.characterPrompts || commentObj.char_captions;
                 if (!charList && commentObj.v4_prompt?.caption?.char_captions) {
                     charList = commentObj.v4_prompt.caption.char_captions;
                 }
                 if (Array.isArray(charList) && window.addCharacterPromptRow) {
                     const container = document.getElementById('characterPromptsContainer');
                     if (container) container.innerHTML = '';
-                    const useCoords = commentObj.v4_prompt_use_coords !== undefined 
-                        ? commentObj.v4_prompt_use_coords 
-                        : (commentObj.v4_prompt ? commentObj.v4_prompt.use_coords : false);
+                    const useCoords = commentObj.use_coords !== undefined ? Boolean(commentObj.use_coords) :
+                                      (commentObj.v4_prompt_use_coords !== undefined 
+                                          ? commentObj.v4_prompt_use_coords 
+                                          : (commentObj.v4_prompt ? commentObj.v4_prompt.use_coords : false));
 
                     charList.forEach((char, idx) => {
                         const promptVal = char.prompt || char.char_caption || '';
-                        let negVal = char.negative_prompt || '';
+                        let negVal = char.negative_prompt || char.uc || '';
                         if (!negVal && commentObj.v4_negative_prompt?.caption?.char_captions?.[idx]) {
                             negVal = commentObj.v4_negative_prompt.caption.char_captions[idx].char_caption || '';
                         }
                         let cx = 0.5, cy = 0.5;
                         if (typeof char.x === 'number') cx = char.x;
+                        else if (char.center?.x !== undefined) cx = char.center.x;
                         else if (char.centers?.[0]?.x !== undefined) cx = char.centers[0].x;
+                        
                         if (typeof char.y === 'number') cy = char.y;
+                        else if (char.center?.y !== undefined) cy = char.center.y;
                         else if (char.centers?.[0]?.y !== undefined) cy = char.centers[0].y;
 
-                        window.addCharacterPromptRow(promptVal, negVal, cx, cy, !useCoords, true);
+                        const isEnabled = char.enabled !== undefined ? char.enabled : true;
+                        window.addCharacterPromptRow(promptVal, negVal, cx, cy, !useCoords, isEnabled);
                     });
                     if (window.saveCharacterPromptsState) window.saveCharacterPromptsState();
                     appliedCount++;
