@@ -1231,6 +1231,7 @@
                     <div>
                         <label class="block text-[10px] font-semibold text-gray-500 dark:text-slate-400 mb-0.5">数据源 API</label>
                         <select id="inspSourceType" class="w-full text-xs py-1 px-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200" onchange="window.saveInspirationApiConfig()">
+                            <option value="hf_dataset">🤗 HuggingFace 1140万+ 实时全库 (u-haru/danbooru-tags-20260518)</option>
                             <option value="danbooru">Danbooru 官方库 (danbooru.donmai.us)</option>
                             <option value="safebooru">Safebooru 镜像 (safebooru.org)</option>
                             <option value="yande">Yande.re 插画库 (yande.re)</option>
@@ -2587,7 +2588,7 @@
     <!-- 全局统一下载静默锚点，用于规避 Chrome/Edge 对动态创建 A 标签的多文件安全拦截 -->
     <a id="globalDownloadAnchor" style="display: none;" rel="noopener"></a>
 
-    <script type="module" src="src/main.js?v=20260822_17"></script>
+    <script type="module" src="src/main.js?v=20260822_18"></script>
 </body>
 
 </html>

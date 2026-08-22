@@ -92,7 +92,7 @@ export class InspirationManager {
 
         // API 直连配置 (客户端本地存储)
         const getLocal = (k) => typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null;
-        this.sourceType = getLocal('insp_source_type') || 'safebooru';
+        this.sourceType = getLocal('insp_source_type') || 'hf_dataset';
         this.danbooruUsername = getLocal('insp_danbooru_user') || '';
         this.danbooruApiKey = getLocal('insp_danbooru_key') || '';
         this.customApiUrl = getLocal('insp_custom_url') || '';
@@ -360,8 +360,44 @@ export class InspirationManager {
                 'Accept': 'application/json'
             };
 
-            // 纯前端按配置直连数据源
-            if (this.sourceType === 'danbooru') {
+            // 1. HuggingFace 数据集直连模式 (u-haru/danbooru-tags-20260518 1140万+ 真实全量库)
+            if (this.sourceType === 'hf_dataset') {
+                const kwInput = document.getElementById('inspCustomKeyword');
+                const customKw = kwInput ? kwInput.value.trim() : '';
+                const searchKeyword = customKw || (this.currentFranchise !== 'any' ? this.currentFranchise : '');
+
+                // 年代切片 Offset 计算
+                let baseOffset = 0;
+                let range = 11400000;
+                if (this.currentEra === '2026') {
+                    baseOffset = 10800000;
+                    range = 580000;
+                } else if (this.currentEra === '2025') {
+                    baseOffset = 9000000;
+                    range = 1800000;
+                } else if (this.currentEra === '2024') {
+                    baseOffset = 7200000;
+                    range = 1800000;
+                } else if (this.currentEra === '2020_2023') {
+                    baseOffset = 4000000;
+                    range = 3200000;
+                } else if (this.currentEra === '2010_2019') {
+                    baseOffset = 600000;
+                    range = 3400000;
+                } else if (this.currentEra === 'classic') {
+                    baseOffset = 0;
+                    range = 600000;
+                }
+
+                const randomOffset = baseOffset + Math.floor(Math.random() * range);
+                const datasetName = 'u-haru/danbooru-tags-20260518';
+
+                if (searchKeyword) {
+                    fetchUrl = `https://datasets-server.huggingface.co/search?dataset=${datasetName}&config=default&split=train&query=${encodeURIComponent(searchKeyword)}&offset=${(randomPage - 1) * 15}&limit=15`;
+                } else {
+                    fetchUrl = `https://datasets-server.huggingface.co/rows?dataset=${datasetName}&config=default&split=train&offset=${randomOffset}&limit=15`;
+                }
+            } else if (this.sourceType === 'danbooru') {
                 fetchUrl = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(query)}&limit=15&page=${randomPage}`;
                 if (this.danbooruUsername && this.danbooruApiKey) {
                     const credentials = btoa(`${this.danbooruUsername}:${this.danbooruApiKey}`);
@@ -375,11 +411,11 @@ export class InspirationManager {
                 const sep = this.customApiUrl.includes('?') ? '&' : '?';
                 fetchUrl = `${this.customApiUrl}${sep}tags=${encodeURIComponent(cleanTags)}&limit=15&page=${randomPage}`;
             } else {
-                // 默认 Safebooru 镜像
+                // Safebooru 镜像
                 fetchUrl = `https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(cleanTags)}&limit=15&pid=${randomPage - 1}`;
             }
 
-            console.log(`[Inspiration Direct] Requesting live API: ${fetchUrl}`);
+            console.log(`[Inspiration Direct] Requesting live API (${this.sourceType}): ${fetchUrl}`);
             const response = await fetch(fetchUrl, {
                 method: 'GET',
                 headers: fetchHeaders,
@@ -387,6 +423,18 @@ export class InspirationManager {
             });
 
             if (!response.ok) {
+                // 如果 HuggingFace search 仍在索引，平滑回退到 rows 切片采样
+                if (this.sourceType === 'hf_dataset' && fetchUrl.includes('/search')) {
+                    const randomFallbackOffset = Math.floor(Math.random() * 11400000);
+                    const fallbackUrl = `https://datasets-server.huggingface.co/rows?dataset=u-haru/danbooru-tags-20260518&config=default&split=train&offset=${randomFallbackOffset}&limit=15`;
+                    const fbRes = await fetch(fallbackUrl, { headers: fetchHeaders, mode: 'cors' });
+                    if (fbRes.ok) {
+                        const fbData = await fbRes.json();
+                        if (fbData && Array.isArray(fbData.rows)) {
+                            return this.parseAndSetPosts(fbData.rows.map(r => r.row));
+                        }
+                    }
+                }
                 throw new Error(`HTTP ${response.status} (${response.statusText || '请求异常'})`);
             }
 
@@ -395,59 +443,15 @@ export class InspirationManager {
 
             if (Array.isArray(rawData)) {
                 rawPosts = rawData;
+            } else if (rawData && Array.isArray(rawData.rows)) {
+                rawPosts = rawData.rows.map(r => r.row);
             } else if (rawData && Array.isArray(rawData.posts)) {
                 rawPosts = rawData.posts;
             } else if (rawData && Array.isArray(rawData.post)) {
                 rawPosts = rawData.post;
             }
 
-            if (rawPosts.length === 0) {
-                this.posts = [];
-                this.onShowToast("未检索到实时作品，请尝试放宽筛选条件", "warning");
-                this.renderCurrentPost();
-                return;
-            }
-
-            // 100% 真实数据清洗
-            this.posts = rawPosts.map(p => {
-                let previewUrl = p.preview_file_url || p.sample_url || p.preview_url || p.file_url || '';
-                if (p.media_asset && Array.isArray(p.media_asset.variants)) {
-                    for (const v of p.media_asset.variants) {
-                        if (['sample', '360x360', '180x180'].includes(v.type) && v.url) {
-                            previewUrl = v.url;
-                            break;
-                        }
-                    }
-                }
-
-                const postTags = p.tag_string || p.tags || '';
-                return {
-                    id: p.id,
-                    created_at: p.created_at || (p.change ? new Date(p.change * 1000).toISOString() : ''),
-                    score: p.score || 0,
-                    fav_count: p.fav_count || p.comment_count || 0,
-                    rating: p.rating || 'g',
-                    tag_string_artist: p.tag_string_artist || '',
-                    tag_string_character: p.tag_string_character || '',
-                    tag_string_copyright: p.tag_string_copyright || '',
-                    tag_string_general: p.tag_string_general || postTags,
-                    tag_string: postTags,
-                    preview_url: previewUrl,
-                    source_url: this.sourceType === 'yande'
-                        ? `https://yande.re/post/show/${p.id}`
-                        : (this.sourceType === 'gelbooru'
-                            ? `https://gelbooru.com/index.php?page=post&s=view&id=${p.id}`
-                            : (this.sourceType === 'danbooru'
-                                ? `https://danbooru.donmai.us/posts/${p.id}`
-                                : `https://safebooru.org/index.php?page=post&s=view&id=${p.id}`)),
-                    image_width: p.image_width || p.width,
-                    image_height: p.image_height || p.height
-                };
-            });
-
-            this.currentPostIndex = 0;
-            this.renderCurrentPost();
-            this.onShowToast(`已成功实时拉取 ${this.posts.length} 组高赞作品`, "success");
+            this.parseAndSetPosts(rawPosts);
         } catch (err) {
             console.error("[Inspiration Live Fetch Error]", err);
             this.posts = [];
@@ -455,13 +459,70 @@ export class InspirationManager {
 
             let hint = err.message;
             if (err.name === 'TypeError' && err.message.includes('fetch')) {
-                hint = "浏览器跨域(CORS)限制拦截。请在右上角 ⚙️ 填入您的 Danbooru API Key 或选择 Yande/自定义代理端点。";
+                hint = "浏览器跨域(CORS)限制拦截。建议切换至『🤗 HuggingFace 1140万+ 数据集』直连或在 ⚙️ 填入 Danbooru API Key。";
             }
             this.onShowToast(`实时拉取失败: ${hint}`, "error");
         } finally {
             this.isLoading = false;
             this.setLoadingState(false);
         }
+    }
+
+    parseAndSetPosts(rawPosts) {
+        if (!Array.isArray(rawPosts) || rawPosts.length === 0) {
+            this.posts = [];
+            this.onShowToast("未检索到实时作品，请尝试放宽筛选条件", "warning");
+            this.renderCurrentPost();
+            return;
+        }
+
+        // 100% 真实数据集字段标准化清洗
+        this.posts = rawPosts.map(p => {
+            let previewUrl = p.preview_file_url || p.sample_url || p.preview_url || p.file_url || '';
+            if (p.media_asset_variants) {
+                try {
+                    const variants = typeof p.media_asset_variants === 'string' ? JSON.parse(p.media_asset_variants) : p.media_asset_variants;
+                    if (Array.isArray(variants) && variants.length > 0) {
+                        const sample = variants.find(v => ['360x360', '720x720', 'sample', '180x180'].includes(v.type));
+                        if (sample && sample.url) previewUrl = sample.url;
+                        else if (variants[0].url) previewUrl = variants[0].url;
+                    }
+                } catch (e) {}
+            } else if (p.media_asset && Array.isArray(p.media_asset.variants)) {
+                for (const v of p.media_asset.variants) {
+                    if (['sample', '360x360', '180x180'].includes(v.type) && v.url) {
+                        previewUrl = v.url;
+                        break;
+                    }
+                }
+            }
+
+            const postTags = p.tag_string || p.tags || '';
+            return {
+                id: p.id,
+                created_at: p.created_at || (p.change ? new Date(p.change * 1000).toISOString() : ''),
+                score: p.score || 0,
+                fav_count: p.fav_count || p.comment_count || 0,
+                rating: p.rating || 'g',
+                tag_string_artist: p.tag_string_artist || '',
+                tag_string_character: p.tag_string_character || '',
+                tag_string_copyright: p.tag_string_copyright || '',
+                tag_string_general: p.tag_string_general || postTags,
+                tag_string: postTags,
+                preview_url: previewUrl,
+                source_url: this.sourceType === 'yande'
+                    ? `https://yande.re/post/show/${p.id}`
+                    : (this.sourceType === 'gelbooru'
+                        ? `https://gelbooru.com/index.php?page=post&s=view&id=${p.id}`
+                        : `https://danbooru.donmai.us/posts/${p.id}`),
+                image_width: p.image_width || p.width || 832,
+                image_height: p.image_height || p.height || 1216
+            };
+        });
+
+        this.currentPostIndex = 0;
+        this.renderCurrentPost();
+        this.onShowToast(`已成功从实时数据集拉取 ${this.posts.length} 组高赞作品`, "success");
     }
 
     setLoadingState(loading) {
