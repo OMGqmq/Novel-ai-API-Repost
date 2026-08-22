@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { onRequest as danbooruHandler } from '../functions/danbooru.js';
 import { InspirationManager, ERA_OPTIONS, FRANCHISE_OPTIONS, ARTIST_STYLE_OPTIONS } from '../src/inspiration-manager.js';
 
@@ -288,6 +288,34 @@ describe('Danbooru Inspiration Proxy & Manager', () => {
       const charInput = mockDomStore['charPromptInput'];
       expect(charInput.value).toContain('frieren');
       expect(charInput.value).toContain('white_robe');
+    });
+
+    it('should execute pure client-side direct live fetching without fake presets', async () => {
+      const originalFetch = global.fetch;
+      const mockLivePosts = [
+        {
+          id: 998877,
+          score: 120,
+          comment_count: 5,
+          tags: '1girl solo frieren white_dress',
+          sample_url: 'https://safebooru.org/samples/test.jpg'
+        }
+      ];
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockLivePosts
+      });
+
+      manager.sourceType = 'safebooru';
+      await manager.fetchInspiration();
+
+      expect(global.fetch).toHaveBeenCalled();
+      expect(manager.posts.length).toBe(1);
+      expect(manager.posts[0].id).toBe(998877);
+      expect(manager.posts[0].preview_url).toBe('https://safebooru.org/samples/test.jpg');
+
+      global.fetch = originalFetch;
     });
   });
 });

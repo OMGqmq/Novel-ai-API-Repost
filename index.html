@@ -1204,15 +1204,52 @@
                     <div class="min-w-0">
                         <h3 class="font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 flex items-center gap-1.5 sm:gap-2">
                             <span>Danbooru 灵感工坊</span>
-                            <span class="text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500/10 to-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200/40 dark:border-indigo-800/40 shrink-0">1140万+ 实时全库</span>
+                            <span class="text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-gradient-to-r from-emerald-500/10 to-indigo-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40 dark:border-emerald-800/40 shrink-0">🌐 客户端纯前端直连</span>
                         </h3>
-                        <p class="text-[10px] sm:text-[11px] text-gray-400 dark:text-slate-400 truncate max-w-[200px] sm:max-w-none">年代·角色·画风·评分多维组合抽取</p>
+                        <p class="text-[10px] sm:text-[11px] text-gray-400 dark:text-slate-400 truncate max-w-[200px] sm:max-w-none">年代·角色·画风·评分多维组合 100% 实时拉取</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5">
+                    <button onclick="window.toggleInspirationApiSettings()" class="p-1.5 sm:p-2 hover:bg-gray-200/60 dark:hover:bg-slate-800 rounded-full text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="数据源与 API Key 配置">
+                        <i data-lucide="settings" class="w-4 h-4 sm:w-4.5 sm:h-4.5"></i>
+                    </button>
                     <button onclick="window.closeInspirationModal()" class="p-1.5 sm:p-2 hover:bg-gray-200/60 dark:hover:bg-slate-800 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                         <i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i>
                     </button>
+                </div>
+            </div>
+
+            <!-- API 直连与凭据配置折叠面板 (客户端独立存储于 localStorage) -->
+            <div id="inspApiSettingsDrawer" class="shrink-0 px-3.5 sm:px-6 py-2.5 bg-indigo-50/50 dark:bg-indigo-950/20 border-b border-indigo-100 dark:border-indigo-900/40 hidden flex-col gap-2 text-xs">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-[11px] text-indigo-700 dark:text-indigo-300 flex items-center gap-1">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 纯前端直连配置 (无需后端，100% 实时在线)
+                    </span>
+                    <span class="text-[10px] text-gray-400">仅保存在当前浏览器本地</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 dark:text-slate-400 mb-0.5">数据源 API</label>
+                        <select id="inspSourceType" class="w-full text-xs py-1 px-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200" onchange="window.saveInspirationApiConfig()">
+                            <option value="danbooru">Danbooru 官方库 (danbooru.donmai.us)</option>
+                            <option value="safebooru">Safebooru 镜像 (safebooru.org)</option>
+                            <option value="yande">Yande.re 插画库 (yande.re)</option>
+                            <option value="gelbooru">Gelbooru 综合库 (gelbooru.com)</option>
+                            <option value="custom">自定义反代 / Worker 端点</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 dark:text-slate-400 mb-0.5">Danbooru 用户名 (可选)</label>
+                        <input type="text" id="inspDanbooruUsername" placeholder="您的 Danbooru 账号名..." class="w-full text-xs py-1 px-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200" onchange="window.saveInspirationApiConfig()">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 dark:text-slate-400 mb-0.5">Danbooru API Key / Token (可选)</label>
+                        <input type="password" id="inspDanbooruApiKey" placeholder="API Key (直连放行 CORS)" class="w-full text-xs py-1 px-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200" onchange="window.saveInspirationApiConfig()">
+                    </div>
+                </div>
+                <div id="inspCustomUrlRow" class="hidden">
+                    <label class="block text-[10px] font-semibold text-gray-500 dark:text-slate-400 mb-0.5">自定义端点 URL</label>
+                    <input type="text" id="inspCustomApiUrl" placeholder="如 https://my-booru-proxy.workers.dev/posts.json?tags=" class="w-full text-xs py-1 px-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200" onchange="window.saveInspirationApiConfig()">
                 </div>
             </div>
 
@@ -2550,7 +2587,7 @@
     <!-- 全局统一下载静默锚点，用于规避 Chrome/Edge 对动态创建 A 标签的多文件安全拦截 -->
     <a id="globalDownloadAnchor" style="display: none;" rel="noopener"></a>
 
-    <script type="module" src="src/main.js?v=20260822_16"></script>
+    <script type="module" src="src/main.js?v=20260822_17"></script>
 </body>
 
 </html>

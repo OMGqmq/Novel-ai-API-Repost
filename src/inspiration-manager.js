@@ -90,6 +90,13 @@ export class InspirationManager {
         this.currentRating = 'g';
         this.customKeyword = '';
 
+        // API 直连配置 (客户端本地存储)
+        const getLocal = (k) => typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null;
+        this.sourceType = getLocal('insp_source_type') || 'safebooru';
+        this.danbooruUsername = getLocal('insp_danbooru_user') || '';
+        this.danbooruApiKey = getLocal('insp_danbooru_key') || '';
+        this.customApiUrl = getLocal('insp_custom_url') || '';
+
         // 数据拉取状态
         this.isLoading = false;
         this.posts = [];
@@ -115,6 +122,57 @@ export class InspirationManager {
         window.prevInspirationPost = () => this.prevPost();
         window.nextInspirationPost = () => this.nextPost();
         window.importInspirationPrompt = (mode) => this.importPrompt(mode);
+        window.toggleInspirationApiSettings = () => this.toggleApiSettings();
+        window.saveInspirationApiConfig = () => this.saveApiConfig();
+    }
+
+    toggleApiSettings() {
+        const drawer = document.getElementById('inspApiSettingsDrawer');
+        if (drawer) {
+            drawer.classList.toggle('hidden');
+            drawer.classList.toggle('flex');
+            this.syncApiConfigUI();
+        }
+    }
+
+    syncApiConfigUI() {
+        const typeEl = document.getElementById('inspSourceType');
+        const userEl = document.getElementById('inspDanbooruUsername');
+        const keyEl = document.getElementById('inspDanbooruApiKey');
+        const customUrlEl = document.getElementById('inspCustomApiUrl');
+        const customRow = document.getElementById('inspCustomUrlRow');
+
+        if (typeEl) typeEl.value = this.sourceType;
+        if (userEl) userEl.value = this.danbooruUsername;
+        if (keyEl) keyEl.value = this.danbooruApiKey;
+        if (customUrlEl) customUrlEl.value = this.customApiUrl;
+
+        if (customRow) {
+            if (this.sourceType === 'custom') customRow.classList.remove('hidden');
+            else customRow.classList.add('hidden');
+        }
+    }
+
+    saveApiConfig() {
+        const typeEl = document.getElementById('inspSourceType');
+        const userEl = document.getElementById('inspDanbooruUsername');
+        const keyEl = document.getElementById('inspDanbooruApiKey');
+        const customUrlEl = document.getElementById('inspCustomApiUrl');
+
+        if (typeEl) this.sourceType = typeEl.value;
+        if (userEl) this.danbooruUsername = userEl.value.trim();
+        if (keyEl) this.danbooruApiKey = keyEl.value.trim();
+        if (customUrlEl) this.customApiUrl = customUrlEl.value.trim();
+
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('insp_source_type', this.sourceType);
+            localStorage.setItem('insp_danbooru_user', this.danbooruUsername);
+            localStorage.setItem('insp_danbooru_key', this.danbooruApiKey);
+            localStorage.setItem('insp_custom_url', this.customApiUrl);
+        }
+
+        this.syncApiConfigUI();
+        this.onShowToast("直连配置已更新至本地", "success");
     }
 
     open() {
@@ -130,6 +188,7 @@ export class InspirationManager {
         }
 
         this.renderFilters();
+        this.syncApiConfigUI();
 
         // 首次打开若无数据则自动抽取一组
         if (this.posts.length === 0) {
@@ -294,196 +353,115 @@ export class InspirationManager {
         try {
             const query = this.buildDanbooruQuery();
             const randomPage = Math.floor(Math.random() * 5) + 1;
-            let fetchedPosts = [];
+            const cleanTags = query.replace(/date:[^\s]+/g, '').replace(/score:>=/g, 'score:').trim() || '1girl';
 
-            // 1. 尝试通道 A：前端浏览器直连 Safebooru (用户开启 VPN 时优先走用户本地网络)
-            try {
-                const cleanTags = query.replace(/date:[^\s]+/g, '').replace(/score:>=/g, 'score:').trim() || '1girl';
-                const directUrl = `https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(cleanTags)}&limit=15&pid=${randomPage - 1}`;
-                const directRes = await fetch(directUrl, { method: 'GET', mode: 'cors' }).catch(() => null);
-                if (directRes && directRes.ok) {
-                    const list = await directRes.json().catch(() => null);
-                    if (Array.isArray(list) && list.length > 0) {
-                        fetchedPosts = list.map(p => ({
-                            id: p.id,
-                            created_at: p.change ? new Date(p.change * 1000).toISOString() : new Date().toISOString(),
-                            score: p.score || 0,
-                            fav_count: p.comment_count || 0,
-                            rating: p.rating || 'g',
-                            tag_string_artist: '',
-                            tag_string_character: '',
-                            tag_string_copyright: '',
-                            tag_string_general: p.tags || '',
-                            tag_string: p.tags || '',
-                            preview_url: p.sample_url || p.preview_url || p.file_url || '',
-                            source_url: `https://safebooru.org/index.php?page=post&s=view&id=${p.id}`,
-                            image_width: p.width,
-                            image_height: p.height
-                        }));
-                    }
+            let fetchUrl = '';
+            const fetchHeaders = {
+                'Accept': 'application/json'
+            };
+
+            // 纯前端按配置直连数据源
+            if (this.sourceType === 'danbooru') {
+                fetchUrl = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(query)}&limit=15&page=${randomPage}`;
+                if (this.danbooruUsername && this.danbooruApiKey) {
+                    const credentials = btoa(`${this.danbooruUsername}:${this.danbooruApiKey}`);
+                    fetchHeaders['Authorization'] = `Basic ${credentials}`;
                 }
-            } catch (dErr) {
-                console.warn("[Inspiration] Direct fetch skipped:", dErr);
+            } else if (this.sourceType === 'yande') {
+                fetchUrl = `https://yande.re/post.json?tags=${encodeURIComponent(cleanTags)}&limit=15&page=${randomPage}`;
+            } else if (this.sourceType === 'gelbooru') {
+                fetchUrl = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(cleanTags)}&limit=15&pid=${randomPage - 1}`;
+            } else if (this.sourceType === 'custom' && this.customApiUrl) {
+                const sep = this.customApiUrl.includes('?') ? '&' : '?';
+                fetchUrl = `${this.customApiUrl}${sep}tags=${encodeURIComponent(cleanTags)}&limit=15&page=${randomPage}`;
+            } else {
+                // 默认 Safebooru 镜像
+                fetchUrl = `https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(cleanTags)}&limit=15&pid=${randomPage - 1}`;
             }
 
-            // 2. 尝试通道 B：边缘中继 / 本地代理
-            if (fetchedPosts.length === 0) {
-                try {
-                    const endpoint = `/danbooru?tags=${encodeURIComponent(query)}&limit=15&page=${randomPage}`;
-                    const res = await fetch(endpoint, { method: 'GET' }).catch(() => null);
-                    if (res && res.ok) {
-                        const data = await res.json().catch(() => null);
-                        if (data && data.success && Array.isArray(data.posts) && data.posts.length > 0) {
-                            fetchedPosts = data.posts;
+            console.log(`[Inspiration Direct] Requesting live API: ${fetchUrl}`);
+            const response = await fetch(fetchUrl, {
+                method: 'GET',
+                headers: fetchHeaders,
+                mode: 'cors'
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} (${response.statusText || '请求异常'})`);
+            }
+
+            const rawData = await response.json();
+            let rawPosts = [];
+
+            if (Array.isArray(rawData)) {
+                rawPosts = rawData;
+            } else if (rawData && Array.isArray(rawData.posts)) {
+                rawPosts = rawData.posts;
+            } else if (rawData && Array.isArray(rawData.post)) {
+                rawPosts = rawData.post;
+            }
+
+            if (rawPosts.length === 0) {
+                this.posts = [];
+                this.onShowToast("未检索到实时作品，请尝试放宽筛选条件", "warning");
+                this.renderCurrentPost();
+                return;
+            }
+
+            // 100% 真实数据清洗
+            this.posts = rawPosts.map(p => {
+                let previewUrl = p.preview_file_url || p.sample_url || p.preview_url || p.file_url || '';
+                if (p.media_asset && Array.isArray(p.media_asset.variants)) {
+                    for (const v of p.media_asset.variants) {
+                        if (['sample', '360x360', '180x180'].includes(v.type) && v.url) {
+                            previewUrl = v.url;
+                            break;
                         }
                     }
-                } catch (pErr) {
-                    console.warn("[Inspiration] Proxy fetch skipped:", pErr);
                 }
-            }
 
-            // 3. 尝试通道 C：内置高赞动态灵感引擎兜底 (100% 毫秒级生成真实组合)
-            if (fetchedPosts.length === 0) {
-                fetchedPosts = this.generatePresetPosts(this.currentFranchise, this.currentStyle, this.currentEra);
-            }
+                const postTags = p.tag_string || p.tags || '';
+                return {
+                    id: p.id,
+                    created_at: p.created_at || (p.change ? new Date(p.change * 1000).toISOString() : ''),
+                    score: p.score || 0,
+                    fav_count: p.fav_count || p.comment_count || 0,
+                    rating: p.rating || 'g',
+                    tag_string_artist: p.tag_string_artist || '',
+                    tag_string_character: p.tag_string_character || '',
+                    tag_string_copyright: p.tag_string_copyright || '',
+                    tag_string_general: p.tag_string_general || postTags,
+                    tag_string: postTags,
+                    preview_url: previewUrl,
+                    source_url: this.sourceType === 'yande'
+                        ? `https://yande.re/post/show/${p.id}`
+                        : (this.sourceType === 'gelbooru'
+                            ? `https://gelbooru.com/index.php?page=post&s=view&id=${p.id}`
+                            : (this.sourceType === 'danbooru'
+                                ? `https://danbooru.donmai.us/posts/${p.id}`
+                                : `https://safebooru.org/index.php?page=post&s=view&id=${p.id}`)),
+                    image_width: p.image_width || p.width,
+                    image_height: p.image_height || p.height
+                };
+            });
 
-            this.posts = fetchedPosts;
             this.currentPostIndex = 0;
             this.renderCurrentPost();
+            this.onShowToast(`已成功实时拉取 ${this.posts.length} 组高赞作品`, "success");
         } catch (err) {
-            console.error("Danbooru inspiration fetch error:", err);
-            // 发生异常时也通过内置灵感库保障用户体验
-            this.posts = this.generatePresetPosts(this.currentFranchise, this.currentStyle, this.currentEra);
-            this.currentPostIndex = 0;
+            console.error("[Inspiration Live Fetch Error]", err);
+            this.posts = [];
             this.renderCurrentPost();
-            this.onShowToast("已为您切换至高赞精选灵感库", "info");
+
+            let hint = err.message;
+            if (err.name === 'TypeError' && err.message.includes('fetch')) {
+                hint = "浏览器跨域(CORS)限制拦截。请在右上角 ⚙️ 填入您的 Danbooru API Key 或选择 Yande/自定义代理端点。";
+            }
+            this.onShowToast(`实时拉取失败: ${hint}`, "error");
         } finally {
             this.isLoading = false;
             this.setLoadingState(false);
         }
-    }
-
-    generatePresetPosts(franchiseId, styleId, eraId) {
-        const presetsByFranchise = {
-            frieren: [
-                {
-                    id: 9102381,
-                    score: 380,
-                    fav_count: 1520,
-                    created_at: "2026-02-18",
-                    tag_string_artist: "ask_(artist) ciloranko",
-                    tag_string_character: "frieren fern_(sousou_no_frieren) sousou_no_frieren",
-                    tag_string_copyright: "sousou_no_frieren",
-                    tag_string_general: "1girl solo twintails white_hair green_eyes elf pointy_ears white_dress striped_scarf staff holding_staff sitting ruins sky cloudy_sky dynamic_angle cinematic_lighting depth_of_field fluttering_hair floating_petals",
-                    preview_url: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop&q=80"
-                },
-                {
-                    id: 9102382,
-                    score: 290,
-                    fav_count: 940,
-                    created_at: "2025-11-04",
-                    tag_string_artist: "fuzichoco",
-                    tag_string_character: "fern_(sousou_no_frieren) sousou_no_frieren",
-                    tag_string_copyright: "sousou_no_frieren",
-                    tag_string_general: "1girl solo long_hair purple_hair purple_eyes black_robe robe dress hair_ornament holding_staff spell_circle glowing magic magic_casting floating_light forest evening_light",
-                    preview_url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80"
-                }
-            ],
-            starrail: [
-                {
-                    id: 8847291,
-                    score: 410,
-                    fav_count: 1820,
-                    created_at: "2026-01-12",
-                    tag_string_artist: "tiv mocchie",
-                    tag_string_character: "firefly_(honkai:_star_rail)",
-                    tag_string_copyright: "honkai:_star_rail",
-                    tag_string_general: "1girl solo grey_hair green_eyes hairband hair_ornament white_dress off_shoulder holding_hands smile night_sky city_lights glowing_particles bokeh masterpiece highly_detailed",
-                    preview_url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80"
-                },
-                {
-                    id: 8847292,
-                    score: 330,
-                    fav_count: 1210,
-                    created_at: "2025-09-28",
-                    tag_string_artist: "swd3e2",
-                    tag_string_character: "acheron_(honkai:_star_rail)",
-                    tag_string_copyright: "honkai:_star_rail",
-                    tag_string_general: "1girl solo long_hair purple_hair red_eyes katana holding_sword black_coat thighhighs shorts rain droplets puddle dark_theme neon_glow dramatic_shadow",
-                    preview_url: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80"
-                }
-            ],
-            genshin: [
-                {
-                    id: 7921340,
-                    score: 450,
-                    fav_count: 2100,
-                    created_at: "2025-08-14",
-                    tag_string_artist: "wlop guweiz",
-                    tag_string_character: "furina_(genshin_impact)",
-                    tag_string_copyright: "genshin_impact",
-                    tag_string_general: "1girl solo white_hair blue_eyes ahoge top_hat cravat blue_jacket ornate_clothing droplets underwater floating bioluminescence dramatic_light ray_tracing masterpiece",
-                    preview_url: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80"
-                }
-            ],
-            bluearchive: [
-                {
-                    id: 7421900,
-                    score: 340,
-                    fav_count: 1320,
-                    created_at: "2025-10-02",
-                    tag_string_artist: "mika_pikazo",
-                    tag_string_character: "misono_mika_(blue_archive)",
-                    tag_string_copyright: "blue_archive",
-                    tag_string_general: "1girl solo pink_hair halo wings feather_wings white_dress smile peace_sign cherry_blossoms sunlight bright_colors lens_flare",
-                    preview_url: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop&q=80"
-                }
-            ],
-            default: [
-                {
-                    id: 8123904,
-                    score: 320,
-                    fav_count: 1250,
-                    created_at: "2025-10-18",
-                    tag_string_artist: "ask_(artist) ciloranko",
-                    tag_string_character: "frieren fern_(sousou_no_frieren) sousou_no_frieren",
-                    tag_string_copyright: "sousou_no_frieren",
-                    tag_string_general: "1girl solo twintails white_hair green_eyes elf pointy_ears white_dress striped_scarf staff holding_staff sitting ruins sky cloudy_sky dynamic_angle cinematic_lighting depth_of_field fluttering_hair floating_petals",
-                    preview_url: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop&q=80"
-                },
-                {
-                    id: 8847291,
-                    score: 290,
-                    fav_count: 980,
-                    created_at: "2025-11-20",
-                    tag_string_artist: "tiv mocchie",
-                    tag_string_character: "firefly_(honkai:_star_rail)",
-                    tag_string_copyright: "honkai:_star_rail",
-                    tag_string_general: "1girl solo grey_hair green_eyes hairband hair_ornament white_dress off_shoulder holding_hands smile night_sky city_lights glowing_particles bokeh masterpiece highly_detailed",
-                    preview_url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80"
-                },
-                {
-                    id: 7921340,
-                    score: 410,
-                    fav_count: 1850,
-                    created_at: "2025-08-14",
-                    tag_string_artist: "wlop guweiz",
-                    tag_string_character: "furina_(genshin_impact)",
-                    tag_string_copyright: "genshin_impact",
-                    tag_string_general: "1girl solo white_hair blue_eyes ahoge top_hat cravat blue_jacket ornate_clothing droplets underwater floating bioluminescence dramatic_light ray_tracing masterpiece",
-                    preview_url: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80"
-                }
-            ]
-        };
-
-        const list = presetsByFranchise[franchiseId] || presetsByFranchise.default;
-        return list.map(item => ({
-            ...item,
-            source_url: `https://danbooru.donmai.us/posts/${item.id}`,
-            tag_string: `${item.tag_string_artist} ${item.tag_string_character} ${item.tag_string_general}`,
-            image_width: 832,
-            image_height: 1216
-        }));
     }
 
     setLoadingState(loading) {
