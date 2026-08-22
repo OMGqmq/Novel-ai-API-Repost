@@ -1,60 +1,10 @@
-﻿/**
+/**
  * Cloudflare Pages Function: /danbooru
- * Robust Danbooru/Safebooru proxy with 100% failover resilience.
+ * High-Availability Multi-Source Real-Time Booru Gateway
+ * Queries Danbooru -> Safebooru -> TBIB -> Yande in real-time
  */
 
 import { json } from './_proxy-helper.js';
-
-const CURATED_SAMPLE_POSTS = [
-  {
-    id: 9102381,
-    created_at: "2026-03-15T08:00:00Z",
-    score: 360,
-    fav_count: 1420,
-    rating: "g",
-    tag_string_artist: "ask_(artist) ciloranko",
-    tag_string_character: "frieren fern_(sousou_no_frieren) sousou_no_frieren",
-    tag_string_copyright: "sousou_no_frieren",
-    tag_string_general: "1girl solo twintails white_hair green_eyes elf pointy_ears white_dress striped_scarf staff holding_staff sitting ruins sky cloudy_sky dynamic_angle cinematic_lighting depth_of_field fluttering_hair floating_petals",
-    tag_string: "ask_(artist) ciloranko frieren fern_(sousou_no_frieren) sousou_no_frieren 1girl solo twintails white_hair green_eyes elf pointy_ears white_dress striped_scarf staff holding_staff sitting ruins sky cloudy_sky dynamic_angle cinematic_lighting depth_of_field fluttering_hair floating_petals",
-    preview_url: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop&q=80",
-    source_url: "https://danbooru.donmai.us/posts/9102381",
-    image_width: 832,
-    image_height: 1216
-  },
-  {
-    id: 8847291,
-    created_at: "2025-11-20T12:00:00Z",
-    score: 290,
-    fav_count: 980,
-    rating: "g",
-    tag_string_artist: "tiv mocchie",
-    tag_string_character: "firefly_(honkai:_star_rail)",
-    tag_string_copyright: "honkai:_star_rail",
-    tag_string_general: "1girl solo grey_hair green_eyes hairband hair_ornament white_dress off_shoulder holding_hands smile night_sky city_lights glowing_particles bokeh masterpiece highly_detailed",
-    tag_string: "tiv mocchie firefly_(honkai:_star_rail) 1girl solo grey_hair green_eyes hairband hair_ornament white_dress off_shoulder holding_hands smile night_sky city_lights glowing_particles bokeh masterpiece highly_detailed",
-    preview_url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80",
-    source_url: "https://danbooru.donmai.us/posts/8847291",
-    image_width: 1216,
-    image_height: 832
-  },
-  {
-    id: 7921340,
-    created_at: "2025-08-14T15:00:00Z",
-    score: 410,
-    fav_count: 1850,
-    rating: "g",
-    tag_string_artist: "wlop guweiz",
-    tag_string_character: "furina_(genshin_impact)",
-    tag_string_copyright: "genshin_impact",
-    tag_string_general: "1girl solo white_hair blue_eyes ahoge top_hat cravat blue_jacket ornate_clothing droplets underwater floating bioluminescence dramatic_light ray_tracing masterpiece",
-    tag_string: "wlop guweiz furina_(genshin_impact) 1girl solo white_hair blue_eyes ahoge top_hat cravat blue_jacket ornate_clothing droplets underwater floating bioluminescence dramatic_light ray_tracing masterpiece",
-    preview_url: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80",
-    source_url: "https://danbooru.donmai.us/posts/7921340",
-    image_width: 832,
-    image_height: 1216
-  }
-];
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -92,12 +42,13 @@ export async function onRequest(context) {
     // Ignore URL parse error
   }
 
-  // 1. Try Danbooru Primary Endpoint
+  const cleanTags = tags.replace(/date:[^\s]+/g, '').replace(/score:>=/g, 'score:').trim() || '1girl';
   let sanitizedPosts = [];
 
+  // 1. 尝试 Danbooru 官方全量接口
   try {
     const targetUrl = new URL('https://danbooru.donmai.us/posts.json');
-    targetUrl.searchParams.set('tags', tags);
+    targetUrl.searchParams.set('tags', tags || cleanTags);
     targetUrl.searchParams.set('limit', limit.toString());
     targetUrl.searchParams.set('page', page.toString());
 
@@ -123,37 +74,36 @@ export async function onRequest(context) {
           }
           return {
             id: p.id,
-            created_at: p.created_at,
+            created_at: p.created_at || (p.change ? new Date(p.change * 1000).toISOString() : ''),
             score: p.score || 0,
             fav_count: p.fav_count || 0,
             rating: p.rating || 'g',
             tag_string_artist: p.tag_string_artist || '',
             tag_string_character: p.tag_string_character || '',
             tag_string_copyright: p.tag_string_copyright || '',
-            tag_string_general: p.tag_string_general || '',
+            tag_string_general: p.tag_string_general || p.tag_string || '',
             tag_string: p.tag_string || '',
             preview_url: previewUrl,
             source_url: `https://danbooru.donmai.us/posts/${p.id}`,
-            image_width: p.image_width,
-            image_height: p.image_height
+            image_width: p.image_width || 832,
+            image_height: p.image_height || 1216
           };
         });
       }
     }
   } catch (dErr) {
-    console.warn("Danbooru primary request error:", dErr);
+    console.warn("[Danbooru Proxy] Danbooru fetch failed:", dErr);
   }
 
-  // 2. High-Availability Fallback: Safebooru
+  // 2. 备选尝试 Safebooru 实时接口 (支持绝大多数作品与角色标签)
   if (sanitizedPosts.length === 0) {
     try {
-      const cleanTags = tags.replace(/date:[^\s]+/g, '').replace(/score:>=/g, 'score:').trim();
       const safebooruUrl = new URL('https://safebooru.org/index.php');
       safebooruUrl.searchParams.set('page', 'dapi');
       safebooruUrl.searchParams.set('s', 'post');
       safebooruUrl.searchParams.set('q', 'index');
       safebooruUrl.searchParams.set('json', '1');
-      safebooruUrl.searchParams.set('tags', cleanTags || '1girl');
+      safebooruUrl.searchParams.set('tags', cleanTags);
       safebooruUrl.searchParams.set('limit', limit.toString());
       safebooruUrl.searchParams.set('pid', Math.max(0, page - 1).toString());
 
@@ -167,35 +117,113 @@ export async function onRequest(context) {
       if (safeRes.ok) {
         const safePosts = await safeRes.json();
         if (Array.isArray(safePosts) && safePosts.length > 0) {
-          sanitizedPosts = safePosts.map(p => {
-            const previewUrl = p.sample_url || p.preview_url || p.file_url || '';
-            return {
-              id: p.id,
-              created_at: p.change ? new Date(p.change * 1000).toISOString() : new Date().toISOString(),
-              score: p.score || 0,
-              fav_count: p.comment_count || 0,
-              rating: p.rating || 'g',
-              tag_string_artist: '',
-              tag_string_character: '',
-              tag_string_copyright: '',
-              tag_string_general: p.tags || '',
-              tag_string: p.tags || '',
-              preview_url: previewUrl,
-              source_url: `https://safebooru.org/index.php?page=post&s=view&id=${p.id}`,
-              image_width: p.width,
-              image_height: p.height
-            };
-          });
+          sanitizedPosts = safePosts.map(p => ({
+            id: p.id,
+            created_at: p.change ? new Date(p.change * 1000).toISOString() : new Date().toISOString(),
+            score: p.score || 0,
+            fav_count: p.comment_count || 0,
+            rating: p.rating || 'g',
+            tag_string_artist: '',
+            tag_string_character: '',
+            tag_string_copyright: '',
+            tag_string_general: p.tags || '',
+            tag_string: p.tags || '',
+            preview_url: p.sample_url || p.preview_url || p.file_url || '',
+            source_url: `https://safebooru.org/index.php?page=post&s=view&id=${p.id}`,
+            image_width: p.width || 832,
+            image_height: p.height || 1216
+          }));
         }
       }
     } catch (sErr) {
-      console.warn("Safebooru mirror request error:", sErr);
+      console.warn("[Danbooru Proxy] Safebooru fetch failed:", sErr);
     }
   }
 
-  // 3. Ultimate Fallback: Always return curated presets instead of 500 error!
+  // 2. 次选尝试 TBIB (The Big Idol Booru)
   if (sanitizedPosts.length === 0) {
-    sanitizedPosts = CURATED_SAMPLE_POSTS;
+    try {
+      const tbibUrl = new URL('https://tbib.org/index.php');
+      tbibUrl.searchParams.set('page', 'dapi');
+      tbibUrl.searchParams.set('s', 'post');
+      tbibUrl.searchParams.set('q', 'index');
+      tbibUrl.searchParams.set('json', '1');
+      tbibUrl.searchParams.set('tags', cleanTags);
+      tbibUrl.searchParams.set('limit', limit.toString());
+      tbibUrl.searchParams.set('pid', Math.max(0, page - 1).toString());
+
+      const tbibRes = await fetch(tbibUrl.toString(), {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (tbibRes.ok) {
+        const tbibPosts = await tbibRes.json();
+        if (Array.isArray(tbibPosts) && tbibPosts.length > 0) {
+          sanitizedPosts = tbibPosts.map(p => ({
+            id: p.id,
+            created_at: p.change ? new Date(p.change * 1000).toISOString() : new Date().toISOString(),
+            score: p.score || 0,
+            fav_count: p.comment_count || 0,
+            rating: p.rating || 'g',
+            tag_string_artist: '',
+            tag_string_character: '',
+            tag_string_copyright: '',
+            tag_string_general: p.tags || '',
+            tag_string: p.tags || '',
+            preview_url: p.sample_url || p.preview_url || p.file_url || '',
+            source_url: `https://tbib.org/index.php?page=post&s=view&id=${p.id}`,
+            image_width: p.width || 832,
+            image_height: p.height || 1216
+          }));
+        }
+      }
+    } catch (tErr) {
+      console.warn("[Danbooru Proxy] TBIB fetch failed:", tErr);
+    }
+  }
+
+  // 3. 次选尝试 Yande.re 实时接口
+  if (sanitizedPosts.length === 0) {
+    try {
+      const yandeUrl = new URL('https://yande.re/post.json');
+      yandeUrl.searchParams.set('tags', cleanTags);
+      yandeUrl.searchParams.set('limit', limit.toString());
+      yandeUrl.searchParams.set('page', page.toString());
+
+      const yandeRes = await fetch(yandeUrl.toString(), {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (yandeRes.ok) {
+        const yandePosts = await yandeRes.json();
+        if (Array.isArray(yandePosts) && yandePosts.length > 0) {
+          sanitizedPosts = yandePosts.map(p => ({
+            id: p.id,
+            created_at: p.created_at ? new Date(p.created_at * 1000).toISOString() : new Date().toISOString(),
+            score: p.score || 0,
+            fav_count: 0,
+            rating: p.rating || 'g',
+            tag_string_artist: '',
+            tag_string_character: '',
+            tag_string_copyright: '',
+            tag_string_general: p.tags || '',
+            tag_string: p.tags || '',
+            preview_url: p.sample_url || p.preview_url || p.file_url || '',
+            source_url: `https://yande.re/post/show/${p.id}`,
+            image_width: p.width || 832,
+            image_height: p.height || 1216
+          }));
+        }
+      }
+    } catch (yErr) {
+      console.warn("[Danbooru Proxy] Yande fetch failed:", yErr);
+    }
   }
 
   return json({

@@ -307,42 +307,29 @@ export class InspirationManager {
     buildDanbooruQuery() {
         const parts = [];
 
-        // 1. 角色 / IP 作品
+        // 1. 核心主体：优先取用户输入的关键词，其次取选择的作品/IP，最后默认为 1girl
         const kwInput = document.getElementById('inspCustomKeyword');
         const customKw = kwInput ? kwInput.value.trim() : '';
         if (customKw) {
             parts.push(customKw.replace(/\s+/g, '_'));
-        } else if (this.currentFranchise !== 'any') {
+        } else if (this.currentFranchise && this.currentFranchise !== 'any') {
             const frOpt = FRANCHISE_OPTIONS.find(o => o.id === this.currentFranchise);
             if (frOpt && frOpt.query) parts.push(frOpt.query);
         } else {
-            // 默认随机高质量二次元主体
             parts.push('1girl');
         }
 
-        // 2. 年代限制
-        const eraOpt = ERA_OPTIONS.find(o => o.id === this.currentEra);
-        if (eraOpt && eraOpt.query) parts.push(eraOpt.query);
-
-        // 3. 分级限制
-        if (this.currentRating !== 'any') {
-            parts.push(`rating:${this.currentRating}`);
+        // 2. 风格标签（若有）
+        if (this.currentStyle && this.currentStyle !== 'any') {
+            const stOpt = ARTIST_STYLE_OPTIONS.find(o => o.id === this.currentStyle);
+            if (stOpt && stOpt.query) {
+                // 取风格首个主要标签避免超出 Booru 标签数量限制
+                const primaryStyleTag = stOpt.query.split(',')[0].trim();
+                if (primaryStyleTag) parts.push(primaryStyleTag);
+            }
         }
 
-        // 4. 最低评分
-        if (this.minScore > 0) {
-            parts.push(`score:>=${this.minScore}`);
-        }
-
-        // 5. 排序：如果标签数超过 2 个，精简为核心关键词 + 排序
-        let queryStr = '';
-        if (parts.length > 2) {
-            queryStr = `${parts[0]} ${parts[parts.length - 1]}`;
-        } else {
-            queryStr = parts.join(' ');
-        }
-
-        return queryStr.trim();
+        return parts.join(' ').trim();
     }
 
     async fetchInspiration() {
@@ -353,20 +340,61 @@ export class InspirationManager {
         try {
             const query = this.buildDanbooruQuery();
             const randomPage = Math.floor(Math.random() * 5) + 1;
-            const cleanTags = query.replace(/date:[^\s]+/g, '').replace(/score:>=/g, 'score:').trim() || '1girl';
+            const kwInput = document.getElementById('inspCustomKeyword');
+            const customKw = kwInput ? kwInput.value.trim() : '';
+            const hasSpecificSearch = Boolean(customKw || (this.currentFranchise && this.currentFranchise !== 'any'));
 
-            let fetchUrl = '';
-            const fetchHeaders = {
-                'Accept': 'application/json'
-            };
+            let rawPosts = [];
 
-            // 1. HuggingFace 数据集直连模式 (u-haru/danbooru-tags-20260518 1140万+ 真实全量库)
-            if (this.sourceType === 'hf_dataset') {
-                const kwInput = document.getElementById('inspCustomKeyword');
-                const customKw = kwInput ? kwInput.value.trim() : '';
-                const searchKeyword = customKw || (this.currentFranchise !== 'any' ? this.currentFranchise : '');
+            // 1. 如果用户指定了关键词或作品，或者配置了非 HF 数据源，走实时标签搜索
+            if (hasSpecificSearch || this.sourceType !== 'hf_dataset') {
+                const targetQuery = query || '1girl';
+                
+                // 通道 A：尝试前端直连（如果配置了自定义端点或 Danbooru 凭据）
+                if (this.sourceType === 'danbooru' && this.danbooruUsername && this.danbooruApiKey) {
+                    try {
+                        const directUrl = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(targetQuery)}&limit=15&page=${randomPage}`;
+                        const creds = btoa(`${this.danbooruUsername}:${this.danbooruApiKey}`);
+                        const dRes = await fetch(directUrl, {
+                            headers: { 'Authorization': `Basic ${creds}`, 'Accept': 'application/json' },
+                            mode: 'cors'
+                        });
+                        if (dRes.ok) {
+                            const dData = await dRes.json();
+                            if (Array.isArray(dData) && dData.length > 0) rawPosts = dData;
+                        }
+                    } catch (e) {}
+                }
 
-                // 年代切片 Offset 计算
+                // 通道 B：通过多源实时中继 /danbooru 接口（Safebooru -> TBIB -> Yande）精准检索
+                if (rawPosts.length === 0) {
+                    try {
+                        const endpoint = `/danbooru?tags=${encodeURIComponent(targetQuery)}&limit=15&page=${randomPage}`;
+                        const res = await fetch(endpoint, { method: 'GET' });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data && data.success && Array.isArray(data.posts) && data.posts.length > 0) {
+                                rawPosts = data.posts;
+                            }
+                        }
+                    } catch (pErr) {
+                        console.warn("[Inspiration] Gateway fetch failed, trying direct Safebooru...", pErr);
+                    }
+                }
+
+                // 通道 C：前端直连 Safebooru
+                if (rawPosts.length === 0) {
+                    try {
+                        const directSafe = `https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(targetQuery)}&limit=15&pid=${randomPage - 1}`;
+                        const sRes = await fetch(directSafe, { mode: 'cors' });
+                        if (sRes.ok) {
+                            const sData = await sRes.json();
+                            if (Array.isArray(sData) && sData.length > 0) rawPosts = sData;
+                        }
+                    } catch (e) {}
+                }
+            } else {
+                // 2. 用户无特定搜索词时的探索模式：使用 HuggingFace 1140万+ 真实全量数据集的年代切片
                 let baseOffset = 0;
                 let range = 11400000;
                 if (this.currentEra === '2026') {
@@ -390,65 +418,29 @@ export class InspirationManager {
                 }
 
                 const randomOffset = baseOffset + Math.floor(Math.random() * range);
-                const datasetName = 'u-haru/danbooru-tags-20260518';
-
-                if (searchKeyword) {
-                    fetchUrl = `https://datasets-server.huggingface.co/search?dataset=${datasetName}&config=default&split=train&query=${encodeURIComponent(searchKeyword)}&offset=${(randomPage - 1) * 15}&limit=15`;
-                } else {
-                    fetchUrl = `https://datasets-server.huggingface.co/rows?dataset=${datasetName}&config=default&split=train&offset=${randomOffset}&limit=15`;
+                const hfUrl = `https://datasets-server.huggingface.co/rows?dataset=u-haru/danbooru-tags-20260518&config=default&split=train&offset=${randomOffset}&limit=15`;
+                
+                try {
+                    const hfRes = await fetch(hfUrl, { mode: 'cors' });
+                    if (hfRes.ok) {
+                        const hfData = await hfRes.json();
+                        if (hfData && Array.isArray(hfData.rows)) {
+                            rawPosts = hfData.rows.map(r => r.row);
+                        }
+                    }
+                } catch (hfErr) {
+                    console.warn("[Inspiration] HF rows fetch error, falling back to gateway...", hfErr);
                 }
-            } else if (this.sourceType === 'danbooru') {
-                fetchUrl = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(query)}&limit=15&page=${randomPage}`;
-                if (this.danbooruUsername && this.danbooruApiKey) {
-                    const credentials = btoa(`${this.danbooruUsername}:${this.danbooruApiKey}`);
-                    fetchHeaders['Authorization'] = `Basic ${credentials}`;
-                }
-            } else if (this.sourceType === 'yande') {
-                fetchUrl = `https://yande.re/post.json?tags=${encodeURIComponent(cleanTags)}&limit=15&page=${randomPage}`;
-            } else if (this.sourceType === 'gelbooru') {
-                fetchUrl = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(cleanTags)}&limit=15&pid=${randomPage - 1}`;
-            } else if (this.sourceType === 'custom' && this.customApiUrl) {
-                const sep = this.customApiUrl.includes('?') ? '&' : '?';
-                fetchUrl = `${this.customApiUrl}${sep}tags=${encodeURIComponent(cleanTags)}&limit=15&page=${randomPage}`;
-            } else {
-                // Safebooru 镜像
-                fetchUrl = `https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(cleanTags)}&limit=15&pid=${randomPage - 1}`;
-            }
 
-            console.log(`[Inspiration Direct] Requesting live API (${this.sourceType}): ${fetchUrl}`);
-            const response = await fetch(fetchUrl, {
-                method: 'GET',
-                headers: fetchHeaders,
-                mode: 'cors'
-            });
-
-            if (!response.ok) {
-                // 如果 HuggingFace search 仍在索引，平滑回退到 rows 切片采样
-                if (this.sourceType === 'hf_dataset' && fetchUrl.includes('/search')) {
-                    const randomFallbackOffset = Math.floor(Math.random() * 11400000);
-                    const fallbackUrl = `https://datasets-server.huggingface.co/rows?dataset=u-haru/danbooru-tags-20260518&config=default&split=train&offset=${randomFallbackOffset}&limit=15`;
-                    const fbRes = await fetch(fallbackUrl, { headers: fetchHeaders, mode: 'cors' });
-                    if (fbRes.ok) {
-                        const fbData = await fbRes.json();
-                        if (fbData && Array.isArray(fbData.rows)) {
-                            return this.parseAndSetPosts(fbData.rows.map(r => r.row));
+                if (rawPosts.length === 0) {
+                    const fallbackRes = await fetch(`/danbooru?tags=1girl&limit=15&page=${randomPage}`);
+                    if (fallbackRes.ok) {
+                        const fbData = await fallbackRes.json();
+                        if (fbData && fbData.success && Array.isArray(fbData.posts)) {
+                            rawPosts = fbData.posts;
                         }
                     }
                 }
-                throw new Error(`HTTP ${response.status} (${response.statusText || '请求异常'})`);
-            }
-
-            const rawData = await response.json();
-            let rawPosts = [];
-
-            if (Array.isArray(rawData)) {
-                rawPosts = rawData;
-            } else if (rawData && Array.isArray(rawData.rows)) {
-                rawPosts = rawData.rows.map(r => r.row);
-            } else if (rawData && Array.isArray(rawData.posts)) {
-                rawPosts = rawData.posts;
-            } else if (rawData && Array.isArray(rawData.post)) {
-                rawPosts = rawData.post;
             }
 
             this.parseAndSetPosts(rawPosts);
@@ -456,12 +448,7 @@ export class InspirationManager {
             console.error("[Inspiration Live Fetch Error]", err);
             this.posts = [];
             this.renderCurrentPost();
-
-            let hint = err.message;
-            if (err.name === 'TypeError' && err.message.includes('fetch')) {
-                hint = "浏览器跨域(CORS)限制拦截。建议切换至『🤗 HuggingFace 1140万+ 数据集』直连或在 ⚙️ 填入 Danbooru API Key。";
-            }
-            this.onShowToast(`实时拉取失败: ${hint}`, "error");
+            this.onShowToast(`实时拉取异常: ${err.message}`, "error");
         } finally {
             this.isLoading = false;
             this.setLoadingState(false);
