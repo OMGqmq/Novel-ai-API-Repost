@@ -25,6 +25,7 @@ export class UIController {
             zipBtn: document.getElementById('zipBtn'),
             clearBtn: document.getElementById('clearBtn'),
             dlBtn: document.getElementById('dlBtn'),
+            canvasDeleteBtn: document.getElementById('canvasDeleteBtn'),
             prompt: document.getElementById('prompt'),
             negative: document.getElementById('negativePrompt'),
             resolution: document.getElementById('resolution'),
@@ -431,12 +432,15 @@ export class UIController {
             this.els.zipBtn.classList.add('hidden');
             this.els.clearBtn.classList.add('hidden');
             this.els.dlBtn.classList.remove('hidden');
+            if (this.els.canvasDeleteBtn) this.els.canvasDeleteBtn.classList.remove('hidden');
         } else {
             this.els.viewBtnPreview.classList.remove('active');
             this.els.viewBtnHistory.classList.add('active');
             this.els.previewArea.classList.add('hidden');
             this.els.historyArea.classList.remove('hidden');
             this.els.dlBtn.classList.add('hidden');
+            if (this.els.canvasDeleteBtn) this.els.canvasDeleteBtn.classList.add('hidden');
+            this.showImageActions(false);
             if (updateGalleryTabCallback) updateGalleryTabCallback(this.currentGalleryTab);
         }
     }
@@ -592,19 +596,46 @@ export class UIController {
     }
 
     showImageActions(show) {
-        if (show) this.els.imageActions.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
-        else this.els.imageActions.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+        if (!this.els.imageActions) return;
+        if (show) {
+            this.els.imageActions.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-2');
+            if (this.els.canvasDeleteBtn) {
+                this.els.canvasDeleteBtn.disabled = false;
+                this.els.canvasDeleteBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                this.els.canvasDeleteBtn.classList.add('cursor-pointer');
+            }
+            if (this.els.dlBtn) {
+                this.els.dlBtn.disabled = false;
+                this.els.dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                this.els.dlBtn.classList.add('cursor-pointer');
+            }
+        } else {
+            this.els.imageActions.classList.add('opacity-0', 'pointer-events-none', '-translate-y-2');
+            if (this.els.canvasDeleteBtn) {
+                this.els.canvasDeleteBtn.disabled = true;
+                this.els.canvasDeleteBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                this.els.canvasDeleteBtn.classList.remove('cursor-pointer');
+            }
+        }
     }
 
     resetPreview() {
-        const { resultGrid, singleResultArea, backToGridBtn, placeholder, dlBtn } = this.els;
+        const { resultGrid, singleResultArea, backToGridBtn, placeholder, dlBtn, canvasDeleteBtn } = this.els;
         resultGrid.innerHTML = '';
         resultGrid.classList.add('hidden');
         singleResultArea.classList.add('hidden');
         backToGridBtn.classList.add('hidden');
         placeholder.classList.remove('hidden');
-        dlBtn.disabled = true;
-        dlBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        if (dlBtn) {
+            dlBtn.disabled = true;
+            dlBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            dlBtn.classList.remove('cursor-pointer');
+        }
+        if (canvasDeleteBtn) {
+            canvasDeleteBtn.disabled = true;
+            canvasDeleteBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            canvasDeleteBtn.classList.remove('cursor-pointer');
+        }
         this.showImageActions(false);
     }
 
