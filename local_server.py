@@ -876,67 +876,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 limit = min(int(data.get('limit', 20)), 50)
                 page = int(data.get('page', 1))
 
-                query_params = urllib.parse.urlencode({
-                    'tags': tags,
-                    'limit': limit,
-                    'page': page
-                })
-                target_url = f'https://danbooru.donmai.us/posts.json?{query_params}'
-                print(f"--- 正在请求 Danbooru API: {target_url} ---")
-
-                req = urllib.request.Request(
-                    target_url,
-                    headers={
-                        'User-Agent': 'NovelAIOpusArt/2.0 (InspirationTool; contact: novelai-art-repost)',
-                        'Accept': 'application/json'
-                    },
-                    method='GET'
-                )
-
-                with urllib.request.urlopen(req, timeout=10) as response:
-                    resp_data = response.read()
-                    posts = json.loads(resp_data.decode('utf-8'))
-                    
-                    sanitized_posts = []
-                    if isinstance(posts, list):
-                        for p in posts:
-                            preview_url = p.get('preview_file_url') or p.get('large_file_url') or p.get('file_url') or ''
-                            media_asset = p.get('media_asset') or {}
-                            variants = media_asset.get('variants') or []
-                            for v in variants:
-                                if v.get('type') in ['sample', '360x360', '180x180'] and v.get('url'):
-                                    preview_url = v.get('url')
-                                    break
-                            
-                            sanitized_posts.append({
-                                "id": p.get('id'),
-                                "created_at": p.get('created_at'),
-                                "score": p.get('score'),
-                                "fav_count": p.get('fav_count'),
-                                "rating": p.get('rating'),
-                                "tag_string_artist": p.get('tag_string_artist', ''),
-                                "tag_string_character": p.get('tag_string_character', ''),
-                                "tag_string_copyright": p.get('tag_string_copyright', ''),
-                                "tag_string_general": p.get('tag_string_general', ''),
-                                "tag_string": p.get('tag_string', ''),
-                                "preview_url": preview_url,
-                                "image_width": p.get('image_width'),
-                                "image_height": p.get('image_height')
-                            })
-
-                    self.send_response(200)
-                    self.send_header('Content-type', 'application/json')
-                    self.send_header('Access-Control-Allow-Origin', '*')
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"success": True, "count": len(sanitized_posts), "posts": sanitized_posts}).encode('utf-8'))
-            except urllib.error.HTTPError as e:
-                err_body = e.read().decode('utf-8')
-                print(f"--- Danbooru API 报错: {e.code} ---")
-                self.send_response(e.code)
+                posts = self.fetch_booru_posts(tags, limit, page)
+                self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": f"Danbooru API error: {e.code}", "details": err_body}).encode('utf-8'))
+                self.wfile.write(json.dumps({"success": True, "count": len(posts), "posts": posts}).encode('utf-8'))
             except Exception as e:
                 print(f"--- 本地代理 Danbooru 错误: {str(e)} ---")
                 self.send_response(500)
@@ -947,6 +892,115 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error(404, "Not Found")
 
+    def fetch_booru_posts(self, tags, limit=20, page=1):
+        sanitized_posts = []
+        danbooru_success = False
+
+        # 1. 优先尝试 Danbooru 官方接口
+        try:
+            query_params = urllib.parse.urlencode({
+                'tags': tags,
+                'limit': limit,
+                'page': page
+            })
+            target_url = f'https://danbooru.donmai.us/posts.json?{query_params}'
+            print(f"--- 正在请求 Danbooru API: {target_url} ---")
+
+            req = urllib.request.Request(
+                target_url,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Accept': 'application/json'
+                },
+                method='GET'
+            )
+
+            with urllib.request.urlopen(req, timeout=5) as response:
+                resp_data = response.read()
+                posts = json.loads(resp_data.decode('utf-8'))
+                if isinstance(posts, list):
+                    for p in posts:
+                        preview_url = p.get('preview_file_url') or p.get('large_file_url') or p.get('file_url') or ''
+                        media_asset = p.get('media_asset') or {}
+                        variants = media_asset.get('variants') or []
+                        for v in variants:
+                            if v.get('type') in ['sample', '360x360', '180x180'] and v.get('url'):
+                                preview_url = v.get('url')
+                                break
+                        
+                        sanitized_posts.append({
+                            "id": p.get('id'),
+                            "created_at": p.get('created_at'),
+                            "score": p.get('score', 0),
+                            "fav_count": p.get('fav_count', 0),
+                            "rating": p.get('rating', 'g'),
+                            "tag_string_artist": p.get('tag_string_artist', ''),
+                            "tag_string_character": p.get('tag_string_character', ''),
+                            "tag_string_copyright": p.get('tag_string_copyright', ''),
+                            "tag_string_general": p.get('tag_string_general', ''),
+                            "tag_string": p.get('tag_string', ''),
+                            "preview_url": preview_url,
+                            "source_url": f"https://danbooru.donmai.us/posts/{p.get('id')}",
+                            "image_width": p.get('image_width'),
+                            "image_height": p.get('image_height')
+                        })
+                    danbooru_success = True
+        except Exception as d_err:
+            print(f"--- Danbooru API 直连受限 ({d_err})，自动切换至 Danbooru 同步镜像 Safebooru ---")
+
+        # 2. 高可用镜像降级 (Safebooru 100% 同步 Danbooru 标签)
+        if not danbooru_success:
+            try:
+                clean_tags = re.sub(r'date:[^\s]+', '', tags)
+                clean_tags = re.sub(r'score:>=', 'score:', clean_tags).strip()
+                safebooru_params = urllib.parse.urlencode({
+                    'page': 'dapi',
+                    's': 'post',
+                    'q': 'index',
+                    'json': '1',
+                    'tags': clean_tags or '1girl',
+                    'limit': limit,
+                    'pid': max(0, page - 1)
+                })
+                target_url = f'https://safebooru.org/index.php?{safebooru_params}'
+                print(f"--- 正在请求 Safebooru 镜像: {target_url} ---")
+
+                req = urllib.request.Request(
+                    target_url,
+                    headers={
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                        'Accept': 'application/json'
+                    },
+                    method='GET'
+                )
+
+                with urllib.request.urlopen(req, timeout=8) as response:
+                    resp_data = response.read()
+                    posts = json.loads(resp_data.decode('utf-8'))
+                    if isinstance(posts, list):
+                        for p in posts:
+                            preview_url = p.get('sample_url') or p.get('preview_url') or p.get('file_url') or ''
+                            sanitized_posts.append({
+                                "id": p.get('id'),
+                                "created_at": str(p.get('change', '')),
+                                "score": p.get('score') or 0,
+                                "fav_count": p.get('comment_count', 0),
+                                "rating": p.get('rating', 'g'),
+                                "tag_string_artist": '',
+                                "tag_string_character": '',
+                                "tag_string_copyright": '',
+                                "tag_string_general": p.get('tags', ''),
+                                "tag_string": p.get('tags', ''),
+                                "preview_url": preview_url,
+                                "source_url": f"https://safebooru.org/index.php?page=post&s=view&id={p.get('id')}",
+                                "image_width": p.get('width'),
+                                "image_height": p.get('height')
+                            })
+            except Exception as s_err:
+                print(f"--- Safebooru 镜像请求失败: {s_err} ---")
+
+        return sanitized_posts
+
     def do_GET(self):
         if self.path.startswith('/danbooru') or self.path.startswith('/api/danbooru'):
             try:
@@ -956,59 +1010,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 limit = min(int(params.get('limit', ['20'])[0]), 50)
                 page = int(params.get('page', ['1'])[0])
 
-                query_params = urllib.parse.urlencode({
-                    'tags': tags,
-                    'limit': limit,
-                    'page': page
-                })
-                target_url = f'https://danbooru.donmai.us/posts.json?{query_params}'
-                print(f"--- 正在请求 Danbooru API: {target_url} ---")
-
-                req = urllib.request.Request(
-                    target_url,
-                    headers={
-                        'User-Agent': 'NovelAIOpusArt/2.0 (InspirationTool; contact: novelai-art-repost)',
-                        'Accept': 'application/json'
-                    },
-                    method='GET'
-                )
-
-                with urllib.request.urlopen(req, timeout=10) as response:
-                    resp_data = response.read()
-                    posts = json.loads(resp_data.decode('utf-8'))
-                    
-                    sanitized_posts = []
-                    if isinstance(posts, list):
-                        for p in posts:
-                            preview_url = p.get('preview_file_url') or p.get('large_file_url') or p.get('file_url') or ''
-                            media_asset = p.get('media_asset') or {}
-                            variants = media_asset.get('variants') or []
-                            for v in variants:
-                                if v.get('type') in ['sample', '360x360', '180x180'] and v.get('url'):
-                                    preview_url = v.get('url')
-                                    break
-                            
-                            sanitized_posts.append({
-                                "id": p.get('id'),
-                                "created_at": p.get('created_at'),
-                                "score": p.get('score'),
-                                "fav_count": p.get('fav_count'),
-                                "rating": p.get('rating'),
-                                "tag_string_artist": p.get('tag_string_artist', ''),
-                                "tag_string_character": p.get('tag_string_character', ''),
-                                "tag_string_copyright": p.get('tag_string_copyright', ''),
-                                "tag_string_general": p.get('tag_string_general', ''),
-                                "tag_string": p.get('tag_string', ''),
-                                "preview_url": preview_url,
-                                "image_width": p.get('image_width'),
-                                "image_height": p.get('image_height')
-                            })
-
-                    self.send_response(200)
-                    self.send_header('Content-type', 'application/json')
-                    self.send_header('Access-Control-Allow-Origin', '*')
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"success": True, "count": len(sanitized_posts), "posts": sanitized_posts}).encode('utf-8'))
+                posts = self.fetch_booru_posts(tags, limit, page)
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "count": len(posts), "posts": posts}).encode('utf-8'))
             except Exception as e:
                 print(f"--- 本地代理 Danbooru GET 错误: {str(e)} ---")
                 self.send_response(500)

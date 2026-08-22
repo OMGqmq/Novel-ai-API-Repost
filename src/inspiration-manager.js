@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Inspiration Manager Module (Danbooru Online Live Integration)
  * Pulls real-time popular tag combinations and reference compositions from Danbooru
  * based on Time/Era, Character/Franchise, Artist/Style, Score, and Rating dimensions.
@@ -360,10 +360,24 @@ export class InspirationManager {
     }
 
     categorizeTag(tagName, tagCategoryHint) {
-        if (tagCategoryHint === 'artist') return 'artist';
+        if (tagCategoryHint === 'artist' || tagName.startsWith('artist:')) return 'artist';
         if (tagCategoryHint === 'character' || tagCategoryHint === 'copyright') return 'character';
 
         const lower = tagName.toLowerCase();
+        const norm = lower.replace(/_/g, ' ');
+
+        // 结合 promptHelper 本地分类库深度判定
+        if (this.promptHelper && this.promptHelper.classifiedData) {
+            const cd = this.promptHelper.classifiedData;
+            if (cd['画风'] && (cd['画风'][lower] || cd['画风'][norm])) return 'artist';
+            if (cd['IP角色'] && (cd['IP角色'][lower] || cd['IP角色'][norm])) return 'character';
+            if (cd['服装'] && (cd['服装'][lower] || cd['服装'][norm])) return 'clothing';
+            if (cd['动作'] && (cd['动作'][lower] || cd['动作'][norm])) return 'action';
+            if ((cd['光影'] && (cd['光影'][lower] || cd['光影'][norm])) ||
+                (cd['视角'] && (cd['视角'][lower] || cd['视角'][norm])) ||
+                (cd['构图'] && (cd['构图'][lower] || cd['构图'][norm]))) return 'background';
+        }
+
         for (const kw of CLOTHING_KEYWORDS) {
             if (lower.includes(kw)) return 'clothing';
         }

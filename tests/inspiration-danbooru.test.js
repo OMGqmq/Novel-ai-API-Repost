@@ -119,27 +119,49 @@ describe('Danbooru Inspiration Proxy & Manager', () => {
       global.fetch = originalFetch;
     });
 
-    it('should handle Danbooru API error responses gracefully', async () => {
+    it('should failover to Safebooru mirror when Danbooru is blocked', async () => {
+      const mockSafebooruPosts = [
+        {
+          id: 7077085,
+          change: 1787364007,
+          score: 80,
+          comment_count: 12,
+          rating: 'general',
+          tags: 'frieren 1girl solo white_robe green_eyes sky',
+          sample_url: 'https://safebooru.org/samples/1.jpg',
+          width: 832,
+          height: 1216
+        }
+      ];
+
       const originalFetch = global.fetch;
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 422,
-        statusText: 'Unprocessable Entity',
-        text: async () => 'Search error',
-      });
+      // First call (Danbooru) returns 403, second call (Safebooru) returns 200
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden'
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => mockSafebooruPosts
+        });
 
       const context = {
         request: {
           method: 'GET',
-          url: 'https://example.com/danbooru?tags=invalid_query',
+          url: 'https://example.com/danbooru?tags=frieren&limit=10&page=1',
           headers: new Headers(),
         }
       };
 
       const res = await danbooruHandler(context);
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.error).toContain('Danbooru API error');
+      expect(data.success).toBe(true);
+      expect(data.posts[0].id).toBe(7077085);
+      expect(data.posts[0].preview_url).toBe('https://safebooru.org/samples/1.jpg');
 
       global.fetch = originalFetch;
     });
@@ -165,7 +187,13 @@ describe('Danbooru Inspiration Proxy & Manager', () => {
           'staff': '法杖',
           'sky': '天空'
         },
-        classifiedData: {}
+        classifiedData: {
+          '画风': { 'artist_style': '特定风格' },
+          'IP角色': { 'frieren': '芙莉莲' },
+          '服装': { 'white_robe': '白色长袍' },
+          '动作': { 'sitting': '坐姿' },
+          '光影': { 'blue_sky': '蓝天' }
+        }
       };
 
       manager = new InspirationManager({
@@ -186,7 +214,7 @@ describe('Danbooru Inspiration Proxy & Manager', () => {
     });
 
     it('should correctly classify tags into categories', () => {
-      expect(manager.categorizeTag('t_artist', 'artist')).toBe('artist');
+      expect(manager.categorizeTag('artist:t_artist', 'artist')).toBe('artist');
       expect(manager.categorizeTag('frieren', 'character')).toBe('character');
       expect(manager.categorizeTag('white_robe', 'general')).toBe('clothing');
       expect(manager.categorizeTag('sitting', 'general')).toBe('action');
