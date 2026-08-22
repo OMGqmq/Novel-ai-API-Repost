@@ -440,8 +440,16 @@ export class InspirationManager {
             const dateStr = post.created_at ? post.created_at.substring(0, 10) : '';
             dateBadge.textContent = `📅 ${dateStr}`;
         }
-        if (linkBtn) linkBtn.href = `https://danbooru.donmai.us/posts/${post.id}`;
+        if (linkBtn) linkBtn.href = post.source_url || `https://danbooru.donmai.us/posts/${post.id}`;
         if (counterEl) counterEl.textContent = `${this.currentPostIndex + 1} / ${this.posts.length}`;
+
+        // 同步移动端徽章
+        const scoreBadgeMobile = document.getElementById('inspScoreBadgeMobile');
+        const favBadgeMobile = document.getElementById('inspFavBadgeMobile');
+        const counterElMobile = document.getElementById('inspCandidateCounterMobile');
+        if (scoreBadgeMobile) scoreBadgeMobile.textContent = `⭐ ${post.score}`;
+        if (favBadgeMobile) favBadgeMobile.textContent = `❤️ ${post.fav_count}`;
+        if (counterElMobile) counterElMobile.textContent = `${this.currentPostIndex + 1} / ${this.posts.length}`;
 
         // 2. 解析与归类 Tags
         const artistTags = (post.tag_string_artist || '').split(/\s+/).filter(Boolean);

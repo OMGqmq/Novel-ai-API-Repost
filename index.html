@@ -1190,97 +1190,110 @@
         </div>
     </div>
 
-    <!-- Danbooru 灵感激发工坊弹窗 -->
+    <!-- Danbooru 灵感激发工坊弹窗 (Mobile & Desktop Fully Responsive) -->
     <div id="inspirationModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-[opacity] duration-300" style="display:none">
         <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-md opacity-0 transition-opacity duration-300" onclick="window.closeInspirationModal()"></div>
-        <div class="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-800/80 w-[96%] max-w-5xl h-[92vh] max-h-[760px] flex flex-col overflow-hidden transform scale-95 opacity-0 transition-[transform,opacity] duration-300">
+        <div class="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl w-full h-full sm:w-[96%] sm:max-w-5xl sm:h-[92vh] sm:max-h-[780px] rounded-none sm:rounded-3xl shadow-2xl border-0 sm:border border-white/20 dark:border-slate-800/80 flex flex-col overflow-hidden transform scale-95 opacity-0 transition-[transform,opacity] duration-300">
             
             <!-- 弹窗顶部 Header -->
-            <div class="shrink-0 px-4 sm:px-6 py-3.5 border-b border-gray-150/60 dark:border-slate-800/60 flex items-center justify-between bg-gray-50/70 dark:bg-slate-950/40">
-                <div class="flex items-center gap-2.5 min-w-0">
-                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200/50 dark:border-amber-800/40 shadow-xs shrink-0">
-                        <i data-lucide="lightbulb" class="w-4 h-4 sm:w-5 sm:h-5 animate-pulse"></i>
+            <div class="shrink-0 px-3.5 sm:px-6 py-2.5 sm:py-3.5 border-b border-gray-150/60 dark:border-slate-800/60 flex items-center justify-between bg-gray-50/70 dark:bg-slate-950/40">
+                <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                    <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200/50 dark:border-amber-800/40 shadow-xs shrink-0">
+                        <i data-lucide="lightbulb" class="w-3.5 h-3.5 sm:w-5 sm:h-5 animate-pulse"></i>
                     </div>
-                    <div>
-                        <h3 class="font-bold text-sm sm:text-base text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    <div class="min-w-0">
+                        <h3 class="font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 flex items-center gap-1.5 sm:gap-2">
                             <span>Danbooru 灵感工坊</span>
-                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500/10 to-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200/40 dark:border-indigo-800/40">1140万+ 实时全库</span>
+                            <span class="text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500/10 to-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200/40 dark:border-indigo-800/40 shrink-0">1140万+ 实时全库</span>
                         </h3>
-                        <p class="text-[11px] text-gray-400 dark:text-slate-400 truncate max-w-[280px] sm:max-w-none">按年代、作品角色、画风流派与热度评分实时拉取真实高赞作品标签</p>
+                        <p class="text-[10px] sm:text-[11px] text-gray-400 dark:text-slate-400 truncate max-w-[200px] sm:max-w-none">年代·角色·画风·评分多维组合抽取</p>
                     </div>
                 </div>
-                <button onclick="window.closeInspirationModal()" class="p-2 hover:bg-gray-200/60 dark:hover:bg-slate-800 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="window.closeInspirationModal()" class="p-1.5 sm:p-2 hover:bg-gray-200/60 dark:hover:bg-slate-800 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                        <i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- 多维向导筛选控制栏 (Filter Wizard) -->
-            <div class="shrink-0 px-4 sm:px-6 py-3 border-b border-gray-150/50 dark:border-slate-800/50 bg-white/60 dark:bg-slate-900/60 flex flex-col gap-2.5">
-                <!-- 第一行：年代与分级 -->
-                <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
-                        <span class="text-[11px] font-bold text-gray-400 dark:text-slate-500 shrink-0">📅 年代:</span>
-                        <div id="inspEraContainer" class="flex items-center gap-1.5 flex-nowrap">
+            <div class="shrink-0 px-3.5 sm:px-6 py-2.5 sm:py-3 border-b border-gray-150/50 dark:border-slate-800/50 bg-white/60 dark:bg-slate-900/60 flex flex-col gap-2">
+                <!-- 第一行：年代与分级胶囊 (横向顺滑滑动) -->
+                <div class="flex items-center justify-between gap-2 text-xs overflow-x-auto no-scrollbar py-0.5">
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <span class="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-slate-500 shrink-0">📅 年代:</span>
+                        <div id="inspEraContainer" class="flex items-center gap-1 flex-nowrap">
                             <!-- 动态年代胶囊 -->
                         </div>
                     </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                        <span class="text-[11px] font-bold text-gray-400 dark:text-slate-500">🔞 分级:</span>
-                        <div id="inspRatingContainer" class="flex items-center gap-1">
+                    <div class="flex items-center gap-1.5 shrink-0 pl-2 border-l border-gray-200 dark:border-slate-700/60">
+                        <span class="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-slate-500 shrink-0">🔞 分级:</span>
+                        <div id="inspRatingContainer" class="flex items-center gap-1 flex-nowrap">
                             <!-- 动态分级胶囊 -->
                         </div>
                     </div>
                 </div>
 
                 <!-- 第二行：作品/IP、画风、评分与关键词搜索 -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2 items-center">
-                    <div class="lg:col-span-3">
-                        <select id="inspFranchiseSelect" class="w-full text-xs font-semibold py-1.5 px-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:outline-hidden focus:ring-1 focus:ring-indigo-500">
+                <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-12 gap-1.5 sm:gap-2 items-center">
+                    <div class="col-span-1 lg:col-span-3">
+                        <select id="inspFranchiseSelect" class="w-full text-[11px] sm:text-xs font-semibold py-1.5 px-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:outline-hidden focus:ring-1 focus:ring-indigo-500">
                             <!-- 动态作品选项 -->
                         </select>
                     </div>
-                    <div class="lg:col-span-3">
-                        <select id="inspStyleSelect" class="w-full text-xs font-semibold py-1.5 px-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:outline-hidden focus:ring-1 focus:ring-indigo-500">
+                    <div class="col-span-1 lg:col-span-3">
+                        <select id="inspStyleSelect" class="w-full text-[11px] sm:text-xs font-semibold py-1.5 px-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:outline-hidden focus:ring-1 focus:ring-indigo-500">
                             <!-- 动态画风选项 -->
                         </select>
                     </div>
-                    <div class="lg:col-span-3 flex items-center gap-2 bg-gray-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-xl border border-gray-150 dark:border-slate-700/60">
-                        <span class="text-[11px] text-gray-400 shrink-0">最低评分:</span>
+                    <div class="col-span-1 lg:col-span-3 flex items-center gap-1.5 bg-gray-50 dark:bg-slate-800/60 px-2 py-1 rounded-xl border border-gray-150 dark:border-slate-700/60">
+                        <span class="text-[10px] text-gray-400 shrink-0">评分:</span>
                         <input type="range" id="inspScoreSlider" min="0" max="200" step="25" value="50" oninput="window.setInspirationScore(this.value)" class="flex-1 accent-indigo-500 h-1.5 bg-gray-200 dark:bg-slate-700 rounded-lg cursor-pointer">
-                        <span id="inspScoreDisplay" class="text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400 w-11 text-right">≥ 50</span>
+                        <span id="inspScoreDisplay" class="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 w-8 text-right">≥ 50</span>
                     </div>
-                    <div class="lg:col-span-3 flex gap-1.5">
-                        <input type="text" id="inspCustomKeyword" placeholder="自定义标签 (如 frieren)..." class="flex-1 text-xs py-1.5 px-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:outline-hidden focus:ring-1 focus:ring-indigo-500" onkeydown="if(event.key==='Enter') window.drawInspirationTags()">
-                        <button id="inspDrawBtn" onclick="window.drawInspirationTags()" class="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 active:scale-95 shadow-md shrink-0 cursor-pointer">
-                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> 抽取
+                    <div class="col-span-1 lg:col-span-3 flex gap-1">
+                        <input type="text" id="inspCustomKeyword" placeholder="搜角色/特征..." class="flex-1 text-[11px] sm:text-xs py-1 px-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:outline-hidden focus:ring-1 focus:ring-indigo-500" onkeydown="if(event.key==='Enter') window.drawInspirationTags()">
+                        <button id="inspDrawBtn" onclick="window.drawInspirationTags()" class="px-2.5 sm:px-3 py-1 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 active:scale-95 shadow-md shrink-0 cursor-pointer">
+                            <i data-lucide="sparkles" class="w-3 h-3 sm:w-3.5 sm:h-3.5"></i> 抽取
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- 中部核心区 (双栏设计: 左侧参考缩略图 + 右侧分类标签矩阵) -->
+            <!-- 中部核心区 (双栏设计: 移动端紧凑横向卡片，桌面端侧边分栏) -->
             <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
                 
                 <!-- 加载遮罩 -->
-                <div id="inspLoadingOverlay" class="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center gap-3 hidden">
-                    <div class="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    <span class="text-xs font-bold text-gray-600 dark:text-slate-300">正在从 Danbooru 全库检索高赞作品...</span>
+                <div id="inspLoadingOverlay" class="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center gap-2 hidden">
+                    <div class="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-xs font-bold text-gray-600 dark:text-slate-300">正在检索作品与标签...</span>
                 </div>
 
                 <!-- 空状态 -->
-                <div id="inspEmptyState" class="flex-1 flex flex-col items-center justify-center gap-3 p-8 text-center hidden">
-                    <i data-lucide="image-off" class="w-12 h-12 text-gray-300 dark:text-gray-700"></i>
+                <div id="inspEmptyState" class="flex-1 flex flex-col items-center justify-center gap-2 p-6 text-center hidden">
+                    <i data-lucide="image-off" class="w-10 h-10 text-gray-300 dark:text-gray-700"></i>
                     <p class="text-xs text-gray-500 dark:text-gray-400">暂无匹配作品，请点击上方【抽取】或放宽筛选条件</p>
                 </div>
 
                 <!-- 内容主容器 -->
                 <div id="inspMainContent" class="flex-1 flex flex-col md:flex-row overflow-hidden w-full">
                     
-                    <!-- 左侧：参考缩略图与作品信息 (固定宽 260px) -->
-                    <div class="w-full md:w-[260px] lg:w-[280px] shrink-0 border-b md:border-b-0 md:border-r border-gray-150/60 dark:border-slate-800/60 p-4 bg-gray-50/50 dark:bg-slate-950/20 flex flex-col justify-between overflow-y-auto">
-                        <div class="flex flex-col items-center gap-2.5">
-                            <!-- 候选轮播切换 -->
-                            <div class="w-full flex items-center justify-between text-xs font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-gray-150 dark:border-slate-700/60 shadow-2xs">
+                    <!-- 参考缩略图与作品信息 (移动端: 紧凑水平条 88px; 桌面端: 侧边栏 260px) -->
+                    <div class="w-full md:w-[240px] lg:w-[260px] shrink-0 border-b md:border-b-0 md:border-r border-gray-150/60 dark:border-slate-800/60 p-2.5 sm:p-4 bg-gray-50/70 dark:bg-slate-950/20 flex flex-row md:flex-col justify-between items-center md:items-stretch gap-2.5 overflow-hidden md:overflow-y-auto">
+                        
+                        <!-- 移动端 & 桌面端通用的缩略图包装 -->
+                        <div class="flex items-center md:flex-col gap-2.5 shrink-0 md:shrink">
+                            <!-- 参考缩略图 -->
+                            <div class="w-16 h-20 sm:w-20 sm:h-24 md:w-full md:aspect-[3/4] md:max-h-[220px] rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden border border-gray-200 dark:border-slate-700/80 relative shadow-xs shrink-0 group">
+                                <img id="inspThumbnailImg" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" src="" alt="参考作品">
+                                <a id="inspDanbooruLink" href="#" target="_blank" class="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 hover:bg-black/80 text-white text-[9px] font-bold rounded-md backdrop-blur-md flex items-center gap-0.5 transition-all">
+                                    <span>原帖</span>
+                                    <i data-lucide="external-link" class="w-2.5 h-2.5"></i>
+                                </a>
+                            </div>
+
+                            <!-- 桌面端的翻页控制器 -->
+                            <div class="hidden md:flex w-full items-center justify-between text-xs font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-gray-150 dark:border-slate-700/60 shadow-2xs">
                                 <button onclick="window.prevInspirationPost()" class="p-1 hover:text-indigo-500 active:scale-95 transition-all cursor-pointer" title="上一个作品">
                                     <i data-lucide="chevron-left" class="w-4 h-4"></i>
                                 </button>
@@ -1289,40 +1302,47 @@
                                     <i data-lucide="chevron-right" class="w-4 h-4"></i>
                                 </button>
                             </div>
-
-                            <!-- 参考缩略图 -->
-                            <div class="w-full aspect-[3/4] max-h-[220px] rounded-2xl bg-slate-100 dark:bg-slate-800 overflow-hidden border border-gray-200 dark:border-slate-700/80 relative shadow-sm group">
-                                <img id="inspThumbnailImg" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" src="" alt="参考作品">
-                                <a id="inspDanbooruLink" href="#" target="_blank" class="absolute bottom-2 right-2 px-2 py-1 bg-black/60 hover:bg-black/80 text-white text-[10px] font-bold rounded-lg backdrop-blur-md flex items-center gap-1 transition-all">
-                                    <span>原帖</span>
-                                    <i data-lucide="external-link" class="w-3 h-3"></i>
-                                </a>
-                            </div>
-
-                            <!-- 元信息徽章 -->
-                            <div class="w-full flex flex-wrap gap-1.5 text-[10px] font-semibold">
-                                <span id="inspScoreBadge" class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40">⭐ Score: 0</span>
-                                <span id="inspFavBadge" class="px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/40">❤️ Favs: 0</span>
-                                <span id="inspDateBadge" class="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/40">📅 日期</span>
-                            </div>
                         </div>
 
-                        <!-- 快捷全选/反选 -->
-                        <div class="pt-3 border-t border-gray-150/60 dark:border-slate-800/60 flex gap-2">
-                            <button onclick="window.toggleAllInspirationTags(true)" class="flex-1 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 rounded-lg text-[11px] font-bold hover:bg-gray-100 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer">
-                                全选标签
-                            </button>
-                            <button onclick="window.toggleAllInspirationTags(false)" class="flex-1 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-gray-400 rounded-lg text-[11px] font-bold hover:bg-gray-100 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer">
-                                清空选择
-                            </button>
+                        <!-- 作品元信息与按钮 (移动端自适应排布) -->
+                        <div class="flex-1 flex flex-col justify-between min-w-0 md:w-full gap-1.5">
+                            <!-- 移动端顶部翻页与徽章 -->
+                            <div class="flex md:hidden items-center justify-between gap-1">
+                                <div class="flex items-center gap-1 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-gray-200 dark:border-slate-700 text-[10px] font-bold font-mono">
+                                    <button onclick="window.prevInspirationPost()" class="hover:text-indigo-500"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+                                    <span id="inspCandidateCounterMobile">1 / 15</span>
+                                    <button onclick="window.nextInspirationPost()" class="hover:text-indigo-500"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+                                </div>
+                                <div class="flex items-center gap-1 text-[9px] font-semibold">
+                                    <span id="inspScoreBadgeMobile" class="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60">⭐ 0</span>
+                                    <span id="inspFavBadgeMobile" class="px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60">❤️ 0</span>
+                                </div>
+                            </div>
+
+                            <!-- 桌面端元信息徽章 -->
+                            <div class="hidden md:flex w-full flex-wrap gap-1.5 text-[10px] font-semibold">
+                                <span id="inspScoreBadge" class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60">⭐ Score: 0</span>
+                                <span id="inspFavBadge" class="px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60">❤️ Favs: 0</span>
+                                <span id="inspDateBadge" class="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60">📅 日期</span>
+                            </div>
+
+                            <!-- 快捷全选/反选 -->
+                            <div class="flex gap-1.5 w-full">
+                                <button onclick="window.toggleAllInspirationTags(true)" class="flex-1 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 rounded-lg text-[10px] sm:text-[11px] font-bold hover:bg-gray-100 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer">
+                                    全选
+                                </button>
+                                <button onclick="window.toggleAllInspirationTags(false)" class="flex-1 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-gray-400 rounded-lg text-[10px] sm:text-[11px] font-bold hover:bg-gray-100 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer">
+                                    清空
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- 右侧：分类标签矩阵 (Tag Matrix) -->
-                    <div class="flex-1 p-4 md:p-5 overflow-y-auto custom-scroll">
+                    <!-- 右侧：分类标签矩阵 (Tag Matrix - 极简手势流畅滚动) -->
+                    <div class="flex-1 p-3 sm:p-4 md:p-5 overflow-y-auto custom-scroll">
                         <div class="flex items-center justify-between mb-2">
-                            <span class="text-[11px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">🏷️ 提取到的作品标签 (点击切换，点击图钉锁定)</span>
-                            <span id="inspSelectedTagCount" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">0 标签已选</span>
+                            <span class="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">🏷️ 提取到的标签 (点标签开关，点📌锁定)</span>
+                            <span id="inspSelectedTagCount" class="text-[10px] sm:text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">0 标签已选</span>
                         </div>
                         
                         <div id="inspTagMatrixContainer">
@@ -1332,19 +1352,20 @@
                 </div>
             </div>
 
-            <!-- 底部操作与提示词导入栏 -->
-            <div class="shrink-0 p-3.5 sm:p-4 border-t border-gray-150/60 dark:border-slate-800/60 bg-gray-50/80 dark:bg-slate-950/50 flex flex-col sm:flex-row gap-3 items-center">
-                <div class="w-full sm:flex-1 relative">
-                    <textarea id="inspPromptPreview" rows="2" class="w-full text-xs font-mono py-1.5 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-800 dark:text-gray-200 resize-none focus:outline-hidden focus:ring-1 focus:ring-indigo-500" placeholder="此处将实时展示选中的提示词组合..."></textarea>
+            <!-- 底部操作与提示词导入栏 (移动端触控大按钮优化) -->
+            <div class="shrink-0 p-2.5 sm:p-3.5 md:p-4 border-t border-gray-150/60 dark:border-slate-800/60 bg-gray-50/90 dark:bg-slate-950/70 flex flex-col gap-2">
+                <div class="w-full relative">
+                    <textarea id="inspPromptPreview" rows="1" class="w-full text-xs font-mono py-1.5 px-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-800 dark:text-gray-200 resize-none focus:outline-hidden focus:ring-1 focus:ring-indigo-500" placeholder="此处将实时展示选中的提示词组合..."></textarea>
                 </div>
-                <div class="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto shrink-0">
-                    <button onclick="window.importInspirationPrompt('append')" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-xs cursor-pointer">
+                <!-- 移动端：2行大按键；桌面端：单行并排 -->
+                <div class="grid grid-cols-2 sm:grid-cols-2 md:flex md:items-center gap-1.5 sm:gap-2 w-full">
+                    <button onclick="window.importInspirationPrompt('append')" class="py-2.5 sm:py-2 px-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 active:scale-95 shadow-2xs cursor-pointer">
                         <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-indigo-500"></i> 追加到正向
                     </button>
-                    <button onclick="window.importInspirationPrompt('replace')" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md cursor-pointer">
+                    <button onclick="window.importInspirationPrompt('replace')" class="py-2.5 sm:py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 active:scale-95 shadow-xs cursor-pointer">
                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 替换正向
                     </button>
-                    <button onclick="window.importInspirationPrompt('smart_v5')" class="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md cursor-pointer" title="画师与光影入主提示词，角色与服装入V5角色卡片">
+                    <button onclick="window.importInspirationPrompt('smart_v5')" class="col-span-2 md:col-auto md:flex-1 py-2.5 sm:py-2 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 active:scale-95 shadow-md cursor-pointer" title="画师与光影入主提示词，角色与服装入V5角色卡片">
                         <i data-lucide="users" class="w-3.5 h-3.5 text-amber-300"></i> 👥 智能分流至V5
                     </button>
                 </div>
@@ -2531,7 +2552,7 @@
     <!-- 全局统一下载静默锚点，用于规避 Chrome/Edge 对动态创建 A 标签的多文件安全拦截 -->
     <a id="globalDownloadAnchor" style="display: none;" rel="noopener"></a>
 
-    <script type="module" src="src/main.js?v=20260822_14"></script>
+    <script type="module" src="src/main.js?v=20260822_15"></script>
 </body>
 
 </html>
