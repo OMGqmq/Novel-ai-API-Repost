@@ -241,6 +241,7 @@ safeCreateIcons();
 
 // Theme and settings initialization are handled by SettingsManager and UIController
 ui.initTheme();
+initEnhanceSliders();
 
 window.togglePanel = function(panelId, chevronId) {
     const panel = document.getElementById(panelId);
@@ -1079,6 +1080,305 @@ async function doAugment(reqType) {
         console.error(err);
         if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
         else alert("处理失败: " + err.message);
+    } finally {
+        ui.setLoading(false);
+    }
+}
+
+function openEnhanceModal() {
+    const targetSrc = getActiveCanvasImage();
+    if (!targetSrc) {
+        alert("请先生成或在画廊中选择一张图片以进行增强");
+        return;
+    }
+    const modal = document.getElementById('enhanceModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        modal.classList.add('modal-active');
+        if (modal.firstElementChild) modal.firstElementChild.classList.remove('opacity-0');
+        const content = modal.querySelector('.custom-modal-content');
+        if (content) {
+            content.classList.remove('opacity-0', 'scale-95');
+            content.classList.add('opacity-100', 'scale-100');
+        }
+    }, 10);
+}
+
+function closeEnhanceModal() {
+    const modal = document.getElementById('enhanceModal');
+    if (!modal) return;
+    modal.classList.remove('modal-active');
+    if (modal.firstElementChild) modal.firstElementChild.classList.add('opacity-0');
+    const content = modal.querySelector('.custom-modal-content');
+    if (content) {
+        content.classList.remove('opacity-100', 'scale-100');
+        content.classList.add('opacity-0', 'scale-95');
+    }
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300);
+}
+
+function setEnhancePreset(strength, noise) {
+    const strengthSlider = document.getElementById('enhanceStrengthSlider');
+    const noiseSlider = document.getElementById('enhanceNoiseSlider');
+    const strengthVal = document.getElementById('enhanceStrengthVal');
+    const noiseVal = document.getElementById('enhanceNoiseVal');
+    
+    if (strengthSlider) strengthSlider.value = strength;
+    if (noiseSlider) noiseSlider.value = noise;
+    if (strengthVal) strengthVal.textContent = parseFloat(strength).toFixed(2);
+    if (noiseVal) noiseVal.textContent = parseFloat(noise).toFixed(2);
+
+    document.querySelectorAll('.enhance-preset-btn').forEach(btn => {
+        if (parseFloat(btn.dataset.strength) === parseFloat(strength)) {
+            btn.classList.add('bg-amber-500', 'text-white', 'shadow-md', 'border-amber-500', 'active-preset');
+            btn.classList.remove('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
+            const sub = btn.querySelector('span');
+            if (sub) { sub.classList.remove('text-gray-400'); sub.classList.add('text-amber-100'); }
+        } else {
+            btn.classList.remove('bg-amber-500', 'text-white', 'shadow-md', 'border-amber-500', 'active-preset');
+            btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
+            const sub = btn.querySelector('span');
+            if (sub) { sub.classList.add('text-gray-400'); sub.classList.remove('text-amber-100'); }
+        }
+    });
+}
+
+function initEnhanceSliders() {
+    const strengthSlider = document.getElementById('enhanceStrengthSlider');
+    const noiseSlider = document.getElementById('enhanceNoiseSlider');
+    const strengthVal = document.getElementById('enhanceStrengthVal');
+    const noiseVal = document.getElementById('enhanceNoiseVal');
+
+    if (strengthSlider && strengthVal) {
+        strengthSlider.addEventListener('input', () => {
+            strengthVal.textContent = parseFloat(strengthSlider.value).toFixed(2);
+            document.querySelectorAll('.enhance-preset-btn').forEach(btn => {
+                const match = Math.abs(parseFloat(btn.dataset.strength) - parseFloat(strengthSlider.value)) < 0.01;
+                if (!match) {
+                    btn.classList.remove('bg-amber-500', 'text-white', 'shadow-md', 'border-amber-500', 'active-preset');
+                    btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
+                    const sub = btn.querySelector('span');
+                    if (sub) { sub.classList.add('text-gray-400'); sub.classList.remove('text-amber-100'); }
+                }
+            });
+        });
+    }
+
+    if (noiseSlider && noiseVal) {
+        noiseSlider.addEventListener('input', () => {
+            noiseVal.textContent = parseFloat(noiseSlider.value).toFixed(2);
+        });
+    }
+}
+
+async function doEnhance() {
+    const targetSrc = getActiveCanvasImage();
+    if (!targetSrc) {
+        alert("请先生成或选择一张图片以进行增强");
+        return;
+    }
+
+    const strengthSlider = document.getElementById('enhanceStrengthSlider');
+    const noiseSlider = document.getElementById('enhanceNoiseSlider');
+    const strength = strengthSlider ? parseFloat(strengthSlider.value) : 0.35;
+    const noise = noiseSlider ? parseFloat(noiseSlider.value) : 0.0;
+
+    closeEnhanceModal();
+    ui.setLoading(true, "AI 图像增强生成中...");
+
+    try {
+        const response = await fetch(targetSrc);
+        const blob = await response.blob();
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            const reader = new FileReader();
+            reader.onloadend = () => { img.src = reader.result; };
+            reader.readAsDataURL(blob);
+        });
+
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+        if (w * h > 1024 * 1024) {
+            const ratio = Math.sqrt((1024 * 1024) / (w * h));
+            w = Math.floor(w * ratio);
+            h = Math.floor(h * ratio);
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const base64Data = canvas.toDataURL('image/png').split(',')[1];
+
+        const selectedVersion = document.getElementById('modelValue').value;
+        const promptText = els.prompt.value.trim() || appState.currentImageData?.prompt || "";
+        const extraParams = collectAdvancedAndModelParams(selectedVersion);
+
+        const params = {
+            version: selectedVersion,
+            prompt: promptText,
+            negative_prompt: els.negative ? els.negative.value.trim() : "",
+            width: w,
+            height: h,
+            steps: parseInt(els.steps.value) || 28,
+            scale: parseFloat(els.scale.value) || 1.9,
+            sampler: els.sampler ? els.sampler.value : "k_euler_ancestral",
+            ...extraParams,
+            action: 'img2img',
+            image: base64Data,
+            strength: strength,
+            noise: noise,
+            seed: Math.floor(Math.random() * 4294967295),
+            extra_noise_seed: Math.floor(Math.random() * 4294967295)
+        };
+
+        const authBase = {
+            adminToken: store.getSetting('nai_admin_token'),
+            userKey: store.getSetting('nai_user_key'),
+            userToken: localStorage.getItem('nai_user_token') || ""
+        };
+        const customApiKeyRaw = store.getSetting('nai_custom_api_key');
+        const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
+        const authsToTry = customApiKeys.length > 0 
+            ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
+            : [{ ...authBase, customApiKey: "" }];
+
+        let result = null;
+        let lastError = null;
+        for (const auth of authsToTry) {
+            try {
+                result = await engine.generate(params, auth);
+                break;
+            } catch (err) {
+                console.warn('Enhance API Key failed, trying next...', err);
+                lastError = err;
+            }
+        }
+        if (!result) {
+            throw lastError || new Error("所有配置的 API Key 均请求失败");
+        }
+
+        if (result.userRole) {
+            ui.updateCreditDisplay(result.userRole);
+        }
+
+        const reader2 = new FileReader();
+        reader2.readAsDataURL(result.blob);
+        reader2.onloadend = async () => {
+            await saveToHistory(reader2.result, `[Enhance] ` + promptText, selectedVersion, result, true);
+        };
+
+        ui.showResultImages([result], (selected) => {
+            appState.currentImageData = selected;
+            if (selected.id) appState.currentImageId = selected.id;
+            window.lastSelectedImageUrl = selected.imageUrl;
+        });
+
+    } catch (err) {
+        console.error(err);
+        if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
+        else alert("增强失败: " + err.message);
+    } finally {
+        ui.setLoading(false);
+    }
+}
+
+async function doUpscale() {
+    const targetSrc = getActiveCanvasImage();
+    if (!targetSrc) {
+        alert("请先生成或选择一张图片以进行 4x 超分放大");
+        return;
+    }
+
+    ui.setLoading(true, "AI 4x 超分辨率放大中...");
+
+    try {
+        const response = await fetch(targetSrc);
+        const blob = await response.blob();
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            const reader = new FileReader();
+            reader.onloadend = () => { img.src = reader.result; };
+            reader.readAsDataURL(blob);
+        });
+
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+        if (w * h > 1024 * 1024) {
+            const ratio = Math.sqrt((1024 * 1024) / (w * h));
+            w = Math.floor(w * ratio);
+            h = Math.floor(h * ratio);
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const base64Data = canvas.toDataURL('image/png').split(',')[1];
+
+        const params = {
+            image: base64Data,
+            width: w,
+            height: h,
+            scale: 4
+        };
+
+        const authBase = {
+            adminToken: store.getSetting('nai_admin_token'),
+            userKey: store.getSetting('nai_user_key'),
+            userToken: localStorage.getItem('nai_user_token') || ""
+        };
+        const customApiKeyRaw = store.getSetting('nai_custom_api_key');
+        const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
+        const authsToTry = customApiKeys.length > 0 
+            ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
+            : [{ ...authBase, customApiKey: "" }];
+
+        let result = null;
+        let lastError = null;
+        for (const auth of authsToTry) {
+            try {
+                result = await engine.upscale(params, auth);
+                break;
+            } catch (err) {
+                console.warn('Upscale API Key failed, trying next...', err);
+                lastError = err;
+            }
+        }
+        if (!result) {
+            throw lastError || new Error("所有配置的 API Key 均请求失败");
+        }
+
+        if (result.userRole) {
+            ui.updateCreditDisplay(result.userRole);
+        }
+
+        const promptText = appState.currentImageData?.prompt || "";
+        const selectedVersion = appState.currentImageData?.model || "v3";
+
+        const reader2 = new FileReader();
+        reader2.readAsDataURL(result.blob);
+        reader2.onloadend = async () => {
+            await saveToHistory(reader2.result, `[Upscaled 4x] ` + promptText, selectedVersion, result, true);
+        };
+
+        ui.showResultImages([result], (selected) => {
+            appState.currentImageData = selected;
+            if (selected.id) appState.currentImageId = selected.id;
+            window.lastSelectedImageUrl = selected.imageUrl;
+        });
+
+    } catch (err) {
+        console.error(err);
+        if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
+        else alert("超分辨率放大失败: " + err.message);
     } finally {
         ui.setLoading(false);
     }
@@ -2825,7 +3125,11 @@ function lightboxCreate(type) {
     window.lastSelectedImageUrl = imgUrl;
     ui.showImageActions(true);
 
-    if (type === 'inpaint') {
+    if (type === 'enhance') {
+        openEnhanceModal();
+    } else if (type === 'upscale') {
+        doUpscale();
+    } else if (type === 'inpaint') {
         inpaintEditor.open();
     } else if (type === 'outpaint') {
         outpaintEditor.open();
@@ -2879,6 +3183,7 @@ if (lightboxModal) {
 
 // --- 暴露局部重绘、主题、API Key和鉴权等所有函数到全局 ---
 Object.assign(window, {
+    openEnhanceModal, closeEnhanceModal, setEnhancePreset, doEnhance, doUpscale,
     openInpaintEditor: () => inpaintEditor.open(),
     closeInpaintEditor: () => inpaintEditor.close(),
     setInpaintTool: (t) => inpaintEditor.setTool(t),

@@ -794,6 +794,80 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+        elif self.path == '/upscale':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+                api_key = self.headers.get('x-custom-api-key', '').strip()
+                if not api_key:
+                    env_vars = load_env()
+                    api_key = env_vars.get('NOVELAI_API_KEY', os.environ.get('NOVELAI_API_KEY', '')).strip()
+                if not api_key:
+                    api_key = data.get('apiKey', '').strip()
+                if not api_key:
+                    self.send_response(400)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "未配置 API Key"}).encode('utf-8'))
+                    return
+                
+                image = data.get('image')
+                if not image:
+                    self.send_response(400)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "Missing image parameter"}).encode('utf-8'))
+                    return
+
+                width = int(data.get('width', 832))
+                height = int(data.get('height', 1216))
+                scale = int(data.get('scale', 4))
+                
+                payload = {
+                    "image": image,
+                    "width": width,
+                    "height": height,
+                    "scale": scale
+                }
+                
+                print("--- 正在向 NovelAI 发送 upscale (4x) 请求 ---")
+                req = urllib.request.Request(
+                    'https://image.novelai.net/ai/upscale',
+                    data=json.dumps(payload).encode('utf-8'),
+                    headers={
+                        'Authorization': f'Bearer {api_key}',
+                        'Content-Type': 'application/json',
+                        'Accept': '*/*',
+                        'User-Agent': 'Mozilla/5.0',
+                        'Origin': 'https://novelai.net',
+                        'Referer': 'https://novelai.net/'
+                    },
+                    method='POST'
+                )
+                with urllib.request.urlopen(req) as response:
+                    resp_data = response.read()
+                    self.send_response(response.status)
+                    for k, v in response.headers.items():
+                        if k.lower() not in ['transfer-encoding']:
+                            self.send_header(k, v)
+                    self.send_header('X-User-Role', 'CustomAPI')
+                    self.end_headers()
+                    self.wfile.write(resp_data)
+                    print("--- Upscale 请求成功 ---")
+            except urllib.error.HTTPError as e:
+                err_body = e.read().decode('utf-8')
+                print(f"--- NovelAI API Upscale 报错: {e.code} ---")
+                self.send_response(e.code)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": err_body}).encode('utf-8'))
+            except Exception as e:
+                print(f"--- 本地代理 Upscale 错误: {str(e)} ---")
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
         else:
             self.send_error(404, "Not Found")
 

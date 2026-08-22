@@ -36,6 +36,9 @@ describe('Source Modules Import Integrity', () => {
 
     const charPromptMod = await import('../src/char-prompt-manager.js');
     expect(charPromptMod.CharPromptManager).toBeDefined();
+
+    const engineMod = await import('../src/engine.js');
+    expect(engineMod.ImageEngine).toBeDefined();
   });
 
   it('should verify all source files have 100% valid JavaScript syntax without errors', async () => {
