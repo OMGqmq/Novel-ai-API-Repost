@@ -466,7 +466,12 @@ export class CharPromptManager {
         this.activeStageCharIndex = activeIdx;
         this.stageGridMode = this.stageGridMode || 'thirds';
 
-        // 依据当前设置的分辨率自适应画板宽高比
+        // 移动端体验：打开大画布时自动折叠底部抽屉，避免遮挡
+        if (typeof window !== 'undefined' && typeof window.toggleMobileControls === 'function') {
+            window.toggleMobileControls(false);
+        }
+
+        // 依据当前设置的分辨率自适应画板宽高比与屏幕可用空间
         const resSelect = document.getElementById('resolution');
         let ratio = 832 / 1216; // 默认 Portrait
         if (resSelect && resSelect.value) {
@@ -476,10 +481,17 @@ export class CharPromptManager {
 
         const boxEl = document.getElementById('charStageBox');
         if (boxEl) {
-            const maxH = Math.min(window.innerHeight * 0.58, 520);
-            const calcW = maxH * ratio;
-            boxEl.style.height = `${maxH}px`;
-            boxEl.style.width = `${calcW}px`;
+            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+            const availableH = (typeof window !== 'undefined' ? window.innerHeight : 800) - (isMobile ? 190 : 160);
+            const availableW = (typeof window !== 'undefined' ? window.innerWidth : 1200) - (isMobile ? 28 : 64);
+            let maxH = Math.max(180, Math.min(availableH, 520));
+            let calcW = maxH * ratio;
+            if (calcW > availableW) {
+                calcW = availableW;
+                maxH = calcW / ratio;
+            }
+            boxEl.style.height = `${Math.round(maxH)}px`;
+            boxEl.style.width = `${Math.round(calcW)}px`;
         }
 
         stageEl.classList.remove('hidden');
