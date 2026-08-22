@@ -824,11 +824,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 height = int(data.get('height', 1216))
                 scale = int(data.get('scale', 4))
                 
+                model_name = 'nai-diffusion-3'
+                raw_model = data.get('model') or data.get('version') or 'v3'
+                if raw_model == 'v5' or '5' in str(raw_model):
+                    model_name = 'nai-diffusion-5-full'
+                elif raw_model == 'v4.5' or raw_model == 'v4' or '4' in str(raw_model):
+                    model_name = 'nai-diffusion-4-full'
+                elif 'furry' in str(raw_model):
+                    model_name = 'furry-diffusion-3'
+                elif str(raw_model).startswith('nai-diffusion') or str(raw_model).startswith('safe-diffusion'):
+                    model_name = str(raw_model)
+
                 payload = {
                     "image": image,
                     "width": width,
                     "height": height,
-                    "scale": scale
+                    "scale": scale,
+                    "model": model_name
                 }
                 
                 print("--- 正在向 NovelAI 发送 upscale (4x) 请求 ---")

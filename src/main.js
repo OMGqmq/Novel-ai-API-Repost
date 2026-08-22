@@ -1323,11 +1323,15 @@ async function doUpscale() {
         ctx.drawImage(img, 0, 0, w, h);
         const base64Data = canvas.toDataURL('image/png').split(',')[1];
 
+        const selectedVersion = document.getElementById('modelValue')?.value || appState.currentImageData?.model || "v3";
+
         const params = {
             image: base64Data,
             width: w,
             height: h,
-            scale: 4
+            scale: 4,
+            version: selectedVersion,
+            model: selectedVersion
         };
 
         const authBase = {
@@ -1361,7 +1365,6 @@ async function doUpscale() {
         }
 
         const promptText = appState.currentImageData?.prompt || "";
-        const selectedVersion = appState.currentImageData?.model || "v3";
 
         const reader2 = new FileReader();
         reader2.readAsDataURL(result.blob);

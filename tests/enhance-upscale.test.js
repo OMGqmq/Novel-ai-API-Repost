@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ImageEngine } from '../src/engine.js';
 import { onRequest as upscaleHandler } from '../functions/upscale.js';
 
@@ -18,7 +18,8 @@ describe('Enhance and Upscale Pipeline', () => {
           image: "fake_base64_image_data",
           width: 832,
           height: 1216,
-          scale: 4
+          scale: 4,
+          model: "v5"
         }),
         headers: {
           get: () => ""
