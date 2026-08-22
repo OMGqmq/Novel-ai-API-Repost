@@ -244,74 +244,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Character Position Canvas Stage (V5 全屏角色自由选点画板) -->
-            <div id="charPositionStage" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-2xl touch-none overflow-hidden z-[120] flex flex-col justify-between p-3.5 sm:p-4 md:p-6 pb-6 sm:pb-4 select-none animate-fadeIn">
-                <!-- 顶部角色选择栏 (Display Grid Top) -->
-                <div class="w-full flex items-center justify-between z-10 gap-2 sm:gap-3 flex-shrink-0">
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <div class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center gap-1.5 shadow-sm">
-                            <i data-lucide="crosshair" class="w-3.5 h-3.5 text-indigo-400"></i>
-                            <span class="hidden xs:inline">角色位置编排</span>
-                            <span class="xs:hidden">定位</span>
-                        </div>
-                    </div>
-                    
-                    <!-- 角色切换 Chips -->
-                    <div id="charStageChips" class="flex items-center gap-1 sm:gap-1.5 overflow-x-auto custom-scroll flex-1 px-1 py-1">
-                        <!-- 动态生成角色切换标签 -->
-                    </div>
-
-                    <!-- 顶部快捷保存按钮 (在手机端极易触达) -->
-                    <button type="button" onclick="window.closeCharPositionStage ? window.closeCharPositionStage() : null" class="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white text-xs font-bold shadow-md flex items-center gap-1.5 flex-shrink-0 cursor-pointer">
-                        <i data-lucide="check" class="w-3.5 h-3.5"></i>
-                        <span>保存</span>
-                    </button>
-                </div>
-
-                <!-- 中间画板选点交互区域 (Display Grid Main) -->
-                <div class="flex-1 w-full flex items-center justify-center relative my-1 sm:my-2 overflow-hidden">
-                    <div id="charStageBox" class="relative rounded-2xl border-2 border-indigo-500/40 bg-slate-900/95 shadow-2xl overflow-hidden cursor-crosshair transition-all" style="width: 320px; height: 468px;">
-                        <!-- 构图辅助网格 SVG (Thirds / Phi / Center / None) -->
-                        <svg id="charStageGridSvg" class="absolute inset-0 w-full h-full pointer-events-none opacity-40" xmlns="http://www.w3.org/2000/svg">
-                            <!-- 动态绘制辅助线 -->
-                        </svg>
-
-                        <!-- 角色定位标记 Pins 容器 (绝对定位) -->
-                        <div id="charStagePinsContainer" class="absolute inset-0 w-full h-full pointer-events-auto">
-                            <!-- 动态注入所有角色的 Marker Pin -->
-                        </div>
-
-                        <!-- 当前选中角色坐标实时浮标 -->
-                        <div id="charStageActiveCoords" class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-md text-[10px] font-mono text-white/90 pointer-events-none border border-white/10 shadow-md">
-                            角色 1: X 50% | Y 50%
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 底部控制与退出栏 (Display Grid Bottom) -->
-                <div class="w-full flex items-center justify-between z-10 pt-2 border-t border-white/10 flex-wrap gap-2 flex-shrink-0">
-                    <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                        <!-- 网格模式切换 -->
-                        <div class="flex items-center bg-white/10 rounded-xl p-0.5 border border-white/10 text-[11px] sm:text-xs text-white">
-                            <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('thirds') : null" id="charGridModeThirds" class="px-2 sm:px-2.5 py-1 rounded-lg bg-indigo-600 font-semibold transition-all">三分法</button>
-                            <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('phi') : null" id="charGridModePhi" class="px-2 sm:px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all">黄金分割</button>
-                            <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('center') : null" id="charGridModeCenter" class="px-2 sm:px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all">中心十字</button>
-                            <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('none') : null" id="charGridModeNone" class="px-2 sm:px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all">无网格</button>
-                        </div>
-                        <!-- 自动分散排列 -->
-                        <button type="button" onclick="window.autoArrangeCharPositions ? window.autoArrangeCharPositions() : null" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] sm:text-xs font-semibold flex items-center gap-1.5 transition-all border border-white/10 cursor-pointer">
-                            <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-amber-400"></i> 自动排布
-                        </button>
-                    </div>
-
-                    <!-- 底部完成退出按钮 -->
-                    <button type="button" onclick="window.closeCharPositionStage ? window.closeCharPositionStage() : null" class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white text-xs font-bold shadow-lg flex items-center gap-1.5 transition-all cursor-pointer">
-                        <i data-lucide="check" class="w-4 h-4"></i>
-                        <span>完成位置编辑</span>
-                    </button>
-                </div>
-            </div>
         </div>
 
         <div id="historyArea"
@@ -2354,10 +2286,79 @@
             </div>
         </div>
     </div>
+
+    <!-- Character Position Canvas Stage (V5 全屏角色自由选点画板 - 顶层全局视图) -->
+    <div id="charPositionStage" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-2xl touch-none overflow-hidden z-[250] flex flex-col justify-between p-3.5 sm:p-4 md:p-6 pb-6 sm:pb-4 select-none animate-fadeIn">
+        <!-- 顶部角色选择栏 (Display Grid Top) -->
+        <div class="w-full flex items-center justify-between z-10 gap-2 sm:gap-3 flex-shrink-0">
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <div class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                    <i data-lucide="crosshair" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <span class="hidden xs:inline">角色位置编排</span>
+                    <span class="xs:hidden">定位</span>
+                </div>
+            </div>
+            
+            <!-- 角色切换 Chips -->
+            <div id="charStageChips" class="flex items-center gap-1 sm:gap-1.5 overflow-x-auto custom-scroll flex-1 px-1 py-1">
+                <!-- 动态生成角色切换标签 -->
+            </div>
+
+            <!-- 顶部快捷保存按钮 (在手机端极易触达) -->
+            <button type="button" onclick="window.closeCharPositionStage ? window.closeCharPositionStage() : null" class="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white text-xs font-bold shadow-md flex items-center gap-1.5 flex-shrink-0 cursor-pointer">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>保存</span>
+            </button>
+        </div>
+
+        <!-- 中间画板选点交互区域 (Display Grid Main) -->
+        <div class="flex-1 w-full flex items-center justify-center relative my-1 sm:my-2 overflow-hidden">
+            <div id="charStageBox" class="relative rounded-2xl border-2 border-indigo-500/40 bg-slate-900/95 shadow-2xl overflow-hidden cursor-crosshair transition-all" style="width: 320px; height: 468px;">
+                <!-- 构图辅助网格 SVG (Thirds / Phi / Center / None) -->
+                <svg id="charStageGridSvg" class="absolute inset-0 w-full h-full pointer-events-none opacity-40" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 动态绘制辅助线 -->
+                </svg>
+
+                <!-- 角色定位标记 Pins 容器 (绝对定位) -->
+                <div id="charStagePinsContainer" class="absolute inset-0 w-full h-full pointer-events-auto">
+                    <!-- 动态注入所有角色的 Marker Pin -->
+                </div>
+
+                <!-- 当前选中角色坐标实时浮标 -->
+                <div id="charStageActiveCoords" class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-md text-[10px] font-mono text-white/90 pointer-events-none border border-white/10 shadow-md">
+                    角色 1: X 50% | Y 50%
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部控制与退出栏 (Display Grid Bottom) -->
+        <div class="w-full flex items-center justify-between z-10 pt-2 border-t border-white/10 flex-wrap gap-2 flex-shrink-0">
+            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <!-- 网格模式切换 -->
+                <div class="flex items-center bg-white/10 rounded-xl p-0.5 border border-white/10 text-[11px] sm:text-xs text-white">
+                    <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('thirds') : null" id="charGridModeThirds" class="px-2 sm:px-2.5 py-1 rounded-lg bg-indigo-600 font-semibold transition-all">三分法</button>
+                    <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('phi') : null" id="charGridModePhi" class="px-2 sm:px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all">黄金分割</button>
+                    <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('center') : null" id="charGridModeCenter" class="px-2 sm:px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all">中心十字</button>
+                    <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('none') : null" id="charGridModeNone" class="px-2 sm:px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all">无网格</button>
+                </div>
+                <!-- 自动分散排列 -->
+                <button type="button" onclick="window.autoArrangeCharPositions ? window.autoArrangeCharPositions() : null" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] sm:text-xs font-semibold flex items-center gap-1.5 transition-all border border-white/10 cursor-pointer">
+                    <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-amber-400"></i> 自动排布
+                </button>
+            </div>
+
+            <!-- 底部完成退出按钮 -->
+            <button type="button" onclick="window.closeCharPositionStage ? window.closeCharPositionStage() : null" class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white text-xs font-bold shadow-lg flex items-center gap-1.5 transition-all cursor-pointer">
+                <i data-lucide="check" class="w-4 h-4"></i>
+                <span>完成位置编辑</span>
+            </button>
+        </div>
+    </div>
+
     <!-- 全局统一下载静默锚点，用于规避 Chrome/Edge 对动态创建 A 标签的多文件安全拦截 -->
     <a id="globalDownloadAnchor" style="display: none;" rel="noopener"></a>
 
-    <script type="module" src="src/main.js?v=20260822_07"></script>
+    <script type="module" src="src/main.js?v=20260822_08"></script>
 </body>
 
 </html>
