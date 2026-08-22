@@ -1,20 +1,76 @@
-/**
- * Inspiration Manager Module
- * Handles random creative prompt drafting, sandboxed image preview generation,
- * and prompt/image importing back to the main workspace.
+﻿/**
+ * Inspiration Manager Module (Danbooru Online Live Integration)
+ * Pulls real-time popular tag combinations and reference compositions from Danbooru
+ * based on Time/Era, Character/Franchise, Artist/Style, Score, and Rating dimensions.
  */
 
-const CATEGORY_STYLES = {
-    clothing: { cn: '服装', color: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100/30 dark:bg-green-950/20 dark:text-green-400 dark:border-green-900/30' },
-    action: { cn: '动作', color: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100/30 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30' },
-    nsfw: { cn: '限制级', color: 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100/30 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30' },
-    style: { cn: '画风', color: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100/30 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30' },
-    object: { cn: '物品', color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100/30 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30' },
-    character: { cn: 'IP角色', color: 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100/30 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30' },
-    lighting: { cn: '光影', color: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100/30 dark:bg-yellow-950/20 dark:text-yellow-400 dark:border-yellow-900/30' },
-    perspective: { cn: '视角', color: 'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100/30 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/30' },
-    composition: { cn: '构图', color: 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100/30 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30' }
+export const ERA_OPTIONS = [
+    { id: 'all', label: '全部年代', query: '' },
+    { id: '2026', label: '2026 当季最新', query: 'date:2026-01-01..' },
+    { id: '2025', label: '2025 黄金潮', query: 'date:2025-01-01..2025-12-31' },
+    { id: '2024', label: '2024 流行佳作', query: 'date:2024-01-01..2024-12-31' },
+    { id: '2020-2023', label: '2020-2023 新潮', query: 'date:2020-01-01..2023-12-31' },
+    { id: 'classic', label: '2010s 经典', query: 'date:2010-01-01..2019-12-31' },
+    { id: 'retro', label: '2000s 复古', query: 'date:2000-01-01..2009-12-31' }
+];
+
+export const FRANCHISE_OPTIONS = [
+    { id: 'any', label: '🎲 随机热门作品', query: '' },
+    { id: 'genshin', label: '原神 (Genshin Impact)', query: 'genshin_impact' },
+    { id: 'starrail', label: '崩坏:星穹铁道 (Honkai: Star Rail)', query: 'honkai:_star_rail' },
+    { id: 'bluearchive', label: '碧蓝档案 (Blue Archive)', query: 'blue_archive' },
+    { id: 'frieren', label: '葬送的芙莉莲 (Frieren)', query: 'sousou_no_frieren' },
+    { id: 'arknights', label: '明日方舟 (Arknights)', query: 'arknights' },
+    { id: 'azurlane', label: '碧蓝航线 (Azur Lane)', query: 'azur_lane' },
+    { id: 'umamusume', label: '赛马娘 (Umamusume)', query: 'umamusume' },
+    { id: 'touhou', label: '东方Project (Touhou)', query: 'touhou' },
+    { id: 'fate', label: 'Fate / FGO', query: 'fate/grand_order' },
+    { id: 'zenless', label: '绝区零 (Zenless Zone Zero)', query: 'zenless_zone_zero' },
+    { id: 'hololive', label: 'VTuber / Hololive', query: 'hololive' },
+    { id: 'dungeon_meshi', label: '迷宫饭 (Dungeon Meshi)', query: 'dungeon_meshi' },
+    { id: 'bocchi', label: '孤独摇滚 (Bocchi the Rock!)', query: 'bocchi_the_rock!' }
+];
+
+export const ARTIST_STYLE_OPTIONS = [
+    { id: 'any', label: '🎲 自由 / 随作品风格', query: '' },
+    { id: 'clean_anime', label: '二次元精致赛璐璐', query: 'clean_lines, official_style' },
+    { id: 'painterly', label: '厚涂质感光影', query: 'painterly, volumetric_lighting' },
+    { id: 'watercolor', label: '通透水彩柔光', query: 'watercolor_(medium), soft_lighting' },
+    { id: 'retro_90s', label: '90年代复古动漫', query: 'retro_artstyle, 1990s_(style)' },
+    { id: 'cyberpunk', label: '赛博朋克霓虹', query: 'cyberpunk, neon_lights' },
+    { id: 'monochrome', label: '黑白高对比漫画', query: 'monochrome, high_contrast' }
+];
+
+export const CATEGORY_INFO = {
+    artist: { label: '画师与风格', icon: 'palette', color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-800/40' },
+    character: { label: '角色与外貌', icon: 'user', color: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-800/40' },
+    clothing: { label: '服装与穿搭', icon: 'shirt', color: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800/40' },
+    action: { label: '动作与表情', icon: 'activity', color: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800/40' },
+    background: { label: '背景与光影', icon: 'image', color: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-800/40' },
+    general: { label: '特征与细节', icon: 'sparkles', color: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-700/50' }
 };
+
+const CLOTHING_KEYWORDS = [
+    'dress', 'skirt', 'shirt', 'pants', 'uniform', 'swimsuit', 'boots', 'shoes', 'socks',
+    'gloves', 'hat', 'ribbon', 'tie', 'costume', 'armor', 'bikini', 'jacket', 'coat',
+    'jewelry', 'hairclip', 'choker', 'glasses', 'maid', 'kimono', 'hoodie', 'shorts',
+    'sweater', 'tights', 'thighhighs', 'collar', 'cape', 'sleeves', 'corset', 'belt',
+    'bare_shoulders', 'cleavage', 'hairband', 'veil', 'apron', 'robe', 'suit'
+];
+
+const ACTION_KEYWORDS = [
+    'pose', 'sitting', 'standing', 'lying', 'kneeling', 'walking', 'looking', 'smiling',
+    'blush', 'hand', 'reaching', 'jumping', 'leaning', 'touching', 'holding', 'open_mouth',
+    'closed_eyes', 'wink', 'expression', 'cross_legged', 'arms_behind_back', 'arm_up',
+    'finger_gun', 'peace_sign', 'head_tilt', 'flying', 'running', 'crying', 'eating'
+];
+
+const BACKGROUND_KEYWORDS = [
+    'sky', 'cloud', 'tree', 'flower', 'room', 'indoors', 'outdoors', 'night', 'sunset',
+    'water', 'ocean', 'rain', 'snow', 'building', 'scenery', 'light', 'shadow', 'background',
+    'sun', 'street', 'city', 'nature', 'sunlight', 'moon', 'stars', 'forest', 'sea',
+    'beach', 'window', 'bokeh', 'horizon', 'rays', 'lighting', 'lens_flare', 'table', 'chair'
+];
 
 export class InspirationManager {
     constructor(config = {}) {
@@ -26,25 +82,20 @@ export class InspirationManager {
             else console.log(`[Toast] ${type}: ${msg}`);
         });
 
-        this.modalEl = document.getElementById('inspirationModal');
-        this.togglesContainer = document.getElementById('inspCategoryToggles');
-        this.tagListContainer = document.getElementById('inspTagList');
-        
-        this.placeholderEl = document.getElementById('inspPreviewPlaceholder');
-        this.previewImageEl = document.getElementById('inspPreviewImage');
-        this.loadingEl = document.getElementById('inspPreviewLoading');
-        this.generateBtn = document.getElementById('inspGenerateBtn');
-        this.saveImageBtn = document.getElementById('inspSaveImageBtn');
-        this.selectedCountEl = document.getElementById('inspSelectedCount');
+        // 筛选状态
+        this.currentEra = 'all';
+        this.currentFranchise = 'any';
+        this.currentStyle = 'any';
+        this.minScore = 50;
+        this.currentRating = 'g';
+        this.customKeyword = '';
 
-        this.selectedCategories = new Set(['clothing', 'action', 'style', 'object', 'lighting']);
-        this.drawnTags = []; // 当前抽取的标签 { en, cn, cat, selected }
-        
-        // 缓存生成的图片结果暂存区
-        this.lastGeneratedBlob = null;
-        this.lastGeneratedResult = null;
-        this.lastGeneratedPrompt = '';
-        this.lastGeneratedParams = null;
+        // 数据拉取状态
+        this.isLoading = false;
+        this.posts = [];
+        this.currentPostIndex = 0;
+        this.currentTags = []; // Array of { name, cn, category, selected, locked }
+        this.lockedTags = new Set(); // Set of tag names
 
         this.initGlobalBindings();
     }
@@ -52,342 +103,572 @@ export class InspirationManager {
     initGlobalBindings() {
         window.openInspirationModal = () => this.open();
         window.closeInspirationModal = () => this.close();
-        window.drawInspirationTags = () => this.drawTags();
-        window.importInspirationPrompt = () => this.importPrompt();
-        window.generateInspirationPreview = () => this.generatePreview();
-        window.saveInspirationImageToHistory = () => this.saveToHistory();
-        window.toggleInspCategory = (cat) => this.toggleCategory(cat);
-        window.toggleInspTag = (idx) => this.toggleTag(idx);
+        window.drawInspirationTags = () => this.fetchInspiration();
+        window.setInspirationEra = (era) => this.setEra(era);
+        window.setInspirationRating = (rating) => this.setRating(rating);
+        window.setInspirationFranchise = (fr) => this.setFranchise(fr);
+        window.setInspirationStyle = (st) => this.setStyle(st);
+        window.setInspirationScore = (score) => this.setScore(score);
+        window.toggleInspirationTag = (idx) => this.toggleTag(idx);
+        window.toggleInspirationTagLock = (idx, e) => this.toggleTagLock(idx, e);
+        window.toggleAllInspirationTags = (select) => this.toggleAllTags(select);
+        window.prevInspirationPost = () => this.prevPost();
+        window.nextInspirationPost = () => this.nextPost();
+        window.importInspirationPrompt = (mode) => this.importPrompt(mode);
     }
 
     open() {
-        if (!this.modalEl) return;
-        
-        // 确保分类数据加载完毕
-        if (!this.promptHelper || !this.promptHelper.classifiedData) {
-            this.onShowToast("标签分类库未准备好，请稍候...", "warning");
-            return;
-        }
+        const modal = document.getElementById('inspirationModal');
+        if (!modal) return;
 
-        this.modalEl.style.display = 'flex';
-        // 强制回流以启用 Tailwind 过渡
-        this.modalEl.offsetHeight;
-        this.modalEl.classList.remove('opacity-0', 'pointer-events-none');
-        const content = this.modalEl.querySelector('.relative');
+        modal.style.display = 'flex';
+        modal.offsetHeight; // Force reflow
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+        const content = modal.querySelector('.relative');
         if (content) {
             content.classList.remove('scale-95', 'opacity-0');
         }
 
-        this.renderCategoryToggles();
-        if (this.drawnTags.length === 0) {
-            this.drawTags();
+        this.renderFilters();
+
+        // 首次打开若无数据则自动抽取一组
+        if (this.posts.length === 0) {
+            this.fetchInspiration();
         } else {
-            this.renderTags();
+            this.renderCurrentPost();
         }
-        
+
         if (window.safeCreateIcons) window.safeCreateIcons();
     }
 
     close() {
-        if (!this.modalEl) return;
-        this.modalEl.classList.add('opacity-0', 'pointer-events-none');
-        const content = this.modalEl.querySelector('.relative');
+        const modal = document.getElementById('inspirationModal');
+        if (!modal) return;
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        const content = modal.querySelector('.relative');
         if (content) {
             content.classList.add('scale-95', 'opacity-0');
         }
         setTimeout(() => {
-            this.modalEl.style.display = 'none';
+            modal.style.display = 'none';
         }, 300);
     }
 
-    renderCategoryToggles() {
-        if (!this.togglesContainer) return;
-        this.togglesContainer.innerHTML = '';
-
-        Object.entries(CATEGORY_STYLES).forEach(([key, value]) => {
-            const isChecked = this.selectedCategories.has(key);
-            
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = `px-3 py-1.5 text-[10px] font-bold border rounded-xl transition-all active:scale-95 flex items-center gap-1 shadow-[0_2px_4px_rgba(0,0,0,0.01)] ${
-                isChecked 
-                ? `${value.color} ring-1 ring-indigo-500/20` 
-                : 'bg-white border-gray-100 text-gray-400 hover:text-gray-600 dark:bg-slate-800/40 dark:border-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-            }`;
-            btn.innerHTML = `
-                <i data-lucide="${isChecked ? 'check-circle' : 'circle'}" class="w-3 h-3"></i>
-                <span>${value.cn}</span>
-            `;
-            btn.onclick = () => window.toggleInspCategory(key);
-            this.togglesContainer.appendChild(btn);
-        });
-        
-        if (window.safeCreateIcons) window.safeCreateIcons();
+    setEra(era) {
+        this.currentEra = era;
+        this.renderFilters();
+        this.fetchInspiration();
     }
 
-    toggleCategory(cat) {
-        if (this.selectedCategories.has(cat)) {
-            // 最少保留一个分类以防空抽词
-            if (this.selectedCategories.size > 1) {
-                this.selectedCategories.delete(cat);
-            } else {
-                this.onShowToast("至少保留一个分类进行抽词", "warning");
-                return;
-            }
-        } else {
-            this.selectedCategories.add(cat);
+    setRating(rating) {
+        this.currentRating = rating;
+        this.renderFilters();
+        this.fetchInspiration();
+    }
+
+    setFranchise(fr) {
+        this.currentFranchise = fr;
+        this.fetchInspiration();
+    }
+
+    setStyle(st) {
+        this.currentStyle = st;
+        this.fetchInspiration();
+    }
+
+    setScore(score) {
+        this.minScore = parseInt(score, 10) || 0;
+        const scoreLabel = document.getElementById('inspScoreDisplay');
+        if (scoreLabel) scoreLabel.textContent = this.minScore > 0 ? `≥ ${this.minScore}` : '不限';
+    }
+
+    renderFilters() {
+        // 年代胶囊
+        const eraContainer = document.getElementById('inspEraContainer');
+        if (eraContainer) {
+            eraContainer.innerHTML = ERA_OPTIONS.map(opt => {
+                const isActive = this.currentEra === opt.id;
+                return `
+                    <button type="button" onclick="window.setInspirationEra('${opt.id}')"
+                        class="px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all active:scale-95 flex-shrink-0 cursor-pointer ${
+                            isActive
+                                ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+                        }">
+                        ${opt.label}
+                    </button>
+                `;
+            }).join('');
         }
-        this.renderCategoryToggles();
-        this.drawTags();
+
+        // 分级胶囊
+        const ratingContainer = document.getElementById('inspRatingContainer');
+        if (ratingContainer) {
+            const ratings = [
+                { id: 'g', label: '全年龄 (G)' },
+                { id: 's', label: '敏感 (S)' },
+                { id: 'q', label: '可疑 (Q)' },
+                { id: 'e', label: '限制级 (NSFW)' },
+                { id: 'any', label: '全部分级' }
+            ];
+            ratingContainer.innerHTML = ratings.map(r => {
+                const isActive = this.currentRating === r.id;
+                return `
+                    <button type="button" onclick="window.setInspirationRating('${r.id}')"
+                        class="px-2 py-1 text-[10px] font-semibold rounded-md transition-all active:scale-95 cursor-pointer ${
+                            isActive
+                                ? 'bg-rose-500 text-white shadow-xs font-bold'
+                                : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'
+                        }">
+                        ${r.label}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // 作品/IP 下拉菜单
+        const frSelect = document.getElementById('inspFranchiseSelect');
+        if (frSelect && frSelect.options.length === 0) {
+            frSelect.innerHTML = FRANCHISE_OPTIONS.map(opt => `
+                <option value="${opt.id}" ${this.currentFranchise === opt.id ? 'selected' : ''}>${opt.label}</option>
+            `).join('');
+            frSelect.onchange = (e) => this.setFranchise(e.target.value);
+        }
+
+        // 风格下拉菜单
+        const stSelect = document.getElementById('inspStyleSelect');
+        if (stSelect && stSelect.options.length === 0) {
+            stSelect.innerHTML = ARTIST_STYLE_OPTIONS.map(opt => `
+                <option value="${opt.id}" ${this.currentStyle === opt.id ? 'selected' : ''}>${opt.label}</option>
+            `).join('');
+            stSelect.onchange = (e) => this.setStyle(e.target.value);
+        }
     }
 
-    drawTags() {
-        if (!this.promptHelper || !this.promptHelper.classifiedData) return;
-        
-        const sourceData = this.promptHelper.classifiedData;
-        this.drawnTags = [];
+    buildDanbooruQuery() {
+        const parts = [];
 
-        this.selectedCategories.forEach(cat => {
-            const tagsObj = sourceData[cat] || {};
-            const tagEntries = Object.entries(tagsObj);
-            if (tagEntries.length === 0) return;
+        // 1. 角色 / IP 作品
+        const kwInput = document.getElementById('inspCustomKeyword');
+        const customKw = kwInput ? kwInput.value.trim() : '';
+        if (customKw) {
+            parts.push(customKw.replace(/\s+/g, '_'));
+        } else if (this.currentFranchise !== 'any') {
+            const frOpt = FRANCHISE_OPTIONS.find(o => o.id === this.currentFranchise);
+            if (frOpt && frOpt.query) parts.push(frOpt.query);
+        } else {
+            // 默认随机高质量二次元主体
+            parts.push('1girl');
+        }
 
-            // 每个选中的分类抽取 3-5 个词
-            const drawCount = Math.floor(Math.random() * 3) + 3; // 随机 3, 4, 或 5 个
-            const shuffled = [...tagEntries].sort(() => 0.5 - Math.random());
-            const selected = shuffled.slice(0, Math.min(drawCount, shuffled.length));
+        // 2. 年代限制
+        const eraOpt = ERA_OPTIONS.find(o => o.id === this.currentEra);
+        if (eraOpt && eraOpt.query) parts.push(eraOpt.query);
 
-            selected.forEach(([en, cn]) => {
-                this.drawnTags.push({
-                    en,
-                    cn,
-                    cat,
-                    selected: true // 默认抽出来的都为勾选激活状态
-                });
-            });
-        });
+        // 3. 分级限制
+        if (this.currentRating !== 'any') {
+            parts.push(`rating:${this.currentRating}`);
+        }
 
-        // 随机打乱合并后的词，防止同类别的词挤在一起
-        this.drawnTags.sort(() => 0.5 - Math.random());
-        this.renderTags();
+        // 4. 最低评分
+        if (this.minScore > 0) {
+            parts.push(`score:>=${this.minScore}`);
+        }
+
+        // 5. 排序：如果标签数超过 2 个，精简为核心关键词 + 排序
+        let queryStr = '';
+        if (parts.length > 2) {
+            queryStr = `${parts[0]} ${parts[parts.length - 1]}`;
+        } else {
+            queryStr = parts.join(' ');
+        }
+
+        return queryStr.trim();
     }
 
-    renderTags() {
-        if (!this.tagListContainer) return;
-        this.tagListContainer.innerHTML = '';
+    async fetchInspiration() {
+        if (this.isLoading) return;
+        this.isLoading = true;
+        this.setLoadingState(true);
 
-        if (this.drawnTags.length === 0) {
-            this.tagListContainer.innerHTML = `<div class="text-xs text-gray-400 italic py-8 text-center w-full">未选择任何分类进行抽词</div>`;
-            this.updateSelectedCount(0);
+        try {
+            const query = this.buildDanbooruQuery();
+            // 随机页码增加新鲜感
+            const randomPage = Math.floor(Math.random() * 5) + 1;
+
+            const endpoint = `/danbooru?tags=${encodeURIComponent(query)}&limit=15&page=${randomPage}`;
+            const res = await fetch(endpoint, { method: 'GET' });
+            
+            if (!res.ok) {
+                throw new Error(`拉取失败: HTTP ${res.status}`);
+            }
+
+            const data = await res.json();
+            if (!data.success || !Array.isArray(data.posts) || data.posts.length === 0) {
+                // 如果特定条件无结果，降级重试宽泛查询
+                const fallbackRes = await fetch(`/danbooru?tags=1girl+score:>=50&limit=15&page=1`);
+                const fallbackData = await fallbackRes.json();
+                if (fallbackData.posts && fallbackData.posts.length > 0) {
+                    this.posts = fallbackData.posts;
+                    this.currentPostIndex = 0;
+                    this.onShowToast("未搜到精确匹配，已为您推荐近期热门高赞作品", "info");
+                } else {
+                    this.onShowToast("未检索到相关标签作品，请尝试放宽筛选条件", "warning");
+                    this.posts = [];
+                }
+            } else {
+                this.posts = data.posts;
+                this.currentPostIndex = 0;
+            }
+
+            this.renderCurrentPost();
+        } catch (err) {
+            console.error("Danbooru inspiration fetch error:", err);
+            this.onShowToast(`灵感数据拉取异常: ${err.message}`, "error");
+        } finally {
+            this.isLoading = false;
+            this.setLoadingState(false);
+        }
+    }
+
+    setLoadingState(loading) {
+        const loadingEl = document.getElementById('inspLoadingOverlay');
+        const drawBtn = document.getElementById('inspDrawBtn');
+        if (loadingEl) {
+            if (loading) loadingEl.classList.remove('hidden');
+            else loadingEl.classList.add('hidden');
+        }
+        if (drawBtn) {
+            drawBtn.disabled = loading;
+            drawBtn.innerHTML = loading
+                ? `<svg class="animate-spin w-4 h-4 mr-1.5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> 检索中...`
+                : `<i data-lucide="sparkles" class="w-4 h-4"></i> 🎲 抽取灵感 (Draw)`;
+            if (window.safeCreateIcons) window.safeCreateIcons();
+        }
+    }
+
+    prevPost() {
+        if (this.posts.length === 0) return;
+        this.currentPostIndex = (this.currentPostIndex - 1 + this.posts.length) % this.posts.length;
+        this.renderCurrentPost();
+    }
+
+    nextPost() {
+        if (this.posts.length === 0) return;
+        this.currentPostIndex = (this.currentPostIndex + 1) % this.posts.length;
+        this.renderCurrentPost();
+    }
+
+    categorizeTag(tagName, tagCategoryHint) {
+        if (tagCategoryHint === 'artist') return 'artist';
+        if (tagCategoryHint === 'character' || tagCategoryHint === 'copyright') return 'character';
+
+        const lower = tagName.toLowerCase();
+        for (const kw of CLOTHING_KEYWORDS) {
+            if (lower.includes(kw)) return 'clothing';
+        }
+        for (const kw of ACTION_KEYWORDS) {
+            if (lower.includes(kw)) return 'action';
+        }
+        for (const kw of BACKGROUND_KEYWORDS) {
+            if (lower.includes(kw)) return 'background';
+        }
+        return 'general';
+    }
+
+    findChineseTranslation(tagName) {
+        if (!this.promptHelper) return '';
+        const dict = this.promptHelper.dictionary || {};
+        const normalized = tagName.replace(/_/g, ' ').toLowerCase();
+        if (dict[tagName]) return dict[tagName];
+        if (dict[normalized]) return dict[normalized];
+
+        if (this.promptHelper.classifiedData) {
+            for (const cat of Object.values(this.promptHelper.classifiedData)) {
+                if (cat[tagName]) return cat[tagName];
+                if (cat[normalized]) return cat[normalized];
+            }
+        }
+        return '';
+    }
+
+    renderCurrentPost() {
+        if (this.posts.length === 0) {
+            const emptyEl = document.getElementById('inspEmptyState');
+            const mainContent = document.getElementById('inspMainContent');
+            if (emptyEl) emptyEl.classList.remove('hidden');
+            if (mainContent) mainContent.classList.add('hidden');
             return;
         }
 
-        this.drawnTags.forEach((item, idx) => {
-            const style = CATEGORY_STYLES[item.cat];
-            
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = `px-3.5 py-2.5 rounded-xl border text-left flex flex-col justify-between transition-all active:scale-[0.98] cursor-pointer max-w-[200px] shadow-[0_2px_6px_rgba(0,0,0,0.01)] ${
-                item.selected 
-                ? `${style.color} border-indigo-400 dark:border-indigo-650 scale-100 ring-1 ring-indigo-500/20`
-                : 'bg-gray-50/50 border-gray-100 text-gray-300 dark:bg-slate-800/20 dark:border-slate-800 dark:text-slate-600'
-            }`;
-            
-            // 样式徽章与勾选状态
-            const checkIcon = item.selected ? 'check-square' : 'square';
-            btn.innerHTML = `
-                <div class="flex items-center justify-between gap-3 w-full">
-                    <span class="font-mono text-xs font-bold truncate leading-none ${item.selected ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-slate-600'}">${item.en}</span>
-                    <i data-lucide="${checkIcon}" class="w-3.5 h-3.5 shrink-0 ${item.selected ? 'text-indigo-500' : 'text-gray-300 dark:text-slate-700'}"></i>
-                </div>
-                <div class="flex items-center justify-between gap-2 w-full mt-2 select-none pointer-events-none">
-                    <span class="text-[10px] leading-tight truncate ${item.selected ? 'text-gray-500 dark:text-slate-400' : 'text-gray-400 dark:text-slate-700'}">${item.cn}</span>
-                    <span class="text-[8px] font-bold opacity-60 uppercase shrink-0">${style.cn}</span>
-                </div>
-            `;
-            btn.onclick = () => window.toggleInspTag(idx);
-            this.tagListContainer.appendChild(btn);
+        const emptyEl = document.getElementById('inspEmptyState');
+        const mainContent = document.getElementById('inspMainContent');
+        if (emptyEl) emptyEl.classList.add('hidden');
+        if (mainContent) mainContent.classList.remove('hidden');
+
+        const post = this.posts[this.currentPostIndex];
+
+        // 1. 渲染参考图与作品元信息
+        const imgEl = document.getElementById('inspThumbnailImg');
+        const scoreBadge = document.getElementById('inspScoreBadge');
+        const favBadge = document.getElementById('inspFavBadge');
+        const dateBadge = document.getElementById('inspDateBadge');
+        const linkBtn = document.getElementById('inspDanbooruLink');
+        const counterEl = document.getElementById('inspCandidateCounter');
+
+        if (imgEl) {
+            imgEl.src = post.preview_url || '';
+            imgEl.alt = `Danbooru Post #${post.id}`;
+        }
+        if (scoreBadge) scoreBadge.textContent = `⭐ Score: ${post.score}`;
+        if (favBadge) favBadge.textContent = `❤️ Favs: ${post.fav_count}`;
+        if (dateBadge) {
+            const dateStr = post.created_at ? post.created_at.substring(0, 10) : '';
+            dateBadge.textContent = `📅 ${dateStr}`;
+        }
+        if (linkBtn) linkBtn.href = `https://danbooru.donmai.us/posts/${post.id}`;
+        if (counterEl) counterEl.textContent = `${this.currentPostIndex + 1} / ${this.posts.length}`;
+
+        // 2. 解析与归类 Tags
+        const artistTags = (post.tag_string_artist || '').split(/\s+/).filter(Boolean);
+        const charTags = (post.tag_string_character || '').split(/\s+/).filter(Boolean);
+        const copyTags = (post.tag_string_copyright || '').split(/\s+/).filter(Boolean);
+        const generalTags = (post.tag_string_general || '').split(/\s+/).filter(Boolean);
+
+        const newTags = [];
+        const seen = new Set();
+
+        // 附加画师风格预设
+        if (this.currentStyle !== 'any') {
+            const stOpt = ARTIST_STYLE_OPTIONS.find(o => o.id === this.currentStyle);
+            if (stOpt && stOpt.query) {
+                stOpt.query.split(',').map(s => s.trim()).forEach(tag => {
+                    if (tag && !seen.has(tag)) {
+                        seen.add(tag);
+                        newTags.push({
+                            name: tag,
+                            cn: this.findChineseTranslation(tag),
+                            category: 'artist',
+                            selected: true,
+                            locked: this.lockedTags.has(tag)
+                        });
+                    }
+                });
+            }
+        }
+
+        // 画师 Tag
+        artistTags.forEach(t => {
+            if (!seen.has(t)) {
+                seen.add(t);
+                newTags.push({
+                    name: `artist:${t}`,
+                    cn: this.findChineseTranslation(t) || '画师',
+                    category: 'artist',
+                    selected: true,
+                    locked: this.lockedTags.has(`artist:${t}`)
+                });
+            }
         });
 
-        const activeCount = this.drawnTags.filter(t => t.selected).length;
-        this.updateSelectedCount(activeCount);
-        
+        // 角色与作品 Tag
+        [...charTags, ...copyTags].forEach(t => {
+            if (!seen.has(t)) {
+                seen.add(t);
+                newTags.push({
+                    name: t,
+                    cn: this.findChineseTranslation(t),
+                    category: 'character',
+                    selected: true,
+                    locked: this.lockedTags.has(t)
+                });
+            }
+        });
+
+        // 一般特征 Tag（智能识别服装、动作、背景）
+        generalTags.forEach(t => {
+            if (!seen.has(t)) {
+                seen.add(t);
+                const cat = this.categorizeTag(t, 'general');
+                newTags.push({
+                    name: t,
+                    cn: this.findChineseTranslation(t),
+                    category: cat,
+                    selected: true,
+                    locked: this.lockedTags.has(t)
+                });
+            }
+        });
+
+        // 合并已锁定的标签
+        this.lockedTags.forEach(lockedName => {
+            if (!seen.has(lockedName)) {
+                seen.add(lockedName);
+                newTags.unshift({
+                    name: lockedName,
+                    cn: this.findChineseTranslation(lockedName),
+                    category: this.categorizeTag(lockedName, 'general'),
+                    selected: true,
+                    locked: true
+                });
+            }
+        });
+
+        this.currentTags = newTags;
+        this.renderTagMatrix();
+        this.updateAssembledPrompt();
+    }
+
+    renderTagMatrix() {
+        const matrixContainer = document.getElementById('inspTagMatrixContainer');
+        if (!matrixContainer) return;
+
+        // 按分类聚合
+        const groups = {
+            artist: [],
+            character: [],
+            clothing: [],
+            action: [],
+            background: [],
+            general: []
+        };
+
+        this.currentTags.forEach((tag, idx) => {
+            const cat = groups[tag.category] ? tag.category : 'general';
+            groups[cat].push({ ...tag, index: idx });
+        });
+
+        matrixContainer.innerHTML = Object.entries(groups).map(([catKey, tagList]) => {
+            if (tagList.length === 0) return '';
+            const info = CATEGORY_INFO[catKey] || CATEGORY_INFO.general;
+
+            return `
+                <div class="mb-3 bg-gray-50/80 dark:bg-slate-800/40 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800/80">
+                    <div class="flex items-center justify-between mb-2 px-1">
+                        <div class="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-200">
+                            <i data-lucide="${info.icon}" class="w-3.5 h-3.5 text-indigo-500"></i>
+                            <span>${info.label} (${tagList.length})</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">
+                        ${tagList.map(tag => `
+                            <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all select-none cursor-pointer ${
+                                tag.selected
+                                    ? `${info.color} shadow-xs font-semibold`
+                                    : 'bg-white dark:bg-slate-900 border-gray-200/60 dark:border-slate-700/60 text-gray-400 line-through opacity-60'
+                            }" onclick="window.toggleInspirationTag(${tag.index})">
+                                <span>${tag.name}</span>
+                                ${tag.cn ? `<span class="text-[10px] opacity-75 font-normal">(${tag.cn})</span>` : ''}
+                                <button type="button" class="ml-0.5 p-0.5 hover:text-amber-500 transition-colors"
+                                    title="${tag.locked ? '已锁定 (换作品不丢失)' : '锁定此标签'}"
+                                    onclick="window.toggleInspirationTagLock(${tag.index}, event)">
+                                    <i data-lucide="pin" class="w-3 h-3 ${tag.locked ? 'text-amber-500 fill-amber-500' : 'text-gray-300 dark:text-gray-600'}"></i>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
         if (window.safeCreateIcons) window.safeCreateIcons();
     }
 
     toggleTag(idx) {
-        if (this.drawnTags[idx]) {
-            this.drawnTags[idx].selected = !this.drawnTags[idx].selected;
-            this.renderTags();
-        }
+        if (!this.currentTags[idx]) return;
+        this.currentTags[idx].selected = !this.currentTags[idx].selected;
+        this.renderTagMatrix();
+        this.updateAssembledPrompt();
     }
 
-    updateSelectedCount(count) {
-        if (this.selectedCountEl) {
-            this.selectedCountEl.textContent = `已选 ${count} 个`;
+    toggleTagLock(idx, e) {
+        if (e) e.stopPropagation();
+        if (!this.currentTags[idx]) return;
+        const tag = this.currentTags[idx];
+        tag.locked = !tag.locked;
+        if (tag.locked) {
+            this.lockedTags.add(tag.name);
+            tag.selected = true;
+        } else {
+            this.lockedTags.delete(tag.name);
         }
+        this.renderTagMatrix();
+        this.updateAssembledPrompt();
     }
 
-    importPrompt() {
-        const activeTags = this.drawnTags
-            .filter(t => t.selected)
-            .map(t => t.en);
-            
-        if (activeTags.length === 0) {
-            this.onShowToast("没有选择任何创意词条", "warning");
+    toggleAllTags(select) {
+        this.currentTags.forEach(t => {
+            if (!t.locked) t.selected = select;
+        });
+        this.renderTagMatrix();
+        this.updateAssembledPrompt();
+    }
+
+    getAssembledPrompt() {
+        const selectedTags = this.currentTags.filter(t => t.selected).map(t => t.name);
+        return selectedTags.join(', ');
+    }
+
+    updateAssembledPrompt() {
+        const textarea = document.getElementById('inspPromptPreview');
+        const countBadge = document.getElementById('inspSelectedTagCount');
+        const selected = this.currentTags.filter(t => t.selected);
+
+        if (textarea) textarea.value = this.getAssembledPrompt();
+        if (countBadge) countBadge.textContent = `${selected.length} / ${this.currentTags.length} 标签已选`;
+    }
+
+    importPrompt(mode = 'append') {
+        const promptText = this.getAssembledPrompt().trim();
+        if (!promptText) {
+            this.onShowToast("未选择任何灵感标签", "warning");
             return;
         }
 
-        const mainPrompt = document.getElementById('prompt');
-        if (mainPrompt) {
-            const currentVal = mainPrompt.value.trim();
-            const appendStr = activeTags.join(', ');
-            mainPrompt.value = currentVal ? `${currentVal}, ${appendStr}` : appendStr;
-            mainPrompt.dispatchEvent(new Event('input', { bubbles: true }));
-            this.onShowToast(`已成功导入 ${activeTags.length} 个词条！`, "success");
-            this.close();
-        }
-    }
-
-    async generatePreview() {
-        const activeTags = this.drawnTags
-            .filter(t => t.selected)
-            .map(t => t.en);
-            
-        if (activeTags.length === 0) {
-            this.onShowToast("请至少选择一个提示词进行预览生成", "warning");
+        const posTextarea = document.getElementById('positivePrompt') || document.querySelector('#prompt');
+        if (!posTextarea) {
+            this.onShowToast("未找到主提示词输入框", "error");
             return;
         }
 
-        const modelEl = document.getElementById('modelValue');
-        const resEl = document.getElementById('resolution');
-        const negativeEl = document.getElementById('negativePrompt');
+        if (mode === 'replace') {
+            posTextarea.value = promptText;
+            this.onShowToast("已成功替换为当前灵感提示词！", "success");
+        } else if (mode === 'append') {
+            const current = posTextarea.value.trim();
+            posTextarea.value = current ? `${current}, ${promptText}` : promptText;
+            this.onShowToast("已成功追加灵感标签至主提示词！", "success");
+        } else if (mode === 'smart_v5') {
+            // 智能分流：画师与环境光影归入全局 Prompt，角色/服装归入 V5 角色卡片
+            const globalTags = this.currentTags.filter(t => t.selected && (t.category === 'artist' || t.category === 'background' || t.category === 'general')).map(t => t.name);
+            const charTags = this.currentTags.filter(t => t.selected && (t.category === 'character' || t.category === 'clothing' || t.category === 'action')).map(t => t.name);
 
-        if (!modelEl || !resEl || !this.engine) {
-            this.onShowToast("无法获取生成核心配置", "error");
-            return;
-        }
-
-        const selectedVersion = modelEl.value;
-        const [w, h] = resEl.value.split(',').map(Number);
-        const promptText = activeTags.join(', ');
-
-        // 整合授权身份数据
-        const customApiKeyRaw = this.store ? this.store.getSetting('nai_custom_api_key') : '';
-        const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
-        const auth = {
-            adminToken: this.store ? this.store.getSetting('nai_admin_token') : '',
-            userKey: this.store ? this.store.getSetting('nai_user_key') : '',
-            userToken: localStorage.getItem('nai_user_token') || "",
-            customApiKey: customApiKeys.length > 0 ? customApiKeys[0] : ""
-        };
-
-        // UI 切换为 Loading 状态
-        if (this.loadingEl) this.loadingEl.classList.remove('hidden');
-        if (this.generateBtn) this.generateBtn.disabled = true;
-
-        try {
-            // 组装生成所需的配置参数
-            const stepsEl = document.getElementById('steps');
-            const scaleEl = document.getElementById('scale');
-            const samplerEl = document.getElementById('sampler');
-            const seed = Math.floor(Math.random() * 4294967295);
-
-            const params = {
-                prompt: promptText,
-                negative_prompt: negativeEl ? negativeEl.value.trim() : "lowres, bad anatomy",
-                width: w,
-                height: h,
-                steps: stepsEl ? parseInt(stepsEl.value) : 28,
-                scale: scaleEl ? parseFloat(scaleEl.value) : 5.0,
-                sampler: samplerEl ? samplerEl.value : "k_euler_ancestral",
-                seed: seed,
-                version: selectedVersion,
-                sm: (selectedVersion === 'v4.5') ? false : true,
-                sm_dyn: (selectedVersion === 'v4.5') ? false : true
-            };
-
-            // 发起沙盒生成请求
-            const result = await this.engine.generate(params, auth);
-
-            if (result && result.blob) {
-                this.lastGeneratedBlob = result.blob;
-                this.lastGeneratedResult = result;
-                this.lastGeneratedPrompt = promptText;
-                this.lastGeneratedParams = params;
-
-                // 创建一次性预览图 URL
-                const objectUrl = URL.createObjectURL(result.blob);
-                
-                if (this.previewImageEl) {
-                    this.previewImageEl.src = objectUrl;
-                    this.previewImageEl.classList.remove('hidden');
-                }
-                if (this.placeholderEl) this.placeholderEl.classList.add('hidden');
-                if (this.saveImageBtn) this.saveImageBtn.disabled = false; // 启用手动保存到历史库按钮
-
-                this.onShowToast("沙盒预览生成成功！", "success");
-            } else {
-                throw new Error("生成返回图片数据空缺");
+            // 1. 全局提示词处理
+            if (globalTags.length > 0) {
+                const globalStr = globalTags.join(', ');
+                const cur = posTextarea.value.trim();
+                posTextarea.value = cur ? `${cur}, ${globalStr}` : globalStr;
             }
-        } catch (err) {
-            console.error("Sandbox Gen Error:", err);
-            this.onShowToast(`沙盒生成失败: ${err.message || err}`, "error");
-        } finally {
-            if (this.loadingEl) this.loadingEl.classList.add('hidden');
-            if (this.generateBtn) this.generateBtn.disabled = false;
-        }
-    }
 
-    async saveToHistory() {
-        if (!this.lastGeneratedBlob || !this.lastGeneratedResult) {
-            this.onShowToast("未找到可保存的生成图片", "warning");
-            return;
-        }
+            // 2. 角色卡片处理
+            if (charTags.length > 0) {
+                const charStr = charTags.join(', ');
+                const container = document.getElementById('characterPromptsContainer');
+                const firstRowInput = container ? container.querySelector('.char-prompt-input') : null;
 
-        const saveFn = window.saveToHistory;
-        if (!saveFn) {
-            this.onShowToast("历史归档接口不可用", "error");
-            return;
+                if (firstRowInput) {
+                    firstRowInput.value = charStr;
+                    if (window.charPromptManager) window.charPromptManager.saveCharacterPromptsState();
+                } else if (window.addCharacterPromptRow) {
+                    window.addCharacterPromptRow(charStr);
+                }
+            }
+
+            this.onShowToast("✨ 智能分流完成：画师与光影已入全局，角色与服装已入V5卡片！", "success");
         }
 
-        if (this.saveImageBtn) this.saveImageBtn.disabled = true;
-
-        try {
-            // 将 Blob 转为 Base64 DataURL 以便存入历史数据库
-            const reader = new FileReader();
-            reader.readAsDataURL(this.lastGeneratedBlob);
-            reader.onloadend = async () => {
-                const base64Data = reader.result;
-                
-                // 拼接元数据
-                const metaData = {
-                    negative_prompt: this.lastGeneratedParams.negative_prompt,
-                    width: this.lastGeneratedParams.width,
-                    height: this.lastGeneratedParams.height,
-                    steps: this.lastGeneratedParams.steps,
-                    scale: this.lastGeneratedParams.scale,
-                    sampler: this.lastGeneratedParams.sampler,
-                    seed: this.lastGeneratedParams.seed,
-                    sm: this.lastGeneratedParams.sm,
-                    sm_dyn: this.lastGeneratedParams.sm_dyn
-                };
-
-                await saveFn(
-                    base64Data,
-                    this.lastGeneratedPrompt,
-                    this.lastGeneratedParams.version,
-                    this.lastGeneratedResult,
-                    false,
-                    metaData
-                );
-                
-                this.onShowToast("图片已存入历史图库！可在右侧常规历史中找到它", "success");
-            };
-        } catch (err) {
-            console.error("Save to history fail:", err);
-            this.onShowToast(`保存图库失败: ${err.message || err}`, "error");
-            if (this.saveImageBtn) this.saveImageBtn.disabled = false;
-        }
+        // 触发 input 事件同步 UI 计数和本地存储
+        posTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+        this.close();
     }
 }

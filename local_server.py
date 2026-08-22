@@ -867,21 +867,157 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(resp_data)
                     print("--- Upscale 请求成功 ---")
+        elif self.path == '/danbooru' or self.path == '/api/danbooru':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8')) if post_data else {}
+                tags = data.get('tags', '')
+                limit = min(int(data.get('limit', 20)), 50)
+                page = int(data.get('page', 1))
+
+                query_params = urllib.parse.urlencode({
+                    'tags': tags,
+                    'limit': limit,
+                    'page': page
+                })
+                target_url = f'https://danbooru.donmai.us/posts.json?{query_params}'
+                print(f"--- 正在请求 Danbooru API: {target_url} ---")
+
+                req = urllib.request.Request(
+                    target_url,
+                    headers={
+                        'User-Agent': 'NovelAIOpusArt/2.0 (InspirationTool; contact: novelai-art-repost)',
+                        'Accept': 'application/json'
+                    },
+                    method='GET'
+                )
+
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    resp_data = response.read()
+                    posts = json.loads(resp_data.decode('utf-8'))
+                    
+                    sanitized_posts = []
+                    if isinstance(posts, list):
+                        for p in posts:
+                            preview_url = p.get('preview_file_url') or p.get('large_file_url') or p.get('file_url') or ''
+                            media_asset = p.get('media_asset') or {}
+                            variants = media_asset.get('variants') or []
+                            for v in variants:
+                                if v.get('type') in ['sample', '360x360', '180x180'] and v.get('url'):
+                                    preview_url = v.get('url')
+                                    break
+                            
+                            sanitized_posts.append({
+                                "id": p.get('id'),
+                                "created_at": p.get('created_at'),
+                                "score": p.get('score'),
+                                "fav_count": p.get('fav_count'),
+                                "rating": p.get('rating'),
+                                "tag_string_artist": p.get('tag_string_artist', ''),
+                                "tag_string_character": p.get('tag_string_character', ''),
+                                "tag_string_copyright": p.get('tag_string_copyright', ''),
+                                "tag_string_general": p.get('tag_string_general', ''),
+                                "tag_string": p.get('tag_string', ''),
+                                "preview_url": preview_url,
+                                "image_width": p.get('image_width'),
+                                "image_height": p.get('image_height')
+                            })
+
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": True, "count": len(sanitized_posts), "posts": sanitized_posts}).encode('utf-8'))
             except urllib.error.HTTPError as e:
                 err_body = e.read().decode('utf-8')
-                print(f"--- NovelAI API Upscale 报错: {e.code} ---")
+                print(f"--- Danbooru API 报错: {e.code} ---")
                 self.send_response(e.code)
                 self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": err_body}).encode('utf-8'))
+                self.wfile.write(json.dumps({"error": f"Danbooru API error: {e.code}", "details": err_body}).encode('utf-8'))
             except Exception as e:
-                print(f"--- 本地代理 Upscale 错误: {str(e)} ---")
+                print(f"--- 本地代理 Danbooru 错误: {str(e)} ---")
                 self.send_response(500)
                 self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
         else:
             self.send_error(404, "Not Found")
+
+    def do_GET(self):
+        if self.path.startswith('/danbooru') or self.path.startswith('/api/danbooru'):
+            try:
+                parsed_url = urllib.parse.urlparse(self.path)
+                params = urllib.parse.parse_qs(parsed_url.query)
+                tags = params.get('tags', [''])[0]
+                limit = min(int(params.get('limit', ['20'])[0]), 50)
+                page = int(params.get('page', ['1'])[0])
+
+                query_params = urllib.parse.urlencode({
+                    'tags': tags,
+                    'limit': limit,
+                    'page': page
+                })
+                target_url = f'https://danbooru.donmai.us/posts.json?{query_params}'
+                print(f"--- 正在请求 Danbooru API: {target_url} ---")
+
+                req = urllib.request.Request(
+                    target_url,
+                    headers={
+                        'User-Agent': 'NovelAIOpusArt/2.0 (InspirationTool; contact: novelai-art-repost)',
+                        'Accept': 'application/json'
+                    },
+                    method='GET'
+                )
+
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    resp_data = response.read()
+                    posts = json.loads(resp_data.decode('utf-8'))
+                    
+                    sanitized_posts = []
+                    if isinstance(posts, list):
+                        for p in posts:
+                            preview_url = p.get('preview_file_url') or p.get('large_file_url') or p.get('file_url') or ''
+                            media_asset = p.get('media_asset') or {}
+                            variants = media_asset.get('variants') or []
+                            for v in variants:
+                                if v.get('type') in ['sample', '360x360', '180x180'] and v.get('url'):
+                                    preview_url = v.get('url')
+                                    break
+                            
+                            sanitized_posts.append({
+                                "id": p.get('id'),
+                                "created_at": p.get('created_at'),
+                                "score": p.get('score'),
+                                "fav_count": p.get('fav_count'),
+                                "rating": p.get('rating'),
+                                "tag_string_artist": p.get('tag_string_artist', ''),
+                                "tag_string_character": p.get('tag_string_character', ''),
+                                "tag_string_copyright": p.get('tag_string_copyright', ''),
+                                "tag_string_general": p.get('tag_string_general', ''),
+                                "tag_string": p.get('tag_string', ''),
+                                "preview_url": preview_url,
+                                "image_width": p.get('image_width'),
+                                "image_height": p.get('image_height')
+                            })
+
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": True, "count": len(sanitized_posts), "posts": sanitized_posts}).encode('utf-8'))
+            except Exception as e:
+                print(f"--- 本地代理 Danbooru GET 错误: {str(e)} ---")
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+        else:
+            super().do_GET()
 
 if __name__ == '__main__':
     socketserver.TCPServer.allow_reuse_address = True
