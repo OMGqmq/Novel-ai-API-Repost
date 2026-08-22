@@ -488,7 +488,7 @@
                 
                 <div id="characterPromptsPanel" class="hidden space-y-3 pt-1 pb-2">
                     <div class="flex items-center justify-between px-1">
-                        <button type="button" onclick="window.openCharPositionStage ? window.openCharPositionStage() : null" 
+                        <button type="button" id="charStageLaunchBtn" onclick="window.openCharPositionStage ? window.openCharPositionStage() : null" 
                             class="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 cursor-pointer transition-all border border-indigo-200/50 dark:border-indigo-800/50" title="在主预览画布上全屏交互式编排所有角色位置">
                             <i data-lucide="maximize-2" class="w-3 h-3"></i> 大画布位置编排
                         </button>
@@ -2357,7 +2357,7 @@
     <!-- 全局统一下载静默锚点，用于规避 Chrome/Edge 对动态创建 A 标签的多文件安全拦截 -->
     <a id="globalDownloadAnchor" style="display: none;" rel="noopener"></a>
 
-    <script type="module" src="src/main.js?v=20260822_06"></script>
+    <script type="module" src="src/main.js?v=20260822_07"></script>
 </body>
 
 </html>

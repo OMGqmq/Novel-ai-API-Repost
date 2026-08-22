@@ -726,7 +726,8 @@ describe('Refactored Suite', () => {
       el.gridCells = Array.from({ length: 25 }, (_, i) => ({
         className: '',
         title: '',
-        style: {}
+        style: {},
+        getAttribute: (k) => k === 'data-x' ? String(((i % 5) * 2 + 1) / 10) : String((Math.floor(i / 5) * 2 + 1) / 10)
       }));
 
       Object.defineProperty(el, 'innerHTML', {
@@ -759,6 +760,13 @@ describe('Refactored Suite', () => {
     }
 
     global.document.createElement = createMockElement;
+    global.document.querySelectorAll = (sel) => {
+      if (sel === '.char-pos-pad') {
+        return createdElements.map(e => e.posPad).filter(Boolean);
+      }
+      if (sel === '.character-prompt-row') return createdElements;
+      return [];
+    };
     global.document.getElementById = (id) => {
       if (id === 'characterPromptsContainer') {
         return {
@@ -772,6 +780,14 @@ describe('Refactored Suite', () => {
       if (id === 'charCountBadge') {
         return {
           textContent: '',
+          classList: {
+            add: (cls) => {},
+            remove: (cls) => {}
+          }
+        };
+      }
+      if (id === 'charStageLaunchBtn') {
+        return {
           classList: {
             add: (cls) => {},
             remove: (cls) => {}

@@ -5,10 +5,67 @@
 export class CharPromptManager {
     constructor() {
         this.store = null;
+        this.currentModel = 'v3';
+        this.activeStageCharIndex = 0;
+        this.stageGridMode = 'thirds';
     }
 
     bind(store) {
         this.store = store;
+        if (store) {
+            this.currentModel = store.getSetting('model', 'v3');
+        }
+    }
+
+    onModelChange(ver) {
+        this.currentModel = ver || 'v3';
+        
+        // 控制顶部“大画布位置编排”按钮（仅 V5 支持自由选点与全屏画布）
+        const launchBtn = document.getElementById('charStageLaunchBtn');
+        if (launchBtn) {
+            if (this.currentModel === 'v5') {
+                launchBtn.classList.remove('hidden');
+            } else {
+                launchBtn.classList.add('hidden');
+            }
+        }
+
+        // 遍历所有角色行，切换 5x5 网格 (V4.5) / 2D 连续自由画板 (V5)
+        const container = document.getElementById('characterPromptsContainer');
+        if (container) {
+            const rows = container.querySelectorAll('.character-prompt-row');
+            rows.forEach(row => {
+                const autoPos = row.querySelector('.char-auto-pos')?.checked !== false;
+                const v5Wrap = row.querySelector('.char-v5-pos-wrapper');
+                const v45Wrap = row.querySelector('.char-v45-grid-wrapper');
+                const posTitle = row.querySelector('.char-pos-title');
+
+                if (this.currentModel === 'v5') {
+                    if (posTitle) posTitle.textContent = '角色定位 (Position - 自由选点)';
+                    if (v45Wrap) v45Wrap.classList.add('hidden');
+                    if (v5Wrap) {
+                        if (autoPos) v5Wrap.classList.add('hidden');
+                        else v5Wrap.classList.remove('hidden');
+                    }
+                } else if (this.currentModel === 'v4.5') {
+                    if (posTitle) posTitle.textContent = '角色定位 (Position - 5x5网格)';
+                    if (v5Wrap) v5Wrap.classList.add('hidden');
+                    if (v45Wrap) {
+                        if (autoPos) v45Wrap.classList.add('hidden');
+                        else v45Wrap.classList.remove('hidden');
+                    }
+                    // 同步高亮匹配的 5x5 单元格
+                    const curX = parseFloat(row.querySelector('.char-pos-x')?.value || '0.5');
+                    const curY = parseFloat(row.querySelector('.char-pos-y')?.value || '0.5');
+                    this._highlightMatchingGridCell(row, curX, curY);
+                } else {
+                    if (v5Wrap) v5Wrap.classList.add('hidden');
+                    if (v45Wrap) v45Wrap.classList.add('hidden');
+                }
+            });
+        }
+
+        this.updatePadAspectRatio();
     }
 
     /**
@@ -78,6 +135,61 @@ export class CharPromptManager {
         this.store.setSetting('nai_v45_character_prompts', JSON.stringify(list));
     }
 
+    _generateGridCellsHtml(safeX, safeY) {
+        const labels = [
+            'A1','A2','A3','A4','A5',
+            'B1','B2','B3','B4','B5',
+            'C1','C2','C3','C4','C5',
+            'D1','D2','D3','D4','D5',
+            'E1','E2','E3','E4','E5'
+        ];
+        return labels.map((label, idx) => {
+            const row = Math.floor(idx / 5);
+            const col = idx % 5;
+            const cellX = (col * 2 + 1) / 10;
+            const cellY = (row * 2 + 1) / 10;
+            const isSelected = Math.abs(safeX - cellX) < 0.11 && Math.abs(safeY - cellY) < 0.11;
+            return `
+                <button type="button" 
+                    class="char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-all flex items-center justify-center cursor-pointer ${
+                        isSelected 
+                            ? 'bg-indigo-600 border-indigo-600 text-white font-bold shadow-sm' 
+                            : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                    }" 
+                    data-x="${cellX}" 
+                    data-y="${cellY}" 
+                    data-coord="${label}" 
+                    onclick="window.selectCharGridCell ? window.selectCharGridCell(this, ${cellX}, ${cellY}) : null" 
+                    title="位置: ${label}">
+                    ${label}
+                </button>
+            `;
+        }).join('');
+    }
+
+    _highlightMatchingGridCell(row, x, y) {
+        const grid = row.querySelector('.char-grid-container');
+        if (!grid) return;
+        const cells = grid.querySelectorAll('.char-grid-cell');
+        let minDistance = Infinity;
+        let closestCell = null;
+
+        cells.forEach(cell => {
+            const cx = parseFloat(cell.getAttribute('data-x') || '0.5');
+            const cy = parseFloat(cell.getAttribute('data-y') || '0.5');
+            const dist = Math.hypot(x - cx, y - cy);
+            if (dist < minDistance) {
+                minDistance = dist;
+                closestCell = cell;
+            }
+            cell.className = 'char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-all flex items-center justify-center cursor-pointer bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700';
+        });
+
+        if (closestCell) {
+            closestCell.className = 'char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-all flex items-center justify-center cursor-pointer bg-indigo-600 border-indigo-600 text-white font-bold shadow-sm';
+        }
+    }
+
     addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, autoPos = true, enabled = true, isInitializing = false) {
         const container = document.getElementById('characterPromptsContainer');
         if (!container) return;
@@ -96,6 +208,10 @@ export class CharPromptManager {
 
         const safeX = typeof x === 'number' && !isNaN(x) ? Math.max(0.01, Math.min(0.99, x)) : 0.5;
         const safeY = typeof y === 'number' && !isNaN(y) ? Math.max(0.01, Math.min(0.99, y)) : 0.5;
+
+        // 获取当前模型版本以决定默认显示 5x5 网格还是 2D 连续画板
+        const activeModel = this.currentModel || (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : 'v3') || 'v3';
+        const isV5 = activeModel === 'v5';
 
         div.innerHTML = `
             <div class="flex justify-between items-center select-none cursor-pointer char-row-header">
@@ -126,7 +242,7 @@ export class CharPromptManager {
                 </div>
                 <div class="space-y-1 mt-2">
                     <div class="flex justify-between items-center text-[9px] text-gray-400 dark:text-gray-500">
-                        <span>角色定位 (Position - 自由选点)</span>
+                        <span class="char-pos-title">${isV5 ? '角色定位 (Position - 自由选点)' : '角色定位 (Position - 5x5网格)'}</span>
                         <label class="flex items-center gap-1 cursor-pointer select-none">
                             <input type="checkbox" class="char-auto-pos sr-only peer" ${autoPos ? 'checked' : ''}>
                             <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600 relative scale-90"></div>
@@ -134,9 +250,9 @@ export class CharPromptManager {
                         </label>
                     </div>
 
-                    <!-- 自由 2D 连续坐标定位画板 -->
-                    <div class="char-pos-box-wrapper ${autoPos ? 'hidden' : ''} mt-2 flex flex-col gap-2">
-                        <div class="char-pos-pad relative w-full h-32 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-100/90 dark:bg-slate-900/80 overflow-hidden cursor-crosshair select-none touch-none shadow-inner">
+                    <!-- V5 专属：自由 2D 连续坐标定位画板 (自适应画幅比例) -->
+                    <div class="char-v5-pos-wrapper char-pos-box-wrapper ${autoPos || !isV5 ? 'hidden' : ''} mt-2 flex flex-col gap-2">
+                        <div class="char-pos-pad relative rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-100/90 dark:bg-slate-900/80 overflow-hidden cursor-crosshair select-none touch-none shadow-inner mx-auto" style="width: 140px; height: 205px;">
                             <!-- 九宫格与中心辅助线 -->
                             <div class="absolute inset-0 pointer-events-none opacity-25 dark:opacity-35">
                                 <div class="absolute left-1/3 inset-y-0 border-l border-dashed border-gray-400 dark:border-gray-600"></div>
@@ -169,11 +285,18 @@ export class CharPromptManager {
                                 <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.5" data-y="0.75">下方</button>
                             </div>
                         </div>
-
-                        <!-- 隐藏输入框以保存坐标 -->
-                        <input type="hidden" class="char-pos-x" value="${safeX}" />
-                        <input type="hidden" class="char-pos-y" value="${safeY}" />
                     </div>
+
+                    <!-- V4.5 专属：5x5 离散网格选点器 -->
+                    <div class="char-v45-grid-wrapper ${autoPos || isV5 ? 'hidden' : ''} mt-2">
+                        <div class="char-grid-container grid grid-cols-5 gap-1.5 p-2 bg-gray-100/90 dark:bg-slate-900/80 rounded-xl border border-gray-200 dark:border-slate-700 max-w-[240px] mx-auto">
+                            ${this._generateGridCellsHtml(safeX, safeY)}
+                        </div>
+                    </div>
+
+                    <!-- 隐藏输入框以保存坐标 -->
+                    <input type="hidden" class="char-pos-x" value="${safeX}" />
+                    <input type="hidden" class="char-pos-y" value="${safeY}" />
                 </div>
             </div>
         `;
@@ -263,7 +386,8 @@ export class CharPromptManager {
         const posXInput = div.querySelector('.char-pos-x');
         const posYInput = div.querySelector('.char-pos-y');
         const autoPosCheckbox = div.querySelector('.char-auto-pos');
-        const posBoxWrapper = div.querySelector('.char-pos-box-wrapper');
+        const v5PosWrapper = div.querySelector('.char-v5-pos-wrapper');
+        const v45GridWrapper = div.querySelector('.char-v45-grid-wrapper');
 
         const updatePosition = (clientX, clientY) => {
             if (!pad || !posXInput || !posYInput) return;
@@ -288,6 +412,7 @@ export class CharPromptManager {
             if (coordsLabel) {
                 coordsLabel.textContent = `X: ${(finalX * 100).toFixed(0)}% | Y: ${(finalY * 100).toFixed(0)}%`;
             }
+            this._highlightMatchingGridCell(div, finalX, finalY);
         };
 
         let isDragging = false;
@@ -328,11 +453,13 @@ export class CharPromptManager {
         });
 
         // 监听 AI 自动位置开关
-        if (autoPosCheckbox && posBoxWrapper) {
+        if (autoPosCheckbox) {
             autoPosCheckbox.addEventListener('change', (e) => {
                 if (autoPosCheckbox.disabled) return;
+                const model = this.currentModel || 'v3';
                 if (e.target.checked) {
-                    posBoxWrapper.classList.add('hidden');
+                    if (v5PosWrapper) v5PosWrapper.classList.add('hidden');
+                    if (v45GridWrapper) v45GridWrapper.classList.add('hidden');
                     if (posXInput) posXInput.value = "0.5";
                     if (posYInput) posYInput.value = "0.5";
                     if (pin) {
@@ -343,7 +470,8 @@ export class CharPromptManager {
                         coordsLabel.textContent = "X: 50% | Y: 50%";
                     }
                 } else {
-                    posBoxWrapper.classList.remove('hidden');
+                    if (model === 'v5' && v5PosWrapper) v5PosWrapper.classList.remove('hidden');
+                    if (model === 'v4.5' && v45GridWrapper) v45GridWrapper.classList.remove('hidden');
                 }
                 this.saveCharacterPromptsState();
             });
@@ -361,6 +489,7 @@ export class CharPromptManager {
 
         container.appendChild(div);
         this.updateCharacterIndexLabels();
+        this.updatePadAspectRatio();
 
         if (!isInitializing) {
             this.saveCharacterPromptsState();
@@ -441,11 +570,70 @@ export class CharPromptManager {
             coordsLabel.textContent = `X: ${(finalX * 100).toFixed(0)}% | Y: ${(finalY * 100).toFixed(0)}%`;
         }
 
+        this._highlightMatchingGridCell(row, finalX, finalY);
         this.saveCharacterPromptsState();
     }
 
     selectCharGridCell(btn, x, y) {
         this.setCharPosition(btn, x, y);
+    }
+
+    /**
+     * 根据当前选择的画幅分辨率动态适配侧边栏选点小画板 (Mini Pad) 的宽高比
+     */
+    updatePadAspectRatio() {
+        const resSelect = typeof document !== 'undefined' && typeof document.getElementById === 'function' ? document.getElementById('resolution') : null;
+        let ratio = 832 / 1216; // 默认 Portrait
+        if (resSelect && resSelect.value) {
+            const [w, h] = resSelect.value.split(',').map(Number);
+            if (w && h && !isNaN(w) && !isNaN(h)) {
+                ratio = w / h;
+            }
+        }
+
+        const pads = typeof document !== 'undefined' && typeof document.querySelectorAll === 'function' ? document.querySelectorAll('.char-pos-pad') : [];
+        if (pads && typeof pads.forEach === 'function') {
+            pads.forEach(pad => {
+                if (!pad || !pad.style) return;
+                pad.style.aspectRatio = `${ratio}`;
+                if (ratio < 0.95) {
+                    // Portrait 竖版 (例如 832x1216 = 0.684)
+                    const h = 165;
+                    const w = Math.round(h * ratio);
+                    pad.style.height = `${h}px`;
+                    pad.style.width = `${w}px`;
+                    pad.style.maxWidth = '100%';
+                } else if (ratio > 1.05) {
+                    // Landscape 横版 (例如 1216x832 = 1.46)
+                    const maxW = 220;
+                    const h = Math.round(maxW / ratio);
+                    pad.style.width = `${maxW}px`;
+                    pad.style.height = `${h}px`;
+                    pad.style.maxWidth = '100%';
+                } else {
+                    // Square 方版 (1024x1024 = 1.0)
+                    pad.style.width = '145px';
+                    pad.style.height = '145px';
+                    pad.style.maxWidth = '100%';
+                }
+            });
+        }
+
+        // 同时自适应更新大画布选点画板（若已打开）
+        const boxEl = typeof document !== 'undefined' ? document.getElementById('charStageBox') : null;
+        if (boxEl) {
+            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+            const availableH = (typeof window !== 'undefined' ? window.innerHeight : 800) - (isMobile ? 190 : 160);
+            const availableW = (typeof window !== 'undefined' ? window.innerWidth : 1200) - (isMobile ? 28 : 64);
+            let maxH = Math.max(180, Math.min(availableH, 520));
+            let calcW = maxH * ratio;
+            if (calcW > availableW) {
+                calcW = availableW;
+                maxH = calcW / ratio;
+            }
+            boxEl.style.height = `${Math.round(maxH)}px`;
+            boxEl.style.width = `${Math.round(calcW)}px`;
+        }
     }
 
     /**
@@ -471,28 +659,7 @@ export class CharPromptManager {
             window.toggleMobileControls(false);
         }
 
-        // 依据当前设置的分辨率自适应画板宽高比与屏幕可用空间
-        const resSelect = document.getElementById('resolution');
-        let ratio = 832 / 1216; // 默认 Portrait
-        if (resSelect && resSelect.value) {
-            const [w, h] = resSelect.value.split(',').map(Number);
-            if (w && h) ratio = w / h;
-        }
-
-        const boxEl = document.getElementById('charStageBox');
-        if (boxEl) {
-            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-            const availableH = (typeof window !== 'undefined' ? window.innerHeight : 800) - (isMobile ? 190 : 160);
-            const availableW = (typeof window !== 'undefined' ? window.innerWidth : 1200) - (isMobile ? 28 : 64);
-            let maxH = Math.max(180, Math.min(availableH, 520));
-            let calcW = maxH * ratio;
-            if (calcW > availableW) {
-                calcW = availableW;
-                maxH = calcW / ratio;
-            }
-            boxEl.style.height = `${Math.round(maxH)}px`;
-            boxEl.style.width = `${Math.round(calcW)}px`;
-        }
+        this.updatePadAspectRatio();
 
         stageEl.classList.remove('hidden');
         if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();

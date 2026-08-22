@@ -177,6 +177,7 @@ const randomPromptManager = new RandomPromptManager();
 const randomPromptController = new RandomPromptController();
 
 charPromptManager.bind(store);
+window.charPromptManager = charPromptManager;
 authController.bind(ui, store);
 adminController.bind(ui, store, authController);
 xyPlotManager.bind(store);
@@ -184,6 +185,7 @@ xyPlotManager.bind(store);
 settingsManager.bind(ui, store, {
     onModelChange: (model) => {
         loadVibeState(model);
+        charPromptManager.onModelChange(model);
     },
     onHydrate: () => {
         // Restore V4.5 cached character prompts
@@ -208,8 +210,19 @@ settingsManager.bind(ui, store, {
                 console.error('Failed to parse cached character prompts:', err);
             }
         }
+        const currentModel = store.getSetting('model', 'v3');
+        charPromptManager.onModelChange(currentModel);
+        charPromptManager.updatePadAspectRatio();
     }
 });
+
+// 监听画幅分辨率切换，动态联动侧边栏选点画板比例
+const resElement = document.getElementById('resolution');
+if (resElement) {
+    resElement.addEventListener('change', () => {
+        charPromptManager.updatePadAspectRatio();
+    });
+}
 
 function safeCreateIcons() {
     if (typeof lucide !== 'undefined' && lucide.createIcons) {

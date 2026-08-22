@@ -360,6 +360,11 @@ export class UIController {
             }
         }
 
+        // 通知 CharPromptManager 模型变更以进行 V4.5 (5x5点阵) / V5 (2D自由选点) 解耦
+        if (typeof window !== 'undefined' && window.charPromptManager && typeof window.charPromptManager.onModelChange === 'function') {
+            window.charPromptManager.onModelChange(ver);
+        }
+
         // 控制 NAI 专属组件在 zimage 模式下隐藏，而在 NAI 模型（v3, v4.5, v5）下显示
         const isZImage = ver === 'zimage';
         
