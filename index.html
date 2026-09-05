@@ -1423,11 +1423,11 @@
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                             <h3 class="font-bold text-xs sm:text-sm text-gray-800 dark:text-gray-100 whitespace-nowrap">
-                                AI 提示词创作助手
+                                NovelAI Agent 创作智能体
                             </h3>
                             <span id="aiChatModelBadge" class="text-[9px] sm:text-[10px] font-normal px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 border border-purple-200/40 dark:border-purple-800/30 font-mono truncate max-w-[100px] sm:max-w-[150px]">gpt-4o</span>
                         </div>
-                        <p class="text-[10px] text-gray-400 dark:text-slate-500 hidden sm:block truncate">自由构思角色、场景与二次元 Danbooru 高质量英文提示词</p>
+                        <p class="text-[10px] text-gray-400 dark:text-slate-500 hidden sm:block truncate">支持自主 Tool Calling 修改/追加提示词、多模型角色编排与 NAI5 规则注入</p>
                     </div>
                 </div>
 
@@ -1492,6 +1492,16 @@
                 <div>
                     <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">自定义系统提示词 (System Prompt)</label>
                     <textarea id="aiChatSystemPrompt" rows="2" class="art-input w-full px-3 py-1.5 rounded-xl text-xs outline-none resize-none leading-relaxed mt-0.5"></textarea>
+                </div>
+                <!-- NAI5 Prompting 专家规则注入开关 -->
+                <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-purple-200/50 dark:border-purple-800/40">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="aiAgentNai5RulesCheckbox" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800" checked>
+                        <label for="aiAgentNai5RulesCheckbox" class="text-xs font-bold text-gray-700 dark:text-gray-200 cursor-pointer select-none">
+                            注入 NAI5 提示词专家规则库 (nai5-prompting)
+                        </label>
+                    </div>
+                    <span class="text-[10px] text-purple-600 dark:text-purple-400 font-medium">默认开启 · 2200+ 实测图规程</span>
                 </div>
                 <div class="flex items-center justify-end gap-2 pt-1">
                     <button onclick="window.toggleAiChatSettings()" class="px-3 py-1.5 hover:bg-gray-200/50 dark:hover:bg-slate-800 text-gray-500 dark:text-gray-400 rounded-xl text-xs transition-all">

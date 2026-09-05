@@ -56,6 +56,44 @@ const aiChatManager = new AiChatManager({
         }
         els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
     },
+    onAddCharacter: (charData) => {
+        const charWrapper = document.getElementById('characterPromptsWrapper');
+        if (charWrapper) charWrapper.classList.remove('hidden');
+        if (window.charPromptManager) {
+            window.charPromptManager.addCharacterPromptRow(
+                charData.prompt,
+                charData.negative || '',
+                charData.x,
+                charData.y,
+                charData.autoPos,
+                true
+            );
+            window.charPromptManager.saveCharacterPromptsState();
+        } else if (typeof window.addCharacterPromptRow === 'function') {
+            window.addCharacterPromptRow(
+                charData.prompt,
+                charData.negative || '',
+                charData.x,
+                charData.y,
+                charData.autoPos,
+                true
+            );
+        }
+    },
+    getCanvasState: () => {
+        const model = (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : '') || store.getSetting('model', 'v5');
+        const prompt = els.prompt ? els.prompt.value.trim() : '';
+        const negative = els.negative ? els.negative.value.trim() : '';
+        const captions = (window.charPromptManager && typeof window.charPromptManager.getCharacterCaptions === 'function')
+            ? window.charPromptManager.getCharacterCaptions().charCaptions
+            : [];
+        return {
+            model,
+            prompt,
+            negative,
+            characters: captions
+        };
+    },
     onShowToast: window.showToast
 });
 window.aiChatManager = aiChatManager;

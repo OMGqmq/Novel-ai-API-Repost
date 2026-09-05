@@ -66,15 +66,17 @@ export class AiHelperService {
             baseUrl: this.store.getSetting('ai_helper_base_url', 'https://api.openai.com/v1'),
             apiKey: this.store.getSetting('ai_helper_api_key', ''),
             model: this.store.getSetting('ai_helper_model', 'gpt-4o'),
-            systemPrompt: this.store.getSetting('ai_helper_system_prompt', this.defaultSystemPrompt)
+            systemPrompt: this.store.getSetting('ai_helper_system_prompt', this.defaultSystemPrompt),
+            nai5RulesEnabled: this.store.getSetting('ai_agent_nai5_rules', true)
         };
     }
 
-    saveSettings({ baseUrl, apiKey, model, systemPrompt }) {
+    saveSettings({ baseUrl, apiKey, model, systemPrompt, nai5RulesEnabled }) {
         if (baseUrl !== undefined) this.store.setSetting('ai_helper_base_url', baseUrl);
         if (apiKey !== undefined) this.store.setSetting('ai_helper_api_key', apiKey);
         if (model !== undefined) this.store.setSetting('ai_helper_model', model);
         if (systemPrompt !== undefined) this.store.setSetting('ai_helper_system_prompt', systemPrompt);
+        if (nai5RulesEnabled !== undefined) this.store.setSetting('ai_agent_nai5_rules', Boolean(nai5RulesEnabled));
     }
 
     /**
@@ -117,7 +119,7 @@ export class AiHelperService {
     }
 
     /**
-     * Multi-turn chat conversation
+     * Multi-turn chat / Agent tool calling conversation
      * @param {Array<{role: string, content: string}>} messages 
      * @param {Object} options 
      */
@@ -145,6 +147,17 @@ export class AiHelperService {
             }
         }
 
+        const requestBody = {
+            model: effectiveModel,
+            messages: requestMessages,
+            temperature: options.temperature !== undefined ? options.temperature : 0.7
+        };
+
+        if (options.tools && Array.isArray(options.tools) && options.tools.length > 0) {
+            requestBody.tools = options.tools;
+            requestBody.tool_choice = options.tool_choice || 'auto';
+        }
+
         const response = await fetch(`${cleanUrl}/chat/completions`, {
             method: 'POST',
             headers: {
@@ -152,11 +165,7 @@ export class AiHelperService {
                 'Authorization': `Bearer ${effectiveApiKey}`
             },
             signal: options.signal,
-            body: JSON.stringify({
-                model: effectiveModel,
-                messages: requestMessages,
-                temperature: options.temperature !== undefined ? options.temperature : 0.7
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -165,7 +174,20 @@ export class AiHelperService {
         }
 
         const data = await response.json();
-        const content = data?.choices?.[0]?.message?.content;
+        const choice = data?.choices?.[0];
+        const message = choice?.message;
+        if (!message) {
+            throw new Error("API 未返回有效内容");
+        }
+
+        if (options.tools || options.returnFullMessage) {
+            return {
+                content: (message.content || '').trim(),
+                tool_calls: message.tool_calls || []
+            };
+        }
+
+        const content = message.content;
         if (!content) {
             throw new Error("API 未返回有效内容");
         }
