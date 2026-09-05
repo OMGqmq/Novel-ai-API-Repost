@@ -80,10 +80,90 @@ const aiChatManager = new AiChatManager({
             );
         }
     },
+    onSetModel: (ver) => {
+        window.setModel(ver);
+    },
+    onSetParameters: (params) => {
+        if (params.resValue) {
+            const resEl = document.getElementById('resolution');
+            if (resEl) {
+                resEl.value = params.resValue;
+                resEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        if (params.steps !== undefined) {
+            const stepsEl = document.getElementById('steps');
+            const stepsValEl = document.getElementById('stepsValue');
+            if (stepsEl) {
+                stepsEl.value = params.steps;
+                stepsEl.dispatchEvent(new Event('input', { bubbles: true }));
+                stepsEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (stepsValEl) stepsValEl.textContent = params.steps;
+        }
+        if (params.scale !== undefined) {
+            const scaleEl = document.getElementById('scale');
+            const scaleValEl = document.getElementById('scaleValue');
+            if (scaleEl) {
+                scaleEl.value = params.scale;
+                scaleEl.dispatchEvent(new Event('input', { bubbles: true }));
+                scaleEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (scaleValEl) scaleValEl.textContent = params.scale.toFixed(1);
+        }
+        if (params.seed !== undefined) {
+            const seedEl = document.getElementById('seed');
+            if (seedEl) {
+                seedEl.value = params.seed === '' ? '' : params.seed;
+                seedEl.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+        if (params.sampler) {
+            const samplerEl = document.getElementById('sampler');
+            if (samplerEl) {
+                samplerEl.value = params.sampler;
+                samplerEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    },
+    onRemoveCharacter: ({ index }) => {
+        const container = document.getElementById('characterPromptsContainer');
+        if (!container) return { success: false, error: '未找到角色容器' };
+        const rows = Array.from(container.querySelectorAll('.character-prompt-row'));
+        if (rows.length === 0) return { success: false, error: '当前画板暂无角色' };
+        if (String(index).toLowerCase() === 'all') {
+            rows.forEach(r => r.remove());
+            if (window.charPromptManager) {
+                window.charPromptManager.updateCharacterIndexLabels();
+                window.charPromptManager.saveCharacterPromptsState();
+            }
+            return { success: true, count: rows.length };
+        }
+        const idx = parseInt(index, 10);
+        const targetIdx = (idx >= 1 && idx <= rows.length) ? idx - 1 : idx;
+        if (targetIdx < 0 || targetIdx >= rows.length) {
+            return { success: false, error: `角色序号 #${index} 超出范围 (当前共有 ${rows.length} 个角色)` };
+        }
+        rows[targetIdx].remove();
+        if (window.charPromptManager) {
+            window.charPromptManager.updateCharacterIndexLabels();
+            window.charPromptManager.saveCharacterPromptsState();
+        }
+        return { success: true, removedIndex: targetIdx + 1 };
+    },
+    onGenerateImage: async () => {
+        return await doGenerate();
+    },
     getCanvasState: () => {
         const model = (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : '') || store.getSetting('model', 'v5');
         const prompt = els.prompt ? els.prompt.value.trim() : '';
         const negative = els.negative ? els.negative.value.trim() : '';
+        const resVal = (typeof document !== 'undefined' ? document.getElementById('resolution')?.value : '') || '832,1216';
+        const [w, h] = resVal.split(',').map(Number);
+        const steps = parseInt(typeof document !== 'undefined' ? document.getElementById('steps')?.value : '28', 10) || 28;
+        const scale = parseFloat(typeof document !== 'undefined' ? document.getElementById('scale')?.value : '5.0') || 5.0;
+        const sampler = (typeof document !== 'undefined' ? document.getElementById('sampler')?.value : '') || 'k_euler';
+        const seed = (typeof document !== 'undefined' ? document.getElementById('seed')?.value : '') || '';
         const captions = (window.charPromptManager && typeof window.charPromptManager.getCharacterCaptions === 'function')
             ? window.charPromptManager.getCharacterCaptions().charCaptions
             : [];
@@ -91,6 +171,12 @@ const aiChatManager = new AiChatManager({
             model,
             prompt,
             negative,
+            width: w,
+            height: h,
+            steps,
+            scale,
+            sampler,
+            seed,
             characters: captions
         };
     },
@@ -99,6 +185,38 @@ const aiChatManager = new AiChatManager({
 window.aiChatManager = aiChatManager;
 window.openAiChatModal = () => aiChatManager.open();
 window.closeAiChatModal = () => aiChatManager.close();
+
+// Global Image Helpers for Agent inline cards
+window.applyImageAsCanvasInit = async (imageUrl) => {
+    try {
+        if (!imageUrl) return;
+        const res = await fetch(imageUrl);
+        const blob = await res.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result;
+            appState.currentInitImageBase64 = base64;
+            const previewEl = document.getElementById('initImagePreview');
+            const previewWrapper = document.getElementById('initImageWrapper');
+            if (previewEl) previewEl.src = base64;
+            if (previewWrapper) previewWrapper.classList.remove('hidden');
+            if (window.showToast) window.showToast("已将生成图片设为画板底图", "success");
+        };
+        reader.readAsDataURL(blob);
+    } catch (err) {
+        if (window.showToast) window.showToast(`设为底图失败: ${err.message}`, "error");
+    }
+};
+
+window.downloadImageUrl = (imageUrl, filename = 'nai_agent_output.png') => {
+    if (!imageUrl) return;
+    const a = document.createElement('a');
+    a.href = imageUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+};
 
 const notebookManager = new NotebookManager({
     listContainerEl: document.getElementById('notebookList'),
@@ -473,9 +591,20 @@ async function doGenerateZImage() {
             window.lastSelectedImageUrl = selected.imageUrl;
         });
 
+        return {
+            success: true,
+            imageUrl: result.imageUrl,
+            seed: params.seed,
+            prompt: promptText,
+            width: params.width,
+            height: params.height,
+            results: [result]
+        };
+
     } catch (err) {
         console.error("ZImage Generate Error:", err);
         alert(err.message || err);
+        return { success: false, error: err.message || String(err) };
     } finally {
         ui.setLoading(false);
         ui.toggleMobileControls(true);
@@ -487,7 +616,7 @@ async function doGenerate() {
         appState.cancelRequested = true;
         const deskText = document.getElementById('deskBtnText');
         if (deskText) deskText.textContent = "正在停止...";
-        return;
+        return { success: false, error: "已有生成任务正在进行中，已发送停止指令" };
     }
 
     // Check if outpaint is active
@@ -496,7 +625,7 @@ async function doGenerate() {
         if (window.outpaintEditor) {
             window.outpaintEditor.generate();
         }
-        return;
+        return { success: false, error: "正在进行画布扩图" };
     }
 
     const selectedVersion = document.getElementById('modelValue').value;
@@ -509,7 +638,11 @@ async function doGenerate() {
 
     try {
         const promptText = els.prompt.value.trim();
-        if (!promptText) { els.prompt.focus(); ui.toggleMobileControls(true); return; }
+        if (!promptText) {
+            els.prompt.focus();
+            ui.toggleMobileControls(true);
+            return { success: false, error: "提示词不能为空" };
+        }
 
         const selectedVersion = document.getElementById('modelValue').value;
         const resEl = document.getElementById('resolution');
@@ -561,6 +694,8 @@ async function doGenerate() {
         if (isAdmin && xyPlotManager.isEnabled()) {
             return doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, authBase });
         }
+
+        const allGeneratedResults = [];
 
         for (let i = 0; i < batchTotal; i++) {
             if (appState.cancelRequested) {
@@ -743,6 +878,8 @@ async function doGenerate() {
                     window.lastSelectedImageUrl = selected.imageUrl;
                 });
 
+                allGeneratedResults.push(...successfulResults);
+
                 if (appState.cancelRequested) {
                     console.log("收到停止请求，终止后续循环");
                     break;
@@ -758,9 +895,24 @@ async function doGenerate() {
                 break;
             }
         }
+
+        if (allGeneratedResults.length > 0) {
+            const first = allGeneratedResults[0];
+            return {
+                success: true,
+                imageUrl: first.imageUrl,
+                seed: first.seed,
+                prompt: promptText,
+                width: w,
+                height: h,
+                results: allGeneratedResults
+            };
+        }
+        return { success: false, error: "未生成任何有效图像" };
     } catch (globalErr) {
         console.error("Global doGenerate Error:", globalErr);
         alert("发生意外错误: " + globalErr.message);
+        return { success: false, error: globalErr.message };
     } finally {
         appState.isGenerating = false;
         appState.cancelRequested = false;

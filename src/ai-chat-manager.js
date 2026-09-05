@@ -122,6 +122,10 @@ export class AiChatManager {
         this.service = config.service;
         this.onApplyPrompt = config.onApplyPrompt || (() => {});
         this.onAddCharacter = config.onAddCharacter || null;
+        this.onSetModel = config.onSetModel || null;
+        this.onSetParameters = config.onSetParameters || null;
+        this.onRemoveCharacter = config.onRemoveCharacter || null;
+        this.onGenerateImage = config.onGenerateImage || null;
         this.getCanvasState = config.getCanvasState || (() => ({ model: 'v5', prompt: '', negative: '', characters: [] }));
         this.onShowToast = config.onShowToast || ((msg, type) => {
             if (typeof window !== 'undefined' && window.showToast) window.showToast(msg, type);
@@ -389,7 +393,9 @@ export class AiChatManager {
             return;
         }
 
-        let html = this.messages.map((m, idx) => {
+        const displayMessages = this.messages.filter(m => m.role === 'user' || m.role === 'assistant');
+        let html = displayMessages.map((m) => {
+            const originalIdx = this.messages.indexOf(m);
             const isUser = m.role === 'user';
             if (isUser) {
                 return `
@@ -400,18 +406,57 @@ export class AiChatManager {
                     </div>
                 `;
             } else {
-                const renderedContent = renderMessageMarkdown(m.content, idx);
+                const renderedContent = renderMessageMarkdown(m.content, originalIdx);
                 let toolCardsHtml = '';
                 if (Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
                     toolCardsHtml = m.tool_calls.map(tc => {
                         const isSuccess = tc.success !== false;
-                        const icon = isSuccess ? 'wrench' : 'alert-circle';
+                        const icon = isSuccess ? (tc.tool === 'generate_image' ? 'sparkles' : 'wrench') : 'alert-circle';
                         const colorClass = isSuccess
-                            ? 'bg-purple-50/90 dark:bg-purple-950/40 border-purple-200/70 dark:border-purple-800/50 text-purple-700 dark:text-purple-300'
+                            ? (tc.tool === 'generate_image' 
+                                ? 'bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/40 dark:to-indigo-950/40 border-purple-300 dark:border-purple-700/60 text-purple-800 dark:text-purple-200' 
+                                : 'bg-purple-50/90 dark:bg-purple-950/40 border-purple-200/70 dark:border-purple-800/50 text-purple-700 dark:text-purple-300')
                             : 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-200/70 dark:border-amber-800/50 text-amber-700 dark:text-amber-300';
-                        const toolLabel = tc.tool === 'update_prompt'
-                            ? '已调用画板工具: 更改提示词'
-                            : (tc.tool === 'add_character' ? '已调用画板工具: 添加角色' : `已调用工具: ${tc.tool}`);
+                        
+                        const toolLabels = {
+                            update_prompt: '已调用画板工具: 更新提示词',
+                            add_character: '已调用画板工具: 添加角色',
+                            remove_character: '已调用画板工具: 删除角色',
+                            set_model: '已调用画板工具: 切换模型',
+                            set_parameters: '已调用画板工具: 调整参数',
+                            get_canvas_state: '已调用画板工具: 读取状态',
+                            generate_image: '已调用画板工具: 生成图像'
+                        };
+                        const toolLabel = toolLabels[tc.tool] || `已调用工具: ${tc.tool}`;
+
+                        let imageBlockHtml = '';
+                        if (tc.imageUrl) {
+                            const seedVal = tc.seed !== undefined ? tc.seed : '随机';
+                            const w = tc.width || 832;
+                            const h = tc.height || 1216;
+                            imageBlockHtml = `
+                                <div class="mt-2 rounded-xl overflow-hidden border border-purple-200 dark:border-purple-800/60 bg-black/10 dark:bg-black/40">
+                                    <div class="relative group max-h-80 flex items-center justify-center bg-slate-950/20 overflow-hidden">
+                                        <img src="${tc.imageUrl}" alt="AI Generated" class="w-full h-auto max-h-72 object-contain cursor-pointer transition-transform duration-200 hover:scale-[1.01]" onclick="window.openLightbox ? window.openLightbox('${tc.imageUrl}') : window.open('${tc.imageUrl}', '_blank')" />
+                                        <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-xs p-1 rounded-lg shadow-md">
+                                            <button onclick="window.downloadImageUrl ? window.downloadImageUrl('${tc.imageUrl}', 'nai_agent_${seedVal}.png') : window.open('${tc.imageUrl}', '_blank')" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="下载图片">
+                                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                            </button>
+                                            <button onclick="window.openLightbox ? window.openLightbox('${tc.imageUrl}') : window.open('${tc.imageUrl}', '_blank')" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="查看大图">
+                                                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="px-2.5 py-1.5 flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 bg-white/80 dark:bg-slate-900/80 border-t border-purple-100 dark:border-purple-900/40">
+                                        <span>Seed: <code class="font-mono font-bold text-purple-600 dark:text-purple-400">${seedVal}</code> (${w}x${h})</span>
+                                        <button onclick="window.applyImageAsCanvasInit ? window.applyImageAsCanvasInit('${tc.imageUrl}') : null" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-1 font-semibold transition-colors cursor-pointer">
+                                            <i data-lucide="image" class="w-3 h-3"></i> 设为画板底图
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+
                         return `
                             <div class="p-2 sm:p-2.5 rounded-xl border text-[11px] leading-snug space-y-0.5 ${colorClass}">
                                 <div class="flex items-center gap-1.5 font-bold">
@@ -421,6 +466,7 @@ export class AiChatManager {
                                 <div class="text-[10px] pl-5 opacity-90 break-words">
                                     ${escapeHtml(tc.message || tc.error || '')}
                                 </div>
+                                ${imageBlockHtml}
                             </div>
                         `;
                     }).join('');
@@ -440,13 +486,13 @@ export class AiChatManager {
                             ` : ''}
                             <!-- Action buttons -->
                             <div class="flex items-center gap-1.5 px-0.5 text-[11px] flex-wrap">
-                                <button onclick="window.applyAiPromptToCanvas(${idx}, 'replace')" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 touch-manipulation">
+                                <button onclick="window.applyAiPromptToCanvas(${originalIdx}, 'replace')" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 touch-manipulation">
                                     <i data-lucide="wand-2" class="w-3 h-3"></i> 填入提示词
                                 </button>
-                                <button onclick="window.applyAiPromptToCanvas(${idx}, 'append')" class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 touch-manipulation">
+                                <button onclick="window.applyAiPromptToCanvas(${originalIdx}, 'append')" class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 touch-manipulation">
                                     <i data-lucide="plus" class="w-3 h-3"></i> 追加
                                 </button>
-                                <button onclick="window.copyAiChatMessage(this, ${idx})" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 transition-colors py-0.5 px-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-slate-700/40 touch-manipulation">
+                                <button onclick="window.copyAiChatMessage(this, ${originalIdx})" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 transition-colors py-0.5 px-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-slate-700/40 touch-manipulation">
                                     <i data-lucide="copy" class="w-3 h-3"></i> 复制
                                 </button>
                             </div>
@@ -493,6 +539,110 @@ export class AiChatManager {
         }
     }
 
+    buildSystemPrompt(settings, canvasState) {
+        const normModel = (canvasState.model || 'v5').toLowerCase();
+        let systemContext = (settings.systemPrompt || this.service.defaultSystemPrompt || '').trim();
+
+        if (settings.nai5RulesEnabled !== false) {
+            systemContext += `\n\n${NAI5_PROMPT_RULES}`;
+        }
+
+        const modelDesc = normModel === 'v3' 
+            ? 'V3 (nai-diffusion-3) - 【注意: V3 底层架构不支持独立多角色，禁止调用 add_character 工具】' 
+            : (normModel === 'v4.5' 
+                ? 'V4.5 (nai-diffusion-4-5-full) - 【注意: V4.5 角色位置使用 5x5 网格 A1~E5】' 
+                : 'V5 (nai-diffusion-5-full) - 【注意: V5 角色位置使用 2D 连续自由坐标 0.0~1.0】');
+
+        const charCount = canvasState.characters ? canvasState.characters.length : 0;
+        const charSummary = charCount > 0 
+            ? canvasState.characters.map((c, i) => `#${i+1}: ${c.prompt} (位置: ${c.position || (c.autoPos ? '自动' : `x:${c.x}, y:${c.y}`)})`).join('; ')
+            : '暂无角色';
+
+        const resInfo = `${canvasState.width || 832}x${canvasState.height || 1216}`;
+        const stepsInfo = `${canvasState.steps || 28} 步 (普通用户免费上限 28 步)`;
+
+        systemContext += `\n\n【画板环境实时感知与普通用户权限规范】
+- 当前绘图模型版本: ${modelDesc}
+- 当前画板正向提示词: "${canvasState.prompt || '(空)'}"
+- 当前画板排除词(Negative): "${canvasState.negative || '(空)'}"
+- 当前画幅分辨率: ${resInfo}
+- 当前生成步数: ${stepsInfo}
+- 当前Scale引导强度: ${canvasState.scale || 5.0}
+- 当前已有角色列表: ${charSummary}
+- 普通用户权限与免扣 Anlas 原则:
+  1. 普通用户出图权限严格限制在 Opus 免费规格：步数必须 <= 28 步；分辨率限标准免费尺寸 (832x1216, 1216x832, 1024x1024)；单批次 1 张。严禁设置超过 28 步或 XL 超大分辨率，杜绝消耗用户的 Anlas 点数。
+  2. 自主 Agent 行为规范: 当用户要求写词、调整画面、增删角色、更换模型或生成出图时，请主动调用对应的工具链 (update_prompt, add_character, remove_character, set_model, set_parameters, get_canvas_state, generate_image)。
+  3. 自主 Tool Loop 流程: 工具调用完毕后，系统会自动将工具结果反馈给你。如果用户要求直接出图展示，你可以在调整好参数与提示词后自主调用 generate_image 工具完成出图，最后给出友好的完成总结与点评。`;
+
+        return systemContext;
+    }
+
+    buildExecutionContext(normModel) {
+        return {
+            model: normModel,
+            onUpdatePrompt: (data) => {
+                this.onApplyPrompt(data.prompt, data.mode);
+                if (data.negative) {
+                    const negInput = typeof document !== 'undefined' ? document.getElementById('negative') : null;
+                    if (negInput) {
+                        if (data.negativeMode === 'append') {
+                            const exist = negInput.value.trim();
+                            negInput.value = exist ? `${exist}, ${data.negative}` : data.negative;
+                        } else {
+                            negInput.value = data.negative;
+                        }
+                        negInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
+            },
+            onAddCharacter: (charData) => {
+                if (this.onAddCharacter) {
+                    this.onAddCharacter(charData);
+                } else if (typeof window !== 'undefined' && typeof window.addCharacterPromptRow === 'function') {
+                    window.addCharacterPromptRow(
+                        charData.prompt,
+                        charData.negative || '',
+                        charData.x,
+                        charData.y,
+                        charData.autoPos,
+                        true
+                    );
+                }
+            },
+            onRemoveCharacter: (params) => {
+                if (this.onRemoveCharacter) {
+                    return this.onRemoveCharacter(params);
+                }
+                return { success: false, error: '未提供角色移除回调' };
+            },
+            onSetModel: (model) => {
+                if (this.onSetModel) {
+                    this.onSetModel(model);
+                } else if (typeof window !== 'undefined' && typeof window.setModel === 'function') {
+                    window.setModel(model);
+                }
+            },
+            onSetParameters: (params) => {
+                if (this.onSetParameters) {
+                    this.onSetParameters(params);
+                }
+            },
+            onGenerateImage: async () => {
+                if (this.onGenerateImage) {
+                    return await this.onGenerateImage();
+                } else if (typeof window !== 'undefined' && typeof window.doGenerate === 'function') {
+                    return await window.doGenerate();
+                }
+                return { success: false, error: '未提供图像生成回调' };
+            },
+            getCanvasState: () => {
+                return typeof this.getCanvasState === 'function'
+                    ? this.getCanvasState()
+                    : { model: 'v5', prompt: '', negative: '', characters: [] };
+            }
+        };
+    }
+
     async handleSendMessage(customPromptText = null) {
         if (this.isLoading) return;
 
@@ -507,12 +657,11 @@ export class AiChatManager {
             return;
         }
 
-        const canvasState = typeof this.getCanvasState === 'function' ? this.getCanvasState() : { model: 'v5', prompt: '', negative: '', characters: [] };
-        const normModel = (canvasState.model || 'v5').toLowerCase();
+        const initialCanvasState = typeof this.getCanvasState === 'function' ? this.getCanvasState() : { model: 'v5', prompt: '', negative: '', characters: [] };
 
         // Attach canvas prompt if requested
         if (this.includePromptCheckbox && this.includePromptCheckbox.checked && !customPromptText) {
-            const currentPrompt = canvasState.prompt || (typeof document !== 'undefined' ? document.getElementById('prompt')?.value.trim() : '');
+            const currentPrompt = initialCanvasState.prompt || (typeof document !== 'undefined' ? document.getElementById('prompt')?.value.trim() : '');
             if (currentPrompt) {
                 userContent = `[当前画板提示词: ${currentPrompt}]\n\n${userContent}`;
             }
@@ -538,114 +687,116 @@ export class AiChatManager {
         this.abortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
 
         try {
-            // Compose dynamic Agent context
-            let systemContext = (settings.systemPrompt || this.service.defaultSystemPrompt || '').trim();
+            const MAX_AGENT_LOOPS = 6;
+            let loopCount = 0;
 
-            if (settings.nai5RulesEnabled !== false) {
-                systemContext += `\n\n${NAI5_PROMPT_RULES}`;
-            }
-
-            const modelDesc = normModel === 'v3' 
-                ? 'V3 (nai-diffusion-3) - 【注意: V3 底层架构不支持独立多角色，禁止调用 add_character 工具】' 
-                : (normModel === 'v4.5' 
-                    ? 'V4.5 (nai-diffusion-4-5-full) - 【注意: V4.5 角色位置使用 5x5 网格 A1~E5】' 
-                    : 'V5 (nai-diffusion-5-full) - 【注意: V5 角色位置使用 2D 连续自由坐标 0.0~1.0】');
-
-            const charCount = canvasState.characters ? canvasState.characters.length : 0;
-            const charSummary = charCount > 0 
-                ? canvasState.characters.map((c, i) => `#${i+1}: ${c.prompt} (位置: ${c.position || (c.autoPos ? '自动' : `x:${c.x}, y:${c.y}`)})`).join('; ')
-                : '暂无角色';
-
-            systemContext += `\n\n【画板环境实时感知】
-- 当前绘图模型版本: ${modelDesc}
-- 当前画板正向提示词: "${canvasState.prompt || '(空)'}"
-- 当前画板排除词(Negative): "${canvasState.negative || '(空)'}"
-- 当前已有角色列表: ${charSummary}
-- Agent行为规范: 当用户希望修改、追加提示词或添加角色时，请主动调用相应的工具 (update_prompt, add_character)。若当前为 V3 模型且用户要求添加角色，请告知用户 V3 无法使用角色功能，并引导切换模型。`;
-
-            const requestMessages = this.messages.map(m => ({ role: m.role, content: m.content }));
-
-            const responseObj = await this.service.chat(
-                requestMessages,
-                {
-                    signal: this.abortController?.signal,
-                    systemPrompt: systemContext,
-                    tools: AGENT_TOOLS
+            while (loopCount < MAX_AGENT_LOOPS) {
+                if (this.abortController?.signal?.aborted) {
+                    break;
                 }
-            );
 
-            let rawText = '';
-            let toolCalls = [];
+                loopCount++;
 
-            if (typeof responseObj === 'string') {
-                rawText = responseObj;
-            } else if (responseObj && typeof responseObj === 'object') {
-                rawText = responseObj.content || '';
-                toolCalls = Array.isArray(responseObj.tool_calls) ? [...responseObj.tool_calls] : [];
-            }
+                const currentCanvasState = typeof this.getCanvasState === 'function'
+                    ? this.getCanvasState()
+                    : { model: 'v5', prompt: '', negative: '', characters: [] };
+                const currentNormModel = (currentCanvasState.model || 'v5').toLowerCase();
 
-            // Fallback: parse text tool calls if native tool_calls is empty
-            if (toolCalls.length === 0) {
-                const fallbackCalls = parseToolCallsFromText(rawText);
-                if (fallbackCalls.length > 0) {
-                    toolCalls = fallbackCalls;
-                }
-            }
+                const systemContext = this.buildSystemPrompt(settings, currentCanvasState);
 
-            // Execute all tools
-            const executedResults = [];
-            const executionContext = {
-                model: normModel,
-                onUpdatePrompt: (data) => {
-                    this.onApplyPrompt(data.prompt, data.mode);
-                    if (data.negative) {
-                        const negInput = typeof document !== 'undefined' ? document.getElementById('negative') : null;
-                        if (negInput) {
-                            if (data.negativeMode === 'append') {
-                                const exist = negInput.value.trim();
-                                negInput.value = exist ? `${exist}, ${data.negative}` : data.negative;
-                            } else {
-                                negInput.value = data.negative;
-                            }
-                            negInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
+                const requestMessages = this.messages.map(m => {
+                    const item = { role: m.role, content: m.content };
+                    if (m.rawToolCalls) item.tool_calls = m.rawToolCalls;
+                    if (m.tool_call_id) item.tool_call_id = m.tool_call_id;
+                    return item;
+                });
+
+                const responseObj = await this.service.chat(
+                    requestMessages,
+                    {
+                        signal: this.abortController?.signal,
+                        systemPrompt: systemContext,
+                        tools: AGENT_TOOLS
                     }
-                },
-                onAddCharacter: (charData) => {
-                    if (this.onAddCharacter) {
-                        this.onAddCharacter(charData);
-                    } else if (typeof window !== 'undefined' && typeof window.addCharacterPromptRow === 'function') {
-                        window.addCharacterPromptRow(
-                            charData.prompt,
-                            charData.negative || '',
-                            charData.x,
-                            charData.y,
-                            charData.autoPos,
-                            true
-                        );
+                );
+
+                let rawText = '';
+                let toolCalls = [];
+
+                if (typeof responseObj === 'string') {
+                    rawText = responseObj;
+                } else if (responseObj && typeof responseObj === 'object') {
+                    rawText = responseObj.content || '';
+                    toolCalls = Array.isArray(responseObj.tool_calls) ? [...responseObj.tool_calls] : [];
+                }
+
+                // Fallback: parse text tool calls if native tool_calls is empty
+                if (toolCalls.length === 0) {
+                    const fallbackCalls = parseToolCallsFromText(rawText);
+                    if (fallbackCalls.length > 0) {
+                        toolCalls = fallbackCalls;
                     }
                 }
-            };
 
-            for (const call of toolCalls) {
-                const res = executeToolCall(call, executionContext);
-                executedResults.push(res);
-                if (res.success) {
-                    this.onShowToast(res.message, 'success');
-                } else {
-                    this.onShowToast(res.error || '工具执行未成功', 'warning');
+                // If no tool calls, Agent completed reasoning! Save assistant message & terminate loop
+                if (toolCalls.length === 0) {
+                    if (rawText) {
+                        this.messages.push({
+                            id: (Date.now() + loopCount).toString(),
+                            role: 'assistant',
+                            content: rawText,
+                            timestamp: Date.now()
+                        });
+                        this.saveHistory();
+                    }
+                    break;
+                }
+
+                // Execute tools
+                const executedResults = [];
+                const executionContext = this.buildExecutionContext(currentNormModel);
+
+                for (const call of toolCalls) {
+                    if (this.abortController?.signal?.aborted) break;
+                    const res = await executeToolCall(call, executionContext);
+                    executedResults.push(res);
+                    if (res.success) {
+                        this.onShowToast(res.message, 'success');
+                    } else {
+                        this.onShowToast(res.error || '工具执行未成功', 'warning');
+                    }
+                }
+
+                // Record assistant message with tool cards
+                this.messages.push({
+                    id: (Date.now() + loopCount).toString(),
+                    role: 'assistant',
+                    content: rawText,
+                    tool_calls: executedResults,
+                    rawToolCalls: toolCalls,
+                    timestamp: Date.now()
+                });
+
+                // Append each tool result so next turn LLM can observe the results
+                toolCalls.forEach((call, idx) => {
+                    const result = executedResults[idx] || { success: true };
+                    this.messages.push({
+                        id: (Date.now() + loopCount * 10 + idx).toString(),
+                        role: 'tool',
+                        tool_call_id: call.id || `call_${Date.now()}_${idx}`,
+                        name: call.function?.name || call.name,
+                        content: JSON.stringify(result),
+                        timestamp: Date.now()
+                    });
+                });
+
+                this.saveHistory();
+                this.renderMessages();
+
+                if (this.abortController?.signal?.aborted) {
+                    break;
                 }
             }
-
-            this.messages.push({
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: rawText,
-                tool_calls: executedResults,
-                timestamp: Date.now()
-            });
-
-            this.saveHistory();
         } catch (err) {
             if (err.name === 'AbortError') {
                 this.onShowToast("已取消生成", "info");

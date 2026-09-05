@@ -142,9 +142,28 @@ export class AiHelperService {
             requestMessages.push({ role: 'system', content: effectiveSysPrompt });
         }
         for (const m of messages) {
-            if (m.role && m.content) {
-                requestMessages.push({ role: m.role, content: m.content });
+            if (!m || !m.role) continue;
+            const item = { role: m.role };
+            if (m.role === 'assistant') {
+                item.content = m.content !== undefined ? m.content : null;
+                if (m.rawToolCalls && Array.isArray(m.rawToolCalls) && m.rawToolCalls.length > 0) {
+                    item.tool_calls = m.rawToolCalls;
+                    if (!item.content) item.content = null;
+                } else if (m.tool_calls && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
+                    // Check if tool_calls are native OpenAI format
+                    if (m.tool_calls[0] && m.tool_calls[0].id && m.tool_calls[0].type === 'function') {
+                        item.tool_calls = m.tool_calls;
+                        if (!item.content) item.content = null;
+                    }
+                }
+            } else if (m.role === 'tool') {
+                item.tool_call_id = m.tool_call_id || m.id || 'call_0';
+                item.content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content || {});
+                if (m.name) item.name = m.name;
+            } else {
+                item.content = m.content || '';
             }
+            requestMessages.push(item);
         }
 
         const requestBody = {

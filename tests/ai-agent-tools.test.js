@@ -3,18 +3,29 @@ import {
   AGENT_TOOLS,
   resolveCharacterPosition,
   executeToolCall,
-  parseToolCallsFromText
+  parseToolCallsFromText,
+  clampSafeParameters,
+  FREE_RESOLUTIONS,
+  MAX_FREE_STEPS
 } from '../src/ai-agent-tools.js';
 import { NAI5_PROMPT_RULES } from '../src/nai5-rules.js';
 import { AiHelperService } from '../src/ai-helper-service.js';
+import { AiChatManager } from '../src/ai-chat-manager.js';
 
 describe('NovelAI Agent Tools & Positioning Suite', () => {
-  describe('1. Schema Validation', () => {
-    it('should declare both update_prompt and add_character tools in AGENT_TOOLS', () => {
-      expect(AGENT_TOOLS).toHaveLength(2);
+  describe('1. Schema Validation & Free Quota Guardrails', () => {
+    it('should declare full 7-tool suite in AGENT_TOOLS', () => {
+      expect(AGENT_TOOLS).toHaveLength(7);
       const names = AGENT_TOOLS.map(t => t.function.name);
-      expect(names).toContain('update_prompt');
-      expect(names).toContain('add_character');
+      expect(names).toEqual([
+        'update_prompt',
+        'add_character',
+        'remove_character',
+        'set_model',
+        'set_parameters',
+        'get_canvas_state',
+        'generate_image'
+      ]);
 
       const updateTool = AGENT_TOOLS.find(t => t.function.name === 'update_prompt');
       expect(updateTool.function.parameters.required).toContain('prompt');
@@ -25,6 +36,20 @@ describe('NovelAI Agent Tools & Positioning Suite', () => {
       expect(charTool.function.description).toContain('V3');
       expect(charTool.function.description).toContain('V4.5');
       expect(charTool.function.description).toContain('V5');
+
+      const removeCharTool = AGENT_TOOLS.find(t => t.function.name === 'remove_character');
+      expect(removeCharTool.function.parameters.required).toContain('index');
+
+      const modelTool = AGENT_TOOLS.find(t => t.function.name === 'set_model');
+      expect(modelTool.function.parameters.properties.model.enum).toEqual(['v3', 'v4.5', 'v5', 'zimage']);
+
+      const paramTool = AGENT_TOOLS.find(t => t.function.name === 'set_parameters');
+      expect(paramTool.function.description).toContain('普通用户');
+      expect(paramTool.function.description).toContain('Anlas');
+      expect(paramTool.function.parameters.properties.steps.maximum).toBe(28);
+
+      const genTool = AGENT_TOOLS.find(t => t.function.name === 'generate_image');
+      expect(genTool.function.description).toContain('普通用户');
     });
   });
 
@@ -325,6 +350,309 @@ I have updated your prompt!
       const calledBody = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(calledBody.tools).toEqual(AGENT_TOOLS);
       expect(calledBody.tool_choice).toBe('auto');
+    });
+  });
+
+  describe('6. Normal User Free Quota Guardrails (Anlas-Safe Clamping)', () => {
+    it('should clamp steps > 28 down to MAX_FREE_STEPS (28) and record adjustment message', () => {
+      const clamped = clampSafeParameters({ steps: 50 });
+      expect(clamped.steps).toBe(28);
+      expect(clamped.adjustments).toHaveLength(1);
+      expect(clamped.adjustments[0]).toContain('超出免费上限');
+      expect(clamped.adjustments[0]).toContain('Anlas');
+
+      const safeSteps = clampSafeParameters({ steps: 24 });
+      expect(safeSteps.steps).toBe(24);
+      expect(safeSteps.adjustments).toHaveLength(0);
+    });
+
+    it('should validate and map aspect_ratio to standard free resolutions', () => {
+      const portrait = clampSafeParameters({ aspect_ratio: 'portrait' });
+      expect(portrait.width).toBe(832);
+      expect(portrait.height).toBe(1216);
+      expect(portrait.resValue).toBe('832,1216');
+
+      const landscape = clampSafeParameters({ aspect_ratio: 'landscape' });
+      expect(landscape.width).toBe(1216);
+      expect(landscape.height).toBe(832);
+      expect(landscape.resValue).toBe('1216,832');
+
+      const square = clampSafeParameters({ aspect_ratio: 'square' });
+      expect(square.width).toBe(1024);
+      expect(square.height).toBe(1024);
+      expect(square.resValue).toBe('1024,1024');
+    });
+
+    it('should protect against oversized non-standard resolutions that drain Anlas', () => {
+      // 1536x2048 is an XL resolution that consumes Anlas -> should clamp to nearest free resolution
+      const oversized = clampSafeParameters({ width: 1536, height: 2048 });
+      expect(oversized.width).toBe(832);
+      expect(oversized.height).toBe(1216);
+      expect(oversized.adjustments).toHaveLength(1);
+      expect(oversized.adjustments[0]).toContain('超出普通免费区间');
+      expect(oversized.adjustments[0]).toContain('Anlas');
+    });
+
+    it('should safely clamp scale between 1.0 and 20.0 and sanitize seed', () => {
+      const clampedScale = clampSafeParameters({ scale: 25.5, seed: '123456' });
+      expect(clampedScale.scale).toBe(20.0);
+      expect(clampedScale.seed).toBe(123456);
+
+      const randomSeed = clampSafeParameters({ seed: 'random' });
+      expect(randomSeed.seed).toBe('');
+    });
+  });
+
+  describe('7. Extended Tool Execution Suite', () => {
+    it('should execute remove_character for specific index and all', () => {
+      const onRemoveCharacter = vi.fn().mockReturnValue({ success: true });
+
+      // Specific index
+      const resSingle = executeToolCall({
+        name: 'remove_character',
+        arguments: { index: 2 }
+      }, { onRemoveCharacter });
+
+      expect(resSingle.success).toBe(true);
+      expect(resSingle.message).toContain('已移除角色 #2');
+      expect(onRemoveCharacter).toHaveBeenCalledWith({ index: 2 });
+
+      // Clear all
+      const resAll = executeToolCall({
+        name: 'remove_character',
+        arguments: { index: 'all' }
+      }, { onRemoveCharacter });
+
+      expect(resAll.success).toBe(true);
+      expect(resAll.message).toContain('已清空画板上的全部角色');
+      expect(onRemoveCharacter).toHaveBeenCalledWith({ index: 'all' });
+    });
+
+    it('should execute set_model and reject unsupported versions', () => {
+      const onSetModel = vi.fn();
+
+      const resV5 = executeToolCall({
+        name: 'set_model',
+        arguments: { model: 'v5' }
+      }, { onSetModel });
+
+      expect(resV5.success).toBe(true);
+      expect(resV5.message).toContain('NovelAI Diffusion V5');
+      expect(onSetModel).toHaveBeenCalledWith('v5');
+
+      const resInvalid = executeToolCall({
+        name: 'set_model',
+        arguments: { model: 'unsupported-model' }
+      }, { onSetModel });
+
+      expect(resInvalid.success).toBe(false);
+      expect(resInvalid.error).toContain('不支持的模型版本');
+    });
+
+    it('should execute set_parameters with automatic Anlas protection', () => {
+      const onSetParameters = vi.fn();
+
+      const res = executeToolCall({
+        name: 'set_parameters',
+        arguments: {
+          aspect_ratio: 'portrait',
+          steps: 40, // Should be clamped to 28
+          scale: 5.5
+        }
+      }, { onSetParameters });
+
+      expect(res.success).toBe(true);
+      expect(res.details.steps).toBe(28);
+      expect(res.details.width).toBe(832);
+      expect(res.details.height).toBe(1216);
+      expect(res.message).toContain('安全保护');
+      expect(res.message).toContain('28步');
+      expect(onSetParameters).toHaveBeenCalledWith(expect.objectContaining({
+        steps: 28,
+        width: 832,
+        height: 1216
+      }));
+    });
+
+    it('should execute get_canvas_state', () => {
+      const mockState = {
+        model: 'v5',
+        prompt: '1girl, cyberpunk',
+        negative: 'lowres',
+        characters: [{ prompt: '1girl' }]
+      };
+      const res = executeToolCall({
+        name: 'get_canvas_state',
+        arguments: {}
+      }, { getCanvasState: () => mockState });
+
+      expect(res.success).toBe(true);
+      expect(res.details).toEqual(mockState);
+      expect(res.message).toContain('当前模型: v5');
+    });
+
+    it('should execute generate_image asynchronously and return rich output', async () => {
+      const onUpdatePrompt = vi.fn();
+      const onGenerateImage = vi.fn().mockResolvedValue({
+        success: true,
+        imageUrl: 'blob:http://localhost/test-image-uuid',
+        seed: 987654321,
+        width: 832,
+        height: 1216
+      });
+
+      const resPromise = executeToolCall({
+        name: 'generate_image',
+        arguments: {
+          prompt: '1girl, celestial dragon wings'
+        }
+      }, { onUpdatePrompt, onGenerateImage });
+
+      expect(resPromise).toBeInstanceOf(Promise);
+      const res = await resPromise;
+
+      expect(res.success).toBe(true);
+      expect(res.tool).toBe('generate_image');
+      expect(res.imageUrl).toBe('blob:http://localhost/test-image-uuid');
+      expect(res.seed).toBe(987654321);
+      expect(res.message).toContain('图像生成成功');
+      expect(onUpdatePrompt).toHaveBeenCalledWith({
+        prompt: '1girl, celestial dragon wings',
+        mode: 'replace',
+        negative: '',
+        negativeMode: 'replace'
+      });
+      expect(onGenerateImage).toHaveBeenCalled();
+    });
+  });
+
+  describe('8. Autonomous ReAct Tool Loop in AiChatManager', () => {
+    it('should execute multi-step tool loop until concluding answer is reached', async () => {
+      const mockStore = {
+        settings: {
+          ai_helper_api_key: 'sk-mock-key'
+        },
+        getSetting(key, def) {
+          return this.settings[key] !== undefined ? this.settings[key] : def;
+        },
+        setSetting(key, val) {
+          this.settings[key] = val;
+        }
+      };
+
+      // Step 1: Model calls set_parameters and update_prompt
+      const step1Response = {
+        content: '我先帮您调整参数并更新提示词。',
+        tool_calls: [
+          {
+            id: 'call_step1_1',
+            type: 'function',
+            function: {
+              name: 'set_parameters',
+              arguments: JSON.stringify({ aspect_ratio: 'portrait', steps: 28 })
+            }
+          },
+          {
+            id: 'call_step1_2',
+            type: 'function',
+            function: {
+              name: 'update_prompt',
+              arguments: JSON.stringify({ prompt: '1girl, cat ears, neon city', mode: 'replace' })
+            }
+          }
+        ]
+      };
+
+      // Step 2: Model calls generate_image after observing step 1 tool outputs
+      const step2Response = {
+        content: '参数与提示词已设定完成，现在立即为您生成图像。',
+        tool_calls: [
+          {
+            id: 'call_step2_1',
+            type: 'function',
+            function: {
+              name: 'generate_image',
+              arguments: '{}'
+            }
+          }
+        ]
+      };
+
+      // Step 3: Concluding turn without any tool calls
+      const step3Response = {
+        content: '图像已生成完毕！为您呈现这位赛博朋克猫耳少女。',
+        tool_calls: []
+      };
+
+      const chatMock = vi.fn()
+        .mockResolvedValueOnce(step1Response)
+        .mockResolvedValueOnce(step2Response)
+        .mockResolvedValueOnce(step3Response);
+
+      const mockService = {
+        getSettings: () => ({
+          apiKey: 'sk-mock-key',
+          baseUrl: 'https://api.openai.com/v1',
+          model: 'gpt-4o-mini',
+          systemPrompt: 'You are an agent.',
+          nai5RulesEnabled: true
+        }),
+        defaultSystemPrompt: 'You are an agent.',
+        chat: chatMock
+      };
+
+      const appliedPrompts = [];
+      const updatedParams = [];
+      const onGenerateImage = vi.fn().mockResolvedValue({
+        success: true,
+        imageUrl: 'blob:test-generated-img',
+        seed: 13579,
+        width: 832,
+        height: 1216
+      });
+
+      const manager = new AiChatManager({
+        service: mockService,
+        onApplyPrompt: (p, mode) => appliedPrompts.push({ p, mode }),
+        onSetParameters: (params) => updatedParams.push(params),
+        onGenerateImage: onGenerateImage,
+        getCanvasState: () => ({
+          model: 'v5',
+          prompt: '',
+          negative: '',
+          width: 832,
+          height: 1216,
+          steps: 28,
+          characters: []
+        }),
+        onShowToast: () => {}
+      });
+
+      // Send initial user request
+      await manager.handleSendMessage('帮我设置免费竖屏参数，写赛博猫耳少女并出图展示！');
+
+      // The loop should have called chat 3 times
+      expect(chatMock).toHaveBeenCalledTimes(3);
+
+      // Verify actions executed in canvas
+      expect(updatedParams).toHaveLength(1);
+      expect(updatedParams[0].steps).toBe(28);
+      expect(appliedPrompts).toEqual([{ p: '1girl, cat ears, neon city', mode: 'replace' }]);
+      expect(onGenerateImage).toHaveBeenCalledTimes(1);
+
+      // Verify conversation history progression
+      // Message sequence: User -> Assistant (with tools 1 & 2) -> Tool 1 -> Tool 2 -> Assistant (with gen tool) -> Tool 3 -> Assistant (conclusion)
+      const assistantMessages = manager.messages.filter(m => m.role === 'assistant');
+      expect(assistantMessages).toHaveLength(3);
+
+      // Final message should be concluding message
+      expect(assistantMessages[2].content).toContain('图像已生成完毕');
+
+      // Second assistant message should contain the image result
+      const genToolCall = assistantMessages[1].tool_calls.find(t => t.tool === 'generate_image');
+      expect(genToolCall).toBeDefined();
+      expect(genToolCall.imageUrl).toBe('blob:test-generated-img');
+      expect(genToolCall.seed).toBe(13579);
     });
   });
 });

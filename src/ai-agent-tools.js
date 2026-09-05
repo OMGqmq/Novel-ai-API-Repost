@@ -4,6 +4,14 @@
  * for NovelAI prompts and characters (V3 / V4.5 / V5).
  */
 
+export const FREE_RESOLUTIONS = {
+  portrait: { width: 832, height: 1216, value: '832,1216', label: '竖屏 Portrait (832x1216)' },
+  landscape: { width: 1216, height: 832, value: '1216,832', label: '横屏 Landscape (1216x832)' },
+  square: { width: 1024, height: 1024, value: '1024,1024', label: '方图 Square (1024x1024)' }
+};
+export const MAX_FREE_STEPS = 28;
+export const MAX_FREE_PIXELS = 1048576; // 1024 * 1024
+
 export const AGENT_TOOLS = [
   {
     type: "function",
@@ -73,8 +81,216 @@ export const AGENT_TOOLS = [
         required: ["prompt"]
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "remove_character",
+      description: "从画板中删除指定序号的角色（从 1 开始计数）或清空所有角色。",
+      parameters: {
+        type: "object",
+        properties: {
+          index: {
+            description: "要删除的角色序号（从 1 开始的正整数，如 1、2；或传入 'all' 清空画板全部角色）",
+            anyOf: [
+              { type: "integer", minimum: 1 },
+              { type: "string", enum: ["all"] }
+            ]
+          }
+        },
+        required: ["index"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_model",
+      description: "切换画板所使用的 NovelAI 绘图基础模型。注意：V3 模型不支持多角色，V4.5 (5x5网格) 与 V5 (2D连续坐标) 支持多角色。",
+      parameters: {
+        type: "object",
+        properties: {
+          model: {
+            type: "string",
+            enum: ["v3", "v4.5", "v5", "zimage"],
+            description: "目标模型版本：'v3' (经典V3), 'v4.5' (V4.5 Full), 'v5' (V5 Full), 'zimage' (极速绘图)"
+          }
+        },
+        required: ["model"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_parameters",
+      description: "调整画板绘图参数。严格限定在普通用户免费出图权限区间（标准分辨率 832x1216, 1216x832, 1024x1024，步数 <= 28 步，单批 1 张），绝对杜绝消耗 Anlas 点数。",
+      parameters: {
+        type: "object",
+        properties: {
+          aspect_ratio: {
+            type: "string",
+            enum: ["portrait", "landscape", "square"],
+            description: "画幅比例：'portrait' 竖屏 (832x1216), 'landscape' 横屏 (1216x832), 'square' 方图 (1024x1024)。均为免费标准画幅。"
+          },
+          width: {
+            type: "integer",
+            description: "可选。指定宽度（限普通免费尺寸 832, 1216, 1024）"
+          },
+          height: {
+            type: "integer",
+            description: "可选。指定高度（限普通免费尺寸 1216, 832, 1024）"
+          },
+          steps: {
+            type: "integer",
+            minimum: 1,
+            maximum: 28,
+            description: "生成步数（1~28 步）。【极其重要：为保证普通用户免费权限不消耗 Anlas，步数绝对不能超过 28 步】"
+          },
+          scale: {
+            type: "number",
+            minimum: 1,
+            maximum: 20,
+            description: "提示词相关性引导强度 (CFG Scale，默认 5.0，V5 推荐 1.9 或 5.0，不消耗 Anlas)"
+          },
+          sampler: {
+            type: "string",
+            description: "可选。采样器算法（如 k_euler, k_euler_ancestral, k_dpmpp_2s_ancestral 等）"
+          },
+          seed: {
+            description: "可选。随机种子整数，或传入 null/'random' 表示每次随机",
+            anyOf: [
+              { type: "integer" },
+              { type: "null" },
+              { type: "string" }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_canvas_state",
+      description: "获取当前画板的完整实时状态（当前模型、正向提示词、负向提示词、画幅分辨率、生成步数、Scale、采样器、已有角色列表等）。",
+      parameters: {
+        type: "object",
+        properties: {}
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_image",
+      description: "触发 NovelAI 图像生成并直接在对话中呈现生成出的图片。遵循普通用户免费权限（免费分辨率、步数 <= 28 步、单张生成），不消耗 Anlas。",
+      parameters: {
+        type: "object",
+        properties: {
+          prompt: {
+            type: "string",
+            description: "可选。生成前一并更新的正向提示词。若留空则直接使用画板当前提示词。"
+          },
+          negative_prompt: {
+            type: "string",
+            description: "可选。生成前一并更新的负向排除词。"
+          },
+          model: {
+            type: "string",
+            enum: ["v3", "v4.5", "v5", "zimage"],
+            description: "可选。生成前一并切换的基础模型。"
+          }
+        }
+      }
+    }
   }
 ];
+
+/**
+ * Validates and clamps parameters strictly into NovelAI normal user free quota
+ * (Steps <= 28, Standard Resolutions <= 1048576 px, Batch = 1)
+ */
+export function clampSafeParameters(rawParams = {}) {
+  const adjustments = [];
+  const result = { adjustments };
+
+  // 1. Resolution / Aspect ratio validation
+  let targetRes = null;
+  if (rawParams.aspect_ratio) {
+    const normRatio = String(rawParams.aspect_ratio).toLowerCase().trim();
+    if (FREE_RESOLUTIONS[normRatio]) {
+      targetRes = FREE_RESOLUTIONS[normRatio];
+    }
+  }
+
+  if (!targetRes && (rawParams.width || rawParams.height)) {
+    const w = parseInt(rawParams.width, 10);
+    const h = parseInt(rawParams.height, 10);
+    if (!isNaN(w) && !isNaN(h)) {
+      if (w === 832 && h === 1216) targetRes = FREE_RESOLUTIONS.portrait;
+      else if (w === 1216 && h === 832) targetRes = FREE_RESOLUTIONS.landscape;
+      else if (w === 1024 && h === 1024) targetRes = FREE_RESOLUTIONS.square;
+      else {
+        // Find closest free resolution based on aspect ratio
+        const ratio = w / h;
+        if (ratio < 0.85) targetRes = FREE_RESOLUTIONS.portrait;
+        else if (ratio > 1.15) targetRes = FREE_RESOLUTIONS.landscape;
+        else targetRes = FREE_RESOLUTIONS.square;
+        adjustments.push(`分辨率 ${w}x${h} 超出普通免费区间，已自动安全修正为 ${targetRes.label} 以免消耗 Anlas`);
+      }
+    }
+  }
+
+  if (targetRes) {
+    result.width = targetRes.width;
+    result.height = targetRes.height;
+    result.resValue = targetRes.value;
+    result.resLabel = targetRes.label;
+  }
+
+  // 2. Steps validation (Max 28 for free Opus tier)
+  if (rawParams.steps !== undefined && rawParams.steps !== null) {
+    const parsedSteps = parseInt(rawParams.steps, 10);
+    if (!isNaN(parsedSteps)) {
+      if (parsedSteps > MAX_FREE_STEPS) {
+        result.steps = MAX_FREE_STEPS;
+        adjustments.push(`步数 ${parsedSteps} 超出免费上限，已自动安全限制为最大免费步数 ${MAX_FREE_STEPS} 步以免消耗 Anlas`);
+      } else if (parsedSteps < 1) {
+        result.steps = 1;
+      } else {
+        result.steps = parsedSteps;
+      }
+    }
+  }
+
+  // 3. Scale validation (1.0 to 20.0, default 5.0)
+  if (rawParams.scale !== undefined && rawParams.scale !== null) {
+    const parsedScale = parseFloat(rawParams.scale);
+    if (!isNaN(parsedScale)) {
+      result.scale = Math.max(1.0, Math.min(20.0, parseFloat(parsedScale.toFixed(1))));
+    }
+  }
+
+  // 4. Sampler
+  if (rawParams.sampler && typeof rawParams.sampler === 'string') {
+    result.sampler = rawParams.sampler.trim();
+  }
+
+  // 5. Seed
+  if (rawParams.seed !== undefined) {
+    if (rawParams.seed === null || rawParams.seed === '' || rawParams.seed === 'random') {
+      result.seed = '';
+    } else {
+      const parsedSeed = parseInt(rawParams.seed, 10);
+      if (!isNaN(parsedSeed)) {
+        result.seed = Math.max(0, Math.min(4294967295, parsedSeed));
+      }
+    }
+  }
+
+  return result;
+}
 
 const DIRECTION_COORDS = {
   'left': { x: 0.2, y: 0.5, label: '靠左' },
@@ -285,12 +501,169 @@ export function executeToolCall(toolCall, context = {}) {
     };
   }
 
+  if (name === 'remove_character') {
+    const rawIndex = args.index;
+    if (rawIndex === undefined || rawIndex === null) {
+      return { success: false, tool: name, error: '请指定要删除的角色序号 (如 1) 或传入 "all"' };
+    }
+
+    if (context.onRemoveCharacter) {
+      const res = context.onRemoveCharacter({ index: rawIndex });
+      if (res && res.success === false) {
+        return { success: false, tool: name, error: res.error || '删除角色失败' };
+      }
+    }
+
+    const isAll = String(rawIndex).toLowerCase() === 'all';
+    const msg = isAll ? '已清空画板上的全部角色' : `已移除角色 #${rawIndex}`;
+    return {
+      success: true,
+      tool: name,
+      message: msg,
+      details: { index: rawIndex }
+    };
+  }
+
+  if (name === 'set_model') {
+    const rawModel = (args.model || '').toLowerCase().trim();
+    const validModels = ['v3', 'v4.5', 'v5', 'zimage'];
+    if (!validModels.includes(rawModel)) {
+      return {
+        success: false,
+        tool: name,
+        error: `不支持的模型版本: ${args.model}。可选版本: ${validModels.join(', ')}`
+      };
+    }
+
+    if (context.onSetModel) {
+      context.onSetModel(rawModel);
+    }
+
+    const modelNames = {
+      'v3': 'NovelAI Diffusion V3',
+      'v4.5': 'NovelAI Diffusion V4.5',
+      'v5': 'NovelAI Diffusion V5',
+      'zimage': 'ZImage Turbo'
+    };
+
+    return {
+      success: true,
+      tool: name,
+      message: `已将画板模型切换至 ${modelNames[rawModel] || rawModel}`,
+      details: { model: rawModel }
+    };
+  }
+
+  if (name === 'set_parameters') {
+    const clamped = clampSafeParameters(args);
+
+    if (context.onSetParameters) {
+      context.onSetParameters(clamped);
+    }
+
+    const summaryParts = [];
+    if (clamped.resLabel) summaryParts.push(`画幅: ${clamped.resLabel}`);
+    if (clamped.steps !== undefined) summaryParts.push(`步数: ${clamped.steps}步`);
+    if (clamped.scale !== undefined) summaryParts.push(`Scale: ${clamped.scale}`);
+    if (clamped.sampler) summaryParts.push(`采样器: ${clamped.sampler}`);
+    if (clamped.seed !== undefined) summaryParts.push(clamped.seed ? `Seed: ${clamped.seed}` : 'Seed: 随机');
+
+    let msg = summaryParts.length > 0 ? `已更新画板绘图参数 (${summaryParts.join(', ')})` : '画板绘图参数未变更';
+    if (clamped.adjustments.length > 0) {
+      msg += ` [安全保护: ${clamped.adjustments.join('; ')}]`;
+    }
+
+    return {
+      success: true,
+      tool: name,
+      message: msg,
+      details: clamped
+    };
+  }
+
+  if (name === 'get_canvas_state') {
+    const state = typeof context.getCanvasState === 'function' ? context.getCanvasState() : {};
+    return {
+      success: true,
+      tool: name,
+      message: `获取画板状态成功 (当前模型: ${state.model || 'v5'}, 角色数: ${state.characters?.length || 0})`,
+      details: state
+    };
+  }
+
+  if (name === 'generate_image') {
+    // Optional pre-generation adjustments
+    if (args.model && context.onSetModel) {
+      context.onSetModel(args.model);
+    }
+    if (args.prompt) {
+      const mode = 'replace';
+      const negative = args.negative_prompt || '';
+      if (context.onUpdatePrompt) {
+        context.onUpdatePrompt({ prompt: args.prompt, mode, negative, negativeMode: 'replace' });
+      }
+    }
+
+    if (!context.onGenerateImage) {
+      return {
+        success: false,
+        tool: name,
+        error: '当前环境未提供图像生成接口 (onGenerateImage missing)'
+      };
+    }
+
+    return (async () => {
+      try {
+        const genResult = await context.onGenerateImage();
+        if (!genResult || genResult.success === false) {
+          return {
+            success: false,
+            tool: name,
+            error: genResult?.error || '图像生成未成功完成'
+          };
+        }
+
+        const imageUrl = genResult.imageUrl || (genResult.results && genResult.results[0]?.imageUrl) || (genResult.primaryImage && genResult.primaryImage.imageUrl) || '';
+        const seed = genResult.seed !== undefined ? genResult.seed : (genResult.results && genResult.results[0]?.seed);
+        const width = genResult.width || (genResult.results && genResult.results[0]?.width) || 832;
+        const height = genResult.height || (genResult.results && genResult.results[0]?.height) || 1216;
+
+        return {
+          success: true,
+          tool: name,
+          message: `图像生成成功! (Seed: ${seed || '随机'}, 尺寸: ${width}x${height})`,
+          imageUrl,
+          seed,
+          width,
+          height,
+          prompt: genResult.prompt || args.prompt || ''
+        };
+      } catch (err) {
+        return {
+          success: false,
+          tool: name,
+          error: `图像生成失败: ${err.message}`
+        };
+      }
+    })();
+  }
+
   return {
     success: false,
     tool: name,
     error: `未知的工具名称: ${name}`
   };
 }
+
+const KNOWN_TOOLS = new Set([
+  'update_prompt',
+  'add_character',
+  'remove_character',
+  'set_model',
+  'set_parameters',
+  'get_canvas_state',
+  'generate_image'
+]);
 
 /**
  * Fallback parser for LLM text responses that output tools in markdown/JSON format
@@ -311,25 +684,31 @@ export function parseToolCallsFromText(text) {
     try {
       const parsed = JSON.parse(raw);
       if (parsed && (parsed.name || parsed.tool)) {
-        toolCalls.push({
-          id: `call_fallback_${Date.now()}_${toolCalls.length}`,
-          type: 'function',
-          function: {
-            name: parsed.name || parsed.tool,
-            arguments: JSON.stringify(parsed.arguments || parsed.parameters || parsed)
-          }
-        });
+        const toolName = parsed.name || parsed.tool;
+        if (KNOWN_TOOLS.has(toolName)) {
+          toolCalls.push({
+            id: `call_fallback_${Date.now()}_${toolCalls.length}`,
+            type: 'function',
+            function: {
+              name: toolName,
+              arguments: JSON.stringify(parsed.arguments || parsed.parameters || parsed)
+            }
+          });
+        }
       } else if (Array.isArray(parsed)) {
         for (const item of parsed) {
           if (item && (item.name || item.tool)) {
-            toolCalls.push({
-              id: `call_fallback_${Date.now()}_${toolCalls.length}`,
-              type: 'function',
-              function: {
-                name: item.name || item.tool,
-                arguments: JSON.stringify(item.arguments || item.parameters || item)
-              }
-            });
+            const toolName = item.name || item.tool;
+            if (KNOWN_TOOLS.has(toolName)) {
+              toolCalls.push({
+                id: `call_fallback_${Date.now()}_${toolCalls.length}`,
+                type: 'function',
+                function: {
+                  name: toolName,
+                  arguments: JSON.stringify(item.arguments || item.parameters || item)
+                }
+              });
+            }
           }
         }
       }
@@ -338,16 +717,17 @@ export function parseToolCallsFromText(text) {
     }
   }
 
-  // Also check for raw single JSON object { "name": "update_prompt", ... }
+  // Also check for raw single JSON object { "name": "...", ... }
   if (toolCalls.length === 0 && text.trim().startsWith('{') && text.trim().endsWith('}')) {
     try {
       const parsed = JSON.parse(text.trim());
-      if (parsed && (parsed.name === 'update_prompt' || parsed.name === 'add_character' || parsed.tool === 'update_prompt' || parsed.tool === 'add_character')) {
+      const toolName = parsed.name || parsed.tool;
+      if (toolName && KNOWN_TOOLS.has(toolName)) {
         toolCalls.push({
           id: `call_fallback_${Date.now()}`,
           type: 'function',
           function: {
-            name: parsed.name || parsed.tool,
+            name: toolName,
             arguments: JSON.stringify(parsed.arguments || parsed.parameters || parsed)
           }
         });
