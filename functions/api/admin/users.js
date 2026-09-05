@@ -21,9 +21,14 @@ export async function onRequest(context) {
   }
 
   try {
+    const url = new URL(request.url);
+    const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '100', 10), 1), 500);
+    const page = Math.max(parseInt(url.searchParams.get('page') || '1', 10), 1);
+    const offset = (page - 1) * limit;
+
     const users = await db.prepare(
-      "SELECT id, username, role, credits, status, created_at FROM users ORDER BY created_at DESC"
-    ).all();
+      "SELECT id, username, role, credits, status, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    ).bind(limit, offset).all();
 
     return new Response(JSON.stringify({
       success: true,

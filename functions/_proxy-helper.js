@@ -104,7 +104,8 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
         
         response = await fetch(url, {
           method: 'GET',
-          headers: pHeaders
+          headers: pHeaders,
+          signal: AbortSignal.timeout(45000)
         });
       } else {
         let fetchOptions = {
@@ -113,7 +114,8 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(45000)
         };
 
         response = await fetch(targetUrl, fetchOptions);

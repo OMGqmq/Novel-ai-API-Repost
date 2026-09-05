@@ -9,112 +9,25 @@ export class ImageEngine {
         this.JSZip = (typeof window !== 'undefined' && window.JSZip) ? window.JSZip : null;
     }
 
-    /**
-     * Generates an image based on provided parameters.
-     * @param {Object} params - Generation parameters (prompt, model, resolution, etc.)
-     * @param {Object} auth - Authentication tokens
-     * @returns {Promise<{imageUrl: string, blob: Blob, userRole: string}>}
-     */
     async generate(params, auth) {
-        if (!this.JSZip) {
-            throw new Error("JSZip library not found. Please ensure it is loaded.");
-        }
-
-        const { adminToken, userKey, customApiKey, userToken } = auth;
-
-        const response = await fetch(`${this.baseUrl}/generate`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-admin-token': adminToken || "",
-                'x-user-key': userKey || "",
-                'x-custom-api-key': customApiKey || "",
-                ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {})
-            },
-            body: JSON.stringify(params)
-        });
-
-        await this._handleErrors(response);
-
-        const userRole = this._parseUserRole(response);
-        const contentType = response.headers.get("content-type") || "";
-        const blob = await response.blob();
-        
-        let imgBlob;
-        if (contentType.includes("application/zip")) {
-            imgBlob = await this._extractImageFromZip(blob);
-        } else {
-            imgBlob = blob;
-        }
-        const imageUrl = URL.createObjectURL(imgBlob);
-
-        return {
-            imageUrl,
-            blob: imgBlob,
-            userRole
-        };
+        return this._request('/generate', params, auth);
     }
 
-    /**
-     * Augments an image (e.g., extract lineart or sketch).
-     * @param {Object} params - Augment parameters (req_type, width, height, image)
-     * @param {Object} auth - Authentication tokens
-     * @returns {Promise<{imageUrl: string, blob: Blob, userRole: string}>}
-     */
     async augment(params, auth) {
-        if (!this.JSZip) {
-            throw new Error("JSZip library not found. Please ensure it is loaded.");
-        }
-
-        const { adminToken, userKey, customApiKey, userToken } = auth;
-
-        const response = await fetch(`${this.baseUrl}/augment`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-admin-token': adminToken || "",
-                'x-user-key': userKey || "",
-                'x-custom-api-key': customApiKey || "",
-                ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {})
-            },
-            body: JSON.stringify(params)
-        });
-
-        await this._handleErrors(response);
-
-        const userRole = this._parseUserRole(response);
-        const contentType = response.headers.get("content-type") || "";
-        const blob = await response.blob();
-        
-        let imgBlob;
-        if (contentType.includes("application/zip")) {
-            imgBlob = await this._extractImageFromZip(blob);
-        } else {
-            imgBlob = blob;
-        }
-        const imageUrl = URL.createObjectURL(imgBlob);
-
-        return {
-            imageUrl,
-            blob: imgBlob,
-            userRole
-        };
+        return this._request('/augment', params, auth);
     }
 
-    /**
-     * Upscales an image using AI 4x upscale.
-     * @param {Object} params - Upscale parameters (image, width, height, scale)
-     * @param {Object} auth - Authentication tokens
-     * @returns {Promise<{imageUrl: string, blob: Blob, userRole: string}>}
-     */
     async upscale(params, auth) {
+        return this._request('/upscale', params, auth);
+    }
+
+    async _request(endpoint, params, auth = {}) {
         if (!this.JSZip) {
             throw new Error("JSZip library not found. Please ensure it is loaded.");
         }
 
         const { adminToken, userKey, customApiKey, userToken } = auth;
-
-        const response = await fetch(`${this.baseUrl}/upscale`, {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -123,7 +36,8 @@ export class ImageEngine {
                 'x-custom-api-key': customApiKey || "",
                 ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {})
             },
-            body: JSON.stringify(params)
+            body: JSON.stringify(params),
+            signal: AbortSignal.timeout(60000)
         });
 
         await this._handleErrors(response);
@@ -131,17 +45,10 @@ export class ImageEngine {
         const userRole = this._parseUserRole(response);
         const contentType = response.headers.get("content-type") || "";
         const blob = await response.blob();
-        
-        let imgBlob;
-        if (contentType.includes("application/zip")) {
-            imgBlob = await this._extractImageFromZip(blob);
-        } else {
-            imgBlob = blob;
-        }
-        const imageUrl = URL.createObjectURL(imgBlob);
+        const imgBlob = contentType.includes("application/zip") ? await this._extractImageFromZip(blob) : blob;
 
         return {
-            imageUrl,
+            imageUrl: URL.createObjectURL(imgBlob),
             blob: imgBlob,
             userRole
         };

@@ -662,6 +662,9 @@ export class OutpaintEditor {
             const newImg = new Image();
             newImg.crossOrigin = 'anonymous';
             newImg.onload = () => {
+                if (newImg.src && newImg.src.startsWith('blob:')) {
+                    try { URL.revokeObjectURL(newImg.src); } catch (_) {}
+                }
                 this.saveState();
                 
                 if (hasPaintedMask) {
@@ -703,6 +706,12 @@ export class OutpaintEditor {
                 console.log(hasPaintedMask ? "Inpaint generated" : "Outpaint generated");
                 if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
                 window.lastSelectedImageUrl = finalBase64;
+            };
+            newImg.onerror = (err) => {
+                if (newImg.src && newImg.src.startsWith('blob:')) {
+                    try { URL.revokeObjectURL(newImg.src); } catch (_) {}
+                }
+                console.error('Failed to load generated image for canvas stitching:', err);
             };
             newImg.src = result.imageUrl || (result.blob ? URL.createObjectURL(result.blob) : 'data:image/png;base64,mock');
 

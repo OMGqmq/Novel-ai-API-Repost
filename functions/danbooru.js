@@ -6,6 +6,58 @@
 
 import { json } from './_proxy-helper.js';
 
+function sanitizeBooruPost(p, source = 'generic') {
+  if (source === 'danbooru') {
+    let previewUrl = p.preview_file_url || p.large_file_url || p.file_url || '';
+    if (p.media_asset && Array.isArray(p.media_asset.variants)) {
+      for (const v of p.media_asset.variants) {
+        if (['sample', '360x360', '180x180'].includes(v.type) && v.url) {
+          previewUrl = v.url;
+          break;
+        }
+      }
+    }
+    return {
+      id: p.id,
+      created_at: p.created_at || (p.change ? new Date(p.change * 1000).toISOString() : ''),
+      score: p.score || 0,
+      fav_count: p.fav_count || 0,
+      rating: p.rating || 'g',
+      tag_string_artist: p.tag_string_artist || '',
+      tag_string_character: p.tag_string_character || '',
+      tag_string_copyright: p.tag_string_copyright || '',
+      tag_string_general: p.tag_string_general || p.tag_string || '',
+      tag_string: p.tag_string || '',
+      preview_url: previewUrl,
+      source_url: `https://danbooru.donmai.us/posts/${p.id}`,
+      image_width: p.image_width || 832,
+      image_height: p.image_height || 1216
+    };
+  }
+
+  const isYande = source === 'yande';
+  const isSafebooru = source === 'safebooru';
+  const domain = isYande ? 'yande.re/post/show' : (isSafebooru ? 'safebooru.org/index.php?page=post&s=view&id=' : 'tbib.org/index.php?page=post&s=view&id=');
+  const sourceUrl = isYande ? `https://${domain}/${p.id}` : `https://${domain}${p.id}`;
+
+  return {
+    id: p.id,
+    created_at: p.created_at ? (typeof p.created_at === 'number' ? new Date(p.created_at * 1000).toISOString() : p.created_at) : (p.change ? new Date(p.change * 1000).toISOString() : new Date().toISOString()),
+    score: p.score || 0,
+    fav_count: p.comment_count || p.fav_count || 0,
+    rating: p.rating || 'g',
+    tag_string_artist: '',
+    tag_string_character: '',
+    tag_string_copyright: '',
+    tag_string_general: p.tags || p.tag_string_general || '',
+    tag_string: p.tags || p.tag_string || '',
+    preview_url: p.sample_url || p.preview_url || p.file_url || '',
+    source_url: sourceUrl,
+    image_width: p.width || p.image_width || 832,
+    image_height: p.height || p.image_height || 1216
+  };
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
 
@@ -56,39 +108,14 @@ export async function onRequest(context) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'application/json'
-      }
+      },
+      signal: AbortSignal.timeout(6000)
     });
 
     if (danbooruRes.ok) {
       const posts = await danbooruRes.json();
       if (Array.isArray(posts) && posts.length > 0) {
-        sanitizedPosts = posts.map(p => {
-          let previewUrl = p.preview_file_url || p.large_file_url || p.file_url || '';
-          if (p.media_asset && Array.isArray(p.media_asset.variants)) {
-            for (const v of p.media_asset.variants) {
-              if (['sample', '360x360', '180x180'].includes(v.type) && v.url) {
-                previewUrl = v.url;
-                break;
-              }
-            }
-          }
-          return {
-            id: p.id,
-            created_at: p.created_at || (p.change ? new Date(p.change * 1000).toISOString() : ''),
-            score: p.score || 0,
-            fav_count: p.fav_count || 0,
-            rating: p.rating || 'g',
-            tag_string_artist: p.tag_string_artist || '',
-            tag_string_character: p.tag_string_character || '',
-            tag_string_copyright: p.tag_string_copyright || '',
-            tag_string_general: p.tag_string_general || p.tag_string || '',
-            tag_string: p.tag_string || '',
-            preview_url: previewUrl,
-            source_url: `https://danbooru.donmai.us/posts/${p.id}`,
-            image_width: p.image_width || 832,
-            image_height: p.image_height || 1216
-          };
-        });
+        sanitizedPosts = posts.map(p => sanitizeBooruPost(p, 'danbooru'));
       }
     }
   } catch (dErr) {
@@ -111,28 +138,14 @@ export async function onRequest(context) {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           'Accept': 'application/json'
-        }
+        },
+        signal: AbortSignal.timeout(6000)
       });
 
       if (safeRes.ok) {
         const safePosts = await safeRes.json();
         if (Array.isArray(safePosts) && safePosts.length > 0) {
-          sanitizedPosts = safePosts.map(p => ({
-            id: p.id,
-            created_at: p.change ? new Date(p.change * 1000).toISOString() : new Date().toISOString(),
-            score: p.score || 0,
-            fav_count: p.comment_count || 0,
-            rating: p.rating || 'g',
-            tag_string_artist: '',
-            tag_string_character: '',
-            tag_string_copyright: '',
-            tag_string_general: p.tags || '',
-            tag_string: p.tags || '',
-            preview_url: p.sample_url || p.preview_url || p.file_url || '',
-            source_url: `https://safebooru.org/index.php?page=post&s=view&id=${p.id}`,
-            image_width: p.width || 832,
-            image_height: p.height || 1216
-          }));
+          sanitizedPosts = safePosts.map(p => sanitizeBooruPost(p, 'safebooru'));
         }
       }
     } catch (sErr) {
@@ -140,7 +153,7 @@ export async function onRequest(context) {
     }
   }
 
-  // 2. 次选尝试 TBIB (The Big Idol Booru)
+  // 3. 次选尝试 TBIB (The Big Idol Booru)
   if (sanitizedPosts.length === 0) {
     try {
       const tbibUrl = new URL('https://tbib.org/index.php');
@@ -156,28 +169,14 @@ export async function onRequest(context) {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           'Accept': 'application/json'
-        }
+        },
+        signal: AbortSignal.timeout(6000)
       });
 
       if (tbibRes.ok) {
         const tbibPosts = await tbibRes.json();
         if (Array.isArray(tbibPosts) && tbibPosts.length > 0) {
-          sanitizedPosts = tbibPosts.map(p => ({
-            id: p.id,
-            created_at: p.change ? new Date(p.change * 1000).toISOString() : new Date().toISOString(),
-            score: p.score || 0,
-            fav_count: p.comment_count || 0,
-            rating: p.rating || 'g',
-            tag_string_artist: '',
-            tag_string_character: '',
-            tag_string_copyright: '',
-            tag_string_general: p.tags || '',
-            tag_string: p.tags || '',
-            preview_url: p.sample_url || p.preview_url || p.file_url || '',
-            source_url: `https://tbib.org/index.php?page=post&s=view&id=${p.id}`,
-            image_width: p.width || 832,
-            image_height: p.height || 1216
-          }));
+          sanitizedPosts = tbibPosts.map(p => sanitizeBooruPost(p, 'tbib'));
         }
       }
     } catch (tErr) {
@@ -185,7 +184,7 @@ export async function onRequest(context) {
     }
   }
 
-  // 3. 次选尝试 Yande.re 实时接口
+  // 4. 次选尝试 Yande.re 实时接口
   if (sanitizedPosts.length === 0) {
     try {
       const yandeUrl = new URL('https://yande.re/post.json');
@@ -197,28 +196,14 @@ export async function onRequest(context) {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           'Accept': 'application/json'
-        }
+        },
+        signal: AbortSignal.timeout(6000)
       });
 
       if (yandeRes.ok) {
         const yandePosts = await yandeRes.json();
         if (Array.isArray(yandePosts) && yandePosts.length > 0) {
-          sanitizedPosts = yandePosts.map(p => ({
-            id: p.id,
-            created_at: p.created_at ? new Date(p.created_at * 1000).toISOString() : new Date().toISOString(),
-            score: p.score || 0,
-            fav_count: 0,
-            rating: p.rating || 'g',
-            tag_string_artist: '',
-            tag_string_character: '',
-            tag_string_copyright: '',
-            tag_string_general: p.tags || '',
-            tag_string: p.tags || '',
-            preview_url: p.sample_url || p.preview_url || p.file_url || '',
-            source_url: `https://yande.re/post/show/${p.id}`,
-            image_width: p.width || 832,
-            image_height: p.height || 1216
-          }));
+          sanitizedPosts = yandePosts.map(p => sanitizeBooruPost(p, 'yande'));
         }
       }
     } catch (yErr) {

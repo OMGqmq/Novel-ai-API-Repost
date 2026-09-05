@@ -40,6 +40,9 @@ const store = new GalleryStore();
 window.triggerDownload = triggerDownload;
 initToolbox(store);
 const ui = new UIController();
+if (typeof window !== 'undefined') {
+    window.ui = ui;
+}
 const els = ui.els;
 const aiHelper = new AiHelperService(store);
 const aiChatManager = new AiChatManager({
@@ -338,13 +341,15 @@ document.getElementById('vibeStrength')?.addEventListener('input', (e) => {
 // 全局错误捕获，防止界面卡死
 window.onerror = function(msg, url, lineNo, columnNo, error) {
     console.error('Error: ' + msg + '\nScript: ' + url + '\nLine: ' + lineNo + '\nColumn: ' + columnNo + '\nStackTrace: ' + (error ? error.stack : ''));
-    if (window.ui) window.ui.setLoading(false);
+    if (typeof ui !== 'undefined' && ui && ui.setLoading) ui.setLoading(false);
+    else if (window.ui && window.ui.setLoading) window.ui.setLoading(false);
     return false;
 };
 
 window.onunhandledrejection = function(event) {
     console.error('Unhandled rejection (promise):', event.reason);
-    if (window.ui) window.ui.setLoading(false);
+    if (typeof ui !== 'undefined' && ui && ui.setLoading) ui.setLoading(false);
+    else if (window.ui && window.ui.setLoading) window.ui.setLoading(false);
 };
 
 async function doGenerateZImage() {

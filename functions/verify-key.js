@@ -60,138 +60,12 @@ export async function onRequest(context) {
       };
     };
 
-    // 1. 如果传了 apiKeys 数组，支持并发验证所有 Key
-    if (apiKeys && Array.isArray(apiKeys)) {
-      const keysToVerify = apiKeys.map(k => k.trim()).filter(k => k);
-      if (keysToVerify.length === 0) {
-        return new Response(JSON.stringify({ error: '请输入 API Key' }), {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        });
-      }
+    const isMulti = Array.isArray(apiKeys);
+    const keysToVerify = isMulti
+      ? apiKeys.map(k => (k || '').trim()).filter(Boolean)
+      : (apiKey && apiKey.trim() ? [apiKey.trim()] : []);
 
-      const promises = keysToVerify.map(async (key) => {
-        const res = await fetch('https://image.novelai.net/user/data', {
-          headers: { 'Authorization': `Bearer ${key}` }
-        });
-        if (!res.ok) {
-          throw new Error(`API Key (${key.substring(0, 10)}...) 验证失败`);
-        }
-        const data = await res.json();
-        const sub = data.subscription || {};
-        const info = data.information || {};
-        const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
-
-        let emailVal = info.email || '';
-        let rawInfoVal = info;
-        if (!emailVal) {
-          try {
-            const resInfo = await fetch('https://image.novelai.net/user/information', {
-              headers: { 'Authorization': `Bearer ${key}` }
-            });
-            if (resInfo.ok) {
-              const infoData = await resInfo.json();
-              emailVal = infoData.email || infoData.username || '';
-              rawInfoVal = infoData;
-            } else {
-              rawInfoVal = { error: `HTTP ${resInfo.status}`, text: await resInfo.text() };
-            }
-          } catch (e) {
-            console.warn('获取 email 失败:', e.message);
-            rawInfoVal = { error: 'fetch_failed', message: e.message };
-          }
-        }
-
-        const opusUsage = extractOpusUsage(sub);
-
-        return {
-          key,
-          valid: true,
-          tier: sub.tier,
-          tierName: tierNames[sub.tier] || `Tier ${sub.tier}`,
-          active: sub.active,
-          anlas: getAnlasFromSub(sub),
-          emailVerified: info.emailVerified || false,
-          accountCreatedAt: info.accountCreatedAt || 0,
-          expiresAt: sub.expiresAt || 0,
-          email: emailVal,
-          rawInfo: rawInfoVal,
-          opusUsage: opusUsage
-        };
-      });
-
-      const results = await Promise.allSettled(promises);
-      const failed = results.filter(r => r.status === 'rejected');
-      if (failed.length > 0) {
-        const errors = failed.map(f => f.reason.message).join(', ');
-        return new Response(JSON.stringify({ error: `部分 Key 验证失败: ${errors}` }), {
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        });
-      }
-
-      // 累加所有有效 Key 的点数
-      let totalAnlas = 0;
-      results.forEach(r => {
-        if (r.status === 'fulfilled') {
-          totalAnlas += (r.value.anlas || 0);
-        }
-      });
-
-      const firstSuccess = results[0].value;
-      const details = results.map((r, idx) => {
-        if (r.status === 'fulfilled') {
-          return {
-            key: keysToVerify[idx],
-            valid: true,
-            tier: r.value.tier,
-            tierName: r.value.tierName,
-            active: r.value.active,
-            anlas: r.value.anlas,
-            emailVerified: r.value.emailVerified,
-            accountCreatedAt: r.value.accountCreatedAt,
-            expiresAt: r.value.expiresAt,
-            email: r.value.email,
-            rawInfo: r.value.rawInfo,
-            opusUsage: r.value.opusUsage
-          };
-        } else {
-          return {
-            key: keysToVerify[idx],
-            valid: false,
-            error: r.reason.message
-          };
-        }
-      });
-
-      return new Response(JSON.stringify({
-        valid: true,
-        tier: firstSuccess.tier,
-        tierName: firstSuccess.tierName,
-        active: firstSuccess.active,
-        anlas: firstSuccess.anlas,
-        totalAnlas: totalAnlas,
-        keyCount: keysToVerify.length,
-        allKeysValid: true,
-        opusUsage: firstSuccess.opusUsage,
-        details: details
-      }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        }
-      });
-    }
-
-    // 2. 单个 API Key 的原有验证逻辑
-    if (!apiKey || !apiKey.trim()) {
+    if (keysToVerify.length === 0) {
       return new Response(JSON.stringify({ error: '请输入 API Key' }), {
         status: 400,
         headers: {
@@ -201,13 +75,64 @@ export async function onRequest(context) {
       });
     }
 
-    // 向 NovelAI 请求用户完整数据以验证 Key 并获取 Anlas 余额及账号信息
-    const res = await fetch('https://image.novelai.net/user/data', {
-      headers: { 'Authorization': `Bearer ${apiKey.trim()}` }
+    const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
+
+    const promises = keysToVerify.map(async (key) => {
+      const res = await fetch('https://image.novelai.net/user/data', {
+        headers: { 'Authorization': `Bearer ${key}` },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!res.ok) {
+        throw new Error(isMulti ? `API Key (${key.substring(0, 10)}...) 验证失败` : 'API Key 无效或已过期，请检查后重试。');
+      }
+      const data = await res.json();
+      const sub = data.subscription || {};
+      const info = data.information || {};
+
+      let emailVal = info.email || '';
+      let rawInfoVal = info;
+      if (!emailVal) {
+        try {
+          const resInfo = await fetch('https://image.novelai.net/user/information', {
+            headers: { 'Authorization': `Bearer ${key}` },
+            signal: AbortSignal.timeout(5000)
+          });
+          if (resInfo.ok) {
+            const infoData = await resInfo.json();
+            emailVal = infoData.email || infoData.username || '';
+            rawInfoVal = infoData;
+          } else {
+            rawInfoVal = { error: `HTTP ${resInfo.status}`, text: await resInfo.text() };
+          }
+        } catch (e) {
+          rawInfoVal = { error: 'fetch_failed', message: e.message };
+        }
+      }
+
+      return {
+        key,
+        valid: true,
+        tier: sub.tier,
+        tierName: tierNames[sub.tier] || `Tier ${sub.tier}`,
+        active: sub.active,
+        anlas: getAnlasFromSub(sub),
+        emailVerified: info.emailVerified || false,
+        accountCreatedAt: info.accountCreatedAt || 0,
+        expiresAt: sub.expiresAt || 0,
+        email: emailVal,
+        rawInfo: rawInfoVal,
+        opusUsage: extractOpusUsage(sub)
+      };
     });
 
-    if (!res.ok) {
-      return new Response(JSON.stringify({ error: 'API Key 无效或已过期，请检查后重试。' }), {
+    const results = await Promise.allSettled(promises);
+    const failed = results.filter(r => r.status === 'rejected');
+
+    if (failed.length > 0) {
+      const errorMsg = isMulti
+        ? `部分 Key 验证失败: ${failed.map(f => f.reason.message).join(', ')}`
+        : (failed[0].reason.message || 'API Key 无效或已过期，请检查后重试。');
+      return new Response(JSON.stringify({ error: errorMsg }), {
         status: 401,
         headers: {
           'Content-Type': 'application/json',
@@ -216,59 +141,34 @@ export async function onRequest(context) {
       });
     }
 
-    const data = await res.json();
-    const sub = data.subscription || {};
-    const info = data.information || {};
-    const anlasVal = getAnlasFromSub(sub);
-    // tier: 0=free, 1=tablet, 2=scroll, 3=opus
-    const tierNames = { 0: 'Free', 1: 'Tablet', 2: 'Scroll', 3: 'Opus' };
-    const tierName = tierNames[sub.tier] || `Tier ${sub.tier}`;
+    let totalAnlas = 0;
+    results.forEach(r => {
+      if (r.status === 'fulfilled') totalAnlas += (r.value.anlas || 0);
+    });
 
-    let emailVal = info.email || '';
-    let rawInfoVal = info;
-    if (!emailVal) {
-      try {
-        const resInfo = await fetch('https://image.novelai.net/user/information', {
-          headers: { 'Authorization': `Bearer ${apiKey.trim()}` }
-        });
-        if (resInfo.ok) {
-          const infoData = await resInfo.json();
-          emailVal = infoData.email || infoData.username || '';
-          rawInfoVal = infoData;
-        } else {
-          rawInfoVal = { error: `HTTP ${resInfo.status}`, text: await resInfo.text() };
-        }
-      } catch (e) {
-        console.warn('获取 email 失败:', e.message);
-        rawInfoVal = { error: 'fetch_failed', message: e.message };
+    const firstSuccess = results[0].value;
+    const details = results.map((r, idx) => {
+      if (r.status === 'fulfilled') {
+        return r.value;
       }
-    }
-
-    const opusUsage = extractOpusUsage(sub);
+      return {
+        key: keysToVerify[idx],
+        valid: false,
+        error: r.reason.message
+      };
+    });
 
     return new Response(JSON.stringify({
       valid: true,
-      tier: sub.tier,
-      tierName: tierName,
-      active: sub.active,
-      anlas: anlasVal,
-      totalAnlas: anlasVal,
-      keyCount: 1,
-      opusUsage: opusUsage,
-      details: [{
-        key: apiKey,
-        valid: true,
-        tier: sub.tier,
-        tierName: tierName,
-        active: sub.active,
-        anlas: anlasVal,
-        emailVerified: info.emailVerified || false,
-        accountCreatedAt: info.accountCreatedAt || 0,
-        expiresAt: sub.expiresAt || 0,
-        email: emailVal,
-        rawInfo: rawInfoVal,
-        opusUsage: opusUsage
-      }]
+      tier: firstSuccess.tier,
+      tierName: firstSuccess.tierName,
+      active: firstSuccess.active,
+      anlas: firstSuccess.anlas,
+      totalAnlas: totalAnlas,
+      keyCount: keysToVerify.length,
+      ...(isMulti ? { allKeysValid: true } : {}),
+      opusUsage: firstSuccess.opusUsage,
+      details: details
     }), {
       status: 200,
       headers: {

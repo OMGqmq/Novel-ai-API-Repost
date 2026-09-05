@@ -106,7 +106,14 @@ export async function onRequest(context) {
       "INSERT INTO credit_logs (user_id, action, amount, description, created_at) VALUES (?, 'recharge', ?, ?, datetime('now', '+8 hours'))"
     ).bind(payload.id, addedCredits, `充值卡密: ${trimmedCardKey}`);
 
-    await db.batch([updateUser, writeLog]);
+    try {
+      await db.batch([updateUser, writeLog]);
+    } catch (batchErr) {
+      // 容灾补偿：若增加用户点数失败，立即回滚卡密状态，杜绝卡密失效但未到账的掉单缺陷
+      await db.prepare("UPDATE cards SET is_used = 0, used_by_id = NULL, used_at = NULL WHERE card_key = ? AND used_by_id = ?")
+        .bind(trimmedCardKey, payload.id).run();
+      throw batchErr;
+    }
 
     return new Response(JSON.stringify({
       success: true,
