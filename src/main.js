@@ -543,9 +543,12 @@ window.onunhandledrejection = function(event) {
     else if (window.ui && window.ui.setLoading) window.ui.setLoading(false);
 };
 
-async function doGenerateZImage(options = {}) {
+async function doGenerateZImage(rawOptions = {}) {
+    const isEvent = (typeof Event !== 'undefined' && rawOptions instanceof Event) || (rawOptions && typeof rawOptions.preventDefault === 'function') || (rawOptions && rawOptions.target);
+    const options = isEvent || typeof rawOptions !== 'object' || rawOptions === null ? {} : rawOptions;
+
     try {
-        const promptText = (options.prompt !== undefined ? options.prompt : (els.prompt ? els.prompt.value.trim() : '')).trim();
+        const promptText = (typeof options.prompt === 'string' ? options.prompt : (els.prompt ? els.prompt.value.trim() : '')).trim();
         if (!promptText) { 
             if (els.prompt) els.prompt.focus(); 
             if (ui.toggleMobileControls) ui.toggleMobileControls(true); 
@@ -553,7 +556,7 @@ async function doGenerateZImage(options = {}) {
         }
 
         let w, h;
-        if (options.width && options.height) {
+        if (typeof options.width === 'number' && options.width >= 64 && typeof options.height === 'number' && options.height >= 64) {
             w = options.width;
             h = options.height;
         } else {
@@ -664,7 +667,10 @@ async function doGenerateZImage(options = {}) {
     }
 }
 
-async function doGenerate(options = {}) {
+async function doGenerate(rawOptions = {}) {
+    const isEvent = (typeof Event !== 'undefined' && rawOptions instanceof Event) || (rawOptions && typeof rawOptions.preventDefault === 'function') || (rawOptions && rawOptions.target);
+    const options = isEvent || typeof rawOptions !== 'object' || rawOptions === null ? {} : rawOptions;
+
     if (appState.isGenerating) {
         appState.cancelRequested = true;
         const deskText = document.getElementById('deskBtnText');
@@ -681,7 +687,9 @@ async function doGenerate(options = {}) {
         return { success: false, error: "正在进行画布扩图" };
     }
 
-    const selectedVersion = options.model || (document.getElementById('modelValue') ? document.getElementById('modelValue').value : 'v5');
+    const selectedVersion = (typeof options.model === 'string' && options.model)
+        ? options.model
+        : (document.getElementById('modelValue') ? document.getElementById('modelValue').value : 'v5');
     if (selectedVersion === 'zimage') {
         return doGenerateZImage(options);
     }
@@ -690,7 +698,7 @@ async function doGenerate(options = {}) {
     appState.cancelRequested = false;
 
     try {
-        const promptText = (options.prompt !== undefined ? options.prompt : (els.prompt ? els.prompt.value.trim() : '')).trim();
+        const promptText = (typeof options.prompt === 'string' ? options.prompt : (els.prompt ? els.prompt.value.trim() : '')).trim();
         if (!promptText) {
             if (els.prompt) els.prompt.focus();
             if (ui.toggleMobileControls) ui.toggleMobileControls(true);
@@ -698,7 +706,7 @@ async function doGenerate(options = {}) {
         }
 
         let w, h;
-        if (options.width && options.height) {
+        if (typeof options.width === 'number' && options.width >= 64 && typeof options.height === 'number' && options.height >= 64) {
             w = options.width;
             h = options.height;
         } else {
@@ -768,16 +776,16 @@ async function doGenerate(options = {}) {
 
             try {
                 const extraParams = collectAdvancedAndModelParams(selectedVersion);
-                const negativePrompt = options.negative !== undefined 
+                const negativePrompt = typeof options.negative === 'string'
                     ? options.negative 
                     : (els.negative ? els.negative.value.trim() : '');
-                const stepsVal = options.steps !== undefined 
+                const stepsVal = (typeof options.steps === 'number' && !isNaN(options.steps))
                     ? Math.min(options.steps, 28) 
                     : parseInt(els.steps ? els.steps.value : '28', 10);
-                const scaleVal = options.scale !== undefined 
+                const scaleVal = (typeof options.scale === 'number' && !isNaN(options.scale))
                     ? options.scale 
                     : parseFloat(els.scale ? els.scale.value : '5.0');
-                const samplerVal = options.sampler !== undefined 
+                const samplerVal = (typeof options.sampler === 'string' && options.sampler)
                     ? options.sampler 
                     : (els.sampler ? els.sampler.value : 'k_euler');
 
@@ -1196,8 +1204,8 @@ async function doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, aut
     }
 }
 
-els.deskBtn.addEventListener('click', doGenerate);
-els.floatBtn.addEventListener('click', doGenerate);
+els.deskBtn.addEventListener('click', () => doGenerate());
+els.floatBtn.addEventListener('click', () => doGenerate());
 
 window.downloadImage = function() {
     const url = window.lastSelectedImageUrl;
