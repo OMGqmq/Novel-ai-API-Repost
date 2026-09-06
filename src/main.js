@@ -151,8 +151,8 @@ const aiChatManager = new AiChatManager({
         }
         return { success: true, removedIndex: targetIdx + 1 };
     },
-    onGenerateImage: async () => {
-        return await doGenerate();
+    onGenerateImage: async (overrideParams = {}) => {
+        return await doGenerate({ skipSaveHistory: true, ...overrideParams });
     },
     getCanvasState: () => {
         const model = (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : '') || store.getSetting('model', 'v5');
@@ -186,7 +186,42 @@ window.aiChatManager = aiChatManager;
 window.openAiChatModal = () => aiChatManager.open();
 window.closeAiChatModal = () => aiChatManager.close();
 
-// Global Image Helpers for Agent inline cards
+// Global Image Helpers for Agent inline cards & Lightbox saving
+window.saveImageItemToGallery = async (item) => {
+    if (!item) return null;
+    let base64 = item.imageUrl || item.image;
+    if (!base64) return null;
+
+    if (!base64.startsWith('data:')) {
+        const resp = await fetch(base64);
+        const blob = await resp.blob();
+        base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    const model = item.model || (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : '') || 'v5';
+    const prompt = item.prompt || '';
+    const meta = item.meta || {
+        width: item.width,
+        height: item.height,
+        steps: item.steps,
+        scale: item.scale,
+        sampler: item.sampler,
+        seed: item.seed,
+        negative_prompt: item.negative_prompt || ''
+    };
+
+    const savedItem = await saveToHistory(base64, prompt, model, null, false, meta);
+    item.isSavedToHistory = true;
+    if (savedItem?.id) item.id = savedItem.id;
+    if (window.showToast) window.showToast("已成功保存至历史画廊！", "success");
+    return savedItem;
+};
+
 window.applyImageAsCanvasInit = async (imageUrl) => {
     try {
         if (!imageUrl) return;
@@ -508,14 +543,24 @@ window.onunhandledrejection = function(event) {
     else if (window.ui && window.ui.setLoading) window.ui.setLoading(false);
 };
 
-async function doGenerateZImage() {
+async function doGenerateZImage(options = {}) {
     try {
-        const promptText = els.prompt.value.trim();
-        if (!promptText) { els.prompt.focus(); ui.toggleMobileControls(true); return; }
+        const promptText = (options.prompt !== undefined ? options.prompt : (els.prompt ? els.prompt.value.trim() : '')).trim();
+        if (!promptText) { 
+            if (els.prompt) els.prompt.focus(); 
+            if (ui.toggleMobileControls) ui.toggleMobileControls(true); 
+            return { success: false, error: "提示词不能为空" }; 
+        }
 
-        const resEl = document.getElementById('resolution');
-        if (!resEl) throw new Error("找不到分辨率选择器");
-        const [w, h] = resEl.value.split(',').map(Number);
+        let w, h;
+        if (options.width && options.height) {
+            w = options.width;
+            h = options.height;
+        } else {
+            const resEl = document.getElementById('resolution');
+            if (!resEl) throw new Error("找不到分辨率选择器");
+            [w, h] = resEl.value.split(',').map(Number);
+        }
 
         // 切换 UI 到 preview 状态
         if (ui.currentRightView !== 'preview') ui.switchRightView('preview');
@@ -577,12 +622,14 @@ async function doGenerateZImage() {
             zi_quality: params.zi_quality
         };
 
-        // 转 Base64 存历史
-        const reader = new FileReader();
-        reader.readAsDataURL(result.blob);
-        reader.onloadend = async () => {
-            await saveToHistory(reader.result, promptText, 'zimage', result, false, metaData);
-        };
+        // 转 Base64 存历史 (仅当未指定 skipSaveHistory 时)
+        if (!options.skipSaveHistory && result.blob) {
+            const reader = new FileReader();
+            reader.readAsDataURL(result.blob);
+            reader.onloadend = async () => {
+                await saveToHistory(reader.result, promptText, 'zimage', result, false, metaData);
+            };
+        }
 
         // 展示图片
         ui.showResultImages([result], (selected) => {
@@ -596,8 +643,12 @@ async function doGenerateZImage() {
             imageUrl: result.imageUrl,
             seed: params.seed,
             prompt: promptText,
+            negative_prompt: '',
             width: params.width,
             height: params.height,
+            model: 'zimage',
+            meta: metaData,
+            isSavedToHistory: !options.skipSaveHistory,
             results: [result]
         };
 
@@ -611,7 +662,7 @@ async function doGenerateZImage() {
     }
 }
 
-async function doGenerate() {
+async function doGenerate(options = {}) {
     if (appState.isGenerating) {
         appState.cancelRequested = true;
         const deskText = document.getElementById('deskBtnText');
@@ -628,26 +679,31 @@ async function doGenerate() {
         return { success: false, error: "正在进行画布扩图" };
     }
 
-    const selectedVersion = document.getElementById('modelValue').value;
+    const selectedVersion = options.model || (document.getElementById('modelValue') ? document.getElementById('modelValue').value : 'v5');
     if (selectedVersion === 'zimage') {
-        return doGenerateZImage();
+        return doGenerateZImage(options);
     }
 
     appState.isGenerating = true;
     appState.cancelRequested = false;
 
     try {
-        const promptText = els.prompt.value.trim();
+        const promptText = (options.prompt !== undefined ? options.prompt : (els.prompt ? els.prompt.value.trim() : '')).trim();
         if (!promptText) {
-            els.prompt.focus();
-            ui.toggleMobileControls(true);
+            if (els.prompt) els.prompt.focus();
+            if (ui.toggleMobileControls) ui.toggleMobileControls(true);
             return { success: false, error: "提示词不能为空" };
         }
 
-        const selectedVersion = document.getElementById('modelValue').value;
-        const resEl = document.getElementById('resolution');
-        if (!resEl) throw new Error("找不到分辨率选择器");
-        const [w, h] = resEl.value.split(',').map(Number);
+        let w, h;
+        if (options.width && options.height) {
+            w = options.width;
+            h = options.height;
+        } else {
+            const resEl = document.getElementById('resolution');
+            if (!resEl) throw new Error("找不到分辨率选择器");
+            [w, h] = resEl.value.split(',').map(Number);
+        }
         
         // 获取所有自定义 Key
         const customApiKeyRaw = store.getSetting('nai_custom_api_key');
@@ -710,14 +766,27 @@ async function doGenerate() {
 
             try {
                 const extraParams = collectAdvancedAndModelParams(selectedVersion);
+                const negativePrompt = options.negative !== undefined 
+                    ? options.negative 
+                    : (els.negative ? els.negative.value.trim() : '');
+                const stepsVal = options.steps !== undefined 
+                    ? Math.min(options.steps, 28) 
+                    : parseInt(els.steps ? els.steps.value : '28', 10);
+                const scaleVal = options.scale !== undefined 
+                    ? options.scale 
+                    : parseFloat(els.scale ? els.scale.value : '5.0');
+                const samplerVal = options.sampler !== undefined 
+                    ? options.sampler 
+                    : (els.sampler ? els.sampler.value : 'k_euler');
+
                 const params = {
                     version: selectedVersion,
                     prompt: promptText,
-                    negative_prompt: els.negative.value.trim(),
+                    negative_prompt: negativePrompt,
                     width: w, height: h,
-                    steps: parseInt(els.steps.value),
-                    scale: parseFloat(els.scale.value),
-                    sampler: els.sampler.value,
+                    steps: stepsVal,
+                    scale: scaleVal,
+                    sampler: samplerVal,
                     ...extraParams
                 };
 
@@ -862,7 +931,7 @@ async function doGenerate() {
                         random_prompt_selections: localParams.randomSelections || null
                     };
 
-                    if (result.blob) {
+                    if (!options.skipSaveHistory && result.blob) {
                         const reader = new FileReader();
                         reader.readAsDataURL(result.blob);
                         reader.onloadend = async () => {
@@ -898,13 +967,40 @@ async function doGenerate() {
 
         if (allGeneratedResults.length > 0) {
             const first = allGeneratedResults[0];
+            const negativePrompt = options.negative !== undefined 
+                ? options.negative 
+                : (els.negative ? els.negative.value.trim() : '');
+            const stepsVal = options.steps !== undefined 
+                ? Math.min(options.steps, 28) 
+                : parseInt(els.steps ? els.steps.value : '28', 10);
+            const scaleVal = options.scale !== undefined 
+                ? options.scale 
+                : parseFloat(els.scale ? els.scale.value : '5.0');
+            const samplerVal = options.sampler !== undefined 
+                ? options.sampler 
+                : (els.sampler ? els.sampler.value : 'k_euler');
             return {
                 success: true,
                 imageUrl: first.imageUrl,
                 seed: first.seed,
                 prompt: promptText,
+                negative_prompt: negativePrompt,
                 width: w,
                 height: h,
+                steps: stepsVal,
+                scale: scaleVal,
+                sampler: samplerVal,
+                model: selectedVersion,
+                meta: {
+                    width: w,
+                    height: h,
+                    steps: stepsVal,
+                    scale: scaleVal,
+                    sampler: samplerVal,
+                    seed: first.seed,
+                    negative_prompt: negativePrompt
+                },
+                isSavedToHistory: !options.skipSaveHistory,
                 results: allGeneratedResults
             };
         }
@@ -2876,6 +2972,27 @@ let lightboxItems = [];
 let lightboxIndex = 0;
 
 async function openLightbox(item) {
+    if (typeof item === 'string') {
+        const found = (galleryController.galleryItems || []).find(x => x.image === item || x.imageUrl === item);
+        if (found) {
+            item = found;
+        } else {
+            item = {
+                id: 'chat_' + Date.now(),
+                image: item,
+                imageUrl: item,
+                prompt: '--',
+                model: 'v5',
+                isSavedToHistory: false,
+                meta: null
+            };
+        }
+    } else if (item && typeof item === 'object') {
+        if (!item.image && item.imageUrl) item.image = item.imageUrl;
+        if (!item.imageUrl && item.image) item.imageUrl = item.image;
+        if (!item.id) item.id = 'chat_' + Date.now();
+    }
+
     if (item.isShowcase) {
         lightboxItems = appState.showcaseData.map(s => ({
             id: s.id,
@@ -2887,8 +3004,8 @@ async function openLightbox(item) {
         }));
         lightboxIndex = lightboxItems.findIndex(x => x.id === item.id);
     } else {
-        lightboxItems = galleryController.galleryItems;
-        lightboxIndex = galleryController.galleryItems.findIndex(x => x.id === item.id);
+        lightboxItems = galleryController.galleryItems || [];
+        lightboxIndex = lightboxItems.findIndex(x => x.id === item.id || (item.image && (x.image === item.image || x.imageUrl === item.image)));
     }
 
     if (lightboxIndex === -1) {
@@ -2921,72 +3038,70 @@ function renderLightboxCurrent() {
     }
 
     const modelEl = document.getElementById('lbInfoModel');
-    if (modelEl) modelEl.textContent = `Model: ${item.model || 'v3'}`;
+    if (modelEl) modelEl.textContent = `Model: ${item.model || 'v5'}`;
     
-    const meta = item.meta;
-    if (meta) {
-        const resEl = document.getElementById('lbInfoResolution');
-        if (resEl) resEl.textContent = `${meta.width || '--'} x ${meta.height || '--'}`;
-        
-        const promptEl = document.getElementById('lightboxPrompt');
-        if (promptEl) promptEl.textContent = item.prompt || '--';
-        
-        const negPrompt = meta.negative_prompt || '';
-        const negArea = document.getElementById('lightboxNegArea');
-        const negEl = document.getElementById('lightboxNeg');
-        if (negPrompt && negPrompt !== 'undefined') {
-            if (negEl) negEl.textContent = negPrompt;
-            if (negArea) negArea.style.display = 'block';
-        } else {
-            if (negArea) negArea.style.display = 'none';
-        }
-        
-        const stepsEl = document.getElementById('lbMetaSteps');
-        if (stepsEl) stepsEl.textContent = meta.steps || '--';
-        
-        const scaleEl = document.getElementById('lbMetaScale');
-        if (scaleEl) scaleEl.textContent = meta.scale || '--';
-        
-        const seedEl = document.getElementById('lbMetaSeed');
-        if (seedEl) seedEl.textContent = meta.seed !== undefined && meta.seed !== null ? meta.seed : '--';
-        
-        const strengthContainer = document.getElementById('lbMetaStrengthContainer');
-        const strengthEl = document.getElementById('lbMetaStrength');
-        if (meta.strength !== undefined && meta.strength !== null) {
-            if (strengthEl) strengthEl.textContent = meta.strength;
-            if (strengthContainer) strengthContainer.style.display = 'block';
-        } else {
-            if (strengthContainer) strengthContainer.style.display = 'none';
-        }
+    const meta = item.meta || item;
+    const promptText = item.prompt || meta?.prompt || '';
+    const negPrompt = meta?.negative_prompt || item.negative_prompt || '';
+    const width = meta?.width || item.width || '--';
+    const height = meta?.height || item.height || '--';
+    const steps = meta?.steps !== undefined ? meta.steps : (item.steps !== undefined ? item.steps : '--');
+    const scale = meta?.scale !== undefined ? meta.scale : (item.scale !== undefined ? item.scale : '--');
+    const seed = meta?.seed !== undefined && meta.seed !== null ? meta.seed : (item.seed !== undefined && item.seed !== null ? item.seed : '--');
+
+    const resEl = document.getElementById('lbInfoResolution');
+    if (resEl) resEl.textContent = `${width} x ${height}`;
+    
+    const promptEl = document.getElementById('lightboxPrompt');
+    if (promptEl) promptEl.textContent = promptText || '--';
+    
+    const negArea = document.getElementById('lightboxNegArea');
+    const negEl = document.getElementById('lightboxNeg');
+    if (negPrompt && negPrompt !== 'undefined') {
+        if (negEl) negEl.textContent = negPrompt;
+        if (negArea) negArea.style.display = 'block';
     } else {
-        const resEl = document.getElementById('lbInfoResolution');
-        if (resEl) resEl.textContent = 'Resolution: --';
-        
-        const promptEl = document.getElementById('lightboxPrompt');
-        if (promptEl) promptEl.textContent = item.prompt || '--';
-        
-        const negArea = document.getElementById('lightboxNegArea');
         if (negArea) negArea.style.display = 'none';
-        
-        const stepsEl = document.getElementById('lbMetaSteps');
-        if (stepsEl) stepsEl.textContent = '--';
-        
-        const scaleEl = document.getElementById('lbMetaScale');
-        if (scaleEl) scaleEl.textContent = '--';
-        
-        const seedEl = document.getElementById('lbMetaSeed');
-        if (seedEl) seedEl.textContent = '--';
-        
-        const strengthContainer = document.getElementById('lbMetaStrengthContainer');
+    }
+    
+    const stepsEl = document.getElementById('lbMetaSteps');
+    if (stepsEl) stepsEl.textContent = steps;
+    
+    const scaleEl = document.getElementById('lbMetaScale');
+    if (scaleEl) scaleEl.textContent = scale;
+    
+    const seedEl = document.getElementById('lbMetaSeed');
+    if (seedEl) seedEl.textContent = seed;
+    
+    const strengthContainer = document.getElementById('lbMetaStrengthContainer');
+    const strengthEl = document.getElementById('lbMetaStrength');
+    if (meta && meta.strength !== undefined && meta.strength !== null) {
+        if (strengthEl) strengthEl.textContent = meta.strength;
+        if (strengthContainer) strengthContainer.style.display = 'block';
+    } else {
         if (strengthContainer) strengthContainer.style.display = 'none';
     }
     
     const deleteBtn = document.querySelector('[onclick="lightboxDelete()"]');
+    const saveBtn = document.getElementById('lightboxSaveBtn');
+    const isSaved = item.isSavedToHistory !== false && (item.id && !String(item.id).startsWith('chat_') && !String(item.id).startsWith('temp_'));
+
     if (item.isShowcase) {
         if (deleteBtn) deleteBtn.classList.add('hidden');
+        if (saveBtn) saveBtn.classList.add('hidden');
+    } else if (!isSaved) {
+        if (deleteBtn) deleteBtn.classList.add('hidden');
+        if (saveBtn) {
+            saveBtn.classList.remove('hidden');
+            saveBtn.innerHTML = `<i data-lucide="bookmark" class="w-4 h-4"></i>`;
+            saveBtn.title = "保存到历史画廊";
+            saveBtn.disabled = false;
+        }
     } else {
         if (deleteBtn) deleteBtn.classList.remove('hidden');
+        if (saveBtn) saveBtn.classList.add('hidden');
     }
+    if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
 }
 
 function prevLightboxImage() {
@@ -3038,7 +3153,7 @@ function lightboxApplyParams() {
     els.prompt.value = item.prompt || '';
     els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
     
-    const meta = item.meta;
+    const meta = item.meta || item;
     if (meta) {
         // 3. 载入负向提示词
         if (meta.negative_prompt !== undefined) {
@@ -3276,8 +3391,56 @@ function lightboxDownload() {
     if (lightboxItems.length === 0) return;
     const item = lightboxItems[lightboxIndex];
     const filename = `novelai-${item.id || Date.now()}.png`;
-    triggerDownload(item.image, filename);
+    triggerDownload(item.image || item.imageUrl, filename);
 }
+
+async function lightboxSaveCurrentToGallery() {
+    if (lightboxItems.length === 0 || lightboxIndex < 0 || lightboxIndex >= lightboxItems.length) return;
+    const item = lightboxItems[lightboxIndex];
+    if (item.isShowcase) return;
+
+    const saveBtn = document.getElementById('lightboxSaveBtn');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>`;
+        if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
+    }
+
+    try {
+        if (typeof window.saveImageItemToGallery === 'function') {
+            const saved = await window.saveImageItemToGallery(item);
+            item.isSavedToHistory = true;
+            if (saved?.id) item.id = saved.id;
+
+            // Also sync corresponding chat message if exists
+            if (window.aiChatManager && window.aiChatManager.messages) {
+                for (const m of window.aiChatManager.messages) {
+                    if (m.tool_calls) {
+                        for (const tc of m.tool_calls) {
+                            if (tc.imageUrl === (item.imageUrl || item.image)) {
+                                tc.isSavedToHistory = true;
+                                if (saved?.id) tc.id = saved.id;
+                            }
+                        }
+                    }
+                }
+                window.aiChatManager.saveHistory();
+                window.aiChatManager.renderMessages();
+            }
+
+            renderLightboxCurrent();
+        }
+    } catch (err) {
+        console.error("Lightbox save error:", err);
+        if (window.showToast) window.showToast(`保存失败: ${err.message}`, "error");
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = `<i data-lucide="bookmark" class="w-4 h-4"></i>`;
+            if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
+        }
+    }
+}
+window.lightboxSaveCurrentToGallery = lightboxSaveCurrentToGallery;
 
 async function lightboxDelete() {
     if (lightboxItems.length === 0) return;
@@ -3395,7 +3558,7 @@ Object.assign(window, {
     enterCustomApiKey, closeApiKeyModal, verifyCustomApiKey, clearCustomApiKey,
     enterAdminToken, enterUserKey, toggleTheme,
     openLightbox, closeLightbox, prevLightboxImage, nextLightboxImage,
-    copyLightboxText, lightboxApplyParams, lightboxDownload, lightboxDelete,
+    copyLightboxText, lightboxApplyParams, lightboxDownload, lightboxDelete, lightboxSaveCurrentToGallery,
     lightboxCreate, toggleLightboxSidebarMobile,
     saveAdminToken, clearAdminToken,
     addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleKeyConcurrent, toggleV45Experimental, randomizeSeed, toggleBypassLimitsEnabled,

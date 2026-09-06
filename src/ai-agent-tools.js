@@ -614,7 +614,11 @@ export function executeToolCall(toolCall, context = {}) {
 
     return (async () => {
       try {
-        const genResult = await context.onGenerateImage();
+        const genResult = await context.onGenerateImage({
+          prompt: args.prompt,
+          negative: args.negative_prompt,
+          model: args.model
+        });
         if (!genResult || genResult.success === false) {
           return {
             success: false,
@@ -627,6 +631,21 @@ export function executeToolCall(toolCall, context = {}) {
         const seed = genResult.seed !== undefined ? genResult.seed : (genResult.results && genResult.results[0]?.seed);
         const width = genResult.width || (genResult.results && genResult.results[0]?.width) || 832;
         const height = genResult.height || (genResult.results && genResult.results[0]?.height) || 1216;
+        const model = genResult.model || args.model || context.model || 'v5';
+        const prompt = genResult.prompt || args.prompt || '';
+        const negative_prompt = genResult.negative_prompt || args.negative_prompt || '';
+        const steps = genResult.steps;
+        const scale = genResult.scale;
+        const sampler = genResult.sampler;
+        const meta = genResult.meta || {
+          negative_prompt,
+          width,
+          height,
+          steps,
+          scale,
+          sampler,
+          seed
+        };
 
         return {
           success: true,
@@ -636,7 +655,14 @@ export function executeToolCall(toolCall, context = {}) {
           seed,
           width,
           height,
-          prompt: genResult.prompt || args.prompt || ''
+          model,
+          prompt,
+          negative_prompt,
+          steps,
+          scale,
+          sampler,
+          meta,
+          isSavedToHistory: Boolean(genResult.isSavedToHistory)
         };
       } catch (err) {
         return {

@@ -178,6 +178,9 @@ export class AiChatManager {
         window.applyAiPromptToCanvas = (msgIdx, mode) => this.applyPromptByMessage(msgIdx, mode);
         window.applyAiPromptFromBlock = (msgIdx, blockIdx, mode) => this.applyPromptFromBlock(msgIdx, blockIdx, mode);
         window.copyAiChatMessage = (btn, msgIdx, blockIdx = null) => this.copyMessageText(btn, msgIdx, blockIdx);
+        window.openChatImageLightbox = (msgIdx, tcIdx) => this.openChatImageLightbox(msgIdx, tcIdx);
+        window.saveChatImageToGallery = (msgIdx, tcIdx, btn) => this.saveImageToGallery(msgIdx, tcIdx, btn);
+        window.regenerateChatImage = (msgIdx, tcIdx) => this.regenerateFromChatImage(msgIdx, tcIdx);
 
         if (this.inputEl) {
             this.inputEl.addEventListener('keydown', (e) => {
@@ -471,7 +474,7 @@ export class AiChatManager {
                 const renderedContent = renderMessageMarkdown(m.content, originalIdx);
                 let toolCardsHtml = '';
                 if (Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
-                    toolCardsHtml = m.tool_calls.map(tc => {
+                    toolCardsHtml = m.tool_calls.map((tc, tcIdx) => {
                         const isSuccess = tc.success !== false;
                         const icon = isSuccess ? (tc.tool === 'generate_image' ? 'sparkles' : 'wrench') : 'alert-circle';
                         const colorClass = isSuccess
@@ -496,24 +499,36 @@ export class AiChatManager {
                             const seedVal = tc.seed !== undefined ? tc.seed : '随机';
                             const w = tc.width || 832;
                             const h = tc.height || 1216;
+                            const isSaved = Boolean(tc.isSavedToHistory);
                             imageBlockHtml = `
                                 <div class="mt-2 rounded-xl overflow-hidden border border-purple-200 dark:border-purple-800/60 bg-black/10 dark:bg-black/40">
                                     <div class="relative group max-h-80 flex items-center justify-center bg-slate-950/20 overflow-hidden">
-                                        <img src="${tc.imageUrl}" alt="AI Generated" class="w-full h-auto max-h-72 object-contain cursor-pointer transition-transform duration-200 hover:scale-[1.01]" onclick="window.openLightbox ? window.openLightbox('${tc.imageUrl}') : window.open('${tc.imageUrl}', '_blank')" />
+                                        <img src="${tc.imageUrl}" alt="AI Generated" class="w-full h-auto max-h-72 object-contain cursor-pointer transition-transform duration-200 hover:scale-[1.01]" onclick="window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${tc.imageUrl}') : window.open('${tc.imageUrl}', '_blank'))" />
                                         <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-xs p-1 rounded-lg shadow-md">
                                             <button onclick="window.downloadImageUrl ? window.downloadImageUrl('${tc.imageUrl}', 'nai_agent_${seedVal}.png') : window.open('${tc.imageUrl}', '_blank')" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="下载图片">
                                                 <i data-lucide="download" class="w-3.5 h-3.5"></i>
                                             </button>
-                                            <button onclick="window.openLightbox ? window.openLightbox('${tc.imageUrl}') : window.open('${tc.imageUrl}', '_blank')" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="查看大图">
+                                            <button onclick="window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${tc.imageUrl}') : window.open('${tc.imageUrl}', '_blank'))" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="查看大图与详情">
                                                 <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
                                             </button>
                                         </div>
                                     </div>
-                                    <div class="px-2.5 py-1.5 flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 bg-white/80 dark:bg-slate-900/80 border-t border-purple-100 dark:border-purple-900/40">
+                                    <div class="px-2.5 py-1.5 flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 bg-white/80 dark:bg-slate-900/80 border-t border-purple-100 dark:border-purple-900/40 flex-wrap gap-1.5">
                                         <span>Seed: <code class="font-mono font-bold text-purple-600 dark:text-purple-400">${seedVal}</code> (${w}x${h})</span>
-                                        <button onclick="window.applyImageAsCanvasInit ? window.applyImageAsCanvasInit('${tc.imageUrl}') : null" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-1 font-semibold transition-colors cursor-pointer">
-                                            <i data-lucide="image" class="w-3 h-3"></i> 设为画板底图
-                                        </button>
+                                        <div class="flex items-center gap-1.5">
+                                            ${isSaved ? `
+                                                <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 font-semibold py-0.5 px-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-[10px]">
+                                                    <i data-lucide="check" class="w-3 h-3"></i> 已保存
+                                                </span>
+                                            ` : `
+                                                <button onclick="window.saveChatImageToGallery ? window.saveChatImageToGallery(${originalIdx}, ${tcIdx}, this) : null" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer touch-manipulation text-[10px]" title="保存至本地历史画廊">
+                                                    <i data-lucide="bookmark" class="w-3 h-3"></i> 保存
+                                                </button>
+                                            `}
+                                            <button onclick="window.regenerateChatImage ? window.regenerateChatImage(${originalIdx}, ${tcIdx}) : null" class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer touch-manipulation text-[10px]" title="基于此提示词与参数重新生成">
+                                                <i data-lucide="refresh-cw" class="w-3 h-3"></i> 重新生成
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             `;
@@ -1020,6 +1035,188 @@ export class AiChatManager {
                 console.error("Clipboard copy error:", err);
                 this.onShowToast("复制失败", "error");
             });
+        }
+    }
+
+    openChatImageLightbox(msgIdx, tcIdx) {
+        const msg = this.messages[msgIdx];
+        if (!msg || !msg.tool_calls || !msg.tool_calls[tcIdx]) return;
+        const tc = msg.tool_calls[tcIdx];
+        const item = {
+            id: tc.id || `chat_${msgIdx}_${tcIdx}`,
+            image: tc.imageUrl,
+            imageUrl: tc.imageUrl,
+            prompt: tc.prompt || '',
+            model: tc.model || 'v5',
+            isSavedToHistory: Boolean(tc.isSavedToHistory),
+            meta: tc.meta || {
+                width: tc.width,
+                height: tc.height,
+                steps: tc.steps,
+                scale: tc.scale,
+                sampler: tc.sampler,
+                seed: tc.seed,
+                negative_prompt: tc.negative_prompt || ''
+            }
+        };
+        if (typeof window !== 'undefined' && typeof window.openLightbox === 'function') {
+            window.openLightbox(item);
+        } else if (typeof window !== 'undefined') {
+            window.open(tc.imageUrl, '_blank');
+        }
+    }
+
+    async saveImageToGallery(msgIdx, tcIdx, btnEl = null) {
+        const msg = this.messages[msgIdx];
+        if (!msg || !msg.tool_calls || !msg.tool_calls[tcIdx]) return;
+        const tc = msg.tool_calls[tcIdx];
+        if (tc.isSavedToHistory) return;
+
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> 保存中...`;
+            if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
+        }
+
+        try {
+            if (typeof window !== 'undefined' && typeof window.saveImageItemToGallery === 'function') {
+                const saved = await window.saveImageItemToGallery({
+                    imageUrl: tc.imageUrl,
+                    image: tc.imageUrl,
+                    prompt: tc.prompt,
+                    model: tc.model,
+                    meta: tc.meta || {
+                        width: tc.width,
+                        height: tc.height,
+                        steps: tc.steps,
+                        scale: tc.scale,
+                        sampler: tc.sampler,
+                        seed: tc.seed,
+                        negative_prompt: tc.negative_prompt || ''
+                    }
+                });
+                tc.isSavedToHistory = true;
+                if (saved?.id) tc.id = saved.id;
+                this.saveHistory();
+                this.renderMessages();
+            }
+        } catch (err) {
+            console.error("保存图片至画廊失败:", err);
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.innerHTML = `<i data-lucide="bookmark" class="w-3 h-3"></i> 保存`;
+                if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
+            }
+        }
+    }
+
+    async regenerateFromChatImage(msgIdx, tcIdx) {
+        if (this.isLoading) return;
+        const msg = this.messages[msgIdx];
+        if (!msg || !msg.tool_calls || !msg.tool_calls[tcIdx]) return;
+        const prevTc = msg.tool_calls[tcIdx];
+
+        const prompt = prevTc.prompt || '';
+        const negative = prevTc.negative_prompt || '';
+        const model = prevTc.model || 'v5';
+        const width = prevTc.width || 832;
+        const height = prevTc.height || 1216;
+        const steps = Math.min(prevTc.steps || 28, 28);
+        const scale = prevTc.scale || 5.0;
+
+        // Apply prompt to canvas
+        if (prompt && this.onApplyPrompt) {
+            this.onApplyPrompt(prompt, 'replace');
+        }
+        if (this.onSetModel && model) {
+            this.onSetModel(model);
+        }
+
+        this.messages.push({
+            role: 'user',
+            content: `基于提示词重新生成图像:\n"${prompt}"`
+        });
+
+        this.isLoading = true;
+        this.renderMessages();
+
+        try {
+            let genResult = null;
+            if (this.onGenerateImage) {
+                genResult = await this.onGenerateImage({
+                    prompt,
+                    negative,
+                    model,
+                    width,
+                    height,
+                    steps,
+                    scale,
+                    skipSaveHistory: true
+                });
+            } else if (typeof window !== 'undefined' && typeof window.doGenerate === 'function') {
+                genResult = await window.doGenerate({
+                    prompt,
+                    negative,
+                    model,
+                    width,
+                    height,
+                    steps,
+                    scale,
+                    skipSaveHistory: true
+                });
+            }
+
+            if (!genResult || genResult.success === false) {
+                throw new Error(genResult?.error || '图像重新生成未成功完成');
+            }
+
+            const imageUrl = genResult.imageUrl || (genResult.results && genResult.results[0]?.imageUrl) || '';
+            const seed = genResult.seed !== undefined ? genResult.seed : '随机';
+            const w = genResult.width || width;
+            const h = genResult.height || height;
+            const resultModel = genResult.model || model;
+            const resultMeta = genResult.meta || {
+                width: w,
+                height: h,
+                steps,
+                scale,
+                sampler: genResult.sampler,
+                seed,
+                negative_prompt: negative
+            };
+
+            const newTc = {
+                tool: 'generate_image',
+                success: true,
+                message: `图像重新生成成功! (Seed: ${seed}, 尺寸: ${w}x${h})`,
+                imageUrl,
+                seed,
+                width,
+                height,
+                model: resultModel,
+                prompt,
+                negative_prompt: negative,
+                steps,
+                scale,
+                sampler: genResult.sampler,
+                meta: resultMeta,
+                isSavedToHistory: false
+            };
+
+            this.messages.push({
+                role: 'assistant',
+                content: `已为您基于该提示词重新生成出图 (Seed: \`${seed}\`)。此图片尚未存入历史画廊，如满意请点击图片下方的【保存】。`,
+                tool_calls: [newTc]
+            });
+        } catch (err) {
+            this.messages.push({
+                role: 'assistant',
+                content: `重新生成失败: ${err.message}`
+            });
+        } finally {
+            this.isLoading = false;
+            this.saveHistory();
+            this.renderMessages();
         }
     }
 }

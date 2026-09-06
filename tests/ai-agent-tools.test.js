@@ -653,6 +653,160 @@ I have updated your prompt!
       expect(genToolCall).toBeDefined();
       expect(genToolCall.imageUrl).toBe('blob:test-generated-img');
       expect(genToolCall.seed).toBe(13579);
+      expect(genToolCall.isSavedToHistory).toBe(false);
+    });
+  });
+
+  describe('6. Chat Generated Image Lifecycle & Lightbox Protocol', () => {
+    it('generate_image tool call should return full metadata and isSavedToHistory: false by default', async () => {
+      const mockGen = vi.fn().mockResolvedValue({
+        success: true,
+        imageUrl: 'blob:test-img-url',
+        seed: 424242,
+        width: 832,
+        height: 1216,
+        model: 'v5',
+        prompt: 'masterpiece, 1girl, smiling',
+        negative_prompt: 'lowres, bad anatomy',
+        steps: 28,
+        scale: 5.0,
+        sampler: 'k_euler',
+        isSavedToHistory: false
+      });
+
+      const res = await executeToolCall(
+        {
+          name: 'generate_image',
+          arguments: { prompt: 'masterpiece, 1girl, smiling', negative_prompt: 'lowres, bad anatomy', model: 'v5' }
+        },
+        { onGenerateImage: mockGen }
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.imageUrl).toBe('blob:test-img-url');
+      expect(res.seed).toBe(424242);
+      expect(res.isSavedToHistory).toBe(false);
+      expect(res.prompt).toBe('masterpiece, 1girl, smiling');
+      expect(res.negative_prompt).toBe('lowres, bad anatomy');
+      expect(res.meta).toEqual(expect.objectContaining({
+        width: 832,
+        height: 1216,
+        steps: 28,
+        scale: 5.0,
+        sampler: 'k_euler',
+        seed: 424242,
+        negative_prompt: 'lowres, bad anatomy'
+      }));
+    });
+
+    it('should support regenerating image based on prompt and parameters with skipSaveHistory: true', async () => {
+      const genMock = vi.fn().mockResolvedValue({
+        success: true,
+        imageUrl: 'blob:regenerated-img',
+        seed: 99999,
+        width: 832,
+        height: 1216,
+        model: 'v5',
+        prompt: '1girl, cyberpunk city',
+        steps: 28,
+        scale: 5.0,
+        sampler: 'k_euler',
+        isSavedToHistory: false
+      });
+
+      const applyPromptMock = vi.fn();
+      const setModelMock = vi.fn();
+
+      const manager = new AiChatManager({
+        onGenerateImage: genMock,
+        onApplyPrompt: applyPromptMock,
+        onSetModel: setModelMock
+      });
+
+      manager.messages = [
+        {
+          role: 'assistant',
+          content: 'Here is your image:',
+          tool_calls: [
+            {
+              tool: 'generate_image',
+              success: true,
+              imageUrl: 'blob:first-gen-img',
+              seed: 11111,
+              prompt: '1girl, cyberpunk city',
+              negative_prompt: 'bad quality',
+              model: 'v5',
+              width: 832,
+              height: 1216,
+              steps: 28,
+              scale: 5.0,
+              sampler: 'k_euler',
+              isSavedToHistory: false
+            }
+          ]
+        }
+      ];
+
+      await manager.regenerateFromChatImage(0, 0);
+
+      // Canvas prompt and model updated
+      expect(applyPromptMock).toHaveBeenCalledWith('1girl, cyberpunk city', 'replace');
+      expect(setModelMock).toHaveBeenCalledWith('v5');
+
+      // Called generation with skipSaveHistory
+      expect(genMock).toHaveBeenCalledWith(expect.objectContaining({
+        prompt: '1girl, cyberpunk city',
+        negative: 'bad quality',
+        model: 'v5',
+        skipSaveHistory: true
+      }));
+
+      // A user message and a new assistant message appended
+      const lastMsg = manager.messages[manager.messages.length - 1];
+      expect(lastMsg.role).toBe('assistant');
+      expect(lastMsg.tool_calls[0].imageUrl).toBe('blob:regenerated-img');
+      expect(lastMsg.tool_calls[0].seed).toBe(99999);
+      expect(lastMsg.tool_calls[0].isSavedToHistory).toBe(false);
+    });
+
+    it('should save image to gallery only upon user explicit save', async () => {
+      const saveToGalleryMock = vi.fn().mockResolvedValue({ id: 12345 });
+      const origWindow = global.window;
+      global.window = {
+        saveImageItemToGallery: saveToGalleryMock
+      };
+
+      const manager = new AiChatManager({});
+      manager.messages = [
+        {
+          role: 'assistant',
+          content: 'Output',
+          tool_calls: [
+            {
+              tool: 'generate_image',
+              imageUrl: 'blob:unsaved-img',
+              prompt: 'fantasy castle',
+              model: 'v5',
+              isSavedToHistory: false
+            }
+          ]
+        }
+      ];
+
+      expect(manager.messages[0].tool_calls[0].isSavedToHistory).toBe(false);
+
+      await manager.saveImageToGallery(0, 0);
+
+      expect(saveToGalleryMock).toHaveBeenCalledWith(expect.objectContaining({
+        imageUrl: 'blob:unsaved-img',
+        prompt: 'fantasy castle',
+        model: 'v5'
+      }));
+
+      expect(manager.messages[0].tool_calls[0].isSavedToHistory).toBe(true);
+      expect(manager.messages[0].tool_calls[0].id).toBe(12345);
+
+      global.window = origWindow;
     });
   });
 });
