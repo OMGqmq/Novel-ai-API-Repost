@@ -580,7 +580,9 @@ async function doGenerateZImage(options = {}) {
         const seedEl = document.getElementById('seed');
         const userSeedVal = seedEl ? seedEl.value.trim() : "";
         let finalSeed;
-        if (userSeedVal && !isNaN(userSeedVal)) {
+        if (options.seed !== undefined && options.seed !== null && options.seed !== "") {
+            finalSeed = parseInt(options.seed, 10) % 2147483648;
+        } else if (userSeedVal && !isNaN(userSeedVal)) {
             finalSeed = parseInt(userSeedVal) % 2147483648;
         } else {
             finalSeed = Math.floor(Math.random() * 2147483647);
@@ -804,7 +806,9 @@ async function doGenerate(options = {}) {
 
                 const buildLocalParams = (seedOffset) => {
                     let finalSeed;
-                    if (userSeedVal && !isNaN(userSeedVal)) {
+                    if (options.seed !== undefined && options.seed !== null && options.seed !== "") {
+                        finalSeed = (parseInt(options.seed, 10) + i + seedOffset) % 4294967296;
+                    } else if (userSeedVal && !isNaN(userSeedVal)) {
                         finalSeed = (parseInt(userSeedVal) + i + seedOffset) % 4294967296;
                     } else {
                         finalSeed = Math.floor(Math.random() * 4294967295);

@@ -184,28 +184,60 @@ export const AGENT_TOOLS = [
     type: "function",
     function: {
       name: "generate_image",
-      description: "触发 NovelAI 图像生成并直接在对话中呈现生成出的图片。遵循普通用户免费权限（免费分辨率、步数 <= 28 步、单张生成），不消耗 Anlas。",
+      description: "触发 NovelAI 独立图像生成并在对话卡片中呈现。支持自定义全部出图参数，严格运行在普通用户免扣点安全区间（步数 <= 28 步、标准免费分辨率、单张出图）。注意：此工具为独立出图，绝不修改用户当前的画板内容。",
       parameters: {
         type: "object",
         properties: {
           prompt: {
             type: "string",
-            description: "可选。生成前一并更新的正向提示词。若留空则直接使用画板当前提示词。"
+            description: "生成所用的正向提示词。必填。"
           },
           negative_prompt: {
             type: "string",
-            description: "可选。生成前一并更新的负向排除词。"
+            description: "可选。生成所用的负向排除词。留空时使用标准画质通用排除词。"
           },
           model: {
             type: "string",
             enum: ["v3", "v4.5", "v5", "zimage"],
-            description: "可选。生成前一并切换的基础模型。"
+            description: "可选。生成使用的基础模型，默认 v5。"
+          },
+          aspect_ratio: {
+            type: "string",
+            enum: ["portrait", "landscape", "square"],
+            description: "可选。画幅比例：'portrait'(竖屏 832x1216), 'landscape'(横屏 1216x832), 'square'(正方形 1024x1024)。全部属于普通免费区间。"
+          },
+          width: {
+            type: "integer",
+            description: "可选。自定义宽度像素。若超出免费区间将自动安全调整为免费规格。"
+          },
+          height: {
+            type: "integer",
+            description: "可选。自定义高度像素。若超出免费区间将自动安全调整为免费规格。"
+          },
+          steps: {
+            type: "integer",
+            description: "可选。生成步数。注意：普通用户免费上限为 28 步，超过 28 步将被安全限制为 28 步以防消耗 Anlas。"
+          },
+          scale: {
+            type: "number",
+            description: "可选。CFG 引导比例，默认 5.0。"
+          },
+          sampler: {
+            type: "string",
+            description: "可选。采样器算法，例如 'k_euler', 'k_euler_ancestral', 'k_dpmpp_2s_ancestral' 等。"
+          },
+          seed: {
+            type: "integer",
+            description: "可选。指定随机种子。不填则随机生成。"
           }
-        }
+        },
+        required: ["prompt"]
       }
     }
   }
 ];
+
+export const DEFAULT_AI_NEGATIVE_PROMPT = 'lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]';
 
 /**
  * Validates and clamps parameters strictly into NovelAI normal user free quota
@@ -592,18 +624,6 @@ export function executeToolCall(toolCall, context = {}) {
   }
 
   if (name === 'generate_image') {
-    // Optional pre-generation adjustments
-    if (args.model && context.onSetModel) {
-      context.onSetModel(args.model);
-    }
-    if (args.prompt) {
-      const mode = 'replace';
-      const negative = args.negative_prompt || '';
-      if (context.onUpdatePrompt) {
-        context.onUpdatePrompt({ prompt: args.prompt, mode, negative, negativeMode: 'replace' });
-      }
-    }
-
     if (!context.onGenerateImage) {
       return {
         success: false,
@@ -612,12 +632,35 @@ export function executeToolCall(toolCall, context = {}) {
       };
     }
 
+    const canvasState = typeof context.getCanvasState === 'function' ? context.getCanvasState() : {};
+    const prompt = (args.prompt !== undefined && args.prompt !== null && args.prompt !== '')
+      ? String(args.prompt).trim()
+      : (canvasState.prompt || '').trim();
+
+    // Safety clamp (Free quota: steps <= 28, free resolutions, batch = 1)
+    const safeParams = clampSafeParameters(args);
+    const model = args.model || 'v5';
+    const negative = args.negative_prompt !== undefined ? args.negative_prompt : DEFAULT_AI_NEGATIVE_PROMPT;
+    const width = safeParams.width || 832;
+    const height = safeParams.height || 1216;
+    const steps = safeParams.steps !== undefined ? safeParams.steps : 28;
+    const scale = safeParams.scale !== undefined ? safeParams.scale : 5.0;
+    const sampler = safeParams.sampler || 'k_euler';
+    const seed = safeParams.seed !== undefined ? safeParams.seed : undefined;
+
     return (async () => {
       try {
         const genResult = await context.onGenerateImage({
-          prompt: args.prompt,
-          negative: args.negative_prompt,
-          model: args.model
+          prompt,
+          negative,
+          model,
+          width,
+          height,
+          steps,
+          scale,
+          sampler,
+          seed,
+          skipSaveHistory: true
         });
         if (!genResult || genResult.success === false) {
           return {
@@ -628,41 +671,63 @@ export function executeToolCall(toolCall, context = {}) {
         }
 
         const imageUrl = genResult.imageUrl || (genResult.results && genResult.results[0]?.imageUrl) || (genResult.primaryImage && genResult.primaryImage.imageUrl) || '';
-        const seed = genResult.seed !== undefined ? genResult.seed : (genResult.results && genResult.results[0]?.seed);
-        const width = genResult.width || (genResult.results && genResult.results[0]?.width) || 832;
-        const height = genResult.height || (genResult.results && genResult.results[0]?.height) || 1216;
-        const model = genResult.model || args.model || context.model || 'v5';
-        const prompt = genResult.prompt || args.prompt || '';
-        const negative_prompt = genResult.negative_prompt || args.negative_prompt || '';
-        const steps = genResult.steps;
-        const scale = genResult.scale;
-        const sampler = genResult.sampler;
+        const resSeed = genResult.seed !== undefined ? genResult.seed : (genResult.results && genResult.results[0]?.seed);
+        const resWidth = genResult.width || (genResult.results && genResult.results[0]?.width) || width;
+        const resHeight = genResult.height || (genResult.results && genResult.results[0]?.height) || height;
+        const resModel = genResult.model || model;
+        const resPrompt = genResult.prompt || prompt;
+        const resNegative = genResult.negative_prompt || negative;
+        const resSteps = genResult.steps !== undefined ? genResult.steps : steps;
+        const resScale = genResult.scale !== undefined ? genResult.scale : scale;
+        const resSampler = genResult.sampler || sampler;
         const meta = genResult.meta || {
-          negative_prompt,
-          width,
-          height,
-          steps,
-          scale,
-          sampler,
-          seed
+          negative_prompt: resNegative,
+          width: resWidth,
+          height: resHeight,
+          steps: resSteps,
+          scale: resScale,
+          sampler: resSampler,
+          seed: resSeed
         };
+
+        const imageItem = {
+          imageUrl,
+          seed: resSeed,
+          width: resWidth,
+          height: resHeight,
+          model: resModel,
+          prompt: resPrompt,
+          negative_prompt: resNegative,
+          steps: resSteps,
+          scale: resScale,
+          sampler: resSampler,
+          meta,
+          isSavedToHistory: false,
+          id: null
+        };
+
+        const adjustMsg = safeParams.adjustments && safeParams.adjustments.length > 0
+          ? ` [${safeParams.adjustments.join('; ')}]`
+          : '';
 
         return {
           success: true,
           tool: name,
-          message: `图像生成成功! (Seed: ${seed || '随机'}, 尺寸: ${width}x${height})`,
+          message: `图像生成成功! (Seed: ${resSeed !== undefined ? resSeed : '随机'}, 尺寸: ${resWidth}x${resHeight})${adjustMsg}`,
           imageUrl,
-          seed,
-          width,
-          height,
-          model,
-          prompt,
-          negative_prompt,
-          steps,
-          scale,
-          sampler,
+          seed: resSeed,
+          width: resWidth,
+          height: resHeight,
+          model: resModel,
+          prompt: resPrompt,
+          negative_prompt: resNegative,
+          steps: resSteps,
+          scale: resScale,
+          sampler: resSampler,
           meta,
-          isSavedToHistory: Boolean(genResult.isSavedToHistory)
+          isSavedToHistory: false,
+          images: [imageItem],
+          currentIndex: 0
         };
       } catch (err) {
         return {

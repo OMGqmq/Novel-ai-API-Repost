@@ -516,13 +516,10 @@ I have updated your prompt!
       expect(res.imageUrl).toBe('blob:http://localhost/test-image-uuid');
       expect(res.seed).toBe(987654321);
       expect(res.message).toContain('图像生成成功');
-      expect(onUpdatePrompt).toHaveBeenCalledWith({
-        prompt: '1girl, celestial dragon wings',
-        mode: 'replace',
-        negative: '',
-        negativeMode: 'replace'
-      });
-      expect(onGenerateImage).toHaveBeenCalled();
+      expect(onUpdatePrompt).not.toHaveBeenCalled();
+      expect(onGenerateImage).toHaveBeenCalledWith(expect.objectContaining({
+        prompt: '1girl, celestial dragon wings'
+      }));
     });
   });
 
@@ -822,6 +819,81 @@ I have updated your prompt!
       expect(manager.messages[0].tool_calls[0].id).toBe(12345);
 
       global.window = origWindow;
+    });
+  });
+
+  describe('7. Decoupled Custom Parameters & Scroll Preservation Suite', () => {
+    it('generate_image should accept custom parameters, clamp steps to 28, and never call onUpdatePrompt or onSetModel', async () => {
+      const onUpdatePrompt = vi.fn();
+      const onSetModel = vi.fn();
+      const onGenerateImage = vi.fn().mockResolvedValue({
+        success: true,
+        imageUrl: 'blob:decoupled-test',
+        seed: 777777,
+        width: 1216,
+        height: 832,
+        steps: 28,
+        scale: 6.5,
+        sampler: 'k_euler_ancestral'
+      });
+
+      const res = await executeToolCall({
+        name: 'generate_image',
+        arguments: {
+          prompt: '1girl, floating in space, stars',
+          negative_prompt: 'worst quality, blurry',
+          model: 'v5',
+          aspect_ratio: 'landscape',
+          steps: 50, // Should be clamped to 28
+          scale: 6.5,
+          sampler: 'k_euler_ancestral',
+          seed: 777777
+        }
+      }, { onUpdatePrompt, onSetModel, onGenerateImage });
+
+      expect(res.success).toBe(true);
+      expect(onUpdatePrompt).not.toHaveBeenCalled();
+      expect(onSetModel).not.toHaveBeenCalled();
+      expect(onGenerateImage).toHaveBeenCalledWith({
+        prompt: '1girl, floating in space, stars',
+        negative: 'worst quality, blurry',
+        model: 'v5',
+        width: 1216,
+        height: 832,
+        steps: 28,
+        scale: 6.5,
+        sampler: 'k_euler_ancestral',
+        seed: 777777,
+        skipSaveHistory: true
+      });
+      expect(res.message).toContain('已自动安全限制');
+    });
+
+    it('renderMessages with preserveScroll should maintain container scrollTop and not jump to bottom', () => {
+      const mockContainer = {
+        scrollTop: 350,
+        scrollHeight: 1500,
+        clientHeight: 400,
+        innerHTML: ''
+      };
+
+      const manager = new AiChatManager({
+        service: { defaultSystemPrompt: '', getSettings: () => ({}) }
+      });
+      manager.messagesContainerEl = mockContainer;
+      manager.messages = [
+        { id: '1', role: 'user', content: 'hello' },
+        { id: '2', role: 'assistant', content: 'world' }
+      ];
+
+      // renderMessages with preserveScroll
+      mockContainer.scrollTop = 350;
+      manager.renderMessages({ preserveScroll: true });
+      expect(mockContainer.scrollTop).toBe(350);
+
+      // forceScrollToBottom should jump to bottom
+      manager.renderMessages({ forceScrollToBottom: true });
+      expect(mockContainer.scrollTop).toBe(1500);
     });
   });
 });

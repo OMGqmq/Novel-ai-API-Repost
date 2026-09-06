@@ -48,13 +48,13 @@ function renderMessageMarkdown(text, msgIdx) {
                         <span>${titleLabel}</span>
                     </span>
                     <div class="flex items-center gap-1.5">
-                        <button onclick="window.applyAiPromptFromBlock(${msgIdx}, ${blockIdx}, 'replace')" title="替换画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-purple-900/50 text-purple-300 hover:text-purple-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
+                        <button type="button" onclick="event.stopPropagation(); window.applyAiPromptFromBlock(${msgIdx}, ${blockIdx}, 'replace')" title="替换画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-purple-900/50 text-purple-300 hover:text-purple-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
                             <i data-lucide="wand-2" class="w-3 h-3"></i> 填入画板
                         </button>
-                        <button onclick="window.applyAiPromptFromBlock(${msgIdx}, ${blockIdx}, 'append')" title="追加到画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-indigo-900/50 text-indigo-300 hover:text-indigo-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
+                        <button type="button" onclick="event.stopPropagation(); window.applyAiPromptFromBlock(${msgIdx}, ${blockIdx}, 'append')" title="追加到画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-indigo-900/50 text-indigo-300 hover:text-indigo-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
                             <i data-lucide="plus" class="w-3 h-3"></i> 追加
                         </button>
-                        <button onclick="window.copyAiChatMessage(this, ${msgIdx}, ${blockIdx})" title="复制代码块内容" class="px-2 py-0.5 rounded-md hover:bg-slate-800 text-gray-400 hover:text-gray-200 transition-colors flex items-center gap-1 text-[10px] touch-manipulation">
+                        <button type="button" onclick="event.stopPropagation(); window.copyAiChatMessage(this, ${msgIdx}, ${blockIdx})" title="复制代码块内容" class="px-2 py-0.5 rounded-md hover:bg-slate-800 text-gray-400 hover:text-gray-200 transition-colors flex items-center gap-1 text-[10px] touch-manipulation">
                             <i data-lucide="copy" class="w-3 h-3"></i> 复制
                         </button>
                     </div>
@@ -97,13 +97,13 @@ function renderMessageMarkdown(text, msgIdx) {
                         <span>${titleLabel}</span>
                     </span>
                     <div class="flex items-center gap-1.5">
-                        <button onclick="window.applyAiPromptFromBlock(${msgIdx}, ${idx}, 'replace')" title="替换画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-purple-900/50 text-purple-300 hover:text-purple-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
+                        <button type="button" onclick="event.stopPropagation(); window.applyAiPromptFromBlock(${msgIdx}, ${idx}, 'replace')" title="替换画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-purple-900/50 text-purple-300 hover:text-purple-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
                             <i data-lucide="wand-2" class="w-3 h-3"></i> 填入画板
                         </button>
-                        <button onclick="window.applyAiPromptFromBlock(${msgIdx}, ${idx}, 'append')" title="追加到画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-indigo-900/50 text-indigo-300 hover:text-indigo-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
+                        <button type="button" onclick="event.stopPropagation(); window.applyAiPromptFromBlock(${msgIdx}, ${idx}, 'append')" title="追加到画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-indigo-900/50 text-indigo-300 hover:text-indigo-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
                             <i data-lucide="plus" class="w-3 h-3"></i> 追加
                         </button>
-                        <button onclick="window.copyAiChatMessage(this, ${msgIdx}, ${idx})" title="复制代码块内容" class="px-2 py-0.5 rounded-md hover:bg-slate-800 text-gray-400 hover:text-gray-200 transition-colors flex items-center gap-1 text-[10px] touch-manipulation">
+                        <button type="button" onclick="event.stopPropagation(); window.copyAiChatMessage(this, ${msgIdx}, ${idx})" title="复制代码块内容" class="px-2 py-0.5 rounded-md hover:bg-slate-800 text-gray-400 hover:text-gray-200 transition-colors flex items-center gap-1 text-[10px] touch-manipulation">
                             <i data-lucide="copy" class="w-3 h-3"></i> 复制
                         </button>
                     </div>
@@ -235,7 +235,7 @@ export class AiChatManager {
     open() {
         if (!this.modalEl) return;
         this.hydrateSettingsInputs();
-        this.renderMessages();
+        this.renderMessages({ forceScrollToBottom: true });
         this.modalEl.style.display = 'flex';
         requestAnimationFrame(() => {
             this.modalEl.classList.remove('opacity-0', 'pointer-events-none');
@@ -387,8 +387,13 @@ export class AiChatManager {
         }
     }
 
-    renderMessages() {
+    renderMessages(options = {}) {
         if (!this.messagesContainerEl) return;
+
+        const preserveScroll = Boolean(options.preserveScroll);
+        const forceScrollToBottom = Boolean(options.forceScrollToBottom);
+        const prevScrollTop = this.messagesContainerEl.scrollTop;
+        const isNearBottom = (this.messagesContainerEl.scrollHeight - this.messagesContainerEl.scrollTop - this.messagesContainerEl.clientHeight) < 60;
 
         if (this.messages.length === 0 && !this.isLoading) {
             this.messagesContainerEl.innerHTML = `
@@ -445,10 +450,10 @@ export class AiChatManager {
                     <div class="w-full max-w-md pt-1 space-y-1 text-left">
                         <span class="text-[10px] text-gray-400 dark:text-slate-500 font-bold uppercase tracking-wider pl-0.5">尝试发送指令:</span>
                         <div class="flex flex-col sm:flex-row gap-1.5">
-                            <button onclick="window.setAiChatPrompt('帮我优化当前画板的提示词，增强光影与细节并写入画板')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
+                            <button type="button" onclick="event.stopPropagation(); window.setAiChatPrompt('帮我优化当前画板的提示词，增强光影与细节并写入画板')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
                                 💡 优化当前画板词并自动写入
                             </button>
-                            <button onclick="window.setAiChatPrompt('创作一个赛博朋克银发少女，搭配角色和场景直接生成出图')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
+                            <button type="button" onclick="event.stopPropagation(); window.setAiChatPrompt('创作一个赛博朋克银发少女，搭配角色和场景直接生成出图')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
                                 🎨 创作赛博少女并自主出图展示
                             </button>
                         </div>
@@ -543,10 +548,10 @@ export class AiChatManager {
                                         ` : ''}
 
                                         <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-xs p-1 rounded-lg shadow-md z-10">
-                                            <button onclick="window.downloadImageUrl ? window.downloadImageUrl('${currentImg.imageUrl}', 'nai_agent_${seedVal}.png') : window.open('${currentImg.imageUrl}', '_blank')" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="下载图片">
+                                            <button type="button" onclick="event.stopPropagation(); window.downloadImageUrl ? window.downloadImageUrl('${currentImg.imageUrl}', 'nai_agent_${seedVal}.png') : window.open('${currentImg.imageUrl}', '_blank')" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="下载图片">
                                                 <i data-lucide="download" class="w-3.5 h-3.5"></i>
                                             </button>
-                                            <button onclick="window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${currentImg.imageUrl}') : window.open('${currentImg.imageUrl}', '_blank'))" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="查看大图与详情">
+                                            <button type="button" onclick="event.stopPropagation(); window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${currentImg.imageUrl}') : window.open('${currentImg.imageUrl}', '_blank'))" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="查看大图与详情">
                                                 <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
                                             </button>
                                         </div>
@@ -555,11 +560,11 @@ export class AiChatManager {
                                         <div class="flex items-center gap-2 flex-wrap">
                                             ${hasMultiple ? `
                                                 <div class="inline-flex items-center bg-purple-50/90 dark:bg-purple-950/60 border border-purple-200/80 dark:border-purple-800/60 rounded-md px-1 py-0.5 text-[10px] text-purple-700 dark:text-purple-300 select-none">
-                                                    <button onclick="window.switchChatImageVersion ? window.switchChatImageVersion(${originalIdx}, ${tcIdx}, -1) : null" class="p-0.5 hover:text-purple-900 dark:hover:text-purple-100 cursor-pointer" title="上一个版本">
+                                                    <button type="button" onclick="event.stopPropagation(); window.switchChatImageVersion ? window.switchChatImageVersion(${originalIdx}, ${tcIdx}, -1) : null" class="p-0.5 hover:text-purple-900 dark:hover:text-purple-100 cursor-pointer" title="上一个版本">
                                                         <i data-lucide="chevron-left" class="w-3 h-3"></i>
                                                     </button>
                                                     <span class="px-1 font-mono font-bold tracking-tight">${tc.currentIndex + 1}/${tc.images.length}</span>
-                                                    <button onclick="window.switchChatImageVersion ? window.switchChatImageVersion(${originalIdx}, ${tcIdx}, 1) : null" class="p-0.5 hover:text-purple-900 dark:hover:text-purple-100 cursor-pointer" title="下一个版本">
+                                                    <button type="button" onclick="event.stopPropagation(); window.switchChatImageVersion ? window.switchChatImageVersion(${originalIdx}, ${tcIdx}, 1) : null" class="p-0.5 hover:text-purple-900 dark:hover:text-purple-100 cursor-pointer" title="下一个版本">
                                                         <i data-lucide="chevron-right" class="w-3 h-3"></i>
                                                     </button>
                                                 </div>
@@ -572,11 +577,11 @@ export class AiChatManager {
                                                     <i data-lucide="check" class="w-3 h-3"></i> 已保存
                                                 </span>
                                             ` : `
-                                                <button onclick="window.saveChatImageToGallery ? window.saveChatImageToGallery(${originalIdx}, ${tcIdx}, this) : null" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer touch-manipulation text-[10px]" title="保存当前版本至历史画廊">
+                                                <button type="button" onclick="event.stopPropagation(); window.saveChatImageToGallery ? window.saveChatImageToGallery(${originalIdx}, ${tcIdx}, this) : null" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer touch-manipulation text-[10px]" title="保存当前版本至历史画廊">
                                                     <i data-lucide="bookmark" class="w-3 h-3"></i> 保存
                                                 </button>
                                             `}
-                                            <button onclick="window.regenerateChatImage ? window.regenerateChatImage(${originalIdx}, ${tcIdx}) : null" ${isRegenerating ? 'disabled' : ''} class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer touch-manipulation text-[10px] disabled:opacity-50 disabled:pointer-events-none" title="基于此提示词与参数在当前占位框重新生成">
+                                            <button type="button" onclick="event.stopPropagation(); window.regenerateChatImage ? window.regenerateChatImage(${originalIdx}, ${tcIdx}) : null" ${isRegenerating ? 'disabled' : ''} class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer touch-manipulation text-[10px] disabled:opacity-50 disabled:pointer-events-none" title="基于此提示词与参数在当前占位框重新生成">
                                                 <i data-lucide="${isRegenerating ? 'loader-2' : 'refresh-cw'}" class="w-3 h-3 ${isRegenerating ? 'animate-spin' : ''}"></i> ${isRegenerating ? '生成中...' : '重新生成'}
                                             </button>
                                         </div>
@@ -614,13 +619,13 @@ export class AiChatManager {
                             ` : ''}
                             <!-- Action buttons -->
                             <div class="flex items-center gap-1.5 px-0.5 text-[11px] flex-wrap">
-                                <button onclick="window.applyAiPromptToCanvas(${originalIdx}, 'replace')" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 touch-manipulation">
+                                <button type="button" onclick="event.stopPropagation(); window.applyAiPromptToCanvas(${originalIdx}, 'replace')" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 touch-manipulation">
                                     <i data-lucide="wand-2" class="w-3 h-3"></i> 填入提示词
                                 </button>
-                                <button onclick="window.applyAiPromptToCanvas(${originalIdx}, 'append')" class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 touch-manipulation">
+                                <button type="button" onclick="event.stopPropagation(); window.applyAiPromptToCanvas(${originalIdx}, 'append')" class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 touch-manipulation">
                                     <i data-lucide="plus" class="w-3 h-3"></i> 追加
                                 </button>
-                                <button onclick="window.copyAiChatMessage(this, ${originalIdx})" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 transition-colors py-0.5 px-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-slate-700/40 touch-manipulation">
+                                <button type="button" onclick="event.stopPropagation(); window.copyAiChatMessage(this, ${originalIdx})" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 transition-colors py-0.5 px-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-slate-700/40 touch-manipulation">
                                     <i data-lucide="copy" class="w-3 h-3"></i> 复制
                                 </button>
                             </div>
@@ -650,7 +655,21 @@ export class AiChatManager {
         }
 
         this.messagesContainerEl.innerHTML = html;
-        this.scrollToBottom();
+
+        const shouldScrollToBottom = forceScrollToBottom || (!preserveScroll && isNearBottom);
+        if (shouldScrollToBottom) {
+            this.scrollToBottom();
+        } else {
+            this.messagesContainerEl.scrollTop = prevScrollTop;
+            if (typeof requestAnimationFrame !== 'undefined') {
+                requestAnimationFrame(() => {
+                    if (this.messagesContainerEl) {
+                        this.messagesContainerEl.scrollTop = prevScrollTop;
+                    }
+                });
+            }
+        }
+
         if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
     }
 
@@ -755,11 +774,11 @@ export class AiChatManager {
                     this.onSetParameters(params);
                 }
             },
-            onGenerateImage: async () => {
+            onGenerateImage: async (overrideParams = {}) => {
                 if (this.onGenerateImage) {
-                    return await this.onGenerateImage();
+                    return await this.onGenerateImage(overrideParams);
                 } else if (typeof window !== 'undefined' && typeof window.doGenerate === 'function') {
-                    return await window.doGenerate();
+                    return await window.doGenerate(overrideParams);
                 }
                 return { success: false, error: '未提供图像生成回调' };
             },
@@ -809,7 +828,7 @@ export class AiChatManager {
         });
 
         this.setLoading(true);
-        this.renderMessages();
+        this.renderMessages({ forceScrollToBottom: true });
         this.saveHistory();
 
         this.abortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -945,7 +964,7 @@ export class AiChatManager {
             this.abortController = null;
         }
         this.setLoading(false);
-        this.renderMessages();
+        this.renderMessages({ preserveScroll: true });
     }
 
     setLoading(loading) {
@@ -1004,7 +1023,7 @@ export class AiChatManager {
         
         this.messages = [];
         this.saveHistory();
-        this.renderMessages();
+        this.renderMessages({ forceScrollToBottom: true });
         this.onShowToast("对话记录已清空", "info");
     }
 
@@ -1117,7 +1136,7 @@ export class AiChatManager {
         if (cur.id) tc.id = cur.id;
 
         this.saveHistory();
-        this.renderMessages();
+        this.renderMessages({ preserveScroll: true });
     }
 
     openChatImageLightbox(msgIdx, tcIdx) {
@@ -1205,7 +1224,7 @@ export class AiChatManager {
                     if (saved?.id) tc.id = saved.id;
                 }
                 this.saveHistory();
-                this.renderMessages();
+                this.renderMessages({ preserveScroll: true });
             }
         } catch (err) {
             console.error("保存图片至画廊失败:", err);
@@ -1254,9 +1273,10 @@ export class AiChatManager {
         const height = curImg.height || tc.height || 1216;
         const steps = Math.min(curImg.steps || tc.steps || 28, 28);
         const scale = curImg.scale || tc.scale || 5.0;
+        const sampler = curImg.sampler || tc.sampler || 'k_euler';
 
         tc.isRegenerating = true;
-        this.renderMessages();
+        this.renderMessages({ preserveScroll: true });
 
         try {
             let genResult = null;
@@ -1269,6 +1289,7 @@ export class AiChatManager {
                     height,
                     steps,
                     scale,
+                    sampler,
                     skipSaveHistory: true
                 });
             } else if (typeof window !== 'undefined' && typeof window.doGenerate === 'function') {
@@ -1280,6 +1301,7 @@ export class AiChatManager {
                     height,
                     steps,
                     scale,
+                    sampler,
                     skipSaveHistory: true
                 });
             }
@@ -1298,7 +1320,7 @@ export class AiChatManager {
                 height: h,
                 steps,
                 scale,
-                sampler: genResult.sampler,
+                sampler: genResult.sampler || sampler,
                 seed,
                 negative_prompt: negative
             };
@@ -1313,7 +1335,7 @@ export class AiChatManager {
                 negative_prompt: negative,
                 steps,
                 scale,
-                sampler: genResult.sampler,
+                sampler: genResult.sampler || sampler,
                 meta: resultMeta,
                 isSavedToHistory: false,
                 id: null
@@ -1343,7 +1365,7 @@ export class AiChatManager {
         } finally {
             tc.isRegenerating = false;
             this.saveHistory();
-            this.renderMessages();
+            this.renderMessages({ preserveScroll: true });
         }
     }
 }
