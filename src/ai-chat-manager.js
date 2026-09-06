@@ -174,6 +174,7 @@ export class AiChatManager {
         window.onAiChatProviderChange = () => this.handleProviderChange();
         window.onAiChatSystemPresetChange = () => this.handleSystemPresetChange();
         window.sendQuickAiPrompt = (action) => this.handleQuickPrompt(action);
+        window.setAiChatPrompt = (text) => this.setPromptInput(text);
         window.applyAiPromptToCanvas = (msgIdx, mode) => this.applyPromptByMessage(msgIdx, mode);
         window.applyAiPromptFromBlock = (msgIdx, blockIdx, mode) => this.applyPromptFromBlock(msgIdx, blockIdx, mode);
         window.copyAiChatMessage = (btn, msgIdx, blockIdx = null) => this.copyMessageText(btn, msgIdx, blockIdx);
@@ -372,20 +373,81 @@ export class AiChatManager {
         }
     }
 
+    setPromptInput(text) {
+        if (!this.inputEl) return;
+        this.inputEl.value = text;
+        this.inputEl.focus();
+        if (this.inputEl.style) {
+            this.inputEl.style.height = 'auto';
+            this.inputEl.style.height = Math.min(this.inputEl.scrollHeight, 120) + 'px';
+        }
+    }
+
     renderMessages() {
         if (!this.messagesContainerEl) return;
 
         if (this.messages.length === 0 && !this.isLoading) {
             this.messagesContainerEl.innerHTML = `
-                <div class="h-full min-h-[220px] flex flex-col items-center justify-center text-center p-4 sm:p-6 space-y-3 opacity-60">
-                    <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl sm:rounded-3xl bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-inner">
-                        <i data-lucide="bot-message-square" class="w-6 h-6 sm:w-7 sm:h-7"></i>
+                <div class="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-3 sm:p-6 space-y-4">
+                    <div class="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl sm:rounded-3xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-purple-500/25">
+                        <i data-lucide="bot" class="w-6 h-6 sm:w-7 sm:h-7"></i>
+                        <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </span>
                     </div>
                     <div class="space-y-1">
-                        <h4 class="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200">AI 提示词创作助手</h4>
-                        <p class="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 max-w-sm">
-                            构思角色设定、丰富场景光影、一键生成/优化 NovelAI Danbooru 英文提示词。
+                        <h4 class="text-sm sm:text-base font-bold text-gray-800 dark:text-gray-100 flex items-center justify-center gap-1.5">
+                            NovelAI 自主创作智能体
+                        </h4>
+                        <p class="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 max-w-sm sm:max-w-md leading-relaxed">
+                            具备画板环境深度感知、多角色智能空间编排与 ReAct 自主工具链。向 Agent 发送创作需求即可全自动执行。
                         </p>
+                    </div>
+
+                    <!-- 智能体核心能力卡片 (2x2 网格) -->
+                    <div class="w-full max-w-md grid grid-cols-2 gap-2 text-left pt-1">
+                        <div class="p-2.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/50 dark:border-purple-800/30">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-purple-700 dark:text-purple-300">
+                                <i data-lucide="sliders" class="w-3.5 h-3.5 shrink-0"></i>
+                                <span>画板感知调参</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">自动读写分辨率与步数，严守免扣点规格 (≤28步)</p>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/50 dark:border-indigo-800/30">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                                <i data-lucide="users" class="w-3.5 h-3.5 shrink-0"></i>
+                                <span>多角色空间编排</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">适配 V4.5 网格定位与 V5 连续坐标，杜绝重叠</p>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/50 dark:border-amber-800/30">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300">
+                                <i data-lucide="book-open" class="w-3.5 h-3.5 shrink-0"></i>
+                                <span>NAI5 专家规程</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">内置 2200+ 张实测图规则库，精通构图与词序</p>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/30">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 shrink-0"></i>
+                                <span>自主闭环出图</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">支持 ReAct 循环，调参写词完毕后直接生成展示</p>
+                        </div>
+                    </div>
+
+                    <!-- 交互式灵感指令 (点击填入) -->
+                    <div class="w-full max-w-md pt-1 space-y-1 text-left">
+                        <span class="text-[10px] text-gray-400 dark:text-slate-500 font-bold uppercase tracking-wider pl-0.5">尝试发送指令:</span>
+                        <div class="flex flex-col sm:flex-row gap-1.5">
+                            <button onclick="window.setAiChatPrompt('帮我优化当前画板的提示词，增强光影与细节并写入画板')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
+                                💡 优化当前画板词并自动写入
+                            </button>
+                            <button onclick="window.setAiChatPrompt('创作一个赛博朋克银发少女，搭配角色和场景直接生成出图')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
+                                🎨 创作赛博少女并自主出图展示
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -474,8 +536,8 @@ export class AiChatManager {
 
                 return `
                     <div class="flex justify-start gap-2 sm:gap-2.5 message-assistant group">
-                        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 mt-0.5 border border-purple-200/50 dark:border-purple-800/40 shadow-xs">
-                            <i data-lucide="sparkles" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                            <i data-lucide="bot" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
                         </div>
                         <div class="max-w-[92%] sm:max-w-[85%] space-y-1.5">
                             ${toolCardsHtml ? `<div class="space-y-1.5">${toolCardsHtml}</div>` : ''}
@@ -502,20 +564,20 @@ export class AiChatManager {
             }
         }).join('');
 
-        // Loading thinking indicator
+        // Loading thinking indicator (Agent ReAct status)
         if (this.isLoading) {
             html += `
                 <div class="flex justify-start gap-2 sm:gap-2.5 message-assistant message-thinking">
-                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 mt-0.5 border border-purple-200/50 dark:border-purple-800/40">
-                        <i data-lucide="sparkles" class="w-3.5 h-3.5 animate-spin"></i>
+                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                        <i data-lucide="bot" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
                     </div>
-                    <div class="bg-gray-100/90 dark:bg-slate-800/90 text-gray-600 dark:text-gray-300 rounded-2xl rounded-tl-sm px-3.5 sm:px-4 py-2.5 text-xs shadow-sm border border-gray-200/50 dark:border-slate-700/50 flex items-center gap-2">
+                    <div class="bg-purple-50/80 dark:bg-slate-800/90 text-purple-700 dark:text-purple-300 rounded-2xl rounded-tl-sm px-3.5 sm:px-4 py-2.5 text-xs shadow-xs border border-purple-200/50 dark:border-purple-800/40 flex items-center gap-2.5">
                         <div class="flex items-center gap-1">
                             <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 0ms"></span>
                             <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 150ms"></span>
                             <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 300ms"></span>
                         </div>
-                        <span class="text-[11px]">AI 正在思考并构思提示词...</span>
+                        <span class="text-[11px] font-medium">Agent 正在自主思考并规划画板工具链 (ReAct)...</span>
                     </div>
                 </div>
             `;
