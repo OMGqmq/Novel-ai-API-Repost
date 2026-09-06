@@ -699,7 +699,7 @@ I have updated your prompt!
       }));
     });
 
-    it('should support regenerating image based on prompt and parameters with skipSaveHistory: true', async () => {
+    it('should support in-place image regeneration without calling AI and append to tc.images', async () => {
       const genMock = vi.fn().mockResolvedValue({
         success: true,
         imageUrl: 'blob:regenerated-img',
@@ -747,13 +747,14 @@ I have updated your prompt!
         }
       ];
 
+      const initialMessageCount = manager.messages.length;
+
       await manager.regenerateFromChatImage(0, 0);
 
-      // Canvas prompt and model updated
-      expect(applyPromptMock).toHaveBeenCalledWith('1girl, cyberpunk city', 'replace');
-      expect(setModelMock).toHaveBeenCalledWith('v5');
+      // Verify no extra messages were pushed into the conversation (no AI dialogue overhead)
+      expect(manager.messages.length).toBe(initialMessageCount);
 
-      // Called generation with skipSaveHistory
+      // Verify called image generator directly with skipSaveHistory
       expect(genMock).toHaveBeenCalledWith(expect.objectContaining({
         prompt: '1girl, cyberpunk city',
         negative: 'bad quality',
@@ -761,12 +762,26 @@ I have updated your prompt!
         skipSaveHistory: true
       }));
 
-      // A user message and a new assistant message appended
-      const lastMsg = manager.messages[manager.messages.length - 1];
-      expect(lastMsg.role).toBe('assistant');
-      expect(lastMsg.tool_calls[0].imageUrl).toBe('blob:regenerated-img');
-      expect(lastMsg.tool_calls[0].seed).toBe(99999);
-      expect(lastMsg.tool_calls[0].isSavedToHistory).toBe(false);
+      // Verify in-place multi-version history structure
+      const tc = manager.messages[0].tool_calls[0];
+      expect(tc.images).toHaveLength(2);
+      expect(tc.images[0].imageUrl).toBe('blob:first-gen-img');
+      expect(tc.images[0].seed).toBe(11111);
+      expect(tc.images[1].imageUrl).toBe('blob:regenerated-img');
+      expect(tc.images[1].seed).toBe(99999);
+      expect(tc.currentIndex).toBe(1);
+      expect(tc.imageUrl).toBe('blob:regenerated-img');
+
+      // Test switching between versions
+      manager.switchImageVersion(0, 0, -1);
+      expect(tc.currentIndex).toBe(0);
+      expect(tc.imageUrl).toBe('blob:first-gen-img');
+      expect(tc.seed).toBe(11111);
+
+      manager.switchImageVersion(0, 0, 1);
+      expect(tc.currentIndex).toBe(1);
+      expect(tc.imageUrl).toBe('blob:regenerated-img');
+      expect(tc.seed).toBe(99999);
     });
 
     it('should save image to gallery only upon user explicit save', async () => {

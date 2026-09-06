@@ -3421,6 +3421,18 @@ async function lightboxSaveCurrentToGallery() {
                                 tc.isSavedToHistory = true;
                                 if (saved?.id) tc.id = saved.id;
                             }
+                            if (Array.isArray(tc.images)) {
+                                for (const img of tc.images) {
+                                    if (img.imageUrl === (item.imageUrl || item.image)) {
+                                        img.isSavedToHistory = true;
+                                        if (saved?.id) img.id = saved.id;
+                                        if (tc.images[tc.currentIndex] === img) {
+                                            tc.isSavedToHistory = true;
+                                            if (saved?.id) tc.id = saved.id;
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

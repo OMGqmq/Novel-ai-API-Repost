@@ -181,6 +181,7 @@ export class AiChatManager {
         window.openChatImageLightbox = (msgIdx, tcIdx) => this.openChatImageLightbox(msgIdx, tcIdx);
         window.saveChatImageToGallery = (msgIdx, tcIdx, btn) => this.saveImageToGallery(msgIdx, tcIdx, btn);
         window.regenerateChatImage = (msgIdx, tcIdx) => this.regenerateFromChatImage(msgIdx, tcIdx);
+        window.switchChatImageVersion = (msgIdx, tcIdx, delta) => this.switchImageVersion(msgIdx, tcIdx, delta);
 
         if (this.inputEl) {
             this.inputEl.addEventListener('keydown', (e) => {
@@ -495,38 +496,88 @@ export class AiChatManager {
                         const toolLabel = toolLabels[tc.tool] || `已调用工具: ${tc.tool}`;
 
                         let imageBlockHtml = '';
-                        if (tc.imageUrl) {
-                            const seedVal = tc.seed !== undefined ? tc.seed : '随机';
-                            const w = tc.width || 832;
-                            const h = tc.height || 1216;
-                            const isSaved = Boolean(tc.isSavedToHistory);
+                        // Normalize tc.images array for version history
+                        if (!Array.isArray(tc.images) || tc.images.length === 0) {
+                            if (tc.imageUrl) {
+                                tc.images = [{
+                                    imageUrl: tc.imageUrl,
+                                    seed: tc.seed,
+                                    width: tc.width,
+                                    height: tc.height,
+                                    model: tc.model,
+                                    prompt: tc.prompt,
+                                    negative_prompt: tc.negative_prompt,
+                                    steps: tc.steps,
+                                    scale: tc.scale,
+                                    sampler: tc.sampler,
+                                    meta: tc.meta,
+                                    isSavedToHistory: Boolean(tc.isSavedToHistory),
+                                    id: tc.id || null
+                                }];
+                                tc.currentIndex = 0;
+                            }
+                        }
+
+                        if (Array.isArray(tc.images) && tc.images.length > 0) {
+                            if (typeof tc.currentIndex !== 'number' || tc.currentIndex < 0 || tc.currentIndex >= tc.images.length) {
+                                tc.currentIndex = tc.images.length - 1;
+                            }
+                            const currentImg = tc.images[tc.currentIndex];
+                            const seedVal = currentImg.seed !== undefined ? currentImg.seed : '随机';
+                            const w = currentImg.width || 832;
+                            const h = currentImg.height || 1216;
+                            const isSaved = Boolean(currentImg.isSavedToHistory);
+                            const isRegenerating = Boolean(tc.isRegenerating);
+                            const hasMultiple = tc.images.length > 1;
+
                             imageBlockHtml = `
                                 <div class="mt-2 rounded-xl overflow-hidden border border-purple-200 dark:border-purple-800/60 bg-black/10 dark:bg-black/40">
                                     <div class="relative group max-h-80 flex items-center justify-center bg-slate-950/20 overflow-hidden">
-                                        <img src="${tc.imageUrl}" alt="AI Generated" class="w-full h-auto max-h-72 object-contain cursor-pointer transition-transform duration-200 hover:scale-[1.01]" onclick="window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${tc.imageUrl}') : window.open('${tc.imageUrl}', '_blank'))" />
-                                        <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-xs p-1 rounded-lg shadow-md">
-                                            <button onclick="window.downloadImageUrl ? window.downloadImageUrl('${tc.imageUrl}', 'nai_agent_${seedVal}.png') : window.open('${tc.imageUrl}', '_blank')" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="下载图片">
+                                        <img src="${currentImg.imageUrl}" alt="AI Generated" class="w-full h-auto max-h-72 object-contain cursor-pointer transition-transform duration-200 hover:scale-[1.01]" onclick="window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${currentImg.imageUrl}') : window.open('${currentImg.imageUrl}', '_blank'))" />
+                                        
+                                        ${isRegenerating ? `
+                                            <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-2 z-10 transition-opacity">
+                                                <i data-lucide="loader-2" class="w-6 h-6 animate-spin text-purple-400"></i>
+                                                <span class="text-[11px] font-medium text-purple-200">正在生成新版本...</span>
+                                            </div>
+                                        ` : ''}
+
+                                        <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-xs p-1 rounded-lg shadow-md z-10">
+                                            <button onclick="window.downloadImageUrl ? window.downloadImageUrl('${currentImg.imageUrl}', 'nai_agent_${seedVal}.png') : window.open('${currentImg.imageUrl}', '_blank')" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="下载图片">
                                                 <i data-lucide="download" class="w-3.5 h-3.5"></i>
                                             </button>
-                                            <button onclick="window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${tc.imageUrl}') : window.open('${tc.imageUrl}', '_blank'))" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="查看大图与详情">
+                                            <button onclick="window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${currentImg.imageUrl}') : window.open('${currentImg.imageUrl}', '_blank'))" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="查看大图与详情">
                                                 <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
                                             </button>
                                         </div>
                                     </div>
                                     <div class="px-2.5 py-1.5 flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 bg-white/80 dark:bg-slate-900/80 border-t border-purple-100 dark:border-purple-900/40 flex-wrap gap-1.5">
-                                        <span>Seed: <code class="font-mono font-bold text-purple-600 dark:text-purple-400">${seedVal}</code> (${w}x${h})</span>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            ${hasMultiple ? `
+                                                <div class="inline-flex items-center bg-purple-50/90 dark:bg-purple-950/60 border border-purple-200/80 dark:border-purple-800/60 rounded-md px-1 py-0.5 text-[10px] text-purple-700 dark:text-purple-300 select-none">
+                                                    <button onclick="window.switchChatImageVersion ? window.switchChatImageVersion(${originalIdx}, ${tcIdx}, -1) : null" class="p-0.5 hover:text-purple-900 dark:hover:text-purple-100 cursor-pointer" title="上一个版本">
+                                                        <i data-lucide="chevron-left" class="w-3 h-3"></i>
+                                                    </button>
+                                                    <span class="px-1 font-mono font-bold tracking-tight">${tc.currentIndex + 1}/${tc.images.length}</span>
+                                                    <button onclick="window.switchChatImageVersion ? window.switchChatImageVersion(${originalIdx}, ${tcIdx}, 1) : null" class="p-0.5 hover:text-purple-900 dark:hover:text-purple-100 cursor-pointer" title="下一个版本">
+                                                        <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                                                    </button>
+                                                </div>
+                                            ` : ''}
+                                            <span>Seed: <code class="font-mono font-bold text-purple-600 dark:text-purple-400">${seedVal}</code> (${w}x${h})</span>
+                                        </div>
                                         <div class="flex items-center gap-1.5">
                                             ${isSaved ? `
                                                 <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 font-semibold py-0.5 px-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-[10px]">
                                                     <i data-lucide="check" class="w-3 h-3"></i> 已保存
                                                 </span>
                                             ` : `
-                                                <button onclick="window.saveChatImageToGallery ? window.saveChatImageToGallery(${originalIdx}, ${tcIdx}, this) : null" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer touch-manipulation text-[10px]" title="保存至本地历史画廊">
+                                                <button onclick="window.saveChatImageToGallery ? window.saveChatImageToGallery(${originalIdx}, ${tcIdx}, this) : null" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer touch-manipulation text-[10px]" title="保存当前版本至历史画廊">
                                                     <i data-lucide="bookmark" class="w-3 h-3"></i> 保存
                                                 </button>
                                             `}
-                                            <button onclick="window.regenerateChatImage ? window.regenerateChatImage(${originalIdx}, ${tcIdx}) : null" class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer touch-manipulation text-[10px]" title="基于此提示词与参数重新生成">
-                                                <i data-lucide="refresh-cw" class="w-3 h-3"></i> 重新生成
+                                            <button onclick="window.regenerateChatImage ? window.regenerateChatImage(${originalIdx}, ${tcIdx}) : null" ${isRegenerating ? 'disabled' : ''} class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer touch-manipulation text-[10px] disabled:opacity-50 disabled:pointer-events-none" title="基于此提示词与参数在当前占位框重新生成">
+                                                <i data-lucide="${isRegenerating ? 'loader-2' : 'refresh-cw'}" class="w-3 h-3 ${isRegenerating ? 'animate-spin' : ''}"></i> ${isRegenerating ? '生成中...' : '重新生成'}
                                             </button>
                                         </div>
                                     </div>
@@ -1038,31 +1089,72 @@ export class AiChatManager {
         }
     }
 
+    switchImageVersion(msgIdx, tcIdx, delta) {
+        const msg = this.messages[msgIdx];
+        if (!msg || !msg.tool_calls || !msg.tool_calls[tcIdx]) return;
+        const tc = msg.tool_calls[tcIdx];
+        if (!Array.isArray(tc.images) || tc.images.length <= 1) return;
+
+        const len = tc.images.length;
+        let nextIdx = ((tc.currentIndex !== undefined ? tc.currentIndex : len - 1) + delta) % len;
+        if (nextIdx < 0) nextIdx += len;
+        tc.currentIndex = nextIdx;
+
+        // Synchronize top-level fields for backwards compatibility
+        const cur = tc.images[nextIdx];
+        tc.imageUrl = cur.imageUrl;
+        tc.seed = cur.seed;
+        tc.width = cur.width;
+        tc.height = cur.height;
+        tc.model = cur.model;
+        tc.prompt = cur.prompt;
+        tc.negative_prompt = cur.negative_prompt;
+        tc.steps = cur.steps;
+        tc.scale = cur.scale;
+        tc.sampler = cur.sampler;
+        tc.meta = cur.meta;
+        tc.isSavedToHistory = Boolean(cur.isSavedToHistory);
+        if (cur.id) tc.id = cur.id;
+
+        this.saveHistory();
+        this.renderMessages();
+    }
+
     openChatImageLightbox(msgIdx, tcIdx) {
         const msg = this.messages[msgIdx];
         if (!msg || !msg.tool_calls || !msg.tool_calls[tcIdx]) return;
         const tc = msg.tool_calls[tcIdx];
+
+        let currentImg = tc;
+        if (Array.isArray(tc.images) && tc.images.length > 0) {
+            const idx = (typeof tc.currentIndex === 'number' && tc.currentIndex >= 0 && tc.currentIndex < tc.images.length)
+                ? tc.currentIndex
+                : tc.images.length - 1;
+            currentImg = tc.images[idx];
+        }
+
         const item = {
-            id: tc.id || `chat_${msgIdx}_${tcIdx}`,
-            image: tc.imageUrl,
-            imageUrl: tc.imageUrl,
-            prompt: tc.prompt || '',
-            model: tc.model || 'v5',
-            isSavedToHistory: Boolean(tc.isSavedToHistory),
-            meta: tc.meta || {
-                width: tc.width,
-                height: tc.height,
-                steps: tc.steps,
-                scale: tc.scale,
-                sampler: tc.sampler,
-                seed: tc.seed,
-                negative_prompt: tc.negative_prompt || ''
+            id: currentImg.id || tc.id || `chat_${msgIdx}_${tcIdx}`,
+            image: currentImg.imageUrl,
+            imageUrl: currentImg.imageUrl,
+            prompt: currentImg.prompt || tc.prompt || '',
+            negative_prompt: currentImg.negative_prompt || tc.negative_prompt || '',
+            model: currentImg.model || tc.model || 'v5',
+            isSavedToHistory: Boolean(currentImg.isSavedToHistory),
+            meta: currentImg.meta || {
+                width: currentImg.width || tc.width,
+                height: currentImg.height || tc.height,
+                steps: currentImg.steps || tc.steps,
+                scale: currentImg.scale || tc.scale,
+                sampler: currentImg.sampler || tc.sampler,
+                seed: currentImg.seed !== undefined ? currentImg.seed : tc.seed,
+                negative_prompt: currentImg.negative_prompt || tc.negative_prompt || ''
             }
         };
         if (typeof window !== 'undefined' && typeof window.openLightbox === 'function') {
             window.openLightbox(item);
         } else if (typeof window !== 'undefined') {
-            window.open(tc.imageUrl, '_blank');
+            window.open(currentImg.imageUrl, '_blank');
         }
     }
 
@@ -1070,7 +1162,16 @@ export class AiChatManager {
         const msg = this.messages[msgIdx];
         if (!msg || !msg.tool_calls || !msg.tool_calls[tcIdx]) return;
         const tc = msg.tool_calls[tcIdx];
-        if (tc.isSavedToHistory) return;
+
+        let currentImg = tc;
+        if (Array.isArray(tc.images) && tc.images.length > 0) {
+            const idx = (typeof tc.currentIndex === 'number' && tc.currentIndex >= 0 && tc.currentIndex < tc.images.length)
+                ? tc.currentIndex
+                : tc.images.length - 1;
+            currentImg = tc.images[idx];
+        }
+
+        if (currentImg.isSavedToHistory) return;
 
         if (btnEl) {
             btnEl.disabled = true;
@@ -1081,22 +1182,28 @@ export class AiChatManager {
         try {
             if (typeof window !== 'undefined' && typeof window.saveImageItemToGallery === 'function') {
                 const saved = await window.saveImageItemToGallery({
-                    imageUrl: tc.imageUrl,
-                    image: tc.imageUrl,
-                    prompt: tc.prompt,
-                    model: tc.model,
-                    meta: tc.meta || {
-                        width: tc.width,
-                        height: tc.height,
-                        steps: tc.steps,
-                        scale: tc.scale,
-                        sampler: tc.sampler,
-                        seed: tc.seed,
-                        negative_prompt: tc.negative_prompt || ''
+                    imageUrl: currentImg.imageUrl,
+                    image: currentImg.imageUrl,
+                    prompt: currentImg.prompt || tc.prompt,
+                    model: currentImg.model || tc.model,
+                    meta: currentImg.meta || {
+                        width: currentImg.width || tc.width,
+                        height: currentImg.height || tc.height,
+                        steps: currentImg.steps || tc.steps,
+                        scale: currentImg.scale || tc.scale,
+                        sampler: currentImg.sampler || tc.sampler,
+                        seed: currentImg.seed !== undefined ? currentImg.seed : tc.seed,
+                        negative_prompt: currentImg.negative_prompt || tc.negative_prompt || ''
                     }
                 });
-                tc.isSavedToHistory = true;
-                if (saved?.id) tc.id = saved.id;
+                currentImg.isSavedToHistory = true;
+                if (saved?.id) currentImg.id = saved.id;
+
+                // If currentImg is the active version, sync root tc
+                if (tc.images && tc.currentIndex === tc.images.indexOf(currentImg)) {
+                    tc.isSavedToHistory = true;
+                    if (saved?.id) tc.id = saved.id;
+                }
                 this.saveHistory();
                 this.renderMessages();
             }
@@ -1111,33 +1218,44 @@ export class AiChatManager {
     }
 
     async regenerateFromChatImage(msgIdx, tcIdx) {
-        if (this.isLoading) return;
         const msg = this.messages[msgIdx];
         if (!msg || !msg.tool_calls || !msg.tool_calls[tcIdx]) return;
-        const prevTc = msg.tool_calls[tcIdx];
+        const tc = msg.tool_calls[tcIdx];
+        if (tc.isRegenerating) return;
 
-        const prompt = prevTc.prompt || '';
-        const negative = prevTc.negative_prompt || '';
-        const model = prevTc.model || 'v5';
-        const width = prevTc.width || 832;
-        const height = prevTc.height || 1216;
-        const steps = Math.min(prevTc.steps || 28, 28);
-        const scale = prevTc.scale || 5.0;
-
-        // Apply prompt to canvas
-        if (prompt && this.onApplyPrompt) {
-            this.onApplyPrompt(prompt, 'replace');
+        // Ensure tc.images normalized
+        if (!Array.isArray(tc.images) || tc.images.length === 0) {
+            tc.images = [{
+                imageUrl: tc.imageUrl,
+                seed: tc.seed,
+                width: tc.width,
+                height: tc.height,
+                model: tc.model,
+                prompt: tc.prompt,
+                negative_prompt: tc.negative_prompt,
+                steps: tc.steps,
+                scale: tc.scale,
+                sampler: tc.sampler,
+                meta: tc.meta,
+                isSavedToHistory: Boolean(tc.isSavedToHistory),
+                id: tc.id || null
+            }];
+            tc.currentIndex = 0;
         }
-        if (this.onSetModel && model) {
-            this.onSetModel(model);
-        }
 
-        this.messages.push({
-            role: 'user',
-            content: `基于提示词重新生成图像:\n"${prompt}"`
-        });
+        const curImg = (typeof tc.currentIndex === 'number' && tc.images[tc.currentIndex])
+            ? tc.images[tc.currentIndex]
+            : tc.images[tc.images.length - 1];
 
-        this.isLoading = true;
+        const prompt = curImg.prompt || tc.prompt || '';
+        const negative = curImg.negative_prompt || tc.negative_prompt || '';
+        const model = curImg.model || tc.model || 'v5';
+        const width = curImg.width || tc.width || 832;
+        const height = curImg.height || tc.height || 1216;
+        const steps = Math.min(curImg.steps || tc.steps || 28, 28);
+        const scale = curImg.scale || tc.scale || 5.0;
+
+        tc.isRegenerating = true;
         this.renderMessages();
 
         try {
@@ -1185,14 +1303,11 @@ export class AiChatManager {
                 negative_prompt: negative
             };
 
-            const newTc = {
-                tool: 'generate_image',
-                success: true,
-                message: `图像重新生成成功! (Seed: ${seed}, 尺寸: ${w}x${h})`,
+            const newVersion = {
                 imageUrl,
                 seed,
-                width,
-                height,
+                width: w,
+                height: h,
                 model: resultModel,
                 prompt,
                 negative_prompt: negative,
@@ -1200,21 +1315,33 @@ export class AiChatManager {
                 scale,
                 sampler: genResult.sampler,
                 meta: resultMeta,
-                isSavedToHistory: false
+                isSavedToHistory: false,
+                id: null
             };
 
-            this.messages.push({
-                role: 'assistant',
-                content: `已为您基于该提示词重新生成出图 (Seed: \`${seed}\`)。此图片尚未存入历史画廊，如满意请点击图片下方的【保存】。`,
-                tool_calls: [newTc]
-            });
+            tc.images.push(newVersion);
+            tc.currentIndex = tc.images.length - 1;
+
+            // Sync top-level fields
+            tc.imageUrl = imageUrl;
+            tc.seed = seed;
+            tc.width = w;
+            tc.height = h;
+            tc.model = resultModel;
+            tc.meta = resultMeta;
+            tc.isSavedToHistory = false;
+            tc.message = `图像生成成功! (共 ${tc.images.length} 个版本, 当前 Seed: ${seed})`;
+
+            if (this.onShowToast) {
+                this.onShowToast(`已在原位生成新版本 (Seed: ${seed})`, "success");
+            }
         } catch (err) {
-            this.messages.push({
-                role: 'assistant',
-                content: `重新生成失败: ${err.message}`
-            });
+            console.error("原位重新生成失败:", err);
+            if (this.onShowToast) {
+                this.onShowToast(`重新生成失败: ${err.message}`, "error");
+            }
         } finally {
-            this.isLoading = false;
+            tc.isRegenerating = false;
             this.saveHistory();
             this.renderMessages();
         }
