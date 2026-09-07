@@ -270,6 +270,22 @@ describe('UIController Generate Button Copy & Anlas Cost Detection', () => {
       expect(ui.checkIfConsumesAnlas()).toBe(false);
       ui.updateGenerateButtonText();
       expect(mockDom.deskBtnText.textContent).toBe('生成');
+
+      // Z-Image mode is 100% free external API, never consumes Anlas even with >28 steps
+      mockDom.modelValue = { value: 'zimage' };
+      mockDom.steps.value = '40';
+      expect(ui.checkIfConsumesAnlas()).toBe(false);
+      ui.updateGenerateButtonText();
+      expect(mockDom.deskBtnText.textContent).toBe('生成');
+
+      // resetPreview properly cleans up appState and lastSelectedImageUrl
+      global.window.appState.currentImageId = 123;
+      global.window.appState.currentImageData = { id: 123 };
+      global.window.lastSelectedImageUrl = 'data:image/png;base64,...';
+      ui.resetPreview();
+      expect(global.window.appState.currentImageId).toBeNull();
+      expect(global.window.appState.currentImageData).toBeNull();
+      expect(global.window.lastSelectedImageUrl).toBeNull();
     } finally {
       global.document = origDoc;
       global.window = origWin;

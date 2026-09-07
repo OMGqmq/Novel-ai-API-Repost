@@ -234,6 +234,10 @@ export class AiChatManager {
 
     open() {
         if (!this.modalEl) return;
+        if (this._closeTimeout) {
+            clearTimeout(this._closeTimeout);
+            this._closeTimeout = null;
+        }
         this.hydrateSettingsInputs();
         this.renderMessages({ forceScrollToBottom: true });
         this.modalEl.style.display = 'flex';
@@ -259,8 +263,10 @@ export class AiChatManager {
         if (backdrop) backdrop.classList.add('opacity-0');
         if (content) content.classList.add('opacity-0', 'scale-95');
         this.modalEl.classList.add('opacity-0', 'pointer-events-none');
-        setTimeout(() => {
+        if (this._closeTimeout) clearTimeout(this._closeTimeout);
+        this._closeTimeout = setTimeout(() => {
             this.modalEl.style.display = 'none';
+            this._closeTimeout = null;
         }, 300);
     }
 

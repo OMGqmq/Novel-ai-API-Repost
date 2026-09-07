@@ -427,6 +427,8 @@ export class UIController {
             if (isZImage) adminWrap.classList.add('hidden');
             else adminWrap.classList.remove('hidden');
         }
+
+        this.updateGenerateButtonText();
     }
 
     switchRightView(view, updateGalleryTabCallback = null) {
@@ -543,6 +545,9 @@ export class UIController {
 
     checkIfConsumesAnlas() {
         try {
+            const modelVal = (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : '') || 'v3';
+            if (modelVal === 'zimage') return false;
+
             const stepsEl = this.els?.steps || (typeof document !== 'undefined' ? document.getElementById('steps') : null);
             const steps = stepsEl ? parseInt(stepsEl.value, 10) : 28;
             if (steps > 28) return true;
@@ -668,11 +673,13 @@ export class UIController {
 
     resetPreview() {
         const { resultGrid, singleResultArea, backToGridBtn, placeholder, dlBtn, canvasDeleteBtn } = this.els;
-        resultGrid.innerHTML = '';
-        resultGrid.classList.add('hidden');
-        singleResultArea.classList.add('hidden');
-        backToGridBtn.classList.add('hidden');
-        placeholder.classList.remove('hidden');
+        if (resultGrid) {
+            resultGrid.innerHTML = '';
+            resultGrid.classList.add('hidden');
+        }
+        if (singleResultArea) singleResultArea.classList.add('hidden');
+        if (backToGridBtn) backToGridBtn.classList.add('hidden');
+        if (placeholder) placeholder.classList.remove('hidden');
         if (dlBtn) {
             dlBtn.disabled = true;
             dlBtn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -684,6 +691,13 @@ export class UIController {
             canvasDeleteBtn.classList.remove('cursor-pointer');
         }
         this.showImageActions(false);
+        if (typeof window !== 'undefined') {
+            if (window.appState) {
+                window.appState.currentImageId = null;
+                window.appState.currentImageData = null;
+            }
+            window.lastSelectedImageUrl = null;
+        }
     }
 
     showGrid() {

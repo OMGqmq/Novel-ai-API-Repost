@@ -18,6 +18,10 @@ let isMetadataHistoryListOpen = false;
 function openModal(id) {
     const el = document.getElementById(id);
     if (!el) return;
+    if (el._closeTimeout) {
+        clearTimeout(el._closeTimeout);
+        el._closeTimeout = null;
+    }
     el.style.display = 'flex';
     setTimeout(() => {
         el.classList.add('modal-active');
@@ -28,8 +32,10 @@ function closeModal(id) {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.remove('modal-active');
-    setTimeout(() => {
+    if (el._closeTimeout) clearTimeout(el._closeTimeout);
+    el._closeTimeout = setTimeout(() => {
         el.style.display = 'none';
+        el._closeTimeout = null;
     }, 300);
 }
 

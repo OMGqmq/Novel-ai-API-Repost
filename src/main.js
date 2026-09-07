@@ -675,6 +675,7 @@ async function doGenerate(rawOptions = {}) {
         appState.cancelRequested = true;
         const deskText = document.getElementById('deskBtnText');
         if (deskText) deskText.textContent = "正在停止...";
+        if (window.showToast) window.showToast("已发送停止指令，正在中断生成...", "info");
         return { success: false, error: "已有生成任务正在进行中，已发送停止指令" };
     }
 
@@ -1861,22 +1862,9 @@ function toggleTheme() {
 
 // --- Low Performance Mode (低性能模式) Logic ---
 function updateLowPerfUI(enabled) {
-    const btn = document.getElementById('lowPerfBtn');
-    const btnMobile = document.getElementById('lowPerfBtnMobile');
-    
-    const iconHtml = enabled 
-        ? `<i data-lucide="zap-off" class="w-4 h-4 text-gray-400"></i>` 
-        : `<i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>`;
-        
-    if (btn) {
-        btn.innerHTML = iconHtml;
-        btn.title = enabled ? "高性能模式" : "低性能模式";
+    if (typeof ui !== 'undefined' && ui.updateLowPerfUI) {
+        ui.updateLowPerfUI(enabled);
     }
-    if (btnMobile) {
-        btnMobile.innerHTML = iconHtml;
-        btnMobile.title = enabled ? "高性能模式" : "低性能模式";
-    }
-    if (window.safeCreateIcons) window.safeCreateIcons();
 }
 
 function toggleLowPerf(forceState) {
@@ -2233,6 +2221,10 @@ checkAdminStatus();
 function openModal(id) {
     const el = document.getElementById(id);
     if (!el) return;
+    if (el._closeTimeout) {
+        clearTimeout(el._closeTimeout);
+        el._closeTimeout = null;
+    }
     el.style.display = 'flex';
     setTimeout(() => {
         el.classList.add('modal-active');
@@ -2242,8 +2234,10 @@ function closeModal(id) {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.remove('modal-active');
-    setTimeout(() => {
+    if (el._closeTimeout) clearTimeout(el._closeTimeout);
+    el._closeTimeout = setTimeout(() => {
         el.style.display = 'none';
+        el._closeTimeout = null;
     }, 300);
 }
 
