@@ -3110,6 +3110,16 @@ function renderLightboxCurrent() {
         if (deleteBtn) deleteBtn.classList.remove('hidden');
         if (saveBtn) saveBtn.classList.add('hidden');
     }
+
+    // 动态判断当前图片是具备完整参数还是仅有提示词
+    const hasFullParams = Boolean(
+        meta && (meta.steps !== undefined || meta.scale !== undefined || meta.sampler || (meta.width && meta.height) || meta.characterPrompts || meta.char_captions)
+    );
+    const applyBtnText = document.getElementById('lightboxApplyBtnText');
+    if (applyBtnText) {
+        applyBtnText.textContent = hasFullParams ? "套用全部参数" : "套用提示词";
+    }
+
     if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
 }
 
@@ -3391,9 +3401,15 @@ function lightboxApplyParams() {
         }
     }
     
+    const applyBtnText = document.getElementById('lightboxApplyBtnText');
+    if (applyBtnText) {
+        applyBtnText.textContent = "已套用 ✓";
+    }
     window.showToast("生成参数已载入主控制台！", "success");
-    closeLightbox();
-    ui.toggleMobileControls(true);
+    setTimeout(() => {
+        closeLightbox();
+        ui.toggleMobileControls(true);
+    }, 200);
 }
 
 function lightboxDownload() {
