@@ -407,54 +407,22 @@ export class AiChatManager {
                     </div>
                     <div class="space-y-1">
                         <h4 class="text-sm sm:text-base font-bold text-gray-800 dark:text-gray-100 flex items-center justify-center gap-1.5">
-                            NovelAI 自主创作智能体
+                            NovelAI 创作助手
                         </h4>
                         <p class="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 max-w-sm sm:max-w-md leading-relaxed">
-                            具备画板环境深度感知、多角色智能空间编排与 ReAct 自主工具链。向 Agent 发送创作需求即可全自动执行。
+                            支持根据需求调整画板参数、配置角色并直接生成图片。
                         </p>
                     </div>
 
-                    <!-- 智能体核心能力卡片 (2x2 网格) -->
-                    <div class="w-full max-w-md grid grid-cols-2 gap-2 text-left pt-1">
-                        <div class="p-2.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/50 dark:border-purple-800/30">
-                            <div class="flex items-center gap-1.5 text-xs font-bold text-purple-700 dark:text-purple-300">
-                                <i data-lucide="sliders" class="w-3.5 h-3.5 shrink-0"></i>
-                                <span>画板感知调参</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">自动读写分辨率与步数，严守免扣点规格 (≤28步)</p>
-                        </div>
-                        <div class="p-2.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/50 dark:border-indigo-800/30">
-                            <div class="flex items-center gap-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300">
-                                <i data-lucide="users" class="w-3.5 h-3.5 shrink-0"></i>
-                                <span>多角色空间编排</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">适配 V4.5 网格定位与 V5 连续坐标，杜绝重叠</p>
-                        </div>
-                        <div class="p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/50 dark:border-amber-800/30">
-                            <div class="flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300">
-                                <i data-lucide="book-open" class="w-3.5 h-3.5 shrink-0"></i>
-                                <span>NAI5 专家规程</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">内置 2200+ 张实测图规则库，精通构图与词序</p>
-                        </div>
-                        <div class="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/30">
-                            <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                                <i data-lucide="sparkles" class="w-3.5 h-3.5 shrink-0"></i>
-                                <span>自主闭环出图</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">支持 ReAct 循环，调参写词完毕后直接生成展示</p>
-                        </div>
-                    </div>
-
-                    <!-- 交互式灵感指令 (点击填入) -->
-                    <div class="w-full max-w-md pt-1 space-y-1 text-left">
-                        <span class="text-[10px] text-gray-400 dark:text-slate-500 font-bold uppercase tracking-wider pl-0.5">尝试发送指令:</span>
+                    <!-- 快捷指令 -->
+                    <div class="w-full max-w-md pt-2 space-y-1 text-left">
+                        <span class="text-[10px] text-gray-400 dark:text-slate-500 font-bold uppercase tracking-wider pl-0.5">快捷指令:</span>
                         <div class="flex flex-col sm:flex-row gap-1.5">
                             <button type="button" onclick="event.stopPropagation(); window.setAiChatPrompt('帮我优化当前画板的提示词，增强光影与细节并写入画板')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
-                                💡 优化当前画板词并自动写入
+                                💡 优化当前画板词并写入
                             </button>
                             <button type="button" onclick="event.stopPropagation(); window.setAiChatPrompt('创作一个赛博朋克银发少女，搭配角色和场景直接生成出图')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
-                                🎨 创作赛博少女并自主出图展示
+                                🎨 创作赛博少女并直接出图
                             </button>
                         </div>
                     </div>
@@ -648,7 +616,7 @@ export class AiChatManager {
                             <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 150ms"></span>
                             <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 300ms"></span>
                         </div>
-                        <span class="text-[11px] font-medium">Agent 正在自主思考并规划画板工具链 (ReAct)...</span>
+                        <span class="text-[11px] font-medium">正在思考并调用工具...</span>
                     </div>
                 </div>
             `;

@@ -38,7 +38,7 @@ export const AI_PROVIDER_PRESETS = {
 
 export const AI_SYSTEM_PROMPTS = {
     novelai_master: {
-        name: "NovelAI 提示词大师",
+        name: "提示词扩展 (Danbooru)",
         prompt: "You are an expert AI prompt generator specializing in Stable Diffusion and NovelAI anime art. When the user asks for prompt ideas or optimizations, provide creative, highly aesthetic, detailed prompt tags (Danbooru style: masterpiece, best quality, aesthetic tags, character features, clothing, composition, lighting). Format final prompts clearly so the user can easily copy and apply them."
     },
     creative_artist: {

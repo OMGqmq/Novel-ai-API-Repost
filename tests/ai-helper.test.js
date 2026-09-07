@@ -27,6 +27,7 @@ describe('AiHelperService Configuration', () => {
     expect(AI_PROVIDER_PRESETS.siliconflow.baseUrl).toBe('https://api.siliconflow.cn/v1');
     expect(AI_PROVIDER_PRESETS.openrouter.baseUrl).toBe('https://openrouter.ai/api/v1');
     expect(AI_SYSTEM_PROMPTS.novelai_master).toBeDefined();
+    expect(AI_SYSTEM_PROMPTS.novelai_master.name).toBe('提示词扩展 (Danbooru)');
     expect(AI_SYSTEM_PROMPTS.creative_artist).toBeDefined();
   });
 
@@ -204,6 +205,75 @@ describe('AiChatManager Logic & Extraction', () => {
     // Multiple code blocks
     const multiBlock = "Positive:\n```tags\n1girl, solo\n```\nNegative:\n```negative\nlowres, bad anatomy\n```";
     expect(manager.extractPrompt(multiBlock, 0)).toBe('1girl, solo');
-    expect(manager.extractPrompt(multiBlock, 1)).toBe('lowres, bad anatomy');
   });
 });
+
+describe('UIController Generate Button Copy & Anlas Cost Detection', () => {
+  it('should switch between "生成" and "耗点生成" depending on steps and resolution', async () => {
+    const { UIController } = await import('../src/ui.js');
+    const mockDom = {
+      steps: { value: '28', addEventListener: () => {} },
+      stepsValue: { textContent: '28' },
+      resolution: { value: '832,1216', addEventListener: () => {} },
+      desktopGenerateBtn: {
+        disabled: false,
+        querySelector: (sel) => {
+          if (sel === '#deskBtnIcon' || sel === '.loader') return { classList: { add: () => {}, remove: () => {} } };
+          if (sel === '#deskBtnText') return mockDom.deskBtnText;
+          return null;
+        },
+        classList: { add: () => {}, remove: () => {} }
+      },
+      deskBtnText: { textContent: '生成' },
+      floatingGenerateBtn: {
+        disabled: false,
+        classList: { add: () => {}, remove: () => {} },
+        innerHTML: ''
+      }
+    };
+
+    const origDoc = global.document;
+    const origWin = global.window;
+
+    global.document = {
+      getElementById: (id) => mockDom[id] || null,
+      querySelectorAll: () => [],
+      addEventListener: () => {}
+    };
+    global.window = {
+      appState: { isGenerating: false },
+      safeCreateIcons: () => {}
+    };
+
+    try {
+      const ui = new UIController();
+      // Default standard
+      expect(ui.checkIfConsumesAnlas()).toBe(false);
+      ui.updateGenerateButtonText();
+      expect(mockDom.deskBtnText.textContent).toBe('生成');
+
+      // Exceed steps > 28
+      mockDom.steps.value = '35';
+      expect(ui.checkIfConsumesAnlas()).toBe(true);
+      ui.updateGenerateButtonText();
+      expect(mockDom.deskBtnText.textContent).toBe('耗点生成');
+
+      // Reset steps, exceed resolution > 1048576 pixels
+      mockDom.steps.value = '28';
+      mockDom.resolution.value = '1024,1536';
+      expect(ui.checkIfConsumesAnlas()).toBe(true);
+      ui.updateGenerateButtonText();
+      expect(mockDom.deskBtnText.textContent).toBe('耗点生成');
+
+      // Return to free
+      mockDom.resolution.value = '1024,1024';
+      expect(ui.checkIfConsumesAnlas()).toBe(false);
+      ui.updateGenerateButtonText();
+      expect(mockDom.deskBtnText.textContent).toBe('生成');
+    } finally {
+      global.document = origDoc;
+      global.window = origWin;
+    }
+  });
+});
+

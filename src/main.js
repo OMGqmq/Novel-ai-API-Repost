@@ -2160,6 +2160,9 @@ function toggleBypassLimitsEnabled(forceState) {
     }
     
     updateResolutionOptions(enabled);
+    if (window.ui && typeof window.ui.updateGenerateButtonText === 'function') {
+        window.ui.updateGenerateButtonText();
+    }
 }
 
 function updateAnlasUI(data) {
@@ -2711,7 +2714,7 @@ function updateSettingsUserCard() {
                     <i data-lucide="user" class="w-4 h-4 text-gray-400"></i>
                 </div>
                 <div class="flex flex-col min-w-0">
-                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium">商业计费系统</span>
+                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium">个人中心</span>
                     <span class="text-[11px] font-bold text-gray-600 dark:text-gray-300 truncate">未登录账户</span>
                 </div>
             </div>

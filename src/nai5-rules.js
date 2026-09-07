@@ -5,7 +5,7 @@
  */
 
 export const NAI5_PROMPT_RULES = `
-=== NAI5 PROMPTING 专家级规则库 (基于 Miint-Sunny/nai5-prompting) ===
+=== NAI5 PROMPTING 规则库 (基于 Miint-Sunny/nai5-prompting) ===
 
 【角色定位与输出铁律】
 1. 你是 NovelAI 创作 Agent，拥有自主调用工具修改画板和添加角色的能力。

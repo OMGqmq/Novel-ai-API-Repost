@@ -975,7 +975,7 @@
                 <span id="deskBtnIcon"><i data-lucide="sparkles"
                         class="w-4 h-4 text-yellow-300 dark:text-yellow-600"></i></span>
                 <span class="loader hidden w-4 h-4 border-white/50 dark:border-gray-900/50"></span>
-                <span id="deskBtnText">免费生成</span>
+                <span id="deskBtnText">生成</span>
             </button>
         </div>
     </div>
@@ -1431,12 +1431,12 @@
                             <h3 class="font-bold text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap flex items-center gap-1.5">
                                 NovelAI Agent
                                 <span class="hidden xs:inline-flex items-center gap-1 text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>自主执行
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>在线
                                 </span>
                             </h3>
                             <span id="aiChatModelBadge" class="text-[9px] sm:text-[10px] font-normal px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 border border-purple-200/40 dark:border-purple-800/30 font-mono truncate max-w-[90px] sm:max-w-[150px]">gpt-4o</span>
                         </div>
-                        <p class="text-[10px] text-gray-400 dark:text-slate-500 hidden sm:block truncate">画板感知 · 智能调参编排 · NAI5 规程 · 自主生图循环 (ReAct)</p>
+                        <p class="text-[10px] text-gray-400 dark:text-slate-500 hidden sm:block truncate">智能助手 · 辅助调参 · 角色编排 · 直接出图</p>
                     </div>
                 </div>
 
@@ -1491,7 +1491,7 @@
                     <div>
                         <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">系统角色预设</label>
                         <select id="aiChatSystemPresetSelect" onchange="window.onAiChatSystemPresetChange()" class="art-input w-full px-3 py-1.5 sm:py-2 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 mt-0.5">
-                            <option value="novelai_master">NovelAI 提示词大师 (Danbooru 标签与二次元构图)</option>
+                            <option value="novelai_master">提示词扩展 (Danbooru 标签与二次元构图)</option>
                             <option value="creative_artist">二次元创意原画师 (中文想法脑补细节)</option>
                             <option value="refine_tags">提示词精简与除重 (优化词序与权重)</option>
                             <option value="free_chat">自由二次元创作助手 (闲聊与创意交流)</option>
@@ -1502,15 +1502,15 @@
                     <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">自定义系统提示词 (System Prompt)</label>
                     <textarea id="aiChatSystemPrompt" rows="2" class="art-input w-full px-3 py-1.5 rounded-xl text-xs outline-none resize-none leading-relaxed mt-0.5"></textarea>
                 </div>
-                <!-- NAI5 Prompting 专家规则注入开关 -->
+                <!-- NAI5 Prompting 规则注入开关 -->
                 <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-purple-200/50 dark:border-purple-800/40">
                     <div class="flex items-center gap-2">
                         <input type="checkbox" id="aiAgentNai5RulesCheckbox" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800" checked>
                         <label for="aiAgentNai5RulesCheckbox" class="text-xs font-bold text-gray-700 dark:text-gray-200 cursor-pointer select-none">
-                            注入 NAI5 提示词专家规则库 (nai5-prompting)
+                            启用 NAI5 格式与标签规则 (nai5-prompting)
                         </label>
                     </div>
-                    <span class="text-[10px] text-purple-600 dark:text-purple-400 font-medium">默认开启 · 2200+ 实测图规程</span>
+                    <span class="text-[10px] text-purple-600 dark:text-purple-400 font-medium">默认开启 · 推荐格式与标签</span>
                 </div>
                 <div class="flex items-center justify-end gap-2 pt-1">
                     <button onclick="window.toggleAiChatSettings()" class="px-3 py-1.5 hover:bg-gray-200/50 dark:hover:bg-slate-800 text-gray-500 dark:text-gray-400 rounded-xl text-xs transition-all">
@@ -1603,7 +1603,7 @@
                     </nav>
                 </div>
                 
-                <!-- 左下角商业化用户卡片 -->
+                <!-- 左下角个人中心用户卡片 -->
                 <div id="settingsUserCard" class="p-3 bg-gray-100/50 dark:bg-slate-800/40 border border-gray-200/50 dark:border-slate-850 rounded-2xl flex flex-col gap-2 transition-all">
                     <!-- JS动态填充内容 -->
                 </div>
@@ -1785,7 +1785,7 @@
                             <div class="flex flex-col gap-1.5">
                                 <label class="text-[11px] font-bold text-gray-500 dark:text-gray-400">系统角色预设</label>
                                 <select id="settingsAiHelperPresetSelect" onchange="window.onSettingsAiHelperPresetChange()" class="art-input w-full px-4 py-2.5 rounded-xl text-xs outline-none bg-white dark:bg-slate-800">
-                                    <option value="novelai_master">NovelAI 提示词大师 (Danbooru 标签与二次元构图)</option>
+                                    <option value="novelai_master">提示词扩展 (Danbooru 标签与二次元构图)</option>
                                     <option value="creative_artist">二次元创意原画师 (中文想法脑补细节)</option>
                                     <option value="refine_tags">提示词精简与除重 (优化词序与权重)</option>
                                     <option value="free_chat">自由二次元创作助手 (闲聊与创意交流)</option>

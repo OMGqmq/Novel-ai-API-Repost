@@ -260,7 +260,7 @@ I have updated your prompt!
 
   describe('5. NAI5 Prompting Rules & AiHelperService Integration', () => {
     it('should contain the core NAI5 prompting doctrine in NAI5_PROMPT_RULES', () => {
-      expect(NAI5_PROMPT_RULES).toContain('NAI5 PROMPTING 专家级规则库');
+      expect(NAI5_PROMPT_RULES).toContain('NAI5 PROMPTING 规则库');
       expect(NAI5_PROMPT_RULES).toContain('编剧');
       expect(NAI5_PROMPT_RULES).toContain('监督');
       expect(NAI5_PROMPT_RULES).toContain('原画');

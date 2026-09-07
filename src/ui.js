@@ -135,10 +135,21 @@ export class UIController {
     }
 
     _initBasicBindings() {
-        const { steps, stepsVal, scale, scaleVal, batchCount, batchValue } = this.els;
-        if (steps) steps.addEventListener('input', e => stepsVal.textContent = e.target.value);
+        const { steps, stepsVal, scale, scaleVal, batchCount, batchValue, resolution } = this.els;
+        if (steps) {
+            steps.addEventListener('input', e => {
+                if (stepsVal) stepsVal.textContent = e.target.value;
+                this.updateGenerateButtonText();
+            });
+        }
         if (scale) scale.addEventListener('input', e => scaleVal.textContent = parseFloat(e.target.value).toFixed(1));
         if (batchCount) batchCount.addEventListener('input', e => batchValue.textContent = e.target.value);
+        if (resolution) {
+            resolution.addEventListener('change', () => {
+                this.updateGenerateButtonText();
+            });
+        }
+        this.updateGenerateButtonText();
     }
 
     _initCustomSelects() {
@@ -489,35 +500,71 @@ export class UIController {
     setLoading(loading, text = "生成中...") {
         const { deskBtn, floatBtn, resultGrid } = this.els;
         // 桌面：不禁用按钮，支持点击暂停/停止生成
-        deskBtn.disabled = false;
-        if (loading) {
-            deskBtn.querySelector('#deskBtnIcon').classList.add('hidden');
-            deskBtn.querySelector('.loader').classList.remove('hidden');
-            deskBtn.querySelector('#deskBtnText').textContent = text;
-            deskBtn.classList.add('bg-red-600', 'hover:bg-red-700', 'dark:bg-red-600', 'dark:hover:bg-red-700');
-        } else {
-            deskBtn.querySelector('#deskBtnIcon').classList.remove('hidden');
-            deskBtn.querySelector('.loader').classList.add('hidden');
-            deskBtn.querySelector('#deskBtnText').textContent = "免费生成";
-            deskBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'dark:bg-red-600', 'dark:hover:bg-red-700');
+        if (deskBtn) {
+            deskBtn.disabled = false;
+            const icon = deskBtn.querySelector?.('#deskBtnIcon');
+            const loader = deskBtn.querySelector?.('.loader');
+            const textEl = deskBtn.querySelector?.('#deskBtnText');
+
+            if (loading) {
+                if (icon) icon.classList.add('hidden');
+                if (loader) loader.classList.remove('hidden');
+                if (textEl) textEl.textContent = text;
+                deskBtn.classList.add('bg-red-600', 'hover:bg-red-700', 'dark:bg-red-600', 'dark:hover:bg-red-700');
+            } else {
+                if (icon) icon.classList.remove('hidden');
+                if (loader) loader.classList.add('hidden');
+                this.updateGenerateButtonText();
+                deskBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'dark:bg-red-600', 'dark:hover:bg-red-700');
+            }
         }
 
         // 悬浮
-        floatBtn.disabled = false;
-        if (loading) {
-            floatBtn.innerHTML = '<span class="loader border-white"></span>';
-            floatBtn.classList.add('scale-90', 'bg-red-600');
-        } else {
-            floatBtn.innerHTML = '<i data-lucide="sparkles" class="w-7 h-7 text-yellow-400 dark:text-gray-900"></i>';
-            floatBtn.classList.remove('scale-90', 'bg-red-600');
-            if (window.safeCreateIcons) window.safeCreateIcons();
+        if (floatBtn) {
+            floatBtn.disabled = false;
+            if (loading) {
+                floatBtn.innerHTML = '<span class="loader border-white"></span>';
+                floatBtn.classList.add('scale-90', 'bg-red-600');
+            } else {
+                floatBtn.innerHTML = '<i data-lucide="sparkles" class="w-7 h-7 text-yellow-400 dark:text-gray-900"></i>';
+                floatBtn.classList.remove('scale-90', 'bg-red-600');
+                if (window.safeCreateIcons) window.safeCreateIcons();
+            }
         }
 
-        if (loading && !resultGrid.classList.contains('hidden')) {
-            resultGrid.classList.add('opacity-50', 'blur-sm');
-        } else if (!loading) {
-            resultGrid.classList.remove('opacity-50', 'blur-sm');
+        if (resultGrid) {
+            if (loading && !resultGrid.classList.contains('hidden')) {
+                resultGrid.classList.add('opacity-50', 'blur-sm');
+            } else if (!loading) {
+                resultGrid.classList.remove('opacity-50', 'blur-sm');
+            }
         }
+    }
+
+    checkIfConsumesAnlas() {
+        try {
+            const stepsEl = this.els?.steps || (typeof document !== 'undefined' ? document.getElementById('steps') : null);
+            const steps = stepsEl ? parseInt(stepsEl.value, 10) : 28;
+            if (steps > 28) return true;
+
+            const resEl = this.els?.resolution || (typeof document !== 'undefined' ? document.getElementById('resolution') : null);
+            if (resEl && resEl.value) {
+                const parts = resEl.value.split(',').map(Number);
+                if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                    if (parts[0] * parts[1] > 1048576) return true;
+                }
+            }
+            return false;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    updateGenerateButtonText() {
+        const deskText = typeof document !== 'undefined' ? document.getElementById('deskBtnText') : null;
+        if (!deskText) return;
+        if (typeof window !== 'undefined' && window.appState && window.appState.isGenerating) return;
+        deskText.textContent = this.checkIfConsumesAnlas() ? "耗点生成" : "生成";
     }
 
     updateCreditDisplay(roleStr) {
