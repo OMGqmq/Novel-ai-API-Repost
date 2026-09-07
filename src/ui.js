@@ -306,6 +306,13 @@ export class UIController {
     }
 
     setModel(ver) {
+        if (typeof ver === 'string') {
+            const lower = ver.toLowerCase();
+            if (lower.includes('5')) ver = 'v5';
+            else if (lower.includes('4') || lower.includes('4.5')) ver = 'v4.5';
+            else if (lower.includes('zimage')) ver = 'zimage';
+            else if (lower.includes('3')) ver = 'v3';
+        }
         const modelInput = document.getElementById('modelValue');
         if (modelInput) modelInput.value = ver;
         document.querySelectorAll('.switch-bg').forEach(bg => {

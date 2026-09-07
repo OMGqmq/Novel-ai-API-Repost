@@ -382,30 +382,8 @@ settingsManager.bind(ui, store, {
         charPromptManager.onModelChange(model);
     },
     onHydrate: () => {
-        // Restore V4.5 cached character prompts
-        const savedCharPrompts = store.getSetting('nai_v45_character_prompts');
-        if (savedCharPrompts) {
-            try {
-                const list = JSON.parse(savedCharPrompts);
-                if (Array.isArray(list)) {
-                    list.forEach(item => {
-                        charPromptManager.addCharacterPromptRow(
-                            item.prompt || '',
-                            item.negative || '',
-                            typeof item.x === 'number' ? item.x : 0.5,
-                            typeof item.y === 'number' ? item.y : 0.5,
-                            item.autoPos !== false,
-                            item.enabled !== false,
-                            true // isInitializing = true
-                        );
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to parse cached character prompts:', err);
-            }
-        }
         const currentModel = store.getSetting('model', 'v3');
-        charPromptManager.onModelChange(currentModel);
+        charPromptManager.loadState(currentModel);
         charPromptManager.updatePadAspectRatio();
     }
 });
@@ -3072,6 +3050,47 @@ function renderLightboxCurrent() {
     } else {
         if (negArea) negArea.style.display = 'none';
     }
+
+    // 角色提示词 (Character Prompts) 适配展示
+    const charList = meta?.characterPrompts || meta?.char_captions || meta?.v4_prompt?.caption?.char_captions || null;
+    const charArea = document.getElementById('lightboxCharArea');
+    const charTitle = document.getElementById('lightboxCharTitle');
+    const charListEl = document.getElementById('lightboxCharList');
+    if (charArea && charListEl) {
+        if (Array.isArray(charList) && charList.length > 0) {
+            charArea.classList.remove('hidden');
+            if (charTitle) {
+                charTitle.innerHTML = `<i data-lucide="users" class="w-3.5 h-3.5"></i> 角色提示词 (${charList.length}人)`;
+            }
+            charListEl.innerHTML = charList.map((c, i) => {
+                const p = c.prompt || c.char_caption || '';
+                const uc = c.negative_prompt || c.uc || '';
+                let posLabel = '';
+                if (c.x !== undefined && c.y !== undefined) {
+                    posLabel = `${Math.round(c.x * 100)}%, ${Math.round(c.y * 100)}%`;
+                } else if (c.centers && c.centers[0]) {
+                    posLabel = `${Math.round(c.centers[0].x * 100)}%, ${Math.round(c.centers[0].y * 100)}%`;
+                } else if (c.center) {
+                    posLabel = `${Math.round(c.center.x * 100)}%, ${Math.round(c.center.y * 100)}%`;
+                }
+                return `
+                    <div class="p-2.5 bg-white/5 border border-white/10 rounded-xl space-y-1 text-xs">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] font-semibold text-indigo-400">角色 ${i + 1} ${posLabel ? `<span class="text-slate-500 font-mono text-[9px]">· ${posLabel}</span>` : ''}</span>
+                            <button type="button" onclick="navigator.clipboard.writeText(${JSON.stringify(p)}); window.showToast('角色提示词已复制', 'success')" class="text-slate-400 hover:text-white text-[10px] flex items-center gap-0.5">
+                                <i data-lucide="copy" class="w-2.5 h-2.5"></i>
+                            </button>
+                        </div>
+                        <div class="text-slate-200 font-light break-all select-text text-[11px] leading-relaxed">${escapeHtml(p)}</div>
+                        ${uc ? `<div class="text-slate-400 font-light break-all select-text text-[10px] pt-0.5 border-t border-white/5"><span class="text-slate-500 font-mono">UC:</span> ${escapeHtml(uc)}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        } else {
+            charArea.classList.add('hidden');
+            charListEl.innerHTML = '';
+        }
+    }
     
     const stepsEl = document.getElementById('lbMetaSteps');
     if (stepsEl) stepsEl.textContent = steps;
@@ -3145,6 +3164,37 @@ async function nextLightboxImage() {
     }
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function copyLightboxAllCharacters() {
+    if (lightboxItems.length === 0) return;
+    const item = lightboxItems[lightboxIndex];
+    const meta = item.meta || item;
+    const charList = meta?.characterPrompts || meta?.char_captions || meta?.v4_prompt?.caption?.char_captions;
+    if (!Array.isArray(charList) || charList.length === 0) return;
+
+    const text = charList.map((c, i) => {
+        const p = c.prompt || c.char_caption || '';
+        const uc = c.negative_prompt || c.uc || '';
+        return `[角色 ${i + 1}]\n提示词: ${p}${uc ? `\n负向: ${uc}` : ''}`;
+    }).join('\n\n');
+
+    navigator.clipboard.writeText(text).then(() => {
+        window.showToast("已复制全部角色提示词！", "success");
+    }).catch(err => {
+        console.error("复制失败", err);
+    });
+}
+window.copyLightboxAllCharacters = copyLightboxAllCharacters;
+
 function copyLightboxText(id) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -3159,9 +3209,18 @@ function copyLightboxText(id) {
 function lightboxApplyParams() {
     if (lightboxItems.length === 0) return;
     const item = lightboxItems[lightboxIndex];
+    const meta = item.meta || item;
     
     // 1. 先载入并应用模型版本，以便正确初始化模型专属的高级面板显示状态
-    const modelVer = item.model || 'v3';
+    const rawModel = item.model || meta?.model || 'v3';
+    let modelVer = 'v3';
+    if (typeof rawModel === 'string') {
+        const lower = rawModel.toLowerCase();
+        if (lower.includes('5')) modelVer = 'v5';
+        else if (lower.includes('4') || lower.includes('4.5')) modelVer = 'v4.5';
+        else if (lower.includes('zimage')) modelVer = 'zimage';
+        else if (lower.includes('3')) modelVer = 'v3';
+    }
     if (window.setModel) {
         window.setModel(modelVer);
     } else if (typeof setModel === 'function') {
@@ -3172,7 +3231,6 @@ function lightboxApplyParams() {
     els.prompt.value = item.prompt || '';
     els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
     
-    const meta = item.meta || item;
     if (meta) {
         // 3. 载入负向提示词
         if (meta.negative_prompt !== undefined) {
@@ -3353,10 +3411,18 @@ function lightboxApplyParams() {
                 const enabled = char.enabled !== undefined ? char.enabled : true;
                 addCharacterPromptRow(promptVal, negVal, cx, cy, autoPos, enabled);
             });
+
+            // 自动展开角色提示词面板
+            const charPanel = document.getElementById('characterPromptsPanel');
+            const charChevron = document.getElementById('characterPromptsChevron');
+            if (charPanel && charPanel.classList.contains('hidden') && charList.length > 0) {
+                charPanel.classList.remove('hidden');
+                if (charChevron) charChevron.classList.add('rotate-180');
+            }
         }
         
-        // 自动将恢复后的数据落盘到 LocalStorage
-        saveCharacterPromptsState();
+        // 自动将恢复后的数据按当前模型落盘到 LocalStorage
+        charPromptManager.saveCharacterPromptsState(modelVer);
 
         // 8. 恢复角色参考图 (Character Reference)
         if (meta.director_reference_images && meta.director_reference_images.length > 0) {

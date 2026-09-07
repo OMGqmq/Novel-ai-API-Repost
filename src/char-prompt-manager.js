@@ -17,8 +17,24 @@ export class CharPromptManager {
         }
     }
 
-    onModelChange(ver) {
-        this.currentModel = ver || 'v3';
+    getCharPromptKey(model) {
+        const m = model || this.currentModel || 'v4.5';
+        return m === 'v5' ? 'nai_v5_character_prompts' : 'nai_v45_character_prompts';
+    }
+
+    onModelChange(ver, { reload = true } = {}) {
+        const prevModel = this.currentModel;
+        const targetModel = ver || 'v3';
+
+        if (reload && this.store && prevModel && prevModel !== targetModel && (prevModel === 'v4.5' || prevModel === 'v5')) {
+            this.saveCharacterPromptsState(prevModel);
+        }
+
+        this.currentModel = targetModel;
+
+        if (reload && this.store && prevModel !== targetModel && (targetModel === 'v4.5' || targetModel === 'v5')) {
+            this.loadState(targetModel, { skipModelChange: true });
+        }
         
         // 控制顶部“大画布位置编排”按钮（仅 V5 支持自由选点与全屏画布）
         const launchBtn = document.getElementById('charStageLaunchBtn');
@@ -110,9 +126,10 @@ export class CharPromptManager {
         return { charCaptions, hasCustomCoords };
     }
 
-    saveCharacterPromptsState() {
+    saveCharacterPromptsState(model) {
         const container = document.getElementById('characterPromptsContainer');
         if (!container || !this.store) return;
+        const targetModel = model || this.currentModel || 'v4.5';
         const rows = container.querySelectorAll('.character-prompt-row');
         const list = [];
         rows.forEach(row => {
@@ -132,7 +149,46 @@ export class CharPromptManager {
                 autoPos: autoPosCheckbox ? autoPosCheckbox.checked : true
             });
         });
-        this.store.setSetting('nai_v45_character_prompts', JSON.stringify(list));
+        this.store.setSetting(this.getCharPromptKey(targetModel), JSON.stringify(list));
+    }
+
+    loadState(model, { skipModelChange = false } = {}) {
+        const container = document.getElementById('characterPromptsContainer');
+        if (!container || !this.store) return;
+        const targetModel = model || this.currentModel || 'v4.5';
+        this.currentModel = targetModel;
+        
+        let saved = this.store.getSetting(this.getCharPromptKey(targetModel));
+        if (!saved && targetModel === 'v5') {
+            // 兼容迁移：若 v5 尚无专属配置，首次读取已有的 v4.5 配置
+            saved = this.store.getSetting('nai_v45_character_prompts');
+        }
+
+        container.innerHTML = '';
+        if (saved) {
+            try {
+                const list = JSON.parse(saved);
+                if (Array.isArray(list)) {
+                    list.forEach(item => {
+                        this.addCharacterPromptRow(
+                            item.prompt || '',
+                            item.negative || '',
+                            typeof item.x === 'number' ? item.x : 0.5,
+                            typeof item.y === 'number' ? item.y : 0.5,
+                            item.autoPos !== false,
+                            item.enabled !== false,
+                            true // isInitializing = true
+                        );
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to parse cached character prompts for', targetModel, err);
+            }
+        }
+        this.updateCharacterIndexLabels();
+        if (!skipModelChange) {
+            this.onModelChange(targetModel, { reload: false });
+        }
     }
 
     _generateGridCellsHtml(safeX, safeY) {
