@@ -307,11 +307,12 @@ export class UIController {
 
     setModel(ver) {
         if (typeof ver === 'string') {
-            const lower = ver.toLowerCase();
-            if (lower.includes('5')) ver = 'v5';
-            else if (lower.includes('4') || lower.includes('4.5')) ver = 'v4.5';
-            else if (lower.includes('zimage')) ver = 'zimage';
-            else if (lower.includes('3')) ver = 'v3';
+            const lower = ver.toLowerCase().trim();
+            if (lower.includes('zimage')) ver = 'zimage';
+            else if (lower.includes('4.5') || lower.includes('4-5') || lower.includes('v4') || lower.includes('diffusion-4')) ver = 'v4.5';
+            else if (lower.includes('5') || lower.includes('v5') || lower.includes('diffusion-5')) ver = 'v5';
+            else if (lower.includes('3') || lower.includes('v3') || lower.includes('diffusion-3')) ver = 'v3';
+            else ver = 'v3';
         }
         const modelInput = document.getElementById('modelValue');
         if (modelInput) modelInput.value = ver;

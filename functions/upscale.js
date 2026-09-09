@@ -10,11 +10,11 @@ export async function onRequest(context) {
       }
 
       let modelName = 'nai-diffusion-3';
-      const rawModel = data.model || data.version || 'v3';
-      if (rawModel === 'v5' || rawModel.includes('5')) {
-        modelName = 'nai-diffusion-5-full';
-      } else if (rawModel === 'v4.5' || rawModel === 'v4' || rawModel.includes('4')) {
+      const rawModel = (data.model || data.version || 'v3').toLowerCase();
+      if (rawModel.includes('4.5') || rawModel.includes('4-5') || rawModel.includes('v4') || rawModel.includes('diffusion-4')) {
         modelName = 'nai-diffusion-4-full';
+      } else if (rawModel === 'v5' || rawModel.includes('5')) {
+        modelName = 'nai-diffusion-5-full';
       } else if (rawModel.includes('furry')) {
         modelName = 'furry-diffusion-3';
       } else if (rawModel.startsWith('nai-diffusion') || rawModel.startsWith('safe-diffusion')) {

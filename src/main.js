@@ -212,7 +212,8 @@ window.saveImageItemToGallery = async (item) => {
         scale: item.scale,
         sampler: item.sampler,
         seed: item.seed,
-        negative_prompt: item.negative_prompt || ''
+        negative_prompt: item.negative_prompt || '',
+        characterPrompts: item.characterPrompts || item.char_captions || null
     };
 
     const savedItem = await saveToHistory(base64, prompt, model, null, false, meta);
@@ -1973,11 +1974,13 @@ async function optimizePromptWithAi() {
 }
 window.optimizePromptWithAi = optimizePromptWithAi;
 
-function toggleV45Experimental(forceState) {
+function toggleV45Experimental(forceState, silent = false) {
     const checkbox = document.getElementById('settingsV45ExperimentalCheckbox');
     const enabled = typeof forceState === 'boolean' ? forceState : (checkbox ? checkbox.checked : false);
     settingsManager.toggleV45Experimental(enabled);
-    window.showToast(enabled ? "已启用 V4.5 实验性请求参数" : "已恢复 V4.5 官方默认参数", "success");
+    if (!silent) {
+        window.showToast(enabled ? "已启用 V4.5 实验性请求参数" : "已恢复 V4.5 官方默认参数", "success");
+    }
 }
 function randomizeSeed() {
     const input = document.getElementById('seed');
@@ -3011,6 +3014,40 @@ function closeLightbox() {
     closeModal('imageLightboxModal');
 }
 
+function resolveLightboxMeta(item) {
+    if (!item) return {};
+    let meta = item.meta || item;
+    if (typeof meta === 'string') {
+        try {
+            meta = JSON.parse(meta);
+        } catch (e) {
+            meta = {};
+        }
+    }
+    const commentRaw = meta?.Comment || meta?.comment || item?.Comment || item?.comment;
+    if (typeof commentRaw === 'string') {
+        try {
+            const parsedComment = JSON.parse(commentRaw);
+            meta = { ...parsedComment, ...meta };
+        } catch (e) {}
+    } else if (typeof commentRaw === 'object' && commentRaw !== null) {
+        meta = { ...commentRaw, ...meta };
+    }
+    return meta;
+}
+window.resolveLightboxMeta = resolveLightboxMeta;
+
+function normalizeModelVersion(rawModel) {
+    if (!rawModel || typeof rawModel !== 'string') return 'v3';
+    const lower = rawModel.toLowerCase().trim();
+    if (lower.includes('zimage')) return 'zimage';
+    if (lower.includes('4.5') || lower.includes('4-5') || lower.includes('v4') || lower.includes('diffusion-4')) return 'v4.5';
+    if (lower.includes('5') || lower.includes('v5') || lower.includes('diffusion-5')) return 'v5';
+    if (lower.includes('3') || lower.includes('v3') || lower.includes('diffusion-3')) return 'v3';
+    return 'v3';
+}
+window.normalizeModelVersion = normalizeModelVersion;
+
 function renderLightboxCurrent() {
     if (lightboxItems.length === 0 || lightboxIndex < 0 || lightboxIndex >= lightboxItems.length) return;
     const item = lightboxItems[lightboxIndex];
@@ -3024,12 +3061,20 @@ function renderLightboxCurrent() {
         }, 100);
     }
 
-    const modelEl = document.getElementById('lbInfoModel');
-    if (modelEl) modelEl.textContent = `Model: ${item.model || 'v5'}`;
+    const meta = resolveLightboxMeta(item);
+
+    let rawModel = item.model || meta?.model || '';
+    const charList = meta?.characterPrompts || meta?.char_captions || meta?.v4_prompt?.caption?.char_captions || item?.characterPrompts || item?.char_captions || null;
+    if (!rawModel && (Array.isArray(charList) && charList.length > 0 || meta?.v4_prompt)) {
+        rawModel = (meta?.noise_schedule === 'karras' || meta?.ucPresetId === 'heavy') ? 'v5' : 'v4.5';
+    }
+    const currentModelVer = normalizeModelVersion(rawModel || 'v3');
     
-    const meta = item.meta || item;
+    const modelEl = document.getElementById('lbInfoModel');
+    if (modelEl) modelEl.textContent = `Model: ${currentModelVer.toUpperCase()}`;
+    
     const promptText = item.prompt || meta?.prompt || '';
-    const negPrompt = meta?.negative_prompt || item.negative_prompt || '';
+    const negPrompt = meta?.negative_prompt !== undefined ? meta.negative_prompt : (meta?.uc !== undefined ? meta.uc : (item.negative_prompt || ''));
     const width = meta?.width || item.width || '--';
     const height = meta?.height || item.height || '--';
     const steps = meta?.steps !== undefined ? meta.steps : (item.steps !== undefined ? item.steps : '--');
@@ -3052,7 +3097,6 @@ function renderLightboxCurrent() {
     }
 
     // 角色提示词 (Character Prompts) 适配展示
-    const charList = meta?.characterPrompts || meta?.char_captions || meta?.v4_prompt?.caption?.char_captions || null;
     const charArea = document.getElementById('lightboxCharArea');
     const charTitle = document.getElementById('lightboxCharTitle');
     const charListEl = document.getElementById('lightboxCharList');
@@ -3064,7 +3108,11 @@ function renderLightboxCurrent() {
             }
             charListEl.innerHTML = charList.map((c, i) => {
                 const p = c.prompt || c.char_caption || '';
-                const uc = c.negative_prompt || c.uc || '';
+                let uc = c.negative_prompt || c.negative || c.uc || '';
+                if (!uc && meta?.v4_negative_prompt?.caption?.char_captions?.[i]) {
+                    const negC = meta.v4_negative_prompt.caption.char_captions[i];
+                    uc = negC.char_caption || negC.prompt || negC.uc || '';
+                }
                 let posLabel = '';
                 if (c.x !== undefined && c.y !== undefined) {
                     posLabel = `${Math.round(c.x * 100)}%, ${Math.round(c.y * 100)}%`;
@@ -3132,7 +3180,7 @@ function renderLightboxCurrent() {
 
     // 动态判断当前图片是具备完整参数还是仅有提示词
     const hasFullParams = Boolean(
-        meta && (meta.steps !== undefined || meta.scale !== undefined || meta.sampler || (meta.width && meta.height) || meta.characterPrompts || meta.char_captions)
+        meta && (meta.steps !== undefined || meta.scale !== undefined || meta.sampler || (meta.width && meta.height) || (Array.isArray(charList) && charList.length > 0))
     );
     const applyBtnText = document.getElementById('lightboxApplyBtnText');
     if (applyBtnText) {
@@ -3177,13 +3225,17 @@ function escapeHtml(str) {
 function copyLightboxAllCharacters() {
     if (lightboxItems.length === 0) return;
     const item = lightboxItems[lightboxIndex];
-    const meta = item.meta || item;
-    const charList = meta?.characterPrompts || meta?.char_captions || meta?.v4_prompt?.caption?.char_captions;
+    const meta = resolveLightboxMeta(item);
+    const charList = meta?.characterPrompts || meta?.char_captions || meta?.v4_prompt?.caption?.char_captions || item?.characterPrompts || item?.char_captions;
     if (!Array.isArray(charList) || charList.length === 0) return;
 
     const text = charList.map((c, i) => {
         const p = c.prompt || c.char_caption || '';
-        const uc = c.negative_prompt || c.uc || '';
+        let uc = c.negative_prompt || c.negative || c.uc || '';
+        if (!uc && meta?.v4_negative_prompt?.caption?.char_captions?.[i]) {
+            const negC = meta.v4_negative_prompt.caption.char_captions[i];
+            uc = negC.char_caption || negC.prompt || negC.uc || '';
+        }
         return `[角色 ${i + 1}]\n提示词: ${p}${uc ? `\n负向: ${uc}` : ''}`;
     }).join('\n\n');
 
@@ -3209,18 +3261,15 @@ function copyLightboxText(id) {
 function lightboxApplyParams() {
     if (lightboxItems.length === 0) return;
     const item = lightboxItems[lightboxIndex];
-    const meta = item.meta || item;
+    const meta = resolveLightboxMeta(item);
     
     // 1. 先载入并应用模型版本，以便正确初始化模型专属的高级面板显示状态
-    const rawModel = item.model || meta?.model || 'v3';
-    let modelVer = 'v3';
-    if (typeof rawModel === 'string') {
-        const lower = rawModel.toLowerCase();
-        if (lower.includes('5')) modelVer = 'v5';
-        else if (lower.includes('4') || lower.includes('4.5')) modelVer = 'v4.5';
-        else if (lower.includes('zimage')) modelVer = 'zimage';
-        else if (lower.includes('3')) modelVer = 'v3';
+    let rawModel = item.model || meta?.model || '';
+    const charList = meta?.characterPrompts || meta?.char_captions || meta?.v4_prompt?.caption?.char_captions || item?.characterPrompts || item?.char_captions || null;
+    if (!rawModel && (Array.isArray(charList) && charList.length > 0 || meta?.v4_prompt)) {
+        rawModel = (meta?.noise_schedule === 'karras' || meta?.ucPresetId === 'heavy') ? 'v5' : 'v4.5';
     }
+    const modelVer = normalizeModelVersion(rawModel || 'v3');
     if (window.setModel) {
         window.setModel(modelVer);
     } else if (typeof setModel === 'function') {
@@ -3228,26 +3277,28 @@ function lightboxApplyParams() {
     }
     
     // 2. 载入正向提示词
-    els.prompt.value = item.prompt || '';
+    const promptText = item.prompt || meta?.prompt || '';
+    els.prompt.value = promptText;
     els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
     
     if (meta) {
-        // 3. 载入负向提示词
-        if (meta.negative_prompt !== undefined) {
-            els.negative.value = meta.negative_prompt || '';
+        // 3. 载入负向提示词 (兼容 negative_prompt 和 NovelAI Comment 的 uc 字段)
+        const negText = meta.negative_prompt !== undefined ? meta.negative_prompt : (meta.uc !== undefined ? meta.uc : null);
+        if (negText !== null) {
+            els.negative.value = negText || '';
             els.negative.dispatchEvent(new Event('input', { bubbles: true }));
         }
         
         // 4. 载入 Steps, Scale, Seed, Resolution
         const stepsEl = document.getElementById('steps');
-        if (stepsEl && meta.steps) {
+        if (stepsEl && meta.steps !== undefined) {
             stepsEl.value = meta.steps;
             const stepsVal = document.getElementById('stepsValue');
             if (stepsVal) stepsVal.textContent = meta.steps;
         }
         
         const scaleEl = document.getElementById('scale');
-        if (scaleEl && meta.scale) {
+        if (scaleEl && meta.scale !== undefined) {
             scaleEl.value = meta.scale;
             const scaleVal = document.getElementById('scaleValue');
             if (scaleVal) scaleVal.textContent = parseFloat(meta.scale).toFixed(1);
@@ -3319,81 +3370,76 @@ function lightboxApplyParams() {
             skipCfgEl.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
-        // 6. 载入 V4.5 专属高级微调参数
-        const isExp = meta.v4_5_experimental === true || (meta.v4_5_experimental === undefined && (
-            meta.v4_prompt_use_coords !== undefined || meta.v4_prompt_use_order !== undefined || meta.v4_neg_use_order !== undefined
-        ));
-        const expCheckbox = document.getElementById('settingsV45ExperimentalCheckbox');
-        if (expCheckbox) {
-            expCheckbox.checked = isExp;
-            if (window.toggleV45Experimental) {
-                window.toggleV45Experimental(isExp);
+        // 6. 载入 V4.5 专属高级微调参数（仅在当前模型为 V4.5 时处理，且静默应用不弹出默认恢复 Toast）
+        if (modelVer === 'v4.5') {
+            const isExp = meta.v4_5_experimental === true || (meta.v4_5_experimental === undefined && (
+                meta.v4_prompt_use_coords !== undefined || meta.v4_prompt_use_order !== undefined || meta.v4_neg_use_order !== undefined
+            ));
+            const expCheckbox = document.getElementById('settingsV45ExperimentalCheckbox');
+            if (expCheckbox) {
+                expCheckbox.checked = isExp;
+                if (window.toggleV45Experimental) {
+                    window.toggleV45Experimental(isExp, true);
+                }
+            }
+
+            const eulerBugEl = document.getElementById('v45EulerBug');
+            const eulerBugVal = meta.deliberate_euler_ancestral_bug !== undefined ? meta.deliberate_euler_ancestral_bug : false;
+            if (eulerBugEl) {
+                eulerBugEl.checked = eulerBugVal;
+                eulerBugEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            const preferBrownianEl = document.getElementById('v45PreferBrownian');
+            const preferBrownianVal = meta.prefer_brownian !== undefined ? meta.prefer_brownian : true;
+            if (preferBrownianEl) {
+                preferBrownianEl.checked = preferBrownianVal;
+                preferBrownianEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            const useCoordsEl = document.getElementById('v45UseCoords');
+            const useCoordsVal = meta.v4_prompt_use_coords !== undefined ? meta.v4_prompt_use_coords : 
+                                 (meta.v4_prompt ? meta.v4_prompt.use_coords : false);
+            if (useCoordsEl) {
+                useCoordsEl.checked = useCoordsVal;
+                useCoordsEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            const useOrderEl = document.getElementById('v45UseOrder');
+            const useOrderVal = meta.v4_prompt_use_order !== undefined ? meta.v4_prompt_use_order : 
+                                (meta.v4_prompt ? meta.v4_prompt.use_order : true);
+            if (useOrderEl) {
+                useOrderEl.checked = useOrderVal;
+                useOrderEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            const negUseOrderEl = document.getElementById('v45NegUseOrder');
+            const negUseOrderVal = meta.v4_neg_use_order !== undefined ? meta.v4_neg_use_order : 
+                                   (meta.v4_negative_prompt ? meta.v4_negative_prompt.use_order : false);
+            if (negUseOrderEl) {
+                negUseOrderEl.checked = negUseOrderVal;
+                negUseOrderEl.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
 
-        const eulerBugEl = document.getElementById('v45EulerBug');
-        const eulerBugVal = meta.deliberate_euler_ancestral_bug !== undefined ? meta.deliberate_euler_ancestral_bug : false;
-        if (eulerBugEl) {
-            eulerBugEl.checked = eulerBugVal;
-            eulerBugEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        const preferBrownianEl = document.getElementById('v45PreferBrownian');
-        const preferBrownianVal = meta.prefer_brownian !== undefined ? meta.prefer_brownian : true;
-        if (preferBrownianEl) {
-            preferBrownianEl.checked = preferBrownianVal;
-            preferBrownianEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        const useCoordsEl = document.getElementById('v45UseCoords');
-        const useCoordsVal = meta.v4_prompt_use_coords !== undefined ? meta.v4_prompt_use_coords : 
-                             (meta.v4_prompt ? meta.v4_prompt.use_coords : false);
-        if (useCoordsEl) {
-            useCoordsEl.checked = useCoordsVal;
-            useCoordsEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        const useOrderEl = document.getElementById('v45UseOrder');
-        const useOrderVal = meta.v4_prompt_use_order !== undefined ? meta.v4_prompt_use_order : 
-                            (meta.v4_prompt ? meta.v4_prompt.use_order : true);
-        if (useOrderEl) {
-            useOrderEl.checked = useOrderVal;
-            useOrderEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        const negUseOrderEl = document.getElementById('v45NegUseOrder');
-        const negUseOrderVal = meta.v4_neg_use_order !== undefined ? meta.v4_neg_use_order : 
-                               (meta.v4_negative_prompt ? meta.v4_negative_prompt.use_order : false);
-        if (negUseOrderEl) {
-            negUseOrderEl.checked = negUseOrderVal;
-            negUseOrderEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
         // 7. 恢复多角色提示词 (Character Prompts)
-        const container = document.getElementById('characterPromptsContainer');
-        if (container) {
-            container.innerHTML = '';
-            updateCharacterIndexLabels();
-        }
-        
-        let charList = meta.characterPrompts || meta.char_captions;
-        if (!charList && meta.v4_prompt && meta.v4_prompt.caption && meta.v4_prompt.caption.char_captions) {
-            charList = meta.v4_prompt.caption.char_captions;
-        }
-        
-        if (Array.isArray(charList)) {
+        if (Array.isArray(charList) && charList.length > 0) {
+            const container = document.getElementById('characterPromptsContainer');
+            if (container) {
+                container.innerHTML = '';
+            }
+            
             const useCoords = meta.use_coords !== undefined ? Boolean(meta.use_coords) :
                               (meta.v4_prompt_use_coords !== undefined ? meta.v4_prompt_use_coords : 
                               (meta.v4_prompt ? meta.v4_prompt.use_coords : false));
             
-            charList.forEach(char => {
+            charList.forEach((char, idx) => {
                 const promptVal = char.prompt || char.char_caption || '';
-                let negVal = char.negative_prompt || char.uc || '';
+                let negVal = char.negative_prompt || char.negative || char.uc || '';
                 if (!negVal && meta.v4_negative_prompt && meta.v4_negative_prompt.caption && meta.v4_negative_prompt.caption.char_captions) {
-                    const idx = charList.indexOf(char);
                     const negChar = meta.v4_negative_prompt.caption.char_captions[idx];
                     if (negChar) {
-                        negVal = negChar.char_caption || '';
+                        negVal = negChar.char_caption || negChar.prompt || negChar.uc || '';
                     }
                 }
                 
@@ -3407,22 +3453,28 @@ function lightboxApplyParams() {
                 else if (char.center && typeof char.center.y === 'number') cy = char.center.y;
                 else if (char.centers && char.centers[0] && typeof char.centers[0].y === 'number') cy = char.centers[0].y;
                 
-                const autoPos = !useCoords;
-                const enabled = char.enabled !== undefined ? char.enabled : true;
-                addCharacterPromptRow(promptVal, negVal, cx, cy, autoPos, enabled);
+                const autoPos = char.autoPos !== undefined ? Boolean(char.autoPos) : !useCoords;
+                const enabled = char.enabled !== undefined ? Boolean(char.enabled) : true;
+                addCharacterPromptRow(promptVal, negVal, cx, cy, autoPos, enabled, true);
             });
 
-            // 自动展开角色提示词面板
+            // 确保角色提示词面板可见并自动展开
+            const charWrapper = document.getElementById('characterPromptsWrapper');
+            if (charWrapper) charWrapper.classList.remove('hidden');
             const charPanel = document.getElementById('characterPromptsPanel');
-            const charChevron = document.getElementById('characterPromptsChevron');
-            if (charPanel && charPanel.classList.contains('hidden') && charList.length > 0) {
+            const charChevron = document.getElementById('charChevron');
+            if (charPanel) {
                 charPanel.classList.remove('hidden');
-                if (charChevron) charChevron.classList.add('rotate-180');
+                if (charChevron) charChevron.style.transform = 'rotate(180deg)';
             }
+
+            // 确保角色卡片标签、选点与当前模型同步
+            charPromptManager.updateCharacterIndexLabels();
+            charPromptManager.onModelChange(modelVer, { reload: false });
+
+            // 自动将恢复后的数据按当前模型落盘到 LocalStorage
+            charPromptManager.saveCharacterPromptsState(modelVer);
         }
-        
-        // 自动将恢复后的数据按当前模型落盘到 LocalStorage
-        charPromptManager.saveCharacterPromptsState(modelVer);
 
         // 8. 恢复角色参考图 (Character Reference)
         if (meta.director_reference_images && meta.director_reference_images.length > 0) {

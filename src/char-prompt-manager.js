@@ -290,11 +290,11 @@ export class CharPromptManager {
             <div class="char-row-content space-y-2">
                 <div class="space-y-1">
                     <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">描述提示词 (Character Prompt)</label>
-                    <input type="text" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="${promptVal}" placeholder="填入角色特征tag，例如: 1girl, blond hair, blue eyes" />
+                    <input type="text" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" placeholder="填入角色特征tag，例如: 1girl, blond hair, blue eyes" />
                 </div>
                 <div class="space-y-1">
                     <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">排除词 (Character Negative, 可选)</label>
-                    <input type="text" class="char-neg-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" value="${negVal}" placeholder="特定于该角色的排除特征，默认为空" />
+                    <input type="text" class="char-neg-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" placeholder="特定于该角色的排除特征，默认为空" />
                 </div>
                 <div class="space-y-1 mt-2">
                     <div class="flex justify-between items-center text-[9px] text-gray-400 dark:text-gray-500">
@@ -410,6 +410,9 @@ export class CharPromptManager {
 
         // 角色提示词摘要实时显示并保存状态
         const promptInput = div.querySelector('.char-prompt-input');
+        if (promptInput) {
+            promptInput.value = promptVal || '';
+        }
         const summarySpan = div.querySelector('.char-row-summary');
         const updateSummary = () => {
             if (!promptInput || !summarySpan) return;
@@ -432,6 +435,7 @@ export class CharPromptManager {
         // 排除词修改保存
         const negInput = div.querySelector('.char-neg-input');
         if (negInput) {
+            negInput.value = negVal || '';
             negInput.addEventListener('input', () => this.saveCharacterPromptsState());
         }
 

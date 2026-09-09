@@ -142,4 +142,85 @@ describe('CharPromptManager Model-Specific Storage & Lightbox Adaptations', () =
     expect(manager.currentModel).toBe('v5');
     expect(rowsInDom.length).toBe(1);
   });
+
+  it('5. should correctly resolve v4.5 without collapsing to v5 due to character 5', () => {
+    function normalizeModelVersion(rawModel) {
+      if (!rawModel || typeof rawModel !== 'string') return 'v3';
+      const lower = rawModel.toLowerCase().trim();
+      if (lower.includes('zimage')) return 'zimage';
+      if (lower.includes('4.5') || lower.includes('4-5') || lower.includes('v4') || lower.includes('diffusion-4')) return 'v4.5';
+      if (lower.includes('5') || lower.includes('v5') || lower.includes('diffusion-5')) return 'v5';
+      if (lower.includes('3') || lower.includes('v3') || lower.includes('diffusion-3')) return 'v3';
+      return 'v3';
+    }
+
+    expect(normalizeModelVersion('v4.5')).toBe('v4.5');
+    expect(normalizeModelVersion('nai-diffusion-4-5-full')).toBe('v4.5');
+    expect(normalizeModelVersion('nai-diffusion-4-full')).toBe('v4.5');
+    expect(normalizeModelVersion('v4')).toBe('v4.5');
+    expect(normalizeModelVersion('v5')).toBe('v5');
+    expect(normalizeModelVersion('nai-diffusion-5-full')).toBe('v5');
+    expect(normalizeModelVersion('v3')).toBe('v3');
+    expect(normalizeModelVersion('nai-diffusion-3')).toBe('v3');
+    expect(normalizeModelVersion('zimage')).toBe('zimage');
+  });
+
+  it('6. should unpack NovelAI Comment JSON string into full metadata and character prompts', () => {
+    function resolveLightboxMeta(item) {
+      if (!item) return {};
+      let meta = item.meta || item;
+      if (typeof meta === 'string') {
+        try {
+          meta = JSON.parse(meta);
+        } catch (e) {
+          meta = {};
+        }
+      }
+      const commentRaw = meta?.Comment || meta?.comment || item?.Comment || item?.comment;
+      if (typeof commentRaw === 'string') {
+        try {
+          const parsedComment = JSON.parse(commentRaw);
+          meta = { ...parsedComment, ...meta };
+        } catch (e) {}
+      } else if (typeof commentRaw === 'object' && commentRaw !== null) {
+        meta = { ...commentRaw, ...meta };
+      }
+      return meta;
+    }
+
+    const naiPngItem = {
+      image: 'data:image/png;base64,mock',
+      Comment: JSON.stringify({
+        prompt: '1girl, masterpiece',
+        uc: 'lowres, bad hands',
+        steps: 28,
+        scale: 5.5,
+        seed: 987654321,
+        v4_prompt: {
+          caption: {
+            base_caption: '1girl, masterpiece',
+            char_captions: [
+              { char_caption: '1girl, red hair', centers: [{ x: 0.25, y: 0.5 }] }
+            ]
+          }
+        },
+        v4_negative_prompt: {
+          caption: {
+            char_captions: [
+              { char_caption: 'bad hair' }
+            ]
+          }
+        }
+      })
+    };
+
+    const resolved = resolveLightboxMeta(naiPngItem);
+    expect(resolved.steps).toBe(28);
+    expect(resolved.scale).toBe(5.5);
+    expect(resolved.seed).toBe(987654321);
+    expect(resolved.uc).toBe('lowres, bad hands');
+    expect(resolved.v4_prompt?.caption?.char_captions?.length).toBe(1);
+    expect(resolved.v4_prompt.caption.char_captions[0].char_caption).toBe('1girl, red hair');
+    expect(resolved.v4_negative_prompt.caption.char_captions[0].char_caption).toBe('bad hair');
+  });
 });

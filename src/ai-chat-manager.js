@@ -1141,7 +1141,8 @@ export class AiChatManager {
                 scale: currentImg.scale || tc.scale,
                 sampler: currentImg.sampler || tc.sampler,
                 seed: currentImg.seed !== undefined ? currentImg.seed : tc.seed,
-                negative_prompt: currentImg.negative_prompt || tc.negative_prompt || ''
+                negative_prompt: currentImg.negative_prompt || tc.negative_prompt || '',
+                characterPrompts: currentImg.characterPrompts || tc.characterPrompts || currentImg.char_captions || tc.char_captions || null
             }
         };
         if (typeof window !== 'undefined' && typeof window.openLightbox === 'function') {
