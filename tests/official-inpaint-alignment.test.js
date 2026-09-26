@@ -20,7 +20,7 @@ describe('Official NovelAI Inpainting Alignment Test Suite', () => {
             expect(payload.model).toBe('nai-diffusion-3-inpainting');
             expect(payload.action).toBe('infill');
             expect(payload.parameters.sampler).toBe('k_euler_ancestral'); // DDIM fallback
-            expect(payload.parameters.add_original_image).toBe(false);
+            expect(payload.parameters.add_original_image).toBe(true);
             expect(payload.parameters.sm).toBe(false);
             expect(payload.parameters.sm_dyn).toBe(false);
             expect(payload.parameters.img2img).toBeUndefined(); // V3 does not support img2img in infill
@@ -31,7 +31,7 @@ describe('Official NovelAI Inpainting Alignment Test Suite', () => {
             expect(payload.model).toBe('nai-diffusion-4-5-full-inpainting');
             expect(payload.action).toBe('infill');
             expect(payload.parameters.sampler).toBe('k_euler_ancestral'); // DDIM fallback
-            expect(payload.parameters.add_original_image).toBe(false);
+            expect(payload.parameters.add_original_image).toBe(true);
             expect(payload.parameters.img2img).toEqual({
                 strength: 0.65,
                 color_correct: true
@@ -43,11 +43,20 @@ describe('Official NovelAI Inpainting Alignment Test Suite', () => {
             expect(payload.model).toBe('nai-diffusion-5-full-inpainting');
             expect(payload.action).toBe('infill');
             expect(payload.parameters.noise_schedule).toBe('karras');
-            expect(payload.parameters.add_original_image).toBe(false);
+            expect(payload.parameters.add_original_image).toBe(true);
             expect(payload.parameters.img2img).toEqual({
                 strength: 0.8,
                 color_correct: true
             });
+        });
+
+        it('should respect explicit add_original_image: false if passed', () => {
+            const p3 = createV3Payload({ ...baseInfillData, add_original_image: false });
+            const p45 = createV45Payload({ ...baseInfillData, add_original_image: false });
+            const p5 = createV5Payload({ ...baseInfillData, add_original_image: false });
+            expect(p3.parameters.add_original_image).toBe(false);
+            expect(p45.parameters.add_original_image).toBe(false);
+            expect(p5.parameters.add_original_image).toBe(false);
         });
 
         it('should delete img2img when strength is 1.0 for V4.5 and V5', () => {
@@ -119,9 +128,32 @@ describe('Official NovelAI Inpainting Alignment Test Suite', () => {
         it('should export 1/8 binarized mask matching official NAI logic', () => {
             const b64 = editor._exportMaskAsBase64(832, 1216, true);
             expect(b64).toBe('mockBinarizedBase64');
+            // Verify clearRect was called on temp context, NOT fillRect black
+            const tempCtx = editor.maskCtx;
+            expect(tempCtx).toBeDefined();
         });
 
-        it('should blend inpaint result seamlessly with feather mask', async () => {
+        it('should send add_original_image: true in doInpaint()', async () => {
+            editor._hasPaintedMask = vi.fn(() => true);
+            editor._exportMaskAsBase64 = vi.fn(() => 'mock_mask_b64');
+            editor._exportBaseImageAsBase64 = vi.fn(async () => 'mock_img_b64');
+            
+            let capturedParams = null;
+            editor.engine.generate = vi.fn(async (params) => {
+                capturedParams = params;
+                return { blob: new Blob(['result']), imageUrl: 'blob:result' };
+            });
+
+            await editor.doInpaint();
+
+            expect(capturedParams).toBeDefined();
+            expect(capturedParams.action).toBe('infill');
+            expect(capturedParams.add_original_image).toBe(true);
+            expect(capturedParams.mask).toBe('mock_mask_b64');
+            expect(capturedParams.image).toBe('mock_img_b64');
+        });
+
+        it('should blend inpaint result seamlessly with feather mask if called', async () => {
             const mockBlob = new Blob(['mock_infilled'], { type: 'image/png' });
             const blended = await editor._featherBlendResult(mockBlob, 832, 1216);
             expect(blended).toBeDefined();

@@ -363,7 +363,7 @@ export class InpaintEditor {
             data[pixelIdx] = targetAlpha;
             data[pixelIdx + 1] = targetAlpha;
             data[pixelIdx + 2] = targetAlpha;
-            data[pixelIdx + 3] = 255;
+            data[pixelIdx + 3] = targetAlpha;
             stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
         }
 
@@ -424,8 +424,7 @@ export class InpaintEditor {
         tempCanvas.height = latentH;
         const ctx = tempCanvas.getContext('2d');
 
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, latentW, latentH);
+        ctx.clearRect(0, 0, latentW, latentH);
         ctx.drawImage(this.maskCanvas, 0, 0, latentW, latentH);
 
         // Binarize with threshold 155 (exact official NAI logic YMj(mask, 155))
@@ -556,28 +555,28 @@ export class InpaintEditor {
         const targetW = Math.ceil(this.imgNaturalW / 64) * 64;
         const targetH = Math.ceil(this.imgNaturalH / 64) * 64;
         
-        const selectedVersion = document.getElementById('modelValue').value;
+        const selectedVersion = document.getElementById('modelValue')?.value || 'v4_5';
         const isFullRes = selectedVersion.includes('v4') || selectedVersion.includes('v5') || selectedVersion === 'v5';
         const maskB64 = this._exportMaskAsBase64(targetW, targetH, isFullRes);
 
         const submitBtn = document.getElementById('inpaintSubmitBtn');
         const submitBtnMobile = document.getElementById('inpaintSubmitBtnMobile');
         
-        submitBtn.disabled = true;
+        if (submitBtn) submitBtn.disabled = true;
         if (submitBtnMobile) submitBtnMobile.disabled = true;
         
         const loadingHtml = '<span class="loader w-4 h-4 border-white/50"></span> 重绘中...';
-        submitBtn.innerHTML = loadingHtml;
+        if (submitBtn) submitBtn.innerHTML = loadingHtml;
         if (submitBtnMobile) submitBtnMobile.innerHTML = loadingHtml;
 
         try {
             const imageB64 = await this._exportBaseImageAsBase64(targetW, targetH);
-            const inpaintPromptText = document.getElementById('inpaintPrompt').value.trim() || document.getElementById('prompt').value.trim();
+            const inpaintPromptText = document.getElementById('inpaintPrompt')?.value?.trim() || document.getElementById('prompt')?.value?.trim() || '';
             
             const authBase = {
                 adminToken: this.store.getSetting('nai_admin_token'),
                 userKey: this.store.getSetting('nai_user_key'),
-                userToken: localStorage.getItem('nai_user_token') || ""
+                userToken: (typeof localStorage !== 'undefined' ? localStorage.getItem('nai_user_token') : '') || ""
             };
             const customApiKeyRaw = this.store.getSetting('nai_custom_api_key');
             const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
@@ -590,17 +589,17 @@ export class InpaintEditor {
             const params = {
                 version: selectedVersion,
                 prompt: inpaintPromptText,
-                negative_prompt: document.getElementById('negativePrompt').value.trim(),
+                negative_prompt: document.getElementById('negativePrompt')?.value?.trim() || '',
                 width: targetW,
                 height: targetH,
-                steps: parseInt(document.getElementById('steps').value),
-                scale: parseFloat(document.getElementById('scale').value),
-                sampler: document.getElementById('sampler').value,
+                steps: parseInt(document.getElementById('steps')?.value || 28),
+                scale: parseFloat(document.getElementById('scale')?.value || 5.0),
+                sampler: document.getElementById('sampler')?.value || 'k_euler',
                 image: imageB64,
                 mask: maskB64,
-                strength: parseFloat(document.getElementById('inpaintStrength').value),
+                strength: parseFloat(document.getElementById('inpaintStrength')?.value || 1.0),
                 action: 'infill',
-                add_original_image: false,
+                add_original_image: true,
                 ...extraParams
             };
 
@@ -613,13 +612,6 @@ export class InpaintEditor {
                     const result = res.value;
                     if (result.userRole) {
                         this.ui.updateCreditDisplay(result.userRole);
-                    }
-                    if (result.blob) {
-                        const blended = await this._featherBlendResult(result.blob, targetW, targetH);
-                        if (blended) {
-                            result.blob = blended.blob;
-                            result.imageUrl = blended.imageUrl;
-                        }
                     }
                     successfulResults.push(result);
                 } else {
@@ -641,11 +633,13 @@ export class InpaintEditor {
 
         } catch (err) {
             console.error(err);
-            window.showToast('重绘失败: ' + err.message, 'error');
+            if (window.showToast) window.showToast('重绘失败: ' + err.message, 'error');
         } finally {
             const normalHtml = '<i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘';
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = normalHtml;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = normalHtml;
+            }
             if (submitBtnMobile) {
                 submitBtnMobile.disabled = false;
                 submitBtnMobile.innerHTML = normalHtml;

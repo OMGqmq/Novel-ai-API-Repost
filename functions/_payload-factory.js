@@ -101,7 +101,7 @@ export function createV3Payload(data) {
     }
     payload.parameters.image = data.image;
     payload.parameters.mask = data.mask;
-    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : false;
+    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : true;
     payload.parameters.inpaintImg2ImgStrength = 1.0;
     payload.parameters.strength = 1.0;
     payload.parameters.noise = 0;
@@ -233,7 +233,7 @@ export function createV45Payload(data) {
     const inpaintStrength = (data.strength !== undefined && !isNaN(data.strength)) ? parseFloat(data.strength) : 1.0;
     payload.parameters.image = data.image;
     payload.parameters.mask = data.mask;
-    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : false;
+    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : true;
     payload.parameters.inpaintImg2ImgStrength = inpaintStrength;
     if (inpaintStrength < 1.0) {
       payload.parameters.img2img = {
@@ -317,7 +317,7 @@ export function createV5Payload(data) {
       dynamic_thresholding: data.dynamic_thresholding !== undefined ? data.dynamic_thresholding : false,
       controlnet_strength: 1,
       legacy: false,
-      add_original_image: data.add_original_image !== undefined ? data.add_original_image : false,
+      add_original_image: data.add_original_image !== undefined ? data.add_original_image : true,
       cfg_rescale: data.cfg_rescale !== undefined ? parseFloat(data.cfg_rescale) : 0,
       legacy_v3_extend: false,
       use_coords: useCoords,
@@ -363,7 +363,7 @@ export function createV5Payload(data) {
     }
     payload.parameters.image = data.image;
     payload.parameters.mask = data.mask;
-    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : false;
+    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : true;
     payload.parameters.inpaintImg2ImgStrength = inpaintStrength;
     if (inpaintStrength < 1.0) {
       payload.parameters.img2img = {
