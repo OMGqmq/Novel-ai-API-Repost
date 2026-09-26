@@ -1,5 +1,5 @@
 import { ImageEngine } from './engine.js';
-import { GalleryStore } from './storage.js';
+import { GalleryStore, createThumbnail } from './storage.js';
 import { UIController } from './ui.js';
 import { InpaintEditor } from './inpaint.js';
 import { OutpaintEditor } from './outpaint.js';
@@ -304,6 +304,10 @@ window.charRefManager = charRefManager;
 initToolbox(store, { charRefManager, vibeManager });
 
 const galleryController = new GalleryController({ store, ui, appState });
+if (typeof window !== 'undefined') {
+    window.galleryController = galleryController;
+    window.loadGallery = () => galleryController.loadGallery();
+}
 
 function loadVibeState(model) {
     vibeManager.loadState(model);
@@ -1231,7 +1235,8 @@ store.init().then(() => galleryController.loadGallery());
 
 async function saveToHistory(imgData, prompt, model, resultObj = null, forceFocus = false, meta = null) {
     try {
-        const savedItem = await store.saveImage(imgData, prompt, model, meta);
+        const thumb = await createThumbnail(imgData, 256, 0.8);
+        const savedItem = await store.saveImage(imgData, prompt, model, meta, thumb);
         if (resultObj) {
             resultObj.id = savedItem.id;
         }
@@ -1243,7 +1248,7 @@ async function saveToHistory(imgData, prompt, model, resultObj = null, forceFocu
             ui.showImageActions(true);
         }
         
-        galleryController.loadGallery();
+        galleryController.prependImage(savedItem);
         if (window.refreshAnlasDisplay) {
             window.refreshAnlasDisplay();
         }
@@ -1257,9 +1262,10 @@ async function deleteCurrentImage() {
     if (appState.currentImageData && appState.currentImageData.isShowcase) return;
     if (!appState.currentImageId || !(await window.showConfirm("您确定要从历史记录中删除这张图片吗？", "删除图片", "trash-2"))) return;
     try {
-        await store.deleteImage(appState.currentImageId);
+        const idToDelete = appState.currentImageId;
+        await store.deleteImage(idToDelete);
         ui.resetPreview();
-        galleryController.loadGallery();
+        galleryController.removeImage(idToDelete);
     } catch (e) {
         console.error("Failed to delete image", e);
     }
@@ -2701,7 +2707,7 @@ async function clearImageHistoryCache() {
     try {
         await store.clearAll();
         window.showToast("画图历史图片记录已彻底清空！", "success");
-        loadGallery();
+        galleryController.loadGallery();
     } catch (err) {
         window.showToast("清空历史记录失败: " + err.message, "error");
     }
@@ -3635,7 +3641,8 @@ async function lightboxDelete() {
     if (!(await window.showConfirm("您确定要从历史图库中删除这张图片吗？该操作不可撤销。", "删除图库图片", "trash-2"))) return;
     
     try {
-        await store.deleteImage(item.id);
+        const deletedId = item.id;
+        await store.deleteImage(deletedId);
         lightboxItems.splice(lightboxIndex, 1);
         
         if (lightboxItems.length === 0) {
@@ -3646,7 +3653,7 @@ async function lightboxDelete() {
             }
             renderLightboxCurrent();
         }
-        galleryController.loadGallery();
+        galleryController.removeImage(deletedId);
     } catch(e) {
         console.error("Failed to delete lightbox image", e);
     }

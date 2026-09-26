@@ -748,9 +748,12 @@ export class UIController {
     }
     
     showResultImages(results, onSelect) {
-        const { resultGrid, placeholder, dlBtn } = this.els;
+        const { resultGrid, singleResultArea, singleResultImg, backToGridBtn, placeholder, dlBtn } = this.els;
         resultGrid.innerHTML = '';
         placeholder.classList.add('hidden');
+        if (singleResultArea) singleResultArea.classList.add('hidden');
+        if (backToGridBtn) backToGridBtn.classList.add('hidden');
+        if (singleResultImg) singleResultImg.src = '';
         resultGrid.classList.remove('hidden');
         
         // 初始不显示操作按钮，除非之后点击了聚焦

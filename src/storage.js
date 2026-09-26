@@ -1,4 +1,80 @@
 /**
+ * Fast client-side image thumbnail generator.
+ * Downscales full-resolution images to a lightweight WebP/JPEG thumbnail (~10-20KB).
+ */
+export async function createThumbnail(imageSource, maxDim = 256, quality = 0.8) {
+    if (!imageSource || typeof document === 'undefined' || typeof Image === 'undefined') {
+        return null;
+    }
+    try {
+        let img;
+        let blobUrlToRevoke = null;
+
+        if (typeof Blob !== 'undefined' && imageSource instanceof Blob) {
+            if (typeof URL !== 'undefined' && URL.createObjectURL) {
+                blobUrlToRevoke = URL.createObjectURL(imageSource);
+                img = new Image();
+                img.src = blobUrlToRevoke;
+            } else {
+                return null;
+            }
+        } else if (typeof imageSource === 'string') {
+            img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = imageSource;
+        } else if (imageSource && (imageSource.nodeName === 'IMG' || imageSource.nodeName === 'CANVAS')) {
+            img = imageSource;
+        }
+
+        if (!img) return null;
+
+        if (img.nodeName !== 'CANVAS') {
+            await new Promise((resolve) => {
+                if (img.complete && (img.naturalWidth || img.width)) return resolve();
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+            });
+        }
+
+        const srcW = img.naturalWidth || img.width || 0;
+        const srcH = img.naturalHeight || img.height || 0;
+        if (!srcW || !srcH) {
+            if (blobUrlToRevoke && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+                URL.revokeObjectURL(blobUrlToRevoke);
+            }
+            return null;
+        }
+
+        const scale = Math.min(1, maxDim / Math.max(srcW, srcH));
+        const dstW = Math.max(1, Math.round(srcW * scale));
+        const dstH = Math.max(1, Math.round(srcH * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = dstW;
+        canvas.height = dstH;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            if (blobUrlToRevoke && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+                URL.revokeObjectURL(blobUrlToRevoke);
+            }
+            return null;
+        }
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'medium';
+        ctx.drawImage(img, 0, 0, dstW, dstH);
+
+        if (blobUrlToRevoke && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+            URL.revokeObjectURL(blobUrlToRevoke);
+        }
+
+        return canvas.toDataURL('image/webp', quality);
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
  * Gallery Storage Module
  * Handles IndexedDB for image history and LocalStorage for user settings.
  */
@@ -33,9 +109,9 @@ export class GalleryStore {
     }
 
     /**
-     * Saves a generated image to history.
+     * Saves a generated image to history with optional compressed thumbnail.
      */
-    async saveImage(imgData, prompt, model, meta = null) {
+    async saveImage(imgData, prompt, model, meta = null, thumb = null) {
         if (!this.db) await this.init();
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction(this.storeName, 'readwrite');
@@ -43,6 +119,9 @@ export class GalleryStore {
             const entry = { image: imgData, prompt, model, date: Date.now() };
             if (meta) {
                 entry.meta = meta;
+            }
+            if (thumb) {
+                entry.thumb = thumb;
             }
             const request = store.add(entry);
 

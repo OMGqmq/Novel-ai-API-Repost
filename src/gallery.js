@@ -88,42 +88,7 @@ export class GalleryController {
 
             const fragment = document.createDocumentFragment();
             pageData.forEach(item => {
-                const el = document.createElement('div');
-                el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:scale-[1.01] transition-transform duration-200';
-                
-                const imgSrc = (typeof Blob !== 'undefined' && item.image instanceof Blob)
-                    ? URL.createObjectURL(item.image)
-                    : (item.image || item.imageUrl || '');
-                if (typeof Blob !== 'undefined' && item.image instanceof Blob) {
-                    item.imageUrl = imgSrc;
-                }
-
-                el.innerHTML = `
-                    <img src="${imgSrc}" class="w-full h-full object-cover" loading="lazy">
-                    <button class="delete-item-btn" title="删除此图片">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
-                `;
-
-                const delBtn = el.querySelector('.delete-item-btn');
-                if (delBtn) {
-                    delBtn.onclick = async (e) => {
-                        e.stopPropagation();
-                        if (!(await window.showConfirm("您确定要从历史图库中删除这张图片吗？该操作不可撤销。", "删除图库图片", "trash-2"))) return;
-                        try {
-                            await this.store.deleteImage(item.id);
-                            if (this.appState.currentImageId === item.id) {
-                                this.ui.resetPreview();
-                            }
-                            this.loadGallery();
-                        } catch (err) {
-                            console.error("Failed to delete history image", err);
-                        }
-                    };
-                }
-
-                el.onclick = () => window.openLightbox(item);
-                fragment.appendChild(el);
+                fragment.appendChild(this._createGalleryItemElement(item));
             });
             this.ui.els.galleryGrid.appendChild(fragment);
 
@@ -132,6 +97,88 @@ export class GalleryController {
             console.error("Failed to load gallery page", e);
         } finally {
             this.galleryLoading = false;
+        }
+    }
+
+    _createGalleryItemElement(item) {
+        const el = document.createElement('div');
+        el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:scale-[1.01] transition-transform duration-200';
+        if (item.id !== undefined && item.id !== null) {
+            el.id = `gallery-item-${item.id}`;
+            if (el.dataset) el.dataset.id = item.id;
+        }
+
+        const fullSrc = (typeof Blob !== 'undefined' && item.image instanceof Blob)
+            ? (item.imageUrl ||= URL.createObjectURL(item.image))
+            : (item.image || item.imageUrl || '');
+
+        const displaySrc = item.thumb || fullSrc;
+
+        el.innerHTML = `
+            <img src="${displaySrc}" class="w-full h-full object-cover" loading="lazy">
+            <button class="delete-item-btn" title="删除此图片">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        `;
+
+        const delBtn = el.querySelector('.delete-item-btn');
+        if (delBtn) {
+            delBtn.onclick = async (e) => {
+                e.stopPropagation();
+                if (!(await window.showConfirm("您确定要从历史图库中删除这张图片吗？该操作不可撤销。", "删除图库图片", "trash-2"))) return;
+                try {
+                    await this.store.deleteImage(item.id);
+                    if (this.appState.currentImageId === item.id) {
+                        this.ui.resetPreview();
+                    }
+                    this.removeImage(item.id);
+                } catch (err) {
+                    console.error("Failed to delete history image", err);
+                }
+            };
+        }
+
+        el.onclick = () => window.openLightbox(item);
+        return el;
+    }
+
+    prependImage(item) {
+        if (!item) return;
+        const existingIdx = this.galleryItems.findIndex(x => x.id === item.id);
+        if (existingIdx !== -1) {
+            this.galleryItems.splice(existingIdx, 1);
+            const oldEl = document.getElementById(`gallery-item-${item.id}`) || (this.ui.els.galleryGrid ? this.ui.els.galleryGrid.querySelector(`[data-id="${item.id}"]`) : null);
+            if (oldEl && oldEl.parentNode) oldEl.remove();
+        }
+        this.galleryItems.unshift(item);
+        const el = this._createGalleryItemElement(item);
+        if (this.ui.els.galleryGrid) {
+            this.ui.els.galleryGrid.prepend(el);
+        }
+        if (this.ui.els.emptyGallery) this.ui.els.emptyGallery.classList.add('hidden');
+        if (this.ui.currentRightView === 'history') {
+            if (this.ui.els.zipBtn) this.ui.els.zipBtn.classList.remove('hidden');
+            if (this.ui.els.clearBtn) this.ui.els.clearBtn.classList.remove('hidden');
+        }
+    }
+
+    removeImage(id) {
+        if (id === undefined || id === null) return;
+        const index = this.galleryItems.findIndex(x => x.id === id);
+        if (index !== -1) {
+            const removed = this.galleryItems.splice(index, 1)[0];
+            if (removed?.imageUrl && typeof Blob !== 'undefined' && removed.image instanceof Blob && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+                try { URL.revokeObjectURL(removed.imageUrl); } catch (e) {}
+            }
+        }
+        const el = document.getElementById(`gallery-item-${id}`) || (this.ui.els.galleryGrid ? this.ui.els.galleryGrid.querySelector(`[data-id="${id}"]`) : null);
+        if (el && el.parentNode) {
+            el.remove();
+        }
+        if (this.galleryItems.length === 0) {
+            if (this.ui.els.emptyGallery) this.ui.els.emptyGallery.classList.remove('hidden');
+            if (this.ui.els.zipBtn) this.ui.els.zipBtn.classList.add('hidden');
+            if (this.ui.els.clearBtn) this.ui.els.clearBtn.classList.add('hidden');
         }
     }
     
@@ -197,10 +244,13 @@ export class GalleryController {
     
     loadPreviewFromHistory(item) {
         this.ui.switchRightView('preview');
-        this.ui.showResultImage(item.image);
+        const fullUrl = (typeof Blob !== 'undefined' && item.image instanceof Blob)
+            ? (item.imageUrl ||= URL.createObjectURL(item.image))
+            : (item.image || item.imageUrl);
+        this.ui.showResultImage(fullUrl);
         this.appState.currentImageId = item.id;
-        this.appState.currentImageData = { ...item, imageUrl: item.image };
-        window.lastSelectedImageUrl = item.image;
+        this.appState.currentImageData = { ...item, imageUrl: fullUrl };
+        window.lastSelectedImageUrl = fullUrl;
         this.ui.showImageActions(true);
         this.ui.toggleMobileControls(false);
     }
