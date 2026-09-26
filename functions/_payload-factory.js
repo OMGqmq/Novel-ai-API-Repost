@@ -96,11 +96,13 @@ export function createV3Payload(data) {
   };
 
   if (isInpaint) {
-    const inpaintStrength = (data.strength !== undefined && !isNaN(data.strength)) ? parseFloat(data.strength) : 1.0;
+    if (payload.parameters.sampler === "ddim" || payload.parameters.sampler === "ddim_v3") {
+      payload.parameters.sampler = "k_euler_ancestral";
+    }
     payload.parameters.image = data.image;
     payload.parameters.mask = data.mask;
-    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : true;
-    payload.parameters.inpaintImg2ImgStrength = inpaintStrength;
+    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : false;
+    payload.parameters.inpaintImg2ImgStrength = 1.0;
     payload.parameters.strength = 1.0;
     payload.parameters.noise = 0;
     payload.parameters.sm = false;
@@ -225,11 +227,22 @@ export function createV45Payload(data) {
   }
 
   if (isInpaint) {
+    if (payload.parameters.sampler === "ddim" || payload.parameters.sampler === "ddim_v3") {
+      payload.parameters.sampler = "k_euler_ancestral";
+    }
     const inpaintStrength = (data.strength !== undefined && !isNaN(data.strength)) ? parseFloat(data.strength) : 1.0;
     payload.parameters.image = data.image;
     payload.parameters.mask = data.mask;
-    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : true;
+    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : false;
     payload.parameters.inpaintImg2ImgStrength = inpaintStrength;
+    if (inpaintStrength < 1.0) {
+      payload.parameters.img2img = {
+        strength: inpaintStrength,
+        color_correct: true
+      };
+    } else {
+      delete payload.parameters.img2img;
+    }
     payload.parameters.strength = 1.0;
     payload.parameters.noise = 0;
     payload.parameters.sm = false;
@@ -304,7 +317,7 @@ export function createV5Payload(data) {
       dynamic_thresholding: data.dynamic_thresholding !== undefined ? data.dynamic_thresholding : false,
       controlnet_strength: 1,
       legacy: false,
-      add_original_image: data.add_original_image !== undefined ? data.add_original_image : true,
+      add_original_image: data.add_original_image !== undefined ? data.add_original_image : false,
       cfg_rescale: data.cfg_rescale !== undefined ? parseFloat(data.cfg_rescale) : 0,
       legacy_v3_extend: false,
       use_coords: useCoords,
@@ -345,8 +358,21 @@ export function createV5Payload(data) {
   }
 
   if (isInpaint) {
+    if (payload.parameters.sampler === "ddim" || payload.parameters.sampler === "ddim_v3") {
+      payload.parameters.sampler = "k_euler_ancestral";
+    }
     payload.parameters.image = data.image;
     payload.parameters.mask = data.mask;
+    payload.parameters.add_original_image = data.add_original_image !== undefined ? data.add_original_image : false;
+    payload.parameters.inpaintImg2ImgStrength = inpaintStrength;
+    if (inpaintStrength < 1.0) {
+      payload.parameters.img2img = {
+        strength: inpaintStrength,
+        color_correct: true
+      };
+    } else {
+      delete payload.parameters.img2img;
+    }
     payload.parameters.strength = 1.0;
     payload.parameters.noise = 0;
   } else if (data.image) {

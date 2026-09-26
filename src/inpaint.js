@@ -414,9 +414,10 @@ export class InpaintEditor {
         return false;
     }
 
-    _exportMaskAsBase64(targetW, targetH, isFullRes) {
-        const latentW = Math.ceil(targetW / 64) * 8;
-        const latentH = Math.ceil(targetH / 64) * 8;
+    _exportMaskAsBase64(targetW, targetH, isFullRes = true) {
+        // Official NAI: downsample to 1/8 latent space, threshold at 155, then upscale to targetW x targetH (nearest neighbor)
+        const latentW = Math.max(8, Math.round(targetW / 8));
+        const latentH = Math.max(8, Math.round(targetH / 8));
 
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = latentW;
@@ -425,16 +426,32 @@ export class InpaintEditor {
 
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, latentW, latentH);
-        ctx.imageSmoothingEnabled = false;
         ctx.drawImage(this.maskCanvas, 0, 0, latentW, latentH);
+
+        // Binarize with threshold 155 (exact official NAI logic YMj(mask, 155))
+        try {
+            const imgData = ctx.getImageData(0, 0, latentW, latentH);
+            if (imgData && imgData.data) {
+                const d = imgData.data;
+                for (let i = 0; i < d.length; i += 4) {
+                    const isMask = d[i + 3] > 155 || (d[i] > 155 && d[i + 3] > 50);
+                    const val = isMask ? 255 : 0;
+                    d[i] = val;
+                    d[i + 1] = val;
+                    d[i + 2] = val;
+                    d[i + 3] = 255;
+                }
+                ctx.putImageData(imgData, 0, 0);
+            }
+        } catch (_) {}
 
         if (isFullRes) {
             const finalCanvas = document.createElement('canvas');
-            finalCanvas.width = latentW * 8;
-            finalCanvas.height = latentH * 8;
+            finalCanvas.width = targetW;
+            finalCanvas.height = targetH;
             const finalCtx = finalCanvas.getContext('2d');
             finalCtx.imageSmoothingEnabled = false;
-            finalCtx.drawImage(tempCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
+            finalCtx.drawImage(tempCanvas, 0, 0, targetW, targetH);
             return finalCanvas.toDataURL('image/png').split(',')[1];
         }
 
@@ -456,6 +473,78 @@ export class InpaintEditor {
             };
             img.src = this.originalImgSrc;
         });
+    }
+
+    _loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
+    }
+
+    async _featherBlendResult(resultBlob, targetW, targetH) {
+        try {
+            if (!resultBlob || typeof document === 'undefined' || typeof Image === 'undefined') return null;
+            const infilledUrl = (typeof URL !== 'undefined' && URL.createObjectURL) ? URL.createObjectURL(resultBlob) : null;
+            if (!infilledUrl) return null;
+            const infilledImg = await this._loadImage(infilledUrl);
+            const baseImg = await this._loadImage(this.originalImgSrc);
+
+            // 1. Build feather mask with blur
+            const featherCanvas = document.createElement('canvas');
+            featherCanvas.width = targetW;
+            featherCanvas.height = targetH;
+            const fCtx = featherCanvas.getContext('2d');
+            if (fCtx.filter !== undefined) {
+                fCtx.filter = 'blur(16px)';
+            }
+            fCtx.drawImage(this.maskCanvas, 0, 0, targetW, targetH);
+
+            // 2. Mask infilled image with feather mask
+            const patchCanvas = document.createElement('canvas');
+            patchCanvas.width = targetW;
+            patchCanvas.height = targetH;
+            const pCtx = patchCanvas.getContext('2d');
+            pCtx.drawImage(infilledImg, 0, 0, targetW, targetH);
+            pCtx.globalCompositeOperation = 'destination-in';
+            pCtx.drawImage(featherCanvas, 0, 0);
+
+            // 3. Composite patch over original image
+            const compCanvas = document.createElement('canvas');
+            compCanvas.width = targetW;
+            compCanvas.height = targetH;
+            const cCtx = compCanvas.getContext('2d');
+            cCtx.drawImage(baseImg, 0, 0, targetW, targetH);
+            cCtx.drawImage(patchCanvas, 0, 0);
+
+            return await new Promise((resolve) => {
+                if (typeof compCanvas.toBlob === 'function') {
+                    compCanvas.toBlob((blob) => {
+                        if (blob) {
+                            resolve({
+                                blob,
+                                imageUrl: URL.createObjectURL(blob)
+                            });
+                        } else {
+                            resolve(null);
+                        }
+                    }, 'image/png');
+                } else if (typeof compCanvas.toDataURL === 'function') {
+                    const dataUrl = compCanvas.toDataURL('image/png');
+                    resolve({
+                        blob: resultBlob,
+                        imageUrl: dataUrl
+                    });
+                } else {
+                    resolve(null);
+                }
+            });
+        } catch (_) {
+            return null;
+        }
     }
 
     async doInpaint() {
@@ -511,7 +600,7 @@ export class InpaintEditor {
                 mask: maskB64,
                 strength: parseFloat(document.getElementById('inpaintStrength').value),
                 action: 'infill',
-                add_original_image: true,
+                add_original_image: false,
                 ...extraParams
             };
 
@@ -524,6 +613,13 @@ export class InpaintEditor {
                     const result = res.value;
                     if (result.userRole) {
                         this.ui.updateCreditDisplay(result.userRole);
+                    }
+                    if (result.blob) {
+                        const blended = await this._featherBlendResult(result.blob, targetW, targetH);
+                        if (blended) {
+                            result.blob = blended.blob;
+                            result.imageUrl = blended.imageUrl;
+                        }
                     }
                     successfulResults.push(result);
                 } else {
