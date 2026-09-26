@@ -23,6 +23,7 @@ import { InspirationManager } from './inspiration-manager.js';
 import { MotionController } from './motion-controller.js';
 
 import { getMimeFromFilename, dataUrlToBlob, triggerDownload } from './download-helper.js';
+import { extractMetadata } from './png-metadata.js';
 
 const motionController = new MotionController();
 if (typeof window !== 'undefined') {
@@ -230,12 +231,26 @@ window.applyImageAsCanvasInit = async (imageUrl) => {
         const blob = await res.blob();
         const reader = new FileReader();
         reader.onloadend = () => {
-            const base64 = reader.result;
-            appState.currentInitImageBase64 = base64;
+            const dataUrl = reader.result;
+            appState.currentInitImageBase64 = dataUrl.split(',')[1] || dataUrl;
             const previewEl = document.getElementById('initImagePreview');
-            const previewWrapper = document.getElementById('initImageWrapper');
-            if (previewEl) previewEl.src = base64;
-            if (previewWrapper) previewWrapper.classList.remove('hidden');
+            const placeholderEl = document.getElementById('initImagePlaceholder');
+            const clearBtn = document.getElementById('clearInitImageBtn');
+            const controls = document.getElementById('img2imgControls');
+            if (previewEl) {
+                previewEl.src = dataUrl;
+                previewEl.classList.remove('hidden');
+            }
+            if (placeholderEl) placeholderEl.classList.add('hidden');
+            if (clearBtn) clearBtn.classList.remove('hidden');
+            if (controls) controls.classList.remove('hidden');
+
+            const panel = document.getElementById('img2imgSettingsPanel');
+            const chevron = document.getElementById('img2imgChevron');
+            if (panel && panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                if (chevron) chevron.classList.add('rotate-180');
+            }
             if (window.showToast) window.showToast("已将生成图片设为画板底图", "success");
         };
         reader.readAsDataURL(blob);
@@ -330,9 +345,10 @@ function collectAdvancedAndModelParams(selectedVersion) {
                 extraParams.skip_cfg_above_sigma = isExp && skipCfgEl.value ? parseInt(skipCfgEl.value) : null;
             }
         } else if (selectedVersion === 'v5') {
-            extraParams.ucPresetId = 'heavy';
-            extraParams.qualityPresetId = 'standard';
-            extraParams.noise_schedule = 'karras';
+            const v5UcEl = document.getElementById('v5UcPreset');
+            const v5QualityEl = document.getElementById('v5QualityPreset');
+            extraParams.ucPresetId = v5UcEl?.value || 'heavy';
+            extraParams.qualityPresetId = v5QualityEl?.value || 'standard';
             extraParams.straight_alpha = true;
         }
     }
@@ -348,16 +364,20 @@ function collectAdvancedAndModelParams(selectedVersion) {
     const smDynEl = document.getElementById('smDynEnabled');
     const cfgRescaleEl = document.getElementById('cfgRescale');
     const uncondScaleEl = document.getElementById('uncondScale');
-    const decrispEl = document.getElementById('decrisp');
-    const noiseScheduleEl = document.getElementById('noiseSchedule');
-    const qualityToggleEl = document.getElementById('qualityToggle');
+    const decrispEl = document.getElementById('dynThresholdEnabled') || document.getElementById('decrisp');
+    const noiseScheduleEl = document.getElementById('noise_schedule') || document.getElementById('noiseSchedule');
+    const qualityToggleEl = document.getElementById('qualityToggleEnabled') || document.getElementById('qualityToggle');
 
     extraParams.sm = (selectedVersion === 'v4.5' || selectedVersion === 'v5') ? false : (smEl ? smEl.checked : true);
     extraParams.sm_dyn = (selectedVersion === 'v4.5' || selectedVersion === 'v5') ? false : (smDynEl ? smDynEl.checked : true);
     extraParams.cfg_rescale = cfgRescaleEl ? parseFloat(cfgRescaleEl.value) : 0.0;
     extraParams.uncond_scale = uncondScaleEl ? parseFloat(uncondScaleEl.value) : 1.0;
     if (decrispEl) extraParams.dynamic_thresholding = decrispEl.checked;
-    if (noiseScheduleEl && selectedVersion !== 'v5') extraParams.noise_schedule = noiseScheduleEl.value;
+    if (noiseScheduleEl && noiseScheduleEl.value) {
+        extraParams.noise_schedule = noiseScheduleEl.value;
+    } else if (selectedVersion === 'v5') {
+        extraParams.noise_schedule = 'karras';
+    }
     if (qualityToggleEl) extraParams.qualityToggle = qualityToggleEl.checked;
 
     return extraParams;
@@ -652,6 +672,9 @@ async function doGenerate(rawOptions = {}) {
 
     if (appState.isGenerating) {
         appState.cancelRequested = true;
+        if (appState.abortController) {
+            try { appState.abortController.abort(); } catch (_) {}
+        }
         const deskText = document.getElementById('deskBtnText');
         if (deskText) deskText.textContent = "正在停止...";
         if (window.showToast) window.showToast("已发送停止指令，正在中断生成...", "info");
@@ -676,6 +699,7 @@ async function doGenerate(rawOptions = {}) {
 
     appState.isGenerating = true;
     appState.cancelRequested = false;
+    appState.abortController = new AbortController();
 
     try {
         const promptText = (typeof options.prompt === 'string' ? options.prompt : (els.prompt ? els.prompt.value.trim() : '')).trim();
@@ -705,7 +729,8 @@ async function doGenerate(rawOptions = {}) {
         const authBase = {
             adminToken: store.getSetting('nai_admin_token'),
             userKey: store.getSetting('nai_user_key'),
-            userToken: localStorage.getItem('nai_user_token') || ""
+            userToken: localStorage.getItem('nai_user_token') || "",
+            signal: appState.abortController?.signal
         };
 
 
@@ -998,12 +1023,17 @@ async function doGenerate(rawOptions = {}) {
         }
         return { success: false, error: "未生成任何有效图像" };
     } catch (globalErr) {
+        if (globalErr.name === 'AbortError' || appState.cancelRequested) {
+            console.log("Generation aborted by user");
+            return { success: false, error: "已取消生成" };
+        }
         console.error("Global doGenerate Error:", globalErr);
         alert("发生意外错误: " + globalErr.message);
         return { success: false, error: globalErr.message };
     } finally {
         appState.isGenerating = false;
         appState.cancelRequested = false;
+        appState.abortController = null;
         ui.setLoading(false);
     }
 }
@@ -3891,3 +3921,105 @@ function importRandomPromptFile(event) {
     randomPromptController.importFile(event);
 }
 window.importRandomPromptFile = importRandomPromptFile;
+
+// --- Native HTML5 Drag and Drop NovelAI PNG Metadata Auto-Fill ---
+if (typeof window !== 'undefined') {
+    window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    });
+
+    window.addEventListener('drop', async (e) => {
+        if (e.target && (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type !== 'file'))) {
+            return;
+        }
+        const file = e.dataTransfer?.files?.[0];
+        if (!file) return;
+        if (file.type === 'image/png' || file.name.toLowerCase().endsWith('.png')) {
+            e.preventDefault();
+            try {
+                const buffer = await file.arrayBuffer();
+                const meta = extractMetadata(buffer);
+                if (meta && (meta.Description || meta.Comment)) {
+                    let count = 0;
+                    if (meta.Description) {
+                        const promptEl = document.getElementById('prompt');
+                        if (promptEl) {
+                            promptEl.value = meta.Description;
+                            promptEl.dispatchEvent(new Event('input', { bubbles: true }));
+                            count++;
+                        }
+                    }
+                    if (meta.Comment) {
+                        try {
+                            const commentObj = JSON.parse(meta.Comment);
+                            if (commentObj.uc) {
+                                const negEl = document.getElementById('negativePrompt');
+                                if (negEl) {
+                                    negEl.value = commentObj.uc;
+                                    negEl.dispatchEvent(new Event('input', { bubbles: true }));
+                                    count++;
+                                }
+                            }
+                            if (commentObj.steps) {
+                                const stepsEl = document.getElementById('steps');
+                                if (stepsEl) {
+                                    stepsEl.value = commentObj.steps;
+                                    stepsEl.dispatchEvent(new Event('input', { bubbles: true }));
+                                    count++;
+                                }
+                            }
+                            if (commentObj.scale) {
+                                const scaleEl = document.getElementById('scale');
+                                if (scaleEl) {
+                                    scaleEl.value = commentObj.scale;
+                                    scaleEl.dispatchEvent(new Event('input', { bubbles: true }));
+                                    count++;
+                                }
+                            }
+                            if (commentObj.seed) {
+                                const seedEl = document.getElementById('seed');
+                                if (seedEl) {
+                                    seedEl.value = commentObj.seed;
+                                    seedEl.dispatchEvent(new Event('input', { bubbles: true }));
+                                    count++;
+                                }
+                            }
+                            if (commentObj.sampler) {
+                                const samplerEl = document.getElementById('sampler');
+                                if (samplerEl) {
+                                    samplerEl.value = commentObj.sampler;
+                                    samplerEl.dispatchEvent(new Event('change', { bubbles: true }));
+                                    count++;
+                                }
+                            }
+                            if (commentObj.width && commentObj.height) {
+                                const resSelect = document.getElementById('resolution');
+                                if (resSelect) {
+                                    const targetVal = `${commentObj.width},${commentObj.height}`;
+                                    let found = false;
+                                    for (let opt of resSelect.options) {
+                                        if (opt.value === targetVal) { found = true; break; }
+                                    }
+                                    if (!found) {
+                                        resSelect.add(new Option(`${commentObj.width} x ${commentObj.height}`, targetVal));
+                                    }
+                                    resSelect.value = targetVal;
+                                    resSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                                    count++;
+                                }
+                            }
+                        } catch (_) {}
+                    }
+                    if (count > 0 && window.showToast) {
+                        window.showToast(`已从拖拽图片中解析并自动填入 ${count} 项生成参数！`, 'success');
+                    }
+                } else if (window.showToast) {
+                    window.showToast('拖拽的图片中未检测到 NovelAI 生成元数据', 'info');
+                }
+            } catch (err) {
+                console.error('Failed to parse dropped image metadata:', err);
+            }
+        }
+    });
+}

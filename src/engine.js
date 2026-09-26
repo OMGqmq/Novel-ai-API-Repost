@@ -26,7 +26,16 @@ export class ImageEngine {
             throw new Error("JSZip library not found. Please ensure it is loaded.");
         }
 
-        const { adminToken, userKey, customApiKey, userToken } = auth;
+        const { adminToken, userKey, customApiKey, userToken, signal } = auth;
+        let requestSignal;
+        if (signal) {
+            requestSignal = typeof AbortSignal.any === 'function'
+                ? AbortSignal.any([signal, AbortSignal.timeout(60000)])
+                : signal;
+        } else {
+            requestSignal = AbortSignal.timeout(60000);
+        }
+
         const response = await fetch(`${this.baseUrl}${endpoint}`, {
             method: 'POST',
             headers: {
@@ -37,7 +46,7 @@ export class ImageEngine {
                 ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {})
             },
             body: JSON.stringify(params),
-            signal: AbortSignal.timeout(60000)
+            signal: requestSignal
         });
 
         await this._handleErrors(response);

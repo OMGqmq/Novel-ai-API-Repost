@@ -10,4 +10,5 @@ export const appState = {
     currentGalleryTab: 'showcase',
     isGenerating: false,
     cancelRequested: false,
+    abortController: null,
 };

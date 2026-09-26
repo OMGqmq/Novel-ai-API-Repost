@@ -117,6 +117,7 @@ export class UIController {
             characterPromptsWrapper: document.getElementById('characterPromptsWrapper'),
             skipCfgContainer: document.getElementById('skipCfgContainer'),
             v45ParamsContainer: document.getElementById('v45ParamsContainer'),
+            v5ParamsContainer: document.getElementById('v5ParamsContainer'),
             smeaContainer: document.getElementById('smeaContainer'),
             negativePromptWrapper: document.getElementById('negativePromptWrapper'),
             stepsWrapper: document.getElementById('stepsWrapper'),
@@ -357,6 +358,15 @@ export class UIController {
                 v45ParamsContainer.classList.remove('hidden');
             } else {
                 v45ParamsContainer.classList.add('hidden');
+            }
+        }
+
+        const v5ParamsContainer = document.getElementById('v5ParamsContainer');
+        if (v5ParamsContainer) {
+            if (ver === 'v5') {
+                v5ParamsContainer.classList.remove('hidden');
+            } else {
+                v5ParamsContainer.classList.add('hidden');
             }
         }
 

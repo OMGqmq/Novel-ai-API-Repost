@@ -570,7 +570,7 @@ export class OutpaintEditor {
             // Check model version
             const modelVersionEl = document.getElementById('modelValue');
             const modelVersion = (modelVersionEl && modelVersionEl.value) ? modelVersionEl.value : 'v4.5';
-            const isV4 = modelVersion.includes('v4');
+            const isFullResMask = modelVersion.includes('v4') || modelVersion.includes('v5') || modelVersion === 'v5';
 
             // Format mask
             const latentW = Math.ceil(targetW / 64) * 8;
@@ -584,14 +584,14 @@ export class OutpaintEditor {
             tempCtx.imageSmoothingEnabled = false;
             tempCtx.drawImage(finalMaskCanvas, 0, 0, latentW, latentH);
 
-            if (isV4) {
-                const finalMaskCanvasV4 = document.createElement('canvas');
-                finalMaskCanvasV4.width = latentW * 8;
-                finalMaskCanvasV4.height = latentH * 8;
-                const finalCtx = finalMaskCanvasV4.getContext('2d');
+            if (isFullResMask) {
+                const finalMaskCanvasFull = document.createElement('canvas');
+                finalMaskCanvasFull.width = latentW * 8;
+                finalMaskCanvasFull.height = latentH * 8;
+                const finalCtx = finalMaskCanvasFull.getContext('2d');
                 finalCtx.imageSmoothingEnabled = false;
-                finalCtx.drawImage(tempMaskCanvas, 0, 0, finalMaskCanvasV4.width, finalMaskCanvasV4.height);
-                finalMaskBase64 = finalMaskCanvasV4.toDataURL('image/png').split(',')[1];
+                finalCtx.drawImage(tempMaskCanvas, 0, 0, finalMaskCanvasFull.width, finalMaskCanvasFull.height);
+                finalMaskBase64 = finalMaskCanvasFull.toDataURL('image/png').split(',')[1];
             } else {
                 finalMaskBase64 = tempMaskCanvas.toDataURL('image/png').split(',')[1];
             }

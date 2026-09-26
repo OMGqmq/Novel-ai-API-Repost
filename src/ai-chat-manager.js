@@ -704,7 +704,9 @@ export class AiChatManager {
             onUpdatePrompt: (data) => {
                 this.onApplyPrompt(data.prompt, data.mode);
                 if (data.negative) {
-                    const negInput = typeof document !== 'undefined' ? document.getElementById('negative') : null;
+                    const negInput = typeof document !== 'undefined'
+                        ? (document.getElementById('negativePrompt') || document.getElementById('negative'))
+                        : null;
                     if (negInput) {
                         if (data.negativeMode === 'append') {
                             const exist = negInput.value.trim();

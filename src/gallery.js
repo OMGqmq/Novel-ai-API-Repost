@@ -91,8 +91,15 @@ export class GalleryController {
                 const el = document.createElement('div');
                 el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:scale-[1.01] transition-transform duration-200';
                 
+                const imgSrc = (typeof Blob !== 'undefined' && item.image instanceof Blob)
+                    ? URL.createObjectURL(item.image)
+                    : (item.image || item.imageUrl || '');
+                if (typeof Blob !== 'undefined' && item.image instanceof Blob) {
+                    item.imageUrl = imgSrc;
+                }
+
                 el.innerHTML = `
-                    <img src="${item.image}" class="w-full h-full object-cover" loading="lazy">
+                    <img src="${imgSrc}" class="w-full h-full object-cover" loading="lazy">
                     <button class="delete-item-btn" title="删除此图片">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>

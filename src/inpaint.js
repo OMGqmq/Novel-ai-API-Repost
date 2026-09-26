@@ -414,7 +414,7 @@ export class InpaintEditor {
         return false;
     }
 
-    _exportMaskAsBase64(targetW, targetH, isV4) {
+    _exportMaskAsBase64(targetW, targetH, isFullRes) {
         const latentW = Math.ceil(targetW / 64) * 8;
         const latentH = Math.ceil(targetH / 64) * 8;
 
@@ -428,7 +428,7 @@ export class InpaintEditor {
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(this.maskCanvas, 0, 0, latentW, latentH);
 
-        if (isV4) {
+        if (isFullRes) {
             const finalCanvas = document.createElement('canvas');
             finalCanvas.width = latentW * 8;
             finalCanvas.height = latentH * 8;
@@ -468,8 +468,8 @@ export class InpaintEditor {
         const targetH = Math.ceil(this.imgNaturalH / 64) * 64;
         
         const selectedVersion = document.getElementById('modelValue').value;
-        const isV4 = selectedVersion.includes('v4');
-        const maskB64 = this._exportMaskAsBase64(targetW, targetH, isV4);
+        const isFullRes = selectedVersion.includes('v4') || selectedVersion.includes('v5') || selectedVersion === 'v5';
+        const maskB64 = this._exportMaskAsBase64(targetW, targetH, isFullRes);
 
         const submitBtn = document.getElementById('inpaintSubmitBtn');
         const submitBtnMobile = document.getElementById('inpaintSubmitBtnMobile');

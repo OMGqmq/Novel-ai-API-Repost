@@ -89,21 +89,45 @@ export class AiHelperService {
         }
 
         const cleanUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-        const response = await fetch(`${cleanUrl}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: model,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userIdea }
-                ],
-                temperature: 0.7
-            })
-        });
+        const targetEndpoint = `${cleanUrl}/chat/completions`;
+        const requestPayload = {
+            model: model,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userIdea }
+            ],
+            temperature: 0.7
+        };
+
+        let response;
+        try {
+            response = await fetch(targetEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(requestPayload)
+            });
+        } catch (fetchErr) {
+            if (fetchErr.name !== 'AbortError' && !cleanUrl.includes('/api/chat-proxy')) {
+                try {
+                    response = await fetch('/api/chat-proxy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            endpoint: targetEndpoint,
+                            apiKey,
+                            body: requestPayload
+                        })
+                    });
+                } catch (_) {
+                    throw fetchErr;
+                }
+            } else {
+                throw fetchErr;
+            }
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -177,15 +201,38 @@ export class AiHelperService {
             requestBody.tool_choice = options.tool_choice || 'auto';
         }
 
-        const response = await fetch(`${cleanUrl}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${effectiveApiKey}`
-            },
-            signal: options.signal,
-            body: JSON.stringify(requestBody)
-        });
+        const targetEndpoint = `${cleanUrl}/chat/completions`;
+        let response;
+        try {
+            response = await fetch(targetEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${effectiveApiKey}`
+                },
+                signal: options.signal,
+                body: JSON.stringify(requestBody)
+            });
+        } catch (fetchErr) {
+            if (fetchErr.name !== 'AbortError' && !cleanUrl.includes('/api/chat-proxy')) {
+                try {
+                    response = await fetch('/api/chat-proxy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        signal: options.signal,
+                        body: JSON.stringify({
+                            endpoint: targetEndpoint,
+                            apiKey: effectiveApiKey,
+                            body: requestBody
+                        })
+                    });
+                } catch (_) {
+                    throw fetchErr;
+                }
+            } else {
+                throw fetchErr;
+            }
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
