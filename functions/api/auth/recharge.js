@@ -85,9 +85,9 @@ export async function onRequest(context) {
     const addedCredits = card.credits;
     const newCredits = currentCredits + addedCredits;
 
-    // 4. 原子性操作：先独占式更新卡密状态（作为 Gatekeeper 防重防并发）
+    // 4. 原子性操作：先独占式更新卡密状态（作为 Gatekeeper 防重防并发，同时清零卡密面额防止双花）
     const cardUpdateResult = await db.prepare(
-      "UPDATE cards SET is_used = 1, used_by_id = ?, used_at = datetime('now', '+8 hours'), updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND is_used = 0"
+      "UPDATE cards SET is_used = 1, credits = 0, used_by_id = ?, used_at = datetime('now', '+8 hours'), updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND is_used = 0"
     ).bind(payload.id, trimmedCardKey).run();
 
     if (!cardUpdateResult || !cardUpdateResult.meta || cardUpdateResult.meta.changes === 0) {
@@ -109,16 +109,20 @@ export async function onRequest(context) {
     try {
       await db.batch([updateUser, writeLog]);
     } catch (batchErr) {
-      // 容灾补偿：若增加用户点数失败，立即回滚卡密状态，杜绝卡密失效但未到账的掉单缺陷
-      await db.prepare("UPDATE cards SET is_used = 0, used_by_id = NULL, used_at = NULL WHERE card_key = ? AND used_by_id = ?")
-        .bind(trimmedCardKey, payload.id).run();
+      // 容灾补偿：若增加用户点数失败，立即回滚卡密状态及额度，杜绝卡密失效但未到账的掉单缺陷
+      await db.prepare("UPDATE cards SET is_used = 0, credits = ?, used_by_id = NULL, used_at = NULL WHERE card_key = ? AND used_by_id = ?")
+        .bind(addedCredits, trimmedCardKey, payload.id).run();
       throw batchErr;
     }
+
+    // 查询最新确切额度返回给前端，杜绝并发计算偏差
+    const updatedUser = await db.prepare("SELECT credits FROM users WHERE id = ?").bind(payload.id).first();
+    const finalCredits = updatedUser ? updatedUser.credits : newCredits;
 
     return new Response(JSON.stringify({
       success: true,
       message: `充值成功！已成功为您的账户充值 ${addedCredits} 点额度。`,
-      credits: newCredits
+      credits: finalCredits
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }

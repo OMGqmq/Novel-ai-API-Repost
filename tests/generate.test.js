@@ -50,8 +50,8 @@ describe('generate.js integration tests', () => {
         bind: vi.fn((...args) => ({
           first: vi.fn(async () => {
             executedSqls.push({ action: 'first', sql, args });
-            if (sql.includes('SELECT id, username, role, credits FROM users')) {
-              return { id: 88, username: 'testuser', role: 'User', credits: 5 };
+            if (sql.includes('FROM users') && sql.includes('id = ?')) {
+              return { id: 88, username: 'testuser', role: 'User', credits: 5, status: 'Approved' };
             }
             if (sql.includes('SELECT count FROM free_limits')) {
               return { count: 5 }; // Daily free limit already exhausted
@@ -122,8 +122,8 @@ describe('generate.js integration tests', () => {
         bind: vi.fn((...args) => ({
           first: vi.fn(async () => {
             executedSqls.push({ action: 'first', sql, args });
-            if (sql.includes('SELECT id, username, role, credits FROM users')) {
-              return { id: 88, username: 'testuser', role: 'User', credits: 5 };
+            if (sql.includes('FROM users') && sql.includes('id = ?')) {
+              return { id: 88, username: 'testuser', role: 'User', credits: 5, status: 'Approved' };
             }
             if (sql.includes('SELECT count FROM free_limits')) {
               return { count: 5 }; // Daily limit exhausted, using credits

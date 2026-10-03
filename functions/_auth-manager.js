@@ -54,9 +54,18 @@ export async function authenticate(request, env) {
     const payload = await verifyJwt(token, jwtSecret);
     
     if (payload) {
-      const user = await db.prepare("SELECT id, username, role, credits FROM users WHERE id = ?").bind(payload.id).first();
+      const user = await db.prepare("SELECT id, username, role, credits, status FROM users WHERE id = ?").bind(payload.id).first();
       if (!user) {
         throw new AuthError("用户不存在，请重新登录。", 403);
+      }
+      if (user.status === 'Banned') {
+        throw new AuthError("您的账号已被管理员封禁，禁止使用生成服务。", 403);
+      }
+      if (user.status === 'Pending') {
+        throw new AuthError("您的账号处于待审核状态，请等待管理员通过审核。", 403);
+      }
+      if (user.status && user.status !== 'Approved') {
+        throw new AuthError("账号状态异常，无法使用服务。", 403);
       }
 
       // 获取当前北京时间日期并计算用户的每日免费已用额度
@@ -92,9 +101,12 @@ export async function authenticate(request, env) {
 
   // D. Legacy VIP Card User
   if (userKey && db) {
-    const card = await db.prepare("SELECT credits FROM cards WHERE card_key = ?").bind(userKey).first();
+    const card = await db.prepare("SELECT credits, is_used FROM cards WHERE card_key = ?").bind(userKey).first();
     if (card === null) {
       throw new AuthError("无效的卡密，请检查输入或联系卖家。", 403);
+    }
+    if (card.is_used === 1) {
+      throw new AuthError("该卡密已被使用或已充值入账，无法重复使用。", 403);
     }
 
     remainingCredits = card.credits;
@@ -200,29 +212,47 @@ export async function preDeductQuota(auth, env) {
     return { type: 'user_credits', userId };
   }
 
-  // 3. VIP 卡密用户
+  // 3. VIP 卡密用户 (原子扣减额度并防止重复消费)
   if (userKey && userRole && userRole.startsWith("VIP")) {
     const updateStmt = env.DB.prepare(
-      "UPDATE cards SET credits = credits - 1, updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND credits > 0"
+      "UPDATE cards SET credits = credits - 1, is_used = CASE WHEN credits - 1 <= 0 THEN 1 ELSE 0 END, updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND credits > 0 AND is_used = 0"
     );
     const res = await updateStmt.bind(userKey).run();
     if (!res || !res.meta || res.meta.changes === 0) {
-      throw new AuthError("您的卡密余额已耗尽，请购买新卡密。", 402);
+      throw new AuthError("您的卡密余额已耗尽或已被使用，请购买新卡密。", 402);
     }
     return { type: 'card_credits', userKey };
   }
 
-  // 4. 免费访客 (记录全局与 IP 限制预增)
+  // 4. 免费访客 (原子性预扣并带上限防护，彻底杜绝并发绕过)
   if (!isVip && globalKey && ipKey) {
-    const sql = `
+    // A. 原子性更新并守卫全局上限
+    const globalSql = `
       INSERT INTO free_limits (key, count, updated_at) 
       VALUES (?, 1, datetime('now', '+8 hours'))
       ON CONFLICT(key) DO UPDATE SET count = count + 1, updated_at = datetime('now', '+8 hours')
+      WHERE free_limits.count < ?
     `;
-    await Promise.all([
-      env.DB.prepare(sql).bind(globalKey).run(),
-      env.DB.prepare(sql).bind(ipKey).run()
-    ]);
+    const globalRes = await env.DB.prepare(globalSql).bind(globalKey, GUEST_DAILY_GLOBAL_LIMIT).run();
+    if (!globalRes || !globalRes.meta || globalRes.meta.changes === 0) {
+      throw new AuthError("今日全站免费算力已耗尽，请使用卡密或明天再来。", 429);
+    }
+
+    // B. 原子性更新并守卫单 IP 上限
+    const ipSql = `
+      INSERT INTO free_limits (key, count, updated_at) 
+      VALUES (?, 1, datetime('now', '+8 hours'))
+      ON CONFLICT(key) DO UPDATE SET count = count + 1, updated_at = datetime('now', '+8 hours')
+      WHERE free_limits.count < ?
+    `;
+    const ipRes = await env.DB.prepare(ipSql).bind(ipKey, GUEST_DAILY_IP_LIMIT).run();
+    if (!ipRes || !ipRes.meta || ipRes.meta.changes === 0) {
+      // 单 IP 上限超额，补偿回滚刚才预扣的全局计数
+      await env.DB.prepare("UPDATE free_limits SET count = MAX(0, count - 1), updated_at = datetime('now', '+8 hours') WHERE key = ?")
+        .bind(globalKey).run();
+      throw new AuthError(`今日免费额度已用完 (${GUEST_DAILY_IP_LIMIT}/${GUEST_DAILY_IP_LIMIT})。购买卡密可解锁更多次数。`, 429);
+    }
+
     return { type: 'guest_limit', globalKey, ipKey };
   }
 
@@ -245,7 +275,7 @@ export async function rollbackQuota(receipt, env) {
       ).bind(receipt.key).run();
     } else if (receipt.type === 'card_credits' && receipt.userKey) {
       await env.DB.prepare(
-        "UPDATE cards SET credits = credits + 1, updated_at = datetime('now', '+8 hours') WHERE card_key = ?"
+        "UPDATE cards SET credits = credits + 1, is_used = 0, updated_at = datetime('now', '+8 hours') WHERE card_key = ?"
       ).bind(receipt.userKey).run();
     } else if (receipt.type === 'guest_limit' && receipt.globalKey && receipt.ipKey) {
       const sql = "UPDATE free_limits SET count = MAX(0, count - 1), updated_at = datetime('now', '+8 hours') WHERE key = ?";

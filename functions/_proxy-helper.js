@@ -60,12 +60,16 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
     if (isRestricted && data.director_reference_images && data.director_reference_images.length > 0) {
       throw new AuthError("角色参考功能会消耗 Anlas 算力，仅限自定义 API Key 或管理员使用", 403);
     }
+
+    if (targetUrl && targetUrl.includes('/ai/upscale') && isRestricted && userRole === 'Free') {
+      throw new AuthError("4x AI 超分辨率放大功能会消耗服务器付费 Anlas 算力，仅限 VIP 用户或自定义 API Key 使用", 403);
+    }
     
     const width = parseInt(data.width) || 832;
     const height = parseInt(data.height) || 1216;
 
     if (isRestricted && (width * height > MAX_FREE_PIXELS)) {
-      throw new Error("分辨率超出 Opus 免费限制");
+      throw new AuthError("分辨率超出 Opus 免费限制", 400);
     }
 
     // 4. 构建 payload

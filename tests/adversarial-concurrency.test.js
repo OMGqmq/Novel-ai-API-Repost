@@ -82,6 +82,7 @@ class MockD1Engine {
       const card = this.cards.get(cardKey);
       if (card && card.is_used === 0) {
         card.is_used = 1;
+        card.credits = 0;
         card.used_by_id = usedById;
         card.used_at = new Date().toISOString();
         return { success: true, meta: { changes: 1 } };
@@ -115,19 +116,35 @@ class MockD1Engine {
     if (sql.includes('UPDATE cards SET credits = credits - 1') && sql.includes('credits > 0')) {
       const [cardKey] = args;
       const card = this.cards.get(cardKey);
-      if (card && card.credits > 0) {
+      if (card && card.credits > 0 && card.is_used === 0) {
         card.credits -= 1;
+        if (card.credits <= 0) card.is_used = 1;
         return { success: true, meta: { changes: 1 } };
       }
       return { success: true, meta: { changes: 0 } };
     }
 
-    // 5. Card balance refund: UPDATE cards SET credits = credits + 1 WHERE card_key = ?
+    // 5. Card compensation rollback: UPDATE cards SET is_used = 0, credits = ? ...
+    if (sql.includes('UPDATE cards SET is_used = 0') && sql.includes('credits = ?')) {
+      const [credits, cardKey, usedById] = args;
+      const card = this.cards.get(cardKey);
+      if (card) {
+        card.is_used = 0;
+        card.credits = credits;
+        card.used_by_id = null;
+        card.used_at = null;
+        return { success: true, meta: { changes: 1 } };
+      }
+      return { success: true, meta: { changes: 0 } };
+    }
+
+    // 6. Card balance refund: UPDATE cards SET credits = credits + 1 WHERE card_key = ?
     if (sql.includes('UPDATE cards SET credits = credits + 1')) {
       const [cardKey] = args;
       const card = this.cards.get(cardKey);
       if (card) {
         card.credits += 1;
+        card.is_used = 0;
         return { success: true, meta: { changes: 1 } };
       }
       return { success: true, meta: { changes: 0 } };
