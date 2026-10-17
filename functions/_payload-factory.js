@@ -256,34 +256,61 @@ export function createV45Payload(data) {
   return payload;
 }
 
+export const V5_MEDIUM_EFFORT_STEPS = 14;
+export const V5_MEDIUM_EFFORT_SAMPLER = "k_euler_ancestral";
+export const V5_MEDIUM_EFFORT_FIXED_UC = "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page";
+
 /**
- * V5 Payload Builder (nai-diffusion-5-full)
+ * V5 Payload Builder (nai-diffusion-5-full & nai-diffusion-5-full-medium)
  * Supports up to 32 character prompts, single-character positioning, and i2i/infill.
+ * Effort Levels:
+ *  - 'high': Standard full model (nai-diffusion-5-full), customizable steps & samplers.
+ *  - 'medium': Distilled model (nai-diffusion-5-full-medium), locked 14 steps, Euler Ancestral, fixed Heavy UC.
  * Note: V5 does NOT support Character Reference (Director Reference) or Vibe Transfer.
  */
 export function createV5Payload(data) {
+  const isMedium = String(data.effort || "").toLowerCase().trim() === "medium" ||
+                   String(data.model || "").toLowerCase().includes("medium") ||
+                   String(data.version || "").toLowerCase().includes("medium");
+
   const prompt = data.prompt || "";
-  const negative_prompt = data.negative_prompt || "";
+  let negative_prompt = data.negative_prompt || "";
   const seed = (data.seed !== undefined && data.seed !== null) ? Number(data.seed) : Math.floor(Math.random() * 4294967295);
   const width = data.width || 832;
   const height = data.height || 1216;
-  const steps = data.steps || 28;
+  const steps = isMedium ? V5_MEDIUM_EFFORT_STEPS : (data.steps || 28);
   const scale = (data.scale !== undefined && data.scale !== null) ? parseFloat(data.scale) : 1.9;
-  const sampler = data.sampler || "k_euler_ancestral";
+  const sampler = isMedium ? V5_MEDIUM_EFFORT_SAMPLER : (data.sampler || "k_euler_ancestral");
 
   const isInpaint = data.action === "infill" && !!data.mask;
   const action = isInpaint ? "infill" : (data.image ? "img2img" : "generate");
-  const model = isInpaint ? "nai-diffusion-5-full-inpainting" : "nai-diffusion-5-full";
+  
+  let model;
+  if (isMedium) {
+    model = isInpaint ? "nai-diffusion-5-full-medium-inpainting" : "nai-diffusion-5-full-medium";
+  } else {
+    model = isInpaint ? "nai-diffusion-5-full-inpainting" : "nai-diffusion-5-full";
+  }
 
   const { charCaptions, negCharCaptions } = extractCharCaptions(data.char_captions);
 
+  let finalNegCharCaptions = negCharCaptions;
+  if (isMedium) {
+    const hasNsfw = prompt.toLowerCase().includes("nsfw");
+    negative_prompt = hasNsfw ? V5_MEDIUM_EFFORT_FIXED_UC : `nsfw, ${V5_MEDIUM_EFFORT_FIXED_UC}`;
+    finalNegCharCaptions = negCharCaptions.map(c => ({
+      ...c,
+      char_caption: ""
+    }));
+  }
+
   let characterPrompts = [];
   if (Array.isArray(data.characterPrompts) && data.characterPrompts.length > 0) {
-    characterPrompts = data.characterPrompts;
+    characterPrompts = data.characterPrompts.map(cp => isMedium ? { ...cp, uc: "" } : cp);
   } else if (Array.isArray(data.char_captions) && data.char_captions.length > 0) {
     characterPrompts = data.char_captions.map(c => ({
       prompt: c.prompt || "",
-      uc: c.negative_prompt || c.uc || "",
+      uc: isMedium ? "" : (c.negative_prompt || c.uc || ""),
       center: {
         x: (c.x !== undefined && !isNaN(c.x)) ? parseFloat(c.x) : (c.center?.x ?? 0.5),
         y: (c.y !== undefined && !isNaN(c.y)) ? parseFloat(c.y) : (c.center?.y ?? 0.5)
@@ -311,14 +338,14 @@ export function createV5Payload(data) {
       steps,
       seed,
       n_samples: 1,
-      ucPresetId: data.ucPresetId || "heavy",
+      ucPresetId: isMedium ? "heavy" : (data.ucPresetId || "heavy"),
       qualityPresetId: data.qualityPresetId || "standard",
       autoSmea: data.autoSmea !== undefined ? data.autoSmea : false,
       dynamic_thresholding: data.dynamic_thresholding !== undefined ? data.dynamic_thresholding : false,
       controlnet_strength: 1,
       legacy: false,
       add_original_image: data.add_original_image !== undefined ? data.add_original_image : true,
-      cfg_rescale: data.cfg_rescale !== undefined ? parseFloat(data.cfg_rescale) : 0,
+      cfg_rescale: isMedium ? 0 : (data.cfg_rescale !== undefined ? parseFloat(data.cfg_rescale) : 0),
       legacy_v3_extend: false,
       use_coords: useCoords,
       legacy_uc: false,
@@ -339,7 +366,7 @@ export function createV5Payload(data) {
       v4_negative_prompt: {
         caption: {
           base_caption: negative_prompt,
-          char_captions: negCharCaptions
+          char_captions: finalNegCharCaptions
         },
         legacy_uc: false
       },
@@ -390,7 +417,10 @@ export function createV5Payload(data) {
  */
 export function createPayload(version, data) {
   const normVer = String(version || "").toLowerCase().trim();
-  if (normVer === "v5" || normVer === "nai5" || normVer === "v5.0") {
+  if (normVer === "v5-medium" || normVer === "nai5-medium" || normVer === "v5_medium" || normVer === "nai-diffusion-5-full-medium") {
+    return createV5Payload({ ...data, effort: 'medium' });
+  }
+  if (normVer === "v5" || normVer === "nai5" || normVer === "v5.0" || normVer === "nai-diffusion-5-full") {
     return createV5Payload(data);
   }
   if (normVer === "v4.5" || normVer === "v4" || normVer === "v4-full" || normVer === "v4-curated") {

@@ -94,6 +94,13 @@ export class SettingsManager {
         bindCheckbox(els.v45UseOrder, 'nai_v45_use_order', 'true');
         bindCheckbox(els.v45NegUseOrder, 'nai_v45_neg_use_order', 'false');
 
+        // 3.1. V5 Effort & Preset settings
+        bindInput(els.v5Effort, 'nai_v5_effort', 'change', (val) => {
+            ui.updateV5EffortUI(val);
+        });
+        bindInput(els.v5UcPreset, 'nai_v5_uc_preset', 'change');
+        bindInput(els.v5QualityPreset, 'nai_v5_quality_preset', 'change');
+
         // 4. Low Performance mode
         const savedLowPerf = store.getSetting('low_perf') === 'true';
         if (els.settingsLowPerfCheckbox) {

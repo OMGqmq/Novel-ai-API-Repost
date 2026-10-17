@@ -130,6 +130,59 @@ describe('PayloadFactory', () => {
       expect(p2.model).toBe('nai-diffusion-5-full');
     });
 
+    it('should create a valid V5 Medium effort generation payload with locked 14 steps, Euler Ancestral, and fixed UC', () => {
+      const payload = createPayload('v5', {
+        prompt: '1girl, cute',
+        negative_prompt: 'custom negative prompt to be overridden',
+        effort: 'medium',
+        steps: 28,
+        sampler: 'k_euler',
+        cfg_rescale: 0.3
+      });
+
+      expect(payload.model).toBe('nai-diffusion-5-full-medium');
+      expect(payload.parameters.steps).toBe(14);
+      expect(payload.parameters.sampler).toBe('k_euler_ancestral');
+      expect(payload.parameters.cfg_rescale).toBe(0);
+      expect(payload.parameters.negative_prompt).toContain('lowres, artistic error');
+      expect(payload.parameters.negative_prompt.startsWith('nsfw, ')).toBe(true);
+      expect(payload.parameters.v4_negative_prompt.caption.base_caption).toBe(payload.parameters.negative_prompt);
+    });
+
+    it('should omit "nsfw, " prefix when prompt includes nsfw in Medium effort', () => {
+      const payload = createPayload('v5', {
+        prompt: '1girl, nsfw, solo',
+        effort: 'medium'
+      });
+
+      expect(payload.parameters.negative_prompt.startsWith('nsfw, ')).toBe(false);
+      expect(payload.parameters.negative_prompt.startsWith('lowres, ')).toBe(true);
+    });
+
+    it('should handle V5 Medium inpainting (infill) correctly', () => {
+      const payload = createV5Payload({
+        effort: 'medium',
+        action: 'infill',
+        image: 'base64source',
+        mask: 'base64mask',
+        prompt: '1girl'
+      });
+
+      expect(payload.model).toBe('nai-diffusion-5-full-medium-inpainting');
+      expect(payload.action).toBe('infill');
+      expect(payload.parameters.steps).toBe(14);
+      expect(payload.parameters.sampler).toBe('k_euler_ancestral');
+    });
+
+    it('should route v5-medium and nai5-medium via createPayload dispatcher', () => {
+      const p1 = createPayload('v5-medium', { prompt: 'test' });
+      const p2 = createPayload('nai5-medium', { prompt: 'test' });
+      expect(p1.model).toBe('nai-diffusion-5-full-medium');
+      expect(p1.parameters.steps).toBe(14);
+      expect(p2.model).toBe('nai-diffusion-5-full-medium');
+      expect(p2.parameters.steps).toBe(14);
+    });
+
     it('should handle V5 character captions, characterPrompts array and single-character custom coordinates', () => {
       const payload = createV5Payload({
         prompt: 'scenery, 2girls',

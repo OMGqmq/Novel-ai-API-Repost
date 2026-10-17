@@ -118,6 +118,11 @@ export class UIController {
             skipCfgContainer: document.getElementById('skipCfgContainer'),
             v45ParamsContainer: document.getElementById('v45ParamsContainer'),
             v5ParamsContainer: document.getElementById('v5ParamsContainer'),
+            v5Effort: document.getElementById('v5Effort'),
+            v5EffortBadge: document.getElementById('v5EffortBadge'),
+            v5EffortNotice: document.getElementById('v5EffortNotice'),
+            v5UcPreset: document.getElementById('v5UcPreset'),
+            v5QualityPreset: document.getElementById('v5QualityPreset'),
             smeaContainer: document.getElementById('smeaContainer'),
             negativePromptWrapper: document.getElementById('negativePromptWrapper'),
             stepsWrapper: document.getElementById('stepsWrapper'),
@@ -365,6 +370,7 @@ export class UIController {
         if (v5ParamsContainer) {
             if (ver === 'v5') {
                 v5ParamsContainer.classList.remove('hidden');
+                this.updateV5EffortUI(document.getElementById('v5Effort')?.value || 'high');
             } else {
                 v5ParamsContainer.classList.add('hidden');
             }
@@ -447,6 +453,49 @@ export class UIController {
         }
 
         this.updateGenerateButtonText();
+    }
+
+    updateV5EffortUI(effort = 'high') {
+        const isMed = effort === 'medium';
+        const notice = document.getElementById('v5EffortNotice');
+        const badge = document.getElementById('v5EffortBadge');
+        const v5Effort = document.getElementById('v5Effort');
+        if (v5Effort && v5Effort.value !== effort) {
+            v5Effort.value = effort;
+        }
+
+        if (badge) {
+            if (isMed) {
+                badge.textContent = 'Medium (14步)';
+                badge.className = 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400';
+            } else {
+                badge.textContent = 'High';
+                badge.className = 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-indigo-500/10 text-indigo-500 dark:text-indigo-400';
+            }
+        }
+
+        if (notice) {
+            if (isMed) {
+                notice.classList.remove('hidden');
+            } else {
+                notice.classList.add('hidden');
+            }
+        }
+
+        const modelBadge = document.getElementById('modelBadge');
+        const currentModel = document.getElementById('modelValue')?.value;
+        if (modelBadge && currentModel === 'v5') {
+            modelBadge.innerText = (isMed ? 'V5 (MED)' : 'V5') + ' MODE';
+        }
+
+        if (currentModel === 'v5' && isMed) {
+            const stepsEl = document.getElementById('steps');
+            const stepsVal = document.getElementById('stepsVal');
+            if (stepsEl) stepsEl.value = '14';
+            if (stepsVal) stepsVal.textContent = '14';
+            const samplerEl = document.getElementById('sampler');
+            if (samplerEl) samplerEl.value = 'k_euler_ancestral';
+        }
     }
 
     switchRightView(view, updateGalleryTabCallback = null) {

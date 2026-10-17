@@ -50,6 +50,7 @@ describe('NovelAI V5 Full Upgrade & Integration Tests', () => {
       expect(createPayload('v5', { prompt: 'a' }).model).toBe('nai-diffusion-5-full');
       expect(createPayload('NAI5', { prompt: 'a' }).model).toBe('nai-diffusion-5-full');
       expect(createPayload('v5.0', { prompt: 'a' }).model).toBe('nai-diffusion-5-full');
+      expect(createPayload('v5-medium', { prompt: 'a' }).model).toBe('nai-diffusion-5-full-medium');
       expect(createPayload('v4.5', { prompt: 'a' }).model).toBe('nai-diffusion-4-5-full');
       expect(createPayload('v3', { prompt: 'a' }).model).toBe('nai-diffusion-3');
     });

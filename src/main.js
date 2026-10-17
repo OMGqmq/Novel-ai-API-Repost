@@ -351,6 +351,9 @@ function collectAdvancedAndModelParams(selectedVersion) {
         } else if (selectedVersion === 'v5') {
             const v5UcEl = document.getElementById('v5UcPreset');
             const v5QualityEl = document.getElementById('v5QualityPreset');
+            const v5EffortEl = document.getElementById('v5Effort');
+            const effort = v5EffortEl?.value || 'high';
+            extraParams.effort = effort;
             extraParams.ucPresetId = v5UcEl?.value || 'heavy';
             extraParams.qualityPresetId = v5QualityEl?.value || 'standard';
             extraParams.straight_alpha = true;
@@ -374,7 +377,9 @@ function collectAdvancedAndModelParams(selectedVersion) {
 
     extraParams.sm = (selectedVersion === 'v4.5' || selectedVersion === 'v5') ? false : (smEl ? smEl.checked : true);
     extraParams.sm_dyn = (selectedVersion === 'v4.5' || selectedVersion === 'v5') ? false : (smDynEl ? smDynEl.checked : true);
-    extraParams.cfg_rescale = cfgRescaleEl ? parseFloat(cfgRescaleEl.value) : 0.0;
+    extraParams.cfg_rescale = (selectedVersion === 'v5' && extraParams.effort === 'medium') 
+        ? 0.0 
+        : (cfgRescaleEl ? parseFloat(cfgRescaleEl.value) : 0.0);
     extraParams.uncond_scale = uncondScaleEl ? parseFloat(uncondScaleEl.value) : 1.0;
     if (decrispEl) extraParams.dynamic_thresholding = decrispEl.checked;
     if (noiseScheduleEl && noiseScheduleEl.value) {
@@ -788,15 +793,20 @@ async function doGenerate(rawOptions = {}) {
                 const negativePrompt = typeof options.negative === 'string'
                     ? options.negative 
                     : (els.negative ? els.negative.value.trim() : '');
-                const stepsVal = (typeof options.steps === 'number' && !isNaN(options.steps))
+                let stepsVal = (typeof options.steps === 'number' && !isNaN(options.steps))
                     ? Math.min(options.steps, 28) 
                     : parseInt(els.steps ? els.steps.value : '28', 10);
                 const scaleVal = (typeof options.scale === 'number' && !isNaN(options.scale))
                     ? options.scale 
                     : parseFloat(els.scale ? els.scale.value : '5.0');
-                const samplerVal = (typeof options.sampler === 'string' && options.sampler)
+                let samplerVal = (typeof options.sampler === 'string' && options.sampler)
                     ? options.sampler 
                     : (els.sampler ? els.sampler.value : 'k_euler');
+
+                if (selectedVersion === 'v5' && extraParams.effort === 'medium') {
+                    stepsVal = 14;
+                    samplerVal = 'k_euler_ancestral';
+                }
 
                 const params = {
                     version: selectedVersion,
@@ -3105,9 +3115,15 @@ function renderLightboxCurrent() {
         rawModel = (meta?.noise_schedule === 'karras' || meta?.ucPresetId === 'heavy') ? 'v5' : 'v4.5';
     }
     const currentModelVer = normalizeModelVersion(rawModel || 'v3');
+    const isMediumEffort = String(rawModel).includes('medium') || meta?.effort === 'medium' || item?.effort === 'medium';
     
     const modelEl = document.getElementById('lbInfoModel');
-    if (modelEl) modelEl.textContent = `Model: ${currentModelVer.toUpperCase()}`;
+    if (modelEl) {
+        const baseLabel = currentModelVer.toUpperCase();
+        modelEl.textContent = currentModelVer === 'v5' 
+            ? `Model: ${baseLabel} (${isMediumEffort ? 'MEDIUM' : 'HIGH'})`
+            : `Model: ${baseLabel}`;
+    }
     
     const promptText = item.prompt || meta?.prompt || '';
     const negPrompt = meta?.negative_prompt !== undefined ? meta.negative_prompt : (meta?.uc !== undefined ? meta.uc : (item.negative_prompt || ''));
