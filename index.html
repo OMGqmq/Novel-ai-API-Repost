@@ -1903,6 +1903,15 @@
                                         <li><b>角色参考强度 (Reference Strength)</b>：人物特征的参考度，建议 <b>0.6</b>。</li>
                                     </ul>
                                 </div>
+                                <div class="pt-3 space-y-1">
+                                    <span class="font-bold text-gray-700 dark:text-gray-200">🚀 V5 努力度 (Effort Levels)</span>
+                                    <p class="text-gray-500 dark:text-gray-400">NovelAI Diffusion V5 专属特性，用于在画质细节与算力消耗之间取得平衡：</p>
+                                    <ul class="list-disc pl-4 text-gray-550 dark:text-gray-400 space-y-1">
+                                        <li><b>High（高等 / 完整）</b>：标准全参数模式。支持自由调节步数、采样器及负面词预设，画质与细节表现最完整。</li>
+                                        <li><b>Medium（中等 / 极速省点）</b>：官方蒸馏模型极速出图，节省约 <b>42%</b> 算力点数。步数强制为 <b>14 步</b>，采样器锁定 <b>Euler Ancestral</b>，固定 <b>Heavy</b> 负面词。</li>
+                                    </ul>
+                                    <p class="text-amber-600 dark:text-amber-400 mt-1">💡 排除技巧：Medium 模式下若需排除特定画面元素，请直接在正向提示词中使用 <code class="font-mono bg-amber-500/10 text-amber-700 dark:text-amber-300 px-1 py-0.5 rounded">-3::tag::</code> 负权重语法（如 <code class="font-mono bg-amber-500/10 text-amber-700 dark:text-amber-300 px-1 py-0.5 rounded">-3::hat::</code> 排除帽子）。</p>
+                                </div>
                             </div>
                         </div>
                     </div>
