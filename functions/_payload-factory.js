@@ -324,6 +324,10 @@ export function createV5Payload(data) {
     : (data.use_coords !== undefined ? Boolean(data.use_coords) : false);
 
   const inpaintStrength = (data.strength !== undefined && !isNaN(data.strength)) ? parseFloat(data.strength) : 1.0;
+  const ucPresetId = isMedium ? "heavy" : (data.ucPresetId || "heavy");
+  const qualityPresetId = data.qualityPresetId || "standard";
+  const qtHintMap = { none: 0, standard: 1, light: 2 };
+  const ucHintMap = { none: 0, light: 1, heavy: 2 };
 
   const payload = {
     input: prompt,
@@ -338,8 +342,8 @@ export function createV5Payload(data) {
       steps,
       seed,
       n_samples: 1,
-      ucPresetId: isMedium ? "heavy" : (data.ucPresetId || "heavy"),
-      qualityPresetId: data.qualityPresetId || "standard",
+      ucPresetId,
+      qualityPresetId,
       autoSmea: data.autoSmea !== undefined ? data.autoSmea : false,
       dynamic_thresholding: data.dynamic_thresholding !== undefined ? data.dynamic_thresholding : false,
       controlnet_strength: 1,
@@ -353,8 +357,8 @@ export function createV5Payload(data) {
       inpaintImg2ImgStrength: isInpaint ? inpaintStrength : 1,
       characterPrompts: characterPrompts,
       straight_alpha: true,
-      tag_hint_qt: data.tag_hint_qt !== undefined ? data.tag_hint_qt : 1,
-      tag_hint_uc_preset: data.tag_hint_uc_preset !== undefined ? data.tag_hint_uc_preset : 2,
+      tag_hint_qt: data.tag_hint_qt !== undefined ? data.tag_hint_qt : (qtHintMap[qualityPresetId] ?? 1),
+      tag_hint_uc_preset: data.tag_hint_uc_preset !== undefined ? data.tag_hint_uc_preset : (ucHintMap[ucPresetId] ?? 2),
       v4_prompt: {
         caption: {
           base_caption: prompt,

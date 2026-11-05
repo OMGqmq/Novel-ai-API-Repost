@@ -7,7 +7,6 @@ import { SettingsManager } from '../src/settings-manager.js';
 import { CharPromptManager } from '../src/char-prompt-manager.js';
 import { AuthController } from '../src/auth-controller.js';
 import { AdminController } from '../src/admin-controller.js';
-import { XyPlotManager } from '../src/xy-plot-manager.js';
 import { RandomPromptManager } from '../src/random-prompt-manager.js';
 import { generateSalt, hashPassword, signJwt, verifyJwt } from '../functions/_crypto-helper.js';
 
@@ -1115,109 +1114,6 @@ describe('Refactored Suite', () => {
     // Test fetchAdminStats
     await adminController.fetchAdminStats();
     assert.strictEqual(getOrCreateMockElement('statTotalRequests').textContent, 10);
-  });
-
-  it('should run XyPlotManager tests', () => {
-    const mockStore = {};
-    const xyPlotManager = new XyPlotManager();
-    xyPlotManager.bind(mockStore);
-
-    const elements = {};
-    function getOrCreateMockElement(id) {
-      if (!elements[id]) {
-        elements[id] = {
-          id,
-          value: '',
-          checked: false
-        };
-      }
-      return elements[id];
-    }
-    global.document.getElementById = getOrCreateMockElement;
-
-    // Test isEnabled
-    getOrCreateMockElement('xyPlotEnabled').checked = false;
-    assert.strictEqual(xyPlotManager.isEnabled(), false);
-    getOrCreateMockElement('xyPlotEnabled').checked = true;
-    assert.strictEqual(xyPlotManager.isEnabled(), true);
-
-    // Test getXyConfigs with Steps and Scale
-    getOrCreateMockElement('xyPlotXType').value = 'steps';
-    getOrCreateMockElement('xyPlotXValues').value = ' 10, 20 , 30 ';
-    getOrCreateMockElement('xyPlotYType').value = 'scale';
-    getOrCreateMockElement('xyPlotYValues').value = ' 5.0, 7.5 ';
-
-    const configs = xyPlotManager.getXyConfigs();
-    assert.strictEqual(configs.xType, 'steps');
-    assert.deepStrictEqual(configs.xValues, [10, 20, 30]);
-    assert.strictEqual(configs.yType, 'scale');
-    assert.deepStrictEqual(configs.yValues, [5.0, 7.5]);
-
-    // Test generateParamGrid
-    const baseParams = { prompt: 'masterpiece', steps: 28, scale: 7.0 };
-    const grid = xyPlotManager.generateParamGrid(baseParams);
-
-    assert.strictEqual(grid.length, 6); // 2 rows * 3 columns = 6 cells
-    assert.strictEqual(grid[0].params.steps, 10);
-    assert.strictEqual(grid[0].params.scale, 5.0);
-    assert.strictEqual(grid[0].xyInfo, 'Steps: 10 | Scale: 5');
-
-    assert.strictEqual(grid[5].params.steps, 30);
-    assert.strictEqual(grid[5].params.scale, 7.5);
-    assert.strictEqual(grid[5].xyInfo, 'Steps: 30 | Scale: 7.5');
-
-    // Test getXyConfigs with X axis set to 'none'
-    getOrCreateMockElement('xyPlotXType').value = 'none';
-    getOrCreateMockElement('xyPlotXValues').value = ' 10, 20 , 30 '; // Should be ignored
-    getOrCreateMockElement('xyPlotYType').value = 'scale';
-    getOrCreateMockElement('xyPlotYValues').value = ' 5.0, 7.5 ';
-
-    const configsXNone = xyPlotManager.getXyConfigs();
-    assert.strictEqual(configsXNone.xType, 'none');
-    assert.deepStrictEqual(configsXNone.xValues, [null]);
-    assert.strictEqual(configsXNone.yType, 'scale');
-    assert.deepStrictEqual(configsXNone.yValues, [5.0, 7.5]);
-
-    const gridXNone = xyPlotManager.generateParamGrid(baseParams);
-    assert.strictEqual(gridXNone.length, 2); // 1 (X none) * 2 (Y scale) = 2 cells
-    assert.strictEqual(gridXNone[0].params.steps, 28); // steps stays as baseParams.steps
-    assert.strictEqual(gridXNone[0].params.scale, 5.0);
-    assert.strictEqual(gridXNone[0].xyInfo, 'Scale: 5');
-    assert.strictEqual(gridXNone[1].params.steps, 28);
-    assert.strictEqual(gridXNone[1].params.scale, 7.5);
-    assert.strictEqual(gridXNone[1].xyInfo, 'Scale: 7.5');
-
-    // Test getXyConfigs with Y axis set to 'none'
-    getOrCreateMockElement('xyPlotXType').value = 'steps';
-    getOrCreateMockElement('xyPlotXValues').value = ' 10, 20 , 30 ';
-    getOrCreateMockElement('xyPlotYType').value = 'none';
-    getOrCreateMockElement('xyPlotYValues').value = ' 5.0, 7.5 '; // Should be ignored
-
-    const configsYNone = xyPlotManager.getXyConfigs();
-    assert.strictEqual(configsYNone.xType, 'steps');
-    assert.deepStrictEqual(configsYNone.xValues, [10, 20, 30]);
-    assert.strictEqual(configsYNone.yType, 'none');
-    assert.deepStrictEqual(configsYNone.yValues, [null]);
-
-    const gridYNone = xyPlotManager.generateParamGrid(baseParams);
-    assert.strictEqual(gridYNone.length, 3); // 3 (X steps) * 1 (Y none) = 3 cells
-    assert.strictEqual(gridYNone[0].params.steps, 10);
-    assert.strictEqual(gridYNone[0].params.scale, 7.0); // scale stays as baseParams.scale
-    assert.strictEqual(gridYNone[0].xyInfo, 'Steps: 10');
-
-    // Test getXyConfigs with both axes set to 'none'
-    getOrCreateMockElement('xyPlotXType').value = 'none';
-    getOrCreateMockElement('xyPlotYType').value = 'none';
-
-    const configsBothNone = xyPlotManager.getXyConfigs();
-    assert.deepStrictEqual(configsBothNone.xValues, [null]);
-    assert.deepStrictEqual(configsBothNone.yValues, [null]);
-
-    const gridBothNone = xyPlotManager.generateParamGrid(baseParams);
-    assert.strictEqual(gridBothNone.length, 1);
-    assert.strictEqual(gridBothNone[0].params.steps, 28);
-    assert.strictEqual(gridBothNone[0].params.scale, 7.0);
-    assert.strictEqual(gridBothNone[0].xyInfo, null);
   });
 
   it('should run RandomPromptManager tests', () => {

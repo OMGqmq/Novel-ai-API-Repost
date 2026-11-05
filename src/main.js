@@ -16,7 +16,9 @@ import { SettingsManager } from './settings-manager.js';
 import { CharPromptManager } from './char-prompt-manager.js';
 import { AuthController } from './auth-controller.js';
 import { AdminController } from './admin-controller.js';
-import { XyPlotManager } from './xy-plot-manager.js';
+import { openModal, closeModal, showToast, showAlert, showConfirm, initModalToastGlobals } from './modal-toast.js';
+import { createPostProcessController } from './post-process-controller.js';
+import { createLightboxController, resolveLightboxMeta, normalizeModelVersion } from './lightbox-controller.js';
 import { RandomPromptManager } from './random-prompt-manager.js';
 import { RandomPromptController } from './random-prompt-controller.js';
 import { InspirationManager } from './inspiration-manager.js';
@@ -33,7 +35,7 @@ if (typeof window !== 'undefined') {
 // Start single-run entrance animation lifecycle
 motionController.startEntrance();
 
-export { getMimeFromFilename, dataUrlToBlob, triggerDownload, doGenerate, doAugment, doGenerateXyPlot, motionController, MotionController };
+export { getMimeFromFilename, dataUrlToBlob, triggerDownload, doGenerate, doAugment, motionController, MotionController };
 
 // PromptHelper is now imported from './prompt-helper.js'
 const engine = new ImageEngine();
@@ -156,7 +158,7 @@ const aiChatManager = new AiChatManager({
         return await doGenerate({ skipSaveHistory: true, ...overrideParams });
     },
     getCanvasState: () => {
-        const model = (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : '') || store.getSetting('model', 'v5');
+        const model = (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : '') || store.getSetting('nai_model_version', 'v5');
         const prompt = els.prompt ? els.prompt.value.trim() : '';
         const negative = els.negative ? els.negative.value.trim() : '';
         const resVal = (typeof document !== 'undefined' ? document.getElementById('resolution')?.value : '') || '832,1216';
@@ -354,9 +356,13 @@ function collectAdvancedAndModelParams(selectedVersion) {
             const v5EffortEl = document.getElementById('v5Effort');
             const effort = v5EffortEl?.value || 'high';
             extraParams.effort = effort;
-            extraParams.ucPresetId = v5UcEl?.value || 'heavy';
+            extraParams.ucPresetId = effort === 'medium' ? 'heavy' : (v5UcEl?.value || 'heavy');
             extraParams.qualityPresetId = v5QualityEl?.value || 'standard';
             extraParams.straight_alpha = true;
+            if (effort === 'medium') {
+                extraParams.steps = 14;
+                extraParams.sampler = 'k_euler_ancestral';
+            }
         }
     }
 
@@ -396,7 +402,6 @@ const settingsManager = new SettingsManager();
 const charPromptManager = new CharPromptManager();
 const authController = new AuthController();
 const adminController = new AdminController();
-const xyPlotManager = new XyPlotManager();
 const randomPromptManager = new RandomPromptManager();
 const randomPromptController = new RandomPromptController();
 
@@ -404,7 +409,6 @@ charPromptManager.bind(store);
 window.charPromptManager = charPromptManager;
 authController.bind(ui, store);
 adminController.bind(ui, store, authController);
-xyPlotManager.bind(store);
 
 settingsManager.bind(ui, store, {
     onModelChange: (model) => {
@@ -412,7 +416,7 @@ settingsManager.bind(ui, store, {
         charPromptManager.onModelChange(model);
     },
     onHydrate: () => {
-        const currentModel = store.getSetting('model', 'v3');
+        const currentModel = store.getSetting('nai_model_version', 'v3');
         charPromptManager.loadState(currentModel);
         charPromptManager.updatePadAspectRatio();
     }
@@ -443,7 +447,6 @@ safeCreateIcons();
 
 // Theme and settings initialization are handled by SettingsManager and UIController
 ui.initTheme();
-initEnhanceSliders();
 
 window.togglePanel = function(panelId, chevronId) {
     const panel = document.getElementById(panelId);
@@ -771,10 +774,6 @@ async function doGenerate(rawOptions = {}) {
             return;
         }
 
-        if (isAdmin && xyPlotManager.isEnabled()) {
-            return doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, authBase });
-        }
-
         const allGeneratedResults = [];
 
         for (let i = 0; i < batchTotal; i++) {
@@ -802,11 +801,6 @@ async function doGenerate(rawOptions = {}) {
                 let samplerVal = (typeof options.sampler === 'string' && options.sampler)
                     ? options.sampler 
                     : (els.sampler ? els.sampler.value : 'k_euler');
-
-                if (selectedVersion === 'v5' && extraParams.effort === 'medium') {
-                    stepsVal = 14;
-                    samplerVal = 'k_euler_ancestral';
-                }
 
                 const params = {
                     version: selectedVersion,
@@ -958,6 +952,9 @@ async function doGenerate(rawOptions = {}) {
                         v4_neg_use_order: localParams.v4_neg_use_order !== undefined ? localParams.v4_neg_use_order : false,
                         deliberate_euler_ancestral_bug: localParams.deliberate_euler_ancestral_bug !== undefined ? localParams.deliberate_euler_ancestral_bug : false,
                         prefer_brownian: localParams.prefer_brownian !== undefined ? localParams.prefer_brownian : true,
+                        effort: localParams.effort || null,
+                        ucPresetId: localParams.ucPresetId || null,
+                        qualityPresetId: localParams.qualityPresetId || null,
                         char_captions: localParams.char_captions || null,
                         random_prompt_selections: localParams.randomSelections || null
                     };
@@ -1052,182 +1049,6 @@ async function doGenerate(rawOptions = {}) {
     }
 }
 
-async function doGenerateXyPlot({ selectedVersion, promptText, hasCustomKey, authBase }) {
-    try {
-        const resEl = document.getElementById('resolution');
-        const [w, h] = resEl.value.split(',').map(Number);
-
-        const nsEl = document.getElementById('noise_schedule');
-        const smEl = document.getElementById('smEnabled');
-        const smDynEl = document.getElementById('smDynEnabled');
-        const qualityEl = document.getElementById('qualityToggleEnabled');
-        const dynThresholdEl = document.getElementById('dynThresholdEnabled');
-        const cfgRescaleEl = document.getElementById('cfgRescale');
-        const uncondScaleEl = document.getElementById('uncondScale');
-        const skipCfgEl = document.getElementById('skipCfg');
-
-        let finalPrompt = promptText;
-        let randomSelections = null;
-        if (randomPromptManager.isEnabled()) {
-            const { selectedTags, individualSelections } = randomPromptManager.getRandomSelection();
-            if (selectedTags) {
-                finalPrompt = promptText + (promptText ? ', ' : '') + selectedTags;
-                randomSelections = individualSelections;
-            }
-        }
-
-        const extraParams = collectAdvancedAndModelParams(selectedVersion);
-        const baseParams = {
-            version: selectedVersion,
-            prompt: finalPrompt,
-            negative_prompt: els.negative.value.trim(),
-            width: w,
-            height: h,
-            steps: parseInt(els.steps.value),
-            scale: parseFloat(els.scale.value),
-            sampler: els.sampler.value,
-            ...extraParams
-        };
-
-        if (appState.currentInitImageBase64) {
-            const strEl = document.getElementById('strength');
-            const noiEl = document.getElementById('noise');
-            baseParams.image = appState.currentInitImageBase64;
-            baseParams.strength = strEl ? parseFloat(strEl.value) : 0.5;
-            baseParams.noise = noiEl ? parseFloat(noiEl.value) : 0;
-        }
-
-        const seedEl = document.getElementById('seed');
-        const userSeedVal = seedEl ? seedEl.value.trim() : "";
-        let baseSeed;
-        if (userSeedVal && !isNaN(userSeedVal)) {
-            baseSeed = parseInt(userSeedVal);
-        } else {
-            baseSeed = Math.floor(Math.random() * 4294967295);
-        }
-        baseParams.seed = baseSeed;
-
-        const paramGrid = xyPlotManager.generateParamGrid(baseParams);
-        if (paramGrid.length === 0) {
-            throw new Error("X/Y Plot 参数值配置为空，无法生成对比网格");
-        }
-
-        const successfulResults = [];
-
-        for (let idx = 0; idx < paramGrid.length; idx++) {
-            const cell = paramGrid[idx];
-            ui.setLoading(true, `X/Y Plot 生成中 (${idx + 1}/${paramGrid.length})`);
-
-            const customApiKeyRaw = store.getSetting('nai_custom_api_key');
-            const customApiKeys = (customApiKeyRaw || "")
-                .split(/[\n,]/)
-                .map(k => k.trim())
-                .filter(k => k);
-
-            const candidateKeys = customApiKeys.length > 0
-                ? customApiKeys.slice(idx % customApiKeys.length).concat(customApiKeys.slice(0, idx % customApiKeys.length))
-                : [""];
-            const authsToTry = candidateKeys.map(key => ({ ...authBase, customApiKey: key }));
-
-            const isSeedPlot = (xyPlotManager.getXyConfigs().xType === 'seed' || xyPlotManager.getXyConfigs().yType === 'seed');
-            if (!isSeedPlot) {
-                cell.params.seed = (baseSeed + idx) % 4294967296;
-            }
-
-            try {
-                let result = null;
-                let lastError = null;
-                for (const auth of authsToTry) {
-                    try {
-                        result = await engine.generate(cell.params, auth);
-                        break;
-                    } catch (err) {
-                        console.warn(`X/Y Plot API Key failed, trying next...`, err);
-                        lastError = err;
-                    }
-                }
-                if (!result) {
-                    throw lastError || new Error("所有配置的 API Key 均请求失败");
-                }
-
-                if (result.userRole) {
-                    ui.updateCreditDisplay(result.userRole);
-                }
-
-                result.xyInfo = cell.xyInfo;
-                successfulResults.push(result);
-
-                const metaData = {
-                    negative_prompt: cell.params.negative_prompt,
-                    width: cell.params.width,
-                    height: cell.params.height,
-                    steps: cell.params.steps,
-                    scale: cell.params.scale,
-                    sampler: cell.params.sampler,
-                    seed: cell.params.seed,
-                    strength: cell.params.strength || null,
-                    noise: cell.params.noise || null,
-                    // Char Ref 元数据
-                    director_reference_images: cell.params.director_reference_images || null,
-                    director_reference_descriptions: cell.params.director_reference_descriptions || null,
-                    director_reference_strength_values: cell.params.director_reference_strength_values || null,
-                    director_reference_secondary_strength_values: cell.params.director_reference_secondary_strength_values || null,
-                    director_reference_information_extracted: cell.params.director_reference_information_extracted || null,
-
-                    // Vibe Transfer 元数据
-                    vibe_image: cell.params.vibe_image || null,
-                    vibe_info: cell.params.vibe_info !== undefined ? cell.params.vibe_info : null,
-                    vibe_strength: cell.params.vibe_strength !== undefined ? cell.params.vibe_strength : null,
-                    reference_image_multiple: cell.params.reference_image_multiple || null,
-                    reference_information_extracted_multiple: cell.params.reference_information_extracted_multiple || null,
-                    reference_strength_multiple: cell.params.reference_strength_multiple || null,
-
-                    sm: cell.params.sm !== undefined ? cell.params.sm : false,
-                    sm_dyn: cell.params.sm_dyn !== undefined ? cell.params.sm_dyn : false,
-                    cfg_rescale: cell.params.cfg_rescale !== undefined ? cell.params.cfg_rescale : 0.0,
-                    uncond_scale: cell.params.uncond_scale !== undefined ? cell.params.uncond_scale : 1.0,
-                    skip_cfg_above_sigma: cell.params.skip_cfg_above_sigma !== undefined ? cell.params.skip_cfg_above_sigma : null,
-                    v4_5_experimental: cell.params.v4_5_experimental !== undefined ? cell.params.v4_5_experimental : false,
-                    v4_prompt_use_coords: cell.params.v4_prompt_use_coords !== undefined ? cell.params.v4_prompt_use_coords : false,
-                    v4_prompt_use_order: cell.params.v4_prompt_use_order !== undefined ? cell.params.v4_prompt_use_order : true,
-                    v4_neg_use_order: cell.params.v4_neg_use_order !== undefined ? cell.params.v4_neg_use_order : false,
-                    deliberate_euler_ancestral_bug: cell.params.deliberate_euler_ancestral_bug !== undefined ? cell.params.deliberate_euler_ancestral_bug : false,
-                    prefer_brownian: cell.params.prefer_brownian !== undefined ? cell.params.prefer_brownian : true,
-                    char_captions: cell.params.char_captions || null,
-                    xyInfo: cell.xyInfo,
-                    random_prompt_selections: randomSelections
-                };
-
-                const reader = new FileReader();
-                reader.readAsDataURL(result.blob);
-                reader.onloadend = async () => {
-                    await saveToHistory(reader.result, finalPrompt, selectedVersion, result, false, metaData);
-                };
-
-            } catch (cellErr) {
-                console.error(`X/Y Plot grid cell [${cell.xyInfo}] failed:`, cellErr);
-            }
-        }
-
-        if (successfulResults.length === 0) {
-            throw new Error("X/Y Plot 网格中所有生成请求均失败");
-        }
-
-        ui.showResultImages(successfulResults, (selected) => {
-            appState.currentImageData = selected;
-            if (selected.id) appState.currentImageId = selected.id;
-            window.lastSelectedImageUrl = selected.imageUrl;
-        });
-
-    } catch (err) {
-        console.error("X/Y Plot Grid Gen Error:", err);
-        alert(err.message || err);
-    } finally {
-        ui.setLoading(false);
-        ui.toggleMobileControls(true);
-    }
-}
-
 els.deskBtn.addEventListener('click', () => doGenerate());
 els.floatBtn.addEventListener('click', () => doGenerate());
 
@@ -1313,441 +1134,26 @@ document.addEventListener('click', (e) => {
     }
 });
 
-async function doAugment(reqType) {
-    if (!appState.currentImageData || !(appState.currentImageData.imageUrl || appState.currentImageData.image)) return;
-    
-    const imageUrl = appState.currentImageData.imageUrl || appState.currentImageData.image;
-    
-    const authBase = {
-        adminToken: store.getSetting('nai_admin_token'),
-        userKey: store.getSetting('nai_user_key'),
-        userToken: localStorage.getItem('nai_user_token') || ""
-    };
-    const customApiKeyRaw = store.getSetting('nai_custom_api_key');
-    const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
-    const authsToTry = customApiKeys.length > 0 
-        ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
-        : [{ ...authBase, customApiKey: "" }];
-
-    ui.setLoading(true, "处理中...");
-    try {
-        // Fetch the current image to convert it to base64
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        
-        // create an Image to get width/height, and to draw to canvas if resizing is needed, but for simplicity let's just use it as is if it's not too big. 
-        // Since NAI expects width/height, we should measure it.
-        const img = new Image();
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                img.src = reader.result;
-            };
-            reader.readAsDataURL(blob);
-        });
-        
-        // 移除 "data:image/png;base64," 等前缀
-        const canvas = document.createElement('canvas');
-        let w = img.width;
-        let h = img.height;
-        
-        // Limit to 1024x1024 equivalent pixels for Opus Free
-        if (w * h > 1024 * 1024) {
-            const ratio = Math.sqrt((1024 * 1024) / (w * h));
-            w = Math.floor(w * ratio);
-            h = Math.floor(h * ratio);
-        }
-        
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        const base64Data = canvas.toDataURL('image/png').split(',')[1];
-
-        const params = {
-            req_type: reqType,
-            width: w,
-            height: h,
-            image: base64Data
-        };
-
-        let result = null;
-        let lastError = null;
-        for (const auth of authsToTry) {
-            try {
-                result = await engine.augment(params, auth);
-                break;
-            } catch (err) {
-                console.warn('Augment API Key failed, trying next...', err);
-                lastError = err;
-            }
-        }
-        if (!result) {
-            throw lastError || new Error("所有配置的 API Key 均请求失败");
-        }
-        
-        if (result.userRole) {
-            ui.updateCreditDisplay(result.userRole);
-        }
-
-        // Save to history
-        const reader2 = new FileReader();
-        reader2.readAsDataURL(result.blob);
-        reader2.onloadend = async () => {
-            await saveToHistory(reader2.result, `[${reqType}] ` + (appState.currentImageData.prompt || ""), appState.currentImageData.model || "v3", result, true);
-        };
-
-        ui.showResultImages([result], (selected) => {
-            appState.currentImageData = selected;
-            if (selected.id) appState.currentImageId = selected.id;
-            window.lastSelectedImageUrl = selected.imageUrl;
-        });
-
-    } catch (err) {
-        console.error(err);
-        if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
-        else alert("处理失败: " + err.message);
-    } finally {
-        ui.setLoading(false);
-    }
-}
-
-function openEnhanceModal() {
-    const targetSrc = getActiveCanvasImage();
-    if (!targetSrc) {
-        alert("请先生成或在画廊中选择一张图片以进行增强");
-        return;
-    }
-    const modal = document.getElementById('enhanceModal');
-    if (!modal) return;
-    modal.style.display = 'flex';
-    setTimeout(() => {
-        modal.classList.add('modal-active');
-        if (modal.firstElementChild) modal.firstElementChild.classList.remove('opacity-0');
-        const content = modal.querySelector('.custom-modal-content');
-        if (content) {
-            content.classList.remove('opacity-0', 'scale-95');
-            content.classList.add('opacity-100', 'scale-100');
-        }
-    }, 10);
-}
-
-function closeEnhanceModal() {
-    const modal = document.getElementById('enhanceModal');
-    if (!modal) return;
-    modal.classList.remove('modal-active');
-    if (modal.firstElementChild) modal.firstElementChild.classList.add('opacity-0');
-    const content = modal.querySelector('.custom-modal-content');
-    if (content) {
-        content.classList.remove('opacity-100', 'scale-100');
-        content.classList.add('opacity-0', 'scale-95');
-    }
-    setTimeout(() => {
-        modal.style.display = 'none';
-    }, 300);
-}
-
-function setEnhancePreset(strength, noise) {
-    const strengthSlider = document.getElementById('enhanceStrengthSlider');
-    const noiseSlider = document.getElementById('enhanceNoiseSlider');
-    const strengthVal = document.getElementById('enhanceStrengthVal');
-    const noiseVal = document.getElementById('enhanceNoiseVal');
-    
-    if (strengthSlider) strengthSlider.value = strength;
-    if (noiseSlider) noiseSlider.value = noise;
-    if (strengthVal) strengthVal.textContent = parseFloat(strength).toFixed(2);
-    if (noiseVal) noiseVal.textContent = parseFloat(noise).toFixed(2);
-
-    document.querySelectorAll('.enhance-preset-btn').forEach(btn => {
-        if (parseFloat(btn.dataset.strength) === parseFloat(strength)) {
-            btn.classList.add('bg-amber-500', 'text-white', 'shadow-md', 'border-amber-500', 'active-preset');
-            btn.classList.remove('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
-            const sub = btn.querySelector('span');
-            if (sub) { sub.classList.remove('text-gray-400'); sub.classList.add('text-amber-100'); }
-        } else {
-            btn.classList.remove('bg-amber-500', 'text-white', 'shadow-md', 'border-amber-500', 'active-preset');
-            btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
-            const sub = btn.querySelector('span');
-            if (sub) { sub.classList.add('text-gray-400'); sub.classList.remove('text-amber-100'); }
-        }
-    });
-}
-
-function initEnhanceSliders() {
-    const strengthSlider = document.getElementById('enhanceStrengthSlider');
-    const noiseSlider = document.getElementById('enhanceNoiseSlider');
-    const strengthVal = document.getElementById('enhanceStrengthVal');
-    const noiseVal = document.getElementById('enhanceNoiseVal');
-
-    if (strengthSlider && strengthVal) {
-        strengthSlider.addEventListener('input', () => {
-            strengthVal.textContent = parseFloat(strengthSlider.value).toFixed(2);
-            document.querySelectorAll('.enhance-preset-btn').forEach(btn => {
-                const match = Math.abs(parseFloat(btn.dataset.strength) - parseFloat(strengthSlider.value)) < 0.01;
-                if (!match) {
-                    btn.classList.remove('bg-amber-500', 'text-white', 'shadow-md', 'border-amber-500', 'active-preset');
-                    btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
-                    const sub = btn.querySelector('span');
-                    if (sub) { sub.classList.add('text-gray-400'); sub.classList.remove('text-amber-100'); }
-                }
-            });
-        });
-    }
-
-    if (noiseSlider && noiseVal) {
-        noiseSlider.addEventListener('input', () => {
-            noiseVal.textContent = parseFloat(noiseSlider.value).toFixed(2);
-        });
-    }
-}
-
-async function doEnhance() {
-    const targetSrc = getActiveCanvasImage();
-    if (!targetSrc) {
-        alert("请先生成或选择一张图片以进行增强");
-        return;
-    }
-
-    const strengthSlider = document.getElementById('enhanceStrengthSlider');
-    const noiseSlider = document.getElementById('enhanceNoiseSlider');
-    const strength = strengthSlider ? parseFloat(strengthSlider.value) : 0.35;
-    const noise = noiseSlider ? parseFloat(noiseSlider.value) : 0.0;
-
-    closeEnhanceModal();
-    ui.setLoading(true, "AI 图像增强生成中...");
-
-    try {
-        const response = await fetch(targetSrc);
-        const blob = await response.blob();
-        const img = new Image();
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            const reader = new FileReader();
-            reader.onloadend = () => { img.src = reader.result; };
-            reader.readAsDataURL(blob);
-        });
-
-        const canvas = document.createElement('canvas');
-        let w = img.width;
-        let h = img.height;
-        if (w * h > 1024 * 1024) {
-            const ratio = Math.sqrt((1024 * 1024) / (w * h));
-            w = Math.floor(w * ratio);
-            h = Math.floor(h * ratio);
-        }
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        const base64Data = canvas.toDataURL('image/png').split(',')[1];
-
-        const selectedVersion = document.getElementById('modelValue').value;
-        const promptText = els.prompt.value.trim() || appState.currentImageData?.prompt || "";
-        const extraParams = collectAdvancedAndModelParams(selectedVersion);
-
-        const params = {
-            version: selectedVersion,
-            prompt: promptText,
-            negative_prompt: els.negative ? els.negative.value.trim() : "",
-            width: w,
-            height: h,
-            steps: parseInt(els.steps.value) || 28,
-            scale: parseFloat(els.scale.value) || 1.9,
-            sampler: els.sampler ? els.sampler.value : "k_euler_ancestral",
-            ...extraParams,
-            action: 'img2img',
-            image: base64Data,
-            strength: strength,
-            noise: noise,
-            seed: Math.floor(Math.random() * 4294967295),
-            extra_noise_seed: Math.floor(Math.random() * 4294967295)
-        };
-
-        const authBase = {
-            adminToken: store.getSetting('nai_admin_token'),
-            userKey: store.getSetting('nai_user_key'),
-            userToken: localStorage.getItem('nai_user_token') || ""
-        };
-        const customApiKeyRaw = store.getSetting('nai_custom_api_key');
-        const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
-        const authsToTry = customApiKeys.length > 0 
-            ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
-            : [{ ...authBase, customApiKey: "" }];
-
-        let result = null;
-        let lastError = null;
-        for (const auth of authsToTry) {
-            try {
-                result = await engine.generate(params, auth);
-                break;
-            } catch (err) {
-                console.warn('Enhance API Key failed, trying next...', err);
-                lastError = err;
-            }
-        }
-        if (!result) {
-            throw lastError || new Error("所有配置的 API Key 均请求失败");
-        }
-
-        if (result.userRole) {
-            ui.updateCreditDisplay(result.userRole);
-        }
-
-        const reader2 = new FileReader();
-        reader2.readAsDataURL(result.blob);
-        reader2.onloadend = async () => {
-            await saveToHistory(reader2.result, `[Enhance] ` + promptText, selectedVersion, result, true);
-        };
-
-        ui.showResultImages([result], (selected) => {
-            appState.currentImageData = selected;
-            if (selected.id) appState.currentImageId = selected.id;
-            window.lastSelectedImageUrl = selected.imageUrl;
-        });
-
-    } catch (err) {
-        console.error(err);
-        if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
-        else alert("增强失败: " + err.message);
-    } finally {
-        ui.setLoading(false);
-    }
-}
-
-async function doUpscale() {
-    const targetSrc = getActiveCanvasImage();
-    if (!targetSrc) {
-        alert("请先生成或选择一张图片以进行 4x 超分放大");
-        return;
-    }
-
-    ui.setLoading(true, "AI 4x 超分辨率放大中...");
-
-    try {
-        const response = await fetch(targetSrc);
-        const blob = await response.blob();
-        const img = new Image();
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            const reader = new FileReader();
-            reader.onloadend = () => { img.src = reader.result; };
-            reader.readAsDataURL(blob);
-        });
-
-        const canvas = document.createElement('canvas');
-        let w = img.width;
-        let h = img.height;
-        if (w * h > 1024 * 1024) {
-            const ratio = Math.sqrt((1024 * 1024) / (w * h));
-            w = Math.floor(w * ratio);
-            h = Math.floor(h * ratio);
-        }
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        const base64Data = canvas.toDataURL('image/png').split(',')[1];
-
-        const selectedVersion = document.getElementById('modelValue')?.value || appState.currentImageData?.model || "v3";
-
-        const params = {
-            image: base64Data,
-            width: w,
-            height: h,
-            scale: 4,
-            version: selectedVersion,
-            model: selectedVersion
-        };
-
-        const authBase = {
-            adminToken: store.getSetting('nai_admin_token'),
-            userKey: store.getSetting('nai_user_key'),
-            userToken: localStorage.getItem('nai_user_token') || ""
-        };
-        const customApiKeyRaw = store.getSetting('nai_custom_api_key');
-        const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
-        const authsToTry = customApiKeys.length > 0 
-            ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
-            : [{ ...authBase, customApiKey: "" }];
-
-        let result = null;
-        let lastError = null;
-        for (const auth of authsToTry) {
-            try {
-                result = await engine.upscale(params, auth);
-                break;
-            } catch (err) {
-                console.warn('Upscale API Key failed, trying next...', err);
-                lastError = err;
-            }
-        }
-        if (!result) {
-            throw lastError || new Error("所有配置的 API Key 均请求失败");
-        }
-
-        if (result.userRole) {
-            ui.updateCreditDisplay(result.userRole);
-        }
-
-        const promptText = appState.currentImageData?.prompt || "";
-
-        const reader2 = new FileReader();
-        reader2.readAsDataURL(result.blob);
-        reader2.onloadend = async () => {
-            await saveToHistory(reader2.result, `[Upscaled 4x] ` + promptText, selectedVersion, result, true);
-        };
-
-        ui.showResultImages([result], (selected) => {
-            appState.currentImageData = selected;
-            if (selected.id) appState.currentImageId = selected.id;
-            window.lastSelectedImageUrl = selected.imageUrl;
-        });
-
-    } catch (err) {
-        console.error(err);
-        if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
-        else alert("超分辨率放大失败: " + err.message);
-    } finally {
-        ui.setLoading(false);
-    }
-}
-
-// 画廊流式加载与滚动监听逻辑已抽离至 src/gallery.js 模块中
-
-function getActiveCanvasImage() {
-    // 1. 如果单图聚焦区域可见且有 src
-    if (ui.els.singleResultImg && !ui.els.singleResultArea.classList.contains('hidden') && ui.els.singleResultImg.src) {
-        const src = ui.els.singleResultImg.src;
-        if (src && !src.startsWith('chrome-extension') && src !== window.location.href) {
-            return src;
-        }
-    }
-    
-    // 2. 如果网格显示，寻找被选中的（带蓝色边框的）图片
-    if (ui.els.resultGrid && !ui.els.resultGrid.classList.contains('hidden')) {
-        const selectedImg = ui.els.resultGrid.querySelector('img.border-blue-500');
-        if (selectedImg && selectedImg.src) {
-            return selectedImg.src;
-        }
-        
-        // 3. 取网格中的第一张图片
-        const firstImg = ui.els.resultGrid.querySelector('img');
-        if (firstImg && firstImg.src) {
-            return firstImg.src;
-        }
-    }
-    
-    // 4. 兜底使用 window.lastSelectedImageUrl
-    if (window.lastSelectedImageUrl) {
-        return window.lastSelectedImageUrl;
-    }
-    
-    return null;
-}
+const postProcess = createPostProcessController({
+    ui,
+    els,
+    engine,
+    store,
+    appState,
+    collectAdvancedAndModelParams,
+    saveToHistory
+});
+const {
+    getActiveCanvasImage,
+    doAugment,
+    openEnhanceModal,
+    closeEnhanceModal,
+    setEnhancePreset,
+    initEnhanceSliders,
+    doEnhance,
+    doUpscale
+} = postProcess;
+initEnhanceSliders();
 
 function saveCurrentPromptToNotebook() {
     const prompt = els.prompt.value.trim();
@@ -1809,27 +1215,9 @@ function importNotebook(event) {
     notebookManager.importNotebook(event);
 }
 
-function toggleXyPlotEnabled(checked) {
-    const controls = document.getElementById('xyPlotControls');
-    if (controls) {
-        controls.classList.toggle('hidden', !checked);
-    }
-    updateXyPlotCountPreview();
-}
-window.toggleXyPlotEnabled = toggleXyPlotEnabled;
-
-function updateXyPlotCountPreview() {
-    const previewEl = document.getElementById('xyPlotCountPreview');
-    if (!previewEl) return;
-
-    const { xValues, yValues } = xyPlotManager.getXyConfigs();
-    const total = xValues.length * yValues.length;
-    previewEl.textContent = total;
-}
-window.updateXyPlotCountPreview = updateXyPlotCountPreview;
-
 // --- 暴露给 Window 的代理方法 ---
 const renderNotebookCallback = () => notebookManager.render();
+const renderRandomPromptCallback = () => renderRandomPromptsList();
 
 Object.assign(window, {
     toggleMobileControls: (s) => ui.toggleMobileControls(s),
@@ -1840,16 +1228,16 @@ Object.assign(window, {
     },
     switchRightView: (v) => ui.switchRightView(v, (tab) => galleryController.switchGalleryTab(tab)),
     toggleDrawer: () => ui.toggleDrawer(),
-    switchDrawerTab: (t) => ui.switchDrawerTab(t, renderNotebookCallback),
+    switchDrawerTab: (t) => ui.switchDrawerTab(t, t === 'random' ? renderRandomPromptCallback : renderNotebookCallback),
     openNotebook: () => ui.openNotebook(renderNotebookCallback),
+    openRandomPrompt: () => ui.openRandomPrompt(renderRandomPromptCallback),
     handleInitImage, clearInitImage, doGenerate, saveToHistory,
     useCurrentPrompt: () => galleryController.useCurrentPrompt(),
     deleteCurrentImage, clearAllHistory,
     switchGalleryTab: (tab) => galleryController.switchGalleryTab(tab),
     downloadZip: () => galleryController.downloadZip(),
     backToGrid: () => ui.showGrid(),
-    doAugment, toggleToolbox,
-    openLightbox
+    doAugment, toggleToolbox
 });
 
 fetch('gallery_index.json').then(r => r.json()).then(d => {
@@ -2111,106 +1499,16 @@ function clearUserKey() {
 }
 
 function updateResolutionOptions(bypass) {
-    const resEl = document.getElementById('resolution');
-    if (!resEl) return;
-    
-    const standardResolutions = [
-        { name: 'Portrait (832 x 1216)', value: '832,1216' },
-        { name: 'Landscape (1216 x 832)', value: '1216,832' },
-        { name: 'Square (1024 x 1024)', value: '1024,1024' }
-    ];
-    
-    const xlResolutions = [
-        { name: 'Portrait XL (1024 x 1536)', value: '1024,1536' },
-        { name: 'Landscape XL (1536 x 1024)', value: '1536,1024' },
-        { name: 'Square XL (1216 x 1216)', value: '1216,1216' }
-    ];
-    
-    const currentVal = resEl.value;
-    
-    resEl.innerHTML = '';
-    standardResolutions.forEach(r => {
-        resEl.add(new Option(r.name, r.value));
-    });
-    
-    if (bypass) {
-        xlResolutions.forEach(r => {
-            resEl.add(new Option(r.name, r.value));
-        });
-    }
-    
-    let valueToSet = currentVal;
-    if (!bypass && xlResolutions.some(r => r.value === currentVal)) {
-        valueToSet = '832,1216';
-    }
-    
-    resEl.value = valueToSet;
-    resEl.dispatchEvent(new Event('change', { bubbles: true }));
+    settingsManager.updateResolutionOptions(bypass);
 }
 
 function toggleBypassLimitsEnabled(forceState) {
-    const checkbox = document.getElementById('bypassLimitsEnabled');
-    if (!checkbox) return;
-    
-    let enabled = checkbox.checked;
-    if (forceState !== undefined) {
-        enabled = forceState;
-        checkbox.checked = enabled;
-    }
-    
-    store.setSetting('nai_bypass_limits', enabled.toString());
-    
-    const stepsEl = document.getElementById('steps');
-    const stepsVal = document.getElementById('stepsValue');
-    if (stepsEl) {
-        if (enabled) {
-            stepsEl.max = '50';
-        } else {
-            stepsEl.max = '28';
-            if (parseInt(stepsEl.value) > 28) {
-                stepsEl.value = '28';
-                if (stepsVal) stepsVal.textContent = '28';
-            }
-        }
-    }
-    
-    updateResolutionOptions(enabled);
-    if (window.ui && typeof window.ui.updateGenerateButtonText === 'function') {
-        window.ui.updateGenerateButtonText();
-    }
+    settingsManager.toggleBypassLimitsEnabled(forceState);
 }
 
 function updateAnlasUI(data) {
     if (ui && typeof ui.updateCustomApiCredit === 'function') {
         ui.updateCustomApiCredit(data);
-        return;
-    }
-    if (!data) return;
-    const anlasVal = typeof data.totalAnlas === 'number' ? data.totalAnlas : (typeof data.anlas === 'number' ? data.anlas : 0);
-    const keyCountVal = typeof data.keyCount === 'number' ? data.keyCount : 1;
-    const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
-    
-    let text = "";
-    const keyPart = keyCountVal > 1 ? ` | ${keyCountVal}Key` : "";
-    if (opusUsage && typeof opusUsage.percent === 'number') {
-        text = `CustomAPI (Anlas: ${anlasVal}${keyPart} |\nOpus免费: ${opusUsage.percent}% (约${opusUsage.estimatedImages}张))`;
-    } else {
-        text = `CustomAPI (Anlas: ${anlasVal}${keyPart})`;
-    }
-
-    const desktopDisplay = document.getElementById('creditDisplayDesktop');
-    const mobileDisplay = document.getElementById('creditDisplayMobile');
-    
-    if (desktopDisplay) {
-        desktopDisplay.textContent = text;
-        desktopDisplay.classList.remove('hidden');
-        if (opusUsage && typeof opusUsage.percent === 'number') {
-            desktopDisplay.title = `Opus 免费生成额度: 剩余 ${opusUsage.percent}% (约 ${opusUsage.estimatedImages} 张图片)`;
-        }
-    }
-    if (mobileDisplay) {
-        mobileDisplay.textContent = text;
-        mobileDisplay.classList.remove('hidden');
     }
 }
 
@@ -2244,188 +1542,8 @@ function checkAdminStatus() {
 checkAdminStatus();
 
 // --- 自定义 API Key ---
-// --- 模态框通用开启/关闭 ---
-function openModal(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (el._closeTimeout) {
-        clearTimeout(el._closeTimeout);
-        el._closeTimeout = null;
-    }
-    el.style.display = 'flex';
-    setTimeout(() => {
-        el.classList.add('modal-active');
-    }, 10);
-}
-function closeModal(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.remove('modal-active');
-    if (el._closeTimeout) clearTimeout(el._closeTimeout);
-    el._closeTimeout = setTimeout(() => {
-        el.style.display = 'none';
-        el._closeTimeout = null;
-    }, 300);
-}
-
-// --- Custom Toast, Alert, and Confirm System ---
-window.showToast = function(message, type = 'info', duration = 3000) {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    // Glassmorphism styling
-    toast.className = `flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-lg border backdrop-blur-md transition-all duration-300 translate-y-2 opacity-0 max-w-sm pointer-events-auto w-[90%] md:w-auto`;
-    
-    let iconName = 'info';
-    let bgClass = 'bg-white/90 dark:bg-slate-900/90 border-gray-200/50 dark:border-slate-800/80 text-gray-700 dark:text-gray-200';
-    if (type === 'success') {
-        iconName = 'check-circle';
-        bgClass = 'bg-emerald-50/90 dark:bg-emerald-950/90 border-emerald-200/50 dark:border-emerald-800/30 text-emerald-800 dark:text-emerald-200';
-    } else if (type === 'error') {
-        iconName = 'alert-triangle';
-        bgClass = 'bg-rose-50/90 dark:bg-rose-950/90 border-rose-200/50 dark:border-rose-800/30 text-rose-800 dark:text-rose-200';
-    } else if (type === 'warning') {
-        iconName = 'alert-circle';
-        bgClass = 'bg-amber-50/90 dark:bg-amber-950/90 border-amber-200/50 dark:border-amber-800/30 text-amber-800 dark:text-amber-200';
-    }
-
-    toast.className += ` ${bgClass}`;
-    toast.innerHTML = `
-        <div class="flex-shrink-0">
-            <i data-lucide="${iconName}" class="w-4 h-4"></i>
-        </div>
-        <div class="text-xs font-semibold select-none leading-relaxed">${message}</div>
-    `;
-
-    container.appendChild(toast);
-    if (window.safeCreateIcons) window.safeCreateIcons();
-
-    // Force reflow and animate in
-    toast.offsetHeight;
-    toast.classList.remove('translate-y-2', 'opacity-0');
-
-    const dismiss = () => {
-        toast.classList.add('opacity-0', 'translate-y-[-8px]');
-        setTimeout(() => {
-            toast.remove();
-        }, 300);
-    };
-
-    const timeoutId = setTimeout(dismiss, duration);
-    toast.addEventListener('click', () => {
-        clearTimeout(timeoutId);
-        dismiss();
-    });
-};
-
-window.showAlert = function(message, title = '系统提示', iconType = 'alert-circle') {
-    return new Promise((resolve) => {
-        const msgEl = document.getElementById('confirmModalMessage');
-        const titleEl = document.getElementById('confirmModalTitle');
-        const iconEl = document.getElementById('confirmModalIcon');
-        const confirmBtn = document.getElementById('confirmConfirmBtn');
-        const cancelBtn = document.getElementById('confirmCancelBtn');
-        const backdrop = document.getElementById('confirmModalBackdrop');
-
-        if (msgEl) msgEl.textContent = message;
-        if (titleEl) titleEl.textContent = title;
-        
-        if (iconEl) {
-            iconEl.setAttribute('data-lucide', iconType);
-            if (window.safeCreateIcons) window.safeCreateIcons();
-        }
-
-        // Hide cancel button for alert
-        if (cancelBtn) cancelBtn.classList.add('hidden');
-
-        // Clone nodes to remove old event listeners cleanly
-        const newConfirmBtn = confirmBtn.cloneNode(true);
-        const newBackdrop = backdrop.cloneNode(true);
-        confirmBtn.replaceWith(newConfirmBtn);
-        backdrop.replaceWith(newBackdrop);
-
-        function cleanup() {
-            closeModal('confirmModal');
-            setTimeout(() => {
-                if (cancelBtn) cancelBtn.classList.remove('hidden');
-            }, 300);
-            resolve();
-        }
-
-        openModal('confirmModal');
-
-        newConfirmBtn.addEventListener('click', cleanup);
-        newBackdrop.addEventListener('click', cleanup);
-    });
-};
-
-window.showConfirm = function(message, title = '确认操作', iconType = 'help-circle') {
-    return new Promise((resolve) => {
-        const msgEl = document.getElementById('confirmModalMessage');
-        const titleEl = document.getElementById('confirmModalTitle');
-        const iconEl = document.getElementById('confirmModalIcon');
-        const confirmBtn = document.getElementById('confirmConfirmBtn');
-        const cancelBtn = document.getElementById('confirmCancelBtn');
-        const backdrop = document.getElementById('confirmModalBackdrop');
-
-        if (msgEl) msgEl.textContent = message;
-        if (titleEl) titleEl.textContent = title;
-        
-        if (iconEl) {
-            iconEl.setAttribute('data-lucide', iconType);
-            if (window.safeCreateIcons) window.safeCreateIcons();
-        }
-
-        // Ensure cancel button is visible
-        if (cancelBtn) cancelBtn.classList.remove('hidden');
-
-        // Clone nodes to remove old event listeners cleanly
-        const newConfirmBtn = confirmBtn.cloneNode(true);
-        const newCancelBtn = cancelBtn.cloneNode(true);
-        const newBackdrop = backdrop.cloneNode(true);
-        confirmBtn.replaceWith(newConfirmBtn);
-        cancelBtn.replaceWith(newCancelBtn);
-        backdrop.replaceWith(newBackdrop);
-
-        function cleanup(value) {
-            closeModal('confirmModal');
-            resolve(value);
-        }
-
-        openModal('confirmModal');
-
-        newConfirmBtn.addEventListener('click', () => cleanup(true));
-        newCancelBtn.addEventListener('click', () => cleanup(false));
-        newBackdrop.addEventListener('click', () => cleanup(false));
-    });
-};
-
-// Override default window.alert with custom toast/alert
-window.alert = function(message) {
-    if (message === undefined || message === null) return;
-    const msgStr = String(message);
-    const isShort = msgStr.length < 18;
-    const isStatus = msgStr.includes('复制') || msgStr.includes('载入') || msgStr.includes('保存') || msgStr.includes('成功');
-    
-    if (isShort || isStatus) {
-        let type = 'info';
-        if (isStatus || msgStr.includes('成功') || msgStr.includes('复制') || msgStr.includes('载入')) {
-            type = 'success';
-        } else if (msgStr.includes('失败') || msgStr.includes('错误') || msgStr.includes('⚠️')) {
-            type = 'error';
-        }
-        window.showToast(msgStr, type);
-    } else {
-        let icon = 'alert-circle';
-        let title = '系统提示';
-        if (msgStr.includes('失败') || msgStr.includes('错误') || msgStr.includes('封禁') || msgStr.includes('⚠️')) {
-            icon = 'alert-triangle';
-            title = '操作失败';
-        }
-        window.showAlert(msgStr, title, icon);
-    }
-};
+// --- 模态框通用开启/关闭与全局提示系统 ---
+initModalToastGlobals();
 
 // --- 自定义 API Key 管理 ---
 function addApiKeyInputRow(val = '') {
@@ -2665,14 +1783,6 @@ function switchSettingsTab(tabName) {
             tabName = 'advanced';
         } else {
             fetchAdminUsers();
-        }
-    }
-
-    if (tabName === 'randomPrompt') {
-        randomPromptController.renderList();
-        const globalCheckbox = document.getElementById('randomPromptEnabled');
-        if (globalCheckbox) {
-            globalCheckbox.checked = randomPromptManager.isEnabled();
         }
     }
 
@@ -3004,750 +2114,43 @@ const outpaintEditor = new OutpaintEditor({
 });
 
 // =================== 图库大图详情弹窗 (Lightbox) ===================
-let lightboxItems = [];
-let lightboxIndex = 0;
-
-async function openLightbox(item) {
-    if (typeof item === 'string') {
-        const found = (galleryController.galleryItems || []).find(x => x.image === item || x.imageUrl === item);
-        if (found) {
-            item = found;
-        } else {
-            item = {
-                id: 'chat_' + Date.now(),
-                image: item,
-                imageUrl: item,
-                prompt: '--',
-                model: 'v5',
-                isSavedToHistory: false,
-                meta: null
-            };
-        }
-    } else if (item && typeof item === 'object') {
-        if (!item.image && item.imageUrl) item.image = item.imageUrl;
-        if (!item.imageUrl && item.image) item.imageUrl = item.image;
-        if (!item.id) item.id = 'chat_' + Date.now();
-    }
-
-    if (item.isShowcase) {
-        lightboxItems = appState.showcaseData.map(s => ({
-            id: s.id,
-            image: `images/${s.id}.png`,
-            prompt: s.prompt,
-            model: s.model || 'v3',
-            isShowcase: true,
-            meta: null
-        }));
-        lightboxIndex = lightboxItems.findIndex(x => x.id === item.id);
-    } else {
-        lightboxItems = galleryController.galleryItems || [];
-        lightboxIndex = lightboxItems.findIndex(x => x.id === item.id || (item.image && (x.image === item.image || x.imageUrl === item.image)));
-    }
-
-    if (lightboxIndex === -1) {
-        lightboxItems = [item];
-        lightboxIndex = 0;
-    }
-
-    renderLightboxCurrent();
-    openModal('imageLightboxModal');
-    
-    const sidebar = document.getElementById('lightboxSidebar');
-    if (sidebar) sidebar.classList.remove('expanded');
-}
-
-function closeLightbox() {
-    closeModal('imageLightboxModal');
-}
-
-function resolveLightboxMeta(item) {
-    if (!item) return {};
-    let meta = item.meta || item;
-    if (typeof meta === 'string') {
-        try {
-            meta = JSON.parse(meta);
-        } catch (e) {
-            meta = {};
-        }
-    }
-    const commentRaw = meta?.Comment || meta?.comment || item?.Comment || item?.comment;
-    if (typeof commentRaw === 'string') {
-        try {
-            const parsedComment = JSON.parse(commentRaw);
-            meta = { ...parsedComment, ...meta };
-        } catch (e) {}
-    } else if (typeof commentRaw === 'object' && commentRaw !== null) {
-        meta = { ...commentRaw, ...meta };
-    }
-    return meta;
-}
-window.resolveLightboxMeta = resolveLightboxMeta;
-
-function normalizeModelVersion(rawModel) {
-    if (!rawModel || typeof rawModel !== 'string') return 'v3';
-    const lower = rawModel.toLowerCase().trim();
-    if (lower.includes('zimage')) return 'zimage';
-    if (lower.includes('4.5') || lower.includes('4-5') || lower.includes('v4') || lower.includes('diffusion-4')) return 'v4.5';
-    if (lower.includes('5') || lower.includes('v5') || lower.includes('diffusion-5')) return 'v5';
-    if (lower.includes('3') || lower.includes('v3') || lower.includes('diffusion-3')) return 'v3';
-    return 'v3';
-}
-window.normalizeModelVersion = normalizeModelVersion;
-
-function renderLightboxCurrent() {
-    if (lightboxItems.length === 0 || lightboxIndex < 0 || lightboxIndex >= lightboxItems.length) return;
-    const item = lightboxItems[lightboxIndex];
-    
-    const mainImg = document.getElementById('lightboxMainImg');
-    if (mainImg) {
-        mainImg.style.opacity = 0;
-        setTimeout(() => {
-            mainImg.src = item.image || item.imageUrl;
-            mainImg.onload = () => { mainImg.style.opacity = 1; };
-        }, 100);
-    }
-
-    const meta = resolveLightboxMeta(item);
-
-    let rawModel = item.model || meta?.model || '';
-    const charList = meta?.characterPrompts || meta?.char_captions || meta?.v4_prompt?.caption?.char_captions || item?.characterPrompts || item?.char_captions || null;
-    if (!rawModel && (Array.isArray(charList) && charList.length > 0 || meta?.v4_prompt)) {
-        rawModel = (meta?.noise_schedule === 'karras' || meta?.ucPresetId === 'heavy') ? 'v5' : 'v4.5';
-    }
-    const currentModelVer = normalizeModelVersion(rawModel || 'v3');
-    const isMediumEffort = String(rawModel).includes('medium') || meta?.effort === 'medium' || item?.effort === 'medium';
-    
-    const modelEl = document.getElementById('lbInfoModel');
-    if (modelEl) {
-        const baseLabel = currentModelVer.toUpperCase();
-        modelEl.textContent = currentModelVer === 'v5' 
-            ? `Model: ${baseLabel} (${isMediumEffort ? 'MEDIUM' : 'HIGH'})`
-            : `Model: ${baseLabel}`;
-    }
-    
-    const promptText = item.prompt || meta?.prompt || '';
-    const negPrompt = meta?.negative_prompt !== undefined ? meta.negative_prompt : (meta?.uc !== undefined ? meta.uc : (item.negative_prompt || ''));
-    const width = meta?.width || item.width || '--';
-    const height = meta?.height || item.height || '--';
-    const steps = meta?.steps !== undefined ? meta.steps : (item.steps !== undefined ? item.steps : '--');
-    const scale = meta?.scale !== undefined ? meta.scale : (item.scale !== undefined ? item.scale : '--');
-    const seed = meta?.seed !== undefined && meta.seed !== null ? meta.seed : (item.seed !== undefined && item.seed !== null ? item.seed : '--');
-
-    const resEl = document.getElementById('lbInfoResolution');
-    if (resEl) resEl.textContent = `${width} x ${height}`;
-    
-    const promptEl = document.getElementById('lightboxPrompt');
-    if (promptEl) promptEl.textContent = promptText || '--';
-    
-    const negArea = document.getElementById('lightboxNegArea');
-    const negEl = document.getElementById('lightboxNeg');
-    if (negPrompt && negPrompt !== 'undefined') {
-        if (negEl) negEl.textContent = negPrompt;
-        if (negArea) negArea.style.display = 'block';
-    } else {
-        if (negArea) negArea.style.display = 'none';
-    }
-
-    // 角色提示词 (Character Prompts) 适配展示
-    const charArea = document.getElementById('lightboxCharArea');
-    const charTitle = document.getElementById('lightboxCharTitle');
-    const charListEl = document.getElementById('lightboxCharList');
-    if (charArea && charListEl) {
-        if (Array.isArray(charList) && charList.length > 0) {
-            charArea.classList.remove('hidden');
-            if (charTitle) {
-                charTitle.innerHTML = `<i data-lucide="users" class="w-3.5 h-3.5"></i> 角色提示词 (${charList.length}人)`;
-            }
-            charListEl.innerHTML = charList.map((c, i) => {
-                const p = c.prompt || c.char_caption || '';
-                let uc = c.negative_prompt || c.negative || c.uc || '';
-                if (!uc && meta?.v4_negative_prompt?.caption?.char_captions?.[i]) {
-                    const negC = meta.v4_negative_prompt.caption.char_captions[i];
-                    uc = negC.char_caption || negC.prompt || negC.uc || '';
-                }
-                let posLabel = '';
-                if (c.x !== undefined && c.y !== undefined) {
-                    posLabel = `${Math.round(c.x * 100)}%, ${Math.round(c.y * 100)}%`;
-                } else if (c.centers && c.centers[0]) {
-                    posLabel = `${Math.round(c.centers[0].x * 100)}%, ${Math.round(c.centers[0].y * 100)}%`;
-                } else if (c.center) {
-                    posLabel = `${Math.round(c.center.x * 100)}%, ${Math.round(c.center.y * 100)}%`;
-                }
-                return `
-                    <div class="p-2.5 bg-white/5 border border-white/10 rounded-xl space-y-1 text-xs">
-                        <div class="flex justify-between items-center">
-                            <span class="text-[10px] font-semibold text-indigo-400">角色 ${i + 1} ${posLabel ? `<span class="text-slate-500 font-mono text-[9px]">· ${posLabel}</span>` : ''}</span>
-                            <button type="button" onclick="navigator.clipboard.writeText(${JSON.stringify(p)}); window.showToast('角色提示词已复制', 'success')" class="text-slate-400 hover:text-white text-[10px] flex items-center gap-0.5">
-                                <i data-lucide="copy" class="w-2.5 h-2.5"></i>
-                            </button>
-                        </div>
-                        <div class="text-slate-200 font-light break-all select-text text-[11px] leading-relaxed">${escapeHtml(p)}</div>
-                        ${uc ? `<div class="text-slate-400 font-light break-all select-text text-[10px] pt-0.5 border-t border-white/5"><span class="text-slate-500 font-mono">UC:</span> ${escapeHtml(uc)}</div>` : ''}
-                    </div>
-                `;
-            }).join('');
-        } else {
-            charArea.classList.add('hidden');
-            charListEl.innerHTML = '';
-        }
-    }
-    
-    const stepsEl = document.getElementById('lbMetaSteps');
-    if (stepsEl) stepsEl.textContent = steps;
-    
-    const scaleEl = document.getElementById('lbMetaScale');
-    if (scaleEl) scaleEl.textContent = scale;
-    
-    const seedEl = document.getElementById('lbMetaSeed');
-    if (seedEl) seedEl.textContent = seed;
-    
-    const strengthContainer = document.getElementById('lbMetaStrengthContainer');
-    const strengthEl = document.getElementById('lbMetaStrength');
-    if (meta && meta.strength !== undefined && meta.strength !== null) {
-        if (strengthEl) strengthEl.textContent = meta.strength;
-        if (strengthContainer) strengthContainer.style.display = 'block';
-    } else {
-        if (strengthContainer) strengthContainer.style.display = 'none';
-    }
-    
-    const deleteBtn = document.querySelector('[onclick="lightboxDelete()"]');
-    const saveBtn = document.getElementById('lightboxSaveBtn');
-    const isSaved = item.isSavedToHistory !== false && (item.id && !String(item.id).startsWith('chat_') && !String(item.id).startsWith('temp_'));
-
-    if (item.isShowcase) {
-        if (deleteBtn) deleteBtn.classList.add('hidden');
-        if (saveBtn) saveBtn.classList.add('hidden');
-    } else if (!isSaved) {
-        if (deleteBtn) deleteBtn.classList.add('hidden');
-        if (saveBtn) {
-            saveBtn.classList.remove('hidden');
-            saveBtn.innerHTML = `<i data-lucide="bookmark" class="w-4 h-4"></i>`;
-            saveBtn.title = "保存到历史画廊";
-            saveBtn.disabled = false;
-        }
-    } else {
-        if (deleteBtn) deleteBtn.classList.remove('hidden');
-        if (saveBtn) saveBtn.classList.add('hidden');
-    }
-
-    // 动态判断当前图片是具备完整参数还是仅有提示词
-    const hasFullParams = Boolean(
-        meta && (meta.steps !== undefined || meta.scale !== undefined || meta.sampler || (meta.width && meta.height) || (Array.isArray(charList) && charList.length > 0))
-    );
-    const applyBtnText = document.getElementById('lightboxApplyBtnText');
-    if (applyBtnText) {
-        applyBtnText.textContent = hasFullParams ? "套用全部参数" : "套用提示词";
-    }
-
-    if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
-}
-
-function prevLightboxImage() {
-    if (lightboxIndex > 0) {
-        lightboxIndex--;
-        renderLightboxCurrent();
-    }
-}
-
-async function nextLightboxImage() {
-    if (lightboxIndex < lightboxItems.length - 1) {
-        lightboxIndex++;
-        renderLightboxCurrent();
-    } else if (lightboxItems.length > 0 && !lightboxItems[0].isShowcase && galleryController.galleryHasMore) {
-        const prevLength = lightboxItems.length;
-        await galleryController.loadMoreGallery();
-        lightboxItems = galleryController.galleryItems;
-        if (lightboxItems.length > prevLength) {
-            lightboxIndex = prevLength;
-            renderLightboxCurrent();
-        }
-    }
-}
-
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
-function copyLightboxAllCharacters() {
-    if (lightboxItems.length === 0) return;
-    const item = lightboxItems[lightboxIndex];
-    const meta = resolveLightboxMeta(item);
-    const charList = meta?.characterPrompts || meta?.char_captions || meta?.v4_prompt?.caption?.char_captions || item?.characterPrompts || item?.char_captions;
-    if (!Array.isArray(charList) || charList.length === 0) return;
-
-    const text = charList.map((c, i) => {
-        const p = c.prompt || c.char_caption || '';
-        let uc = c.negative_prompt || c.negative || c.uc || '';
-        if (!uc && meta?.v4_negative_prompt?.caption?.char_captions?.[i]) {
-            const negC = meta.v4_negative_prompt.caption.char_captions[i];
-            uc = negC.char_caption || negC.prompt || negC.uc || '';
-        }
-        return `[角色 ${i + 1}]\n提示词: ${p}${uc ? `\n负向: ${uc}` : ''}`;
-    }).join('\n\n');
-
-    navigator.clipboard.writeText(text).then(() => {
-        window.showToast("已复制全部角色提示词！", "success");
-    }).catch(err => {
-        console.error("复制失败", err);
-    });
-}
-window.copyLightboxAllCharacters = copyLightboxAllCharacters;
-
-function copyLightboxText(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const text = el.textContent;
-    navigator.clipboard.writeText(text).then(() => {
-        window.showToast("已复制到剪贴板！", "success");
-    }).catch(err => {
-        console.error("复制失败", err);
-    });
-}
-
-function lightboxApplyParams() {
-    if (lightboxItems.length === 0) return;
-    const item = lightboxItems[lightboxIndex];
-    const meta = resolveLightboxMeta(item);
-    
-    // 1. 先载入并应用模型版本，以便正确初始化模型专属的高级面板显示状态
-    let rawModel = item.model || meta?.model || '';
-    const charList = meta?.characterPrompts || meta?.char_captions || meta?.v4_prompt?.caption?.char_captions || item?.characterPrompts || item?.char_captions || null;
-    if (!rawModel && (Array.isArray(charList) && charList.length > 0 || meta?.v4_prompt)) {
-        rawModel = (meta?.noise_schedule === 'karras' || meta?.ucPresetId === 'heavy') ? 'v5' : 'v4.5';
-    }
-    const modelVer = normalizeModelVersion(rawModel || 'v3');
-    if (window.setModel) {
-        window.setModel(modelVer);
-    } else if (typeof setModel === 'function') {
-        setModel(modelVer);
-    }
-    
-    // 2. 载入正向提示词
-    const promptText = item.prompt || meta?.prompt || '';
-    els.prompt.value = promptText;
-    els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
-    
-    if (meta) {
-        // 3. 载入负向提示词 (兼容 negative_prompt 和 NovelAI Comment 的 uc 字段)
-        const negText = meta.negative_prompt !== undefined ? meta.negative_prompt : (meta.uc !== undefined ? meta.uc : null);
-        if (negText !== null) {
-            els.negative.value = negText || '';
-            els.negative.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        
-        // 4. 载入 Steps, Scale, Seed, Resolution
-        const stepsEl = document.getElementById('steps');
-        if (stepsEl && meta.steps !== undefined) {
-            stepsEl.value = meta.steps;
-            const stepsVal = document.getElementById('stepsValue');
-            if (stepsVal) stepsVal.textContent = meta.steps;
-        }
-        
-        const scaleEl = document.getElementById('scale');
-        if (scaleEl && meta.scale !== undefined) {
-            scaleEl.value = meta.scale;
-            const scaleVal = document.getElementById('scaleValue');
-            if (scaleVal) scaleVal.textContent = parseFloat(meta.scale).toFixed(1);
-        }
-        
-        if (meta.width && meta.height) {
-            const resEl = document.getElementById('resolution');
-            if (resEl) {
-                const val = `${meta.width},${meta.height}`;
-                let found = false;
-                for (let opt of resEl.options) {
-                    if (opt.value === val) { found = true; break; }
-                }
-                if (!found) {
-                    const newOpt = new Option(`${meta.width} x ${meta.height}`, val);
-                    resEl.add(newOpt);
-                }
-                resEl.value = val;
-                resEl.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-        
-        const seedEl = document.getElementById('seed');
-        if (seedEl) {
-            seedEl.value = meta.seed !== undefined && meta.seed !== null ? meta.seed : '';
-        }
-
-        // 5. 载入高级/微调参数：Sampler, SMEA, CFG Rescale, UC Scale, Skip CFG
-        const samplerEl = document.getElementById('sampler');
-        if (samplerEl && meta.sampler) {
-            samplerEl.value = meta.sampler;
-            samplerEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        const smEl = document.getElementById('smEnabled');
-        if (smEl && meta.sm !== undefined) {
-            smEl.checked = meta.sm;
-            smEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        const smDynEl = document.getElementById('smDynEnabled');
-        if (smDynEl && meta.sm_dyn !== undefined) {
-            smDynEl.checked = meta.sm_dyn;
-            smDynEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        const cfgRescaleEl = document.getElementById('cfgRescale');
-        if (cfgRescaleEl && meta.cfg_rescale !== undefined) {
-            cfgRescaleEl.value = meta.cfg_rescale;
-            const vEl = document.getElementById('cfgRescaleValue');
-            if (vEl) vEl.textContent = parseFloat(meta.cfg_rescale).toFixed(2);
-            cfgRescaleEl.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        const uncondScaleEl = document.getElementById('uncondScale');
-        if (uncondScaleEl && meta.uncond_scale !== undefined) {
-            uncondScaleEl.value = meta.uncond_scale;
-            const vEl = document.getElementById('uncondScaleValue');
-            if (vEl) vEl.textContent = parseFloat(meta.uncond_scale).toFixed(2);
-            uncondScaleEl.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        const skipCfgEl = document.getElementById('skipCfg');
-        if (skipCfgEl && meta.skip_cfg_above_sigma !== undefined) {
-            const val = meta.skip_cfg_above_sigma === null ? '' : meta.skip_cfg_above_sigma;
-            skipCfgEl.value = val;
-            const vEl = document.getElementById('skipCfgValue');
-            if (vEl) vEl.textContent = val;
-            skipCfgEl.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        // 6. 载入 V4.5 专属高级微调参数（仅在当前模型为 V4.5 时处理，且静默应用不弹出默认恢复 Toast）
-        if (modelVer === 'v4.5') {
-            const isExp = meta.v4_5_experimental === true || (meta.v4_5_experimental === undefined && (
-                meta.v4_prompt_use_coords !== undefined || meta.v4_prompt_use_order !== undefined || meta.v4_neg_use_order !== undefined
-            ));
-            const expCheckbox = document.getElementById('settingsV45ExperimentalCheckbox');
-            if (expCheckbox) {
-                expCheckbox.checked = isExp;
-                if (window.toggleV45Experimental) {
-                    window.toggleV45Experimental(isExp, true);
-                }
-            }
-
-            const eulerBugEl = document.getElementById('v45EulerBug');
-            const eulerBugVal = meta.deliberate_euler_ancestral_bug !== undefined ? meta.deliberate_euler_ancestral_bug : false;
-            if (eulerBugEl) {
-                eulerBugEl.checked = eulerBugVal;
-                eulerBugEl.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-
-            const preferBrownianEl = document.getElementById('v45PreferBrownian');
-            const preferBrownianVal = meta.prefer_brownian !== undefined ? meta.prefer_brownian : true;
-            if (preferBrownianEl) {
-                preferBrownianEl.checked = preferBrownianVal;
-                preferBrownianEl.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-
-            const useCoordsEl = document.getElementById('v45UseCoords');
-            const useCoordsVal = meta.v4_prompt_use_coords !== undefined ? meta.v4_prompt_use_coords : 
-                                 (meta.v4_prompt ? meta.v4_prompt.use_coords : false);
-            if (useCoordsEl) {
-                useCoordsEl.checked = useCoordsVal;
-                useCoordsEl.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-
-            const useOrderEl = document.getElementById('v45UseOrder');
-            const useOrderVal = meta.v4_prompt_use_order !== undefined ? meta.v4_prompt_use_order : 
-                                (meta.v4_prompt ? meta.v4_prompt.use_order : true);
-            if (useOrderEl) {
-                useOrderEl.checked = useOrderVal;
-                useOrderEl.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-
-            const negUseOrderEl = document.getElementById('v45NegUseOrder');
-            const negUseOrderVal = meta.v4_neg_use_order !== undefined ? meta.v4_neg_use_order : 
-                                   (meta.v4_negative_prompt ? meta.v4_negative_prompt.use_order : false);
-            if (negUseOrderEl) {
-                negUseOrderEl.checked = negUseOrderVal;
-                negUseOrderEl.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-
-        // 7. 恢复多角色提示词 (Character Prompts)
-        if (Array.isArray(charList) && charList.length > 0) {
-            const container = document.getElementById('characterPromptsContainer');
-            if (container) {
-                container.innerHTML = '';
-            }
-            
-            const useCoords = meta.use_coords !== undefined ? Boolean(meta.use_coords) :
-                              (meta.v4_prompt_use_coords !== undefined ? meta.v4_prompt_use_coords : 
-                              (meta.v4_prompt ? meta.v4_prompt.use_coords : false));
-            
-            charList.forEach((char, idx) => {
-                const promptVal = char.prompt || char.char_caption || '';
-                let negVal = char.negative_prompt || char.negative || char.uc || '';
-                if (!negVal && meta.v4_negative_prompt && meta.v4_negative_prompt.caption && meta.v4_negative_prompt.caption.char_captions) {
-                    const negChar = meta.v4_negative_prompt.caption.char_captions[idx];
-                    if (negChar) {
-                        negVal = negChar.char_caption || negChar.prompt || negChar.uc || '';
-                    }
-                }
-                
-                let cx = 0.5;
-                let cy = 0.5;
-                if (typeof char.x === 'number') cx = char.x;
-                else if (char.center && typeof char.center.x === 'number') cx = char.center.x;
-                else if (char.centers && char.centers[0] && typeof char.centers[0].x === 'number') cx = char.centers[0].x;
-                
-                if (typeof char.y === 'number') cy = char.y;
-                else if (char.center && typeof char.center.y === 'number') cy = char.center.y;
-                else if (char.centers && char.centers[0] && typeof char.centers[0].y === 'number') cy = char.centers[0].y;
-                
-                const autoPos = char.autoPos !== undefined ? Boolean(char.autoPos) : !useCoords;
-                const enabled = char.enabled !== undefined ? Boolean(char.enabled) : true;
-                addCharacterPromptRow(promptVal, negVal, cx, cy, autoPos, enabled, true);
-            });
-
-            // 确保角色提示词面板可见并自动展开
-            const charWrapper = document.getElementById('characterPromptsWrapper');
-            if (charWrapper) charWrapper.classList.remove('hidden');
-            const charPanel = document.getElementById('characterPromptsPanel');
-            const charChevron = document.getElementById('charChevron');
-            if (charPanel) {
-                charPanel.classList.remove('hidden');
-                if (charChevron) charChevron.style.transform = 'rotate(180deg)';
-            }
-
-            // 确保角色卡片标签、选点与当前模型同步
-            charPromptManager.updateCharacterIndexLabels();
-            charPromptManager.onModelChange(modelVer, { reload: false });
-
-            // 自动将恢复后的数据按当前模型落盘到 LocalStorage
-            charPromptManager.saveCharacterPromptsState(modelVer);
-        }
-
-        // 8. 恢复角色参考图 (Character Reference)
-        if (meta.director_reference_images && meta.director_reference_images.length > 0) {
-            const charRefImgB64 = meta.director_reference_images[0];
-            const str = meta.director_reference_strength_values && meta.director_reference_strength_values[0] !== undefined
-                ? meta.director_reference_strength_values[0]
-                : 1.0;
-            const secStr = meta.director_reference_secondary_strength_values && meta.director_reference_secondary_strength_values[0] !== undefined
-                ? meta.director_reference_secondary_strength_values[0]
-                : 0.2;
-            const fidelity = (1.0 - secStr);
-            const desc = meta.director_reference_descriptions && meta.director_reference_descriptions[0]
-                ? (meta.director_reference_descriptions[0].caption?.base_caption || meta.director_reference_descriptions[0])
-                : 'character&style';
-
-            charRefManager.currentCharRefImageBase64 = charRefImgB64;
-            store.setSetting(charRefManager.getCharRefKey('nai_char_ref_image', modelVer), charRefImgB64);
-            store.setSetting(charRefManager.getCharRefKey('nai_char_ref_enabled', modelVer), 'true');
-            store.setSetting(charRefManager.getCharRefKey('nai_char_ref_strength', modelVer), str.toString());
-            store.setSetting(charRefManager.getCharRefKey('nai_char_ref_fidelity', modelVer), fidelity.toFixed(2));
-            store.setSetting(charRefManager.getCharRefKey('nai_char_ref_mode', modelVer), typeof desc === 'string' ? desc : 'character&style');
-            charRefManager.loadState(modelVer);
-        }
-
-        // 9. 恢复风格参考图 (Vibe Transfer)
-        const vibeImgs = meta.reference_image_multiple || (meta.vibe_image ? [meta.vibe_image] : null);
-        if (vibeImgs && vibeImgs.length > 0) {
-            const vibeImgB64 = vibeImgs[0];
-            const str = meta.reference_strength_multiple && meta.reference_strength_multiple[0] !== undefined
-                ? meta.reference_strength_multiple[0]
-                : (meta.vibe_strength !== undefined ? meta.vibe_strength : 0.6);
-            const info = meta.reference_information_extracted_multiple && meta.reference_information_extracted_multiple[0] !== undefined
-                ? meta.reference_information_extracted_multiple[0]
-                : (meta.vibe_info !== undefined ? meta.vibe_info : 1.0);
-
-            vibeManager.currentVibeImageBase64 = vibeImgB64;
-            store.setSetting(vibeManager.getVibeKey('nai_vibe_image', modelVer), vibeImgB64);
-            store.setSetting(vibeManager.getVibeKey('nai_vibe_enabled', modelVer), 'true');
-            store.setSetting(vibeManager.getVibeKey('nai_vibe_strength', modelVer), str.toString());
-            store.setSetting(vibeManager.getVibeKey('nai_vibe_info', modelVer), info.toString());
-            vibeManager.loadState(modelVer);
-        }
-    }
-    
-    const applyBtnText = document.getElementById('lightboxApplyBtnText');
-    if (applyBtnText) {
-        applyBtnText.textContent = "已套用 ✓";
-    }
-    window.showToast("生成参数已载入主控制台！", "success");
-    setTimeout(() => {
-        closeLightbox();
-        ui.toggleMobileControls(true);
-    }, 200);
-}
-
-function lightboxDownload() {
-    if (lightboxItems.length === 0) return;
-    const item = lightboxItems[lightboxIndex];
-    const filename = `novelai-${item.id || Date.now()}.png`;
-    triggerDownload(item.image || item.imageUrl, filename);
-}
-
-async function lightboxSaveCurrentToGallery() {
-    if (lightboxItems.length === 0 || lightboxIndex < 0 || lightboxIndex >= lightboxItems.length) return;
-    const item = lightboxItems[lightboxIndex];
-    if (item.isShowcase) return;
-
-    const saveBtn = document.getElementById('lightboxSaveBtn');
-    if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>`;
-        if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
-    }
-
-    try {
-        if (typeof window.saveImageItemToGallery === 'function') {
-            const saved = await window.saveImageItemToGallery(item);
-            item.isSavedToHistory = true;
-            if (saved?.id) item.id = saved.id;
-
-            // Also sync corresponding chat message if exists
-            if (window.aiChatManager && window.aiChatManager.messages) {
-                for (const m of window.aiChatManager.messages) {
-                    if (m.tool_calls) {
-                        for (const tc of m.tool_calls) {
-                            if (tc.imageUrl === (item.imageUrl || item.image)) {
-                                tc.isSavedToHistory = true;
-                                if (saved?.id) tc.id = saved.id;
-                            }
-                            if (Array.isArray(tc.images)) {
-                                for (const img of tc.images) {
-                                    if (img.imageUrl === (item.imageUrl || item.image)) {
-                                        img.isSavedToHistory = true;
-                                        if (saved?.id) img.id = saved.id;
-                                        if (tc.images[tc.currentIndex] === img) {
-                                            tc.isSavedToHistory = true;
-                                            if (saved?.id) tc.id = saved.id;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                window.aiChatManager.saveHistory();
-                window.aiChatManager.renderMessages();
-            }
-
-            renderLightboxCurrent();
-        }
-    } catch (err) {
-        console.error("Lightbox save error:", err);
-        if (window.showToast) window.showToast(`保存失败: ${err.message}`, "error");
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = `<i data-lucide="bookmark" class="w-4 h-4"></i>`;
-            if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
-        }
-    }
-}
-window.lightboxSaveCurrentToGallery = lightboxSaveCurrentToGallery;
-
-async function lightboxDelete() {
-    if (lightboxItems.length === 0) return;
-    const item = lightboxItems[lightboxIndex];
-    if (item.isShowcase) return;
-    
-    if (!(await window.showConfirm("您确定要从历史图库中删除这张图片吗？该操作不可撤销。", "删除图库图片", "trash-2"))) return;
-    
-    try {
-        const deletedId = item.id;
-        await store.deleteImage(deletedId);
-        lightboxItems.splice(lightboxIndex, 1);
-        
-        if (lightboxItems.length === 0) {
-            closeLightbox();
-        } else {
-            if (lightboxIndex >= lightboxItems.length) {
-                lightboxIndex = lightboxItems.length - 1;
-            }
-            renderLightboxCurrent();
-        }
-        galleryController.removeImage(deletedId);
-    } catch(e) {
-        console.error("Failed to delete lightbox image", e);
-    }
-}
-
-function lightboxCreate(type) {
-    if (lightboxItems.length === 0) return;
-    const item = lightboxItems[lightboxIndex];
-    
-    closeLightbox();
-    
-    // 切换到画布视图以确保二次创作时主界面也是画布模式
-    ui.switchRightView('preview');
-    
-    const imgUrl = item.image || item.imageUrl;
-    if (imgUrl) {
-        ui.showResultImage(imgUrl);
-    }
-    
-    appState.currentImageId = item.id;
-    appState.currentImageData = { ...item, imageUrl: imgUrl };
-    window.lastSelectedImageUrl = imgUrl;
-    ui.showImageActions(true);
-
-    if (type === 'enhance') {
-        openEnhanceModal();
-    } else if (type === 'upscale') {
-        doUpscale();
-    } else if (type === 'inpaint') {
-        inpaintEditor.open();
-    } else if (type === 'outpaint') {
-        outpaintEditor.open();
-    } else if (type === 'lineart') {
-        doAugment('lineart');
-    } else if (type === 'sketch') {
-        doAugment('sketch');
-    }
-}
-
-function toggleLightboxSidebarMobile() {
-    const sidebar = document.getElementById('lightboxSidebar');
-    if (sidebar) {
-        sidebar.classList.toggle('expanded');
-    }
-}
-
-// 键盘翻页监听
-document.addEventListener('keydown', (e) => {
-    const modal = document.getElementById('imageLightboxModal');
-    if (modal && modal.classList.contains('modal-active')) {
-        if (e.key === 'ArrowLeft') {
-            prevLightboxImage();
-        } else if (e.key === 'ArrowRight') {
-            nextLightboxImage();
-        } else if (e.key === 'Escape') {
-            closeLightbox();
-        }
-    }
+const lightboxController = createLightboxController({
+    ui,
+    els,
+    store,
+    appState,
+    galleryController,
+    charPromptManager,
+    charRefManager,
+    vibeManager,
+    inpaintEditor,
+    outpaintEditor,
+    postProcess,
+    triggerDownload
 });
-
-// 移动端手势滑动监听
-let touchStartX = 0;
-let touchEndX = 0;
-const lightboxModal = document.getElementById('imageLightboxModal');
-if (lightboxModal) {
-    lightboxModal.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].screenX;
-    }, { passive: true });
-    
-    lightboxModal.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        const swipeThreshold = 50;
-        if (touchEndX < touchStartX - swipeThreshold) {
-            nextLightboxImage();
-        } else if (touchEndX > touchStartX + swipeThreshold) {
-            prevLightboxImage();
-        }
-    }, { passive: true });
+const {
+    openLightbox,
+    closeLightbox,
+    renderLightboxCurrent,
+    prevLightboxImage,
+    nextLightboxImage,
+    copyLightboxAllCharacters,
+    copyLightboxText,
+    lightboxApplyParams,
+    lightboxDownload,
+    lightboxSaveCurrentToGallery,
+    lightboxDelete,
+    lightboxCreate,
+    toggleLightboxSidebarMobile
+} = lightboxController;
+if (typeof window !== 'undefined') {
+    Object.assign(window, {
+        openLightbox,
+        resolveLightboxMeta,
+        normalizeModelVersion,
+        copyLightboxAllCharacters,
+        lightboxSaveCurrentToGallery
+    });
 }
 
 // --- 暴露局部重绘、主题、API Key和鉴权等所有函数到全局 ---
@@ -3901,6 +2304,10 @@ window.fetchAdminStats = fetchAdminStats;
 
 // --- Random Prompt Library UI Helper Functions ---
 function renderRandomPromptsList() {
+    const globalCheckbox = document.getElementById('randomPromptEnabled');
+    if (globalCheckbox) {
+        globalCheckbox.checked = randomPromptManager.isEnabled();
+    }
     randomPromptController.renderList();
 }
 window.renderRandomPromptsList = renderRandomPromptsList;

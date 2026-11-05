@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { XyPlotManager } from '../src/xy-plot-manager.js';
 import { InpaintEditor } from '../src/inpaint.js';
 import { OutpaintEditor } from '../src/outpaint.js';
 import { initToolbox, applyMetadataParameters } from '../src/toolbox-controller.js';
@@ -68,55 +67,6 @@ describe('Cross-Module Integration & Linkage Tests', () => {
             setItem: vi.fn(),
             removeItem: vi.fn()
         };
-    });
-
-    describe('X/Y Plot Matrix with Char Ref & Vibe Transfer', () => {
-        it('should correctly configure and apply char_ref_strength and vibe_strength in parameter matrix', () => {
-            const xyPlotManager = new XyPlotManager();
-            xyPlotManager.bind({});
-
-            getOrCreateMockElement('xyPlotEnabled').checked = true;
-            getOrCreateMockElement('xyPlotXType').value = 'char_ref_strength';
-            getOrCreateMockElement('xyPlotXValues').value = '0.4, 0.8';
-            getOrCreateMockElement('xyPlotYType').value = 'vibe_strength';
-            getOrCreateMockElement('xyPlotYValues').value = '0.5, 0.7';
-
-            const configs = xyPlotManager.getXyConfigs();
-            expect(configs.xType).toBe('char_ref_strength');
-            expect(configs.xValues).toEqual([0.4, 0.8]);
-            expect(configs.yType).toBe('vibe_strength');
-            expect(configs.yValues).toEqual([0.5, 0.7]);
-
-            const baseParams = { prompt: 'masterpiece', steps: 28 };
-            const grid = xyPlotManager.generateParamGrid(baseParams);
-
-            expect(grid.length).toBe(4);
-            expect(grid[0].params.director_reference_strength_values).toEqual([0.4]);
-            expect(grid[0].params.reference_strength_multiple).toEqual([0.5]);
-            expect(grid[0].params.vibe_strength).toBe(0.5);
-            expect(grid[0].xyInfo).toBe('Char Ref Strength: 0.4 | Vibe Strength: 0.5');
-
-            expect(grid[3].params.director_reference_strength_values).toEqual([0.8]);
-            expect(grid[3].params.reference_strength_multiple).toEqual([0.7]);
-            expect(grid[3].params.vibe_strength).toBe(0.7);
-        });
-
-        it('should correctly configure char_ref_fidelity, cfg_rescale, and uncond_scale', () => {
-            const xyPlotManager = new XyPlotManager();
-            xyPlotManager.bind({});
-
-            getOrCreateMockElement('xyPlotXType').value = 'char_ref_fidelity';
-            getOrCreateMockElement('xyPlotXValues').value = '0.8';
-            getOrCreateMockElement('xyPlotYType').value = 'cfg_rescale';
-            getOrCreateMockElement('xyPlotYValues').value = '0.2';
-
-            const grid = xyPlotManager.generateParamGrid({ prompt: 'test' });
-            expect(grid.length).toBe(1);
-            // fidelity 0.8 means secondary strength = 1.0 - 0.8 = 0.2
-            expect(grid[0].params.director_reference_secondary_strength_values).toEqual([0.2]);
-            expect(grid[0].params.cfg_rescale).toBe(0.2);
-            expect(grid[0].xyInfo).toBe('Char Ref Fidelity: 0.8 | CFG Rescale: 0.2');
-        });
     });
 
     describe('Inpainting & Outpainting Integration with Char Ref & Advanced Params', () => {

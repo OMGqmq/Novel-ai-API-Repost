@@ -13,7 +13,7 @@ export class CharPromptManager {
     bind(store) {
         this.store = store;
         if (store) {
-            this.currentModel = store.getSetting('model', 'v3');
+            this.currentModel = store.getSetting('nai_model_version', 'v3');
         }
     }
 

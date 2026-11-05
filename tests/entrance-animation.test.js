@@ -4,7 +4,6 @@ import * as path from 'path';
 import { MotionController } from '../src/motion-controller.js';
 import { InpaintEditor } from '../src/inpaint.js';
 import { OutpaintEditor } from '../src/outpaint.js';
-import { XyPlotManager } from '../src/xy-plot-manager.js';
 
 describe('Modular UI Entrance Animation & MotionController Test Suite', () => {
     let mockElements = {};
@@ -1098,13 +1097,10 @@ describe('Modular UI Entrance Animation & MotionController Test Suite', () => {
             });
         });
 
-        it('T4.07: should verify MotionController integration with XyPlotManager and editors', () => {
+        it('T4.07: should verify MotionController integration with editors', () => {
             const controller = new MotionController();
             controller.startEntrance();
             controller.cleanup();
-
-            const xyPlotManager = new XyPlotManager();
-            expect(xyPlotManager).toBeDefined();
 
             const inpaintEditor = new InpaintEditor({
                 ui: {},

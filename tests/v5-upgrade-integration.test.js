@@ -282,5 +282,49 @@ describe('NovelAI V5 Full Upgrade & Integration Tests', () => {
       expect(notebook.getNotebookNotes('v5').length).toBe(1);
       expect(notebook.getNotebookNotes('v5')[0].prompt).toBe('v5 note');
     });
+
+    it('createV5Payload maps tag_hint_qt and tag_hint_uc_preset dynamically from presets', () => {
+      const pLight = createV5Payload({ prompt: '1girl', ucPresetId: 'light', qualityPresetId: 'light' });
+      expect(pLight.parameters.tag_hint_uc_preset).toBe(1);
+      expect(pLight.parameters.tag_hint_qt).toBe(2);
+
+      const pNone = createV5Payload({ prompt: '1girl', ucPresetId: 'none', qualityPresetId: 'none' });
+      expect(pNone.parameters.tag_hint_uc_preset).toBe(0);
+      expect(pNone.parameters.tag_hint_qt).toBe(0);
+    });
+
+    it('UIController.updateV5EffortUI locks stepsValue to 14 on Medium and restores on High', async () => {
+      const { UIController } = await import('../src/ui.js');
+      global.localStorage.setItem('nai_steps', '28');
+      global.localStorage.setItem('nai_sampler', 'k_euler');
+      global.document.getElementById('modelValue').value = 'v5';
+      global.document.getElementById('steps').value = '28';
+      global.document.getElementById('stepsValue').textContent = '28';
+      global.document.getElementById('sampler').value = 'k_euler';
+
+      const ctx = {};
+      UIController.prototype.updateV5EffortUI.call(ctx, 'medium');
+      expect(global.document.getElementById('steps').value).toBe('14');
+      expect(global.document.getElementById('stepsValue').textContent).toBe('14');
+      expect(global.document.getElementById('sampler').value).toBe('k_euler_ancestral');
+      expect(global.document.getElementById('stepsWrapper').classList.add).toHaveBeenCalledWith('opacity-50', 'pointer-events-none');
+
+      UIController.prototype.updateV5EffortUI.call(ctx, 'high');
+      expect(global.document.getElementById('steps').value).toBe('28');
+      expect(global.document.getElementById('stepsValue').textContent).toBe('28');
+      expect(global.document.getElementById('sampler').value).toBe('k_euler');
+      expect(global.document.getElementById('stepsWrapper').classList.remove).toHaveBeenCalledWith('opacity-50', 'pointer-events-none');
+    });
+
+    it('CharPromptManager binds to nai_model_version on refresh so V5 does not fall back to V4.5', async () => {
+      const { CharPromptManager } = await import('../src/char-prompt-manager.js');
+      const mockStore = {
+        getSetting: vi.fn((k, def) => (k === 'nai_model_version' ? 'v5' : def))
+      };
+      const cpm = new CharPromptManager();
+      cpm.bind(mockStore);
+      expect(cpm.currentModel).toBe('v5');
+      expect(cpm.getCharPromptKey()).toBe('nai_v5_character_prompts');
+    });
   });
 });

@@ -16,8 +16,15 @@ describe('Source Modules Import Integrity', () => {
     const vibeMod = await import('../src/vibe-manager.js');
     expect(vibeMod.VibeManager).toBeDefined();
 
-    const xyPlotMod = await import('../src/xy-plot-manager.js');
-    expect(xyPlotMod.XyPlotManager).toBeDefined();
+    const modalToastMod = await import('../src/modal-toast.js');
+    expect(modalToastMod.openModal).toBeDefined();
+    expect(modalToastMod.showToast).toBeDefined();
+
+    const postProcessMod = await import('../src/post-process-controller.js');
+    expect(postProcessMod.createPostProcessController).toBeDefined();
+
+    const lightboxMod = await import('../src/lightbox-controller.js');
+    expect(lightboxMod.createLightboxController).toBeDefined();
 
     const inpaintMod = await import('../src/inpaint.js');
     expect(inpaintMod.InpaintEditor).toBeDefined();

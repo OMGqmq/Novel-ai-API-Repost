@@ -47,7 +47,6 @@ export class UIController {
             adminLockBtn: document.getElementById('adminLockBtn'),
             adminLockBtnMobile: document.getElementById('adminLockBtnMobile'),
             adminControls: document.getElementById('adminControls'),
-            xyPlotSettingsWrapper: document.getElementById('xyPlotSettingsWrapper'),
             batchCount: document.getElementById('batchCount'),
             batchValue: document.getElementById('batchValue'),
             keyBtn: document.getElementById('keyBtn'),
@@ -59,8 +58,10 @@ export class UIController {
             drawerOverlay: document.getElementById('drawerOverlay'),
             tabSearch: document.getElementById('tab-search'),
             tabNotebook: document.getElementById('tab-notebook'),
+            tabRandom: document.getElementById('tab-random'),
             viewSearch: document.getElementById('view-search'),
             viewNotebook: document.getElementById('view-notebook'),
+            viewRandom: document.getElementById('view-random'),
             notebookList: document.getElementById('notebookList'),
             creditDisplayMobile: document.getElementById('creditDisplayMobile'),
             creditDisplayDesktop: document.getElementById('creditDisplayDesktop'),
@@ -120,7 +121,6 @@ export class UIController {
             v5ParamsContainer: document.getElementById('v5ParamsContainer'),
             v5Effort: document.getElementById('v5Effort'),
             v5EffortBadge: document.getElementById('v5EffortBadge'),
-            v5EffortNotice: document.getElementById('v5EffortNotice'),
             v5UcPreset: document.getElementById('v5UcPreset'),
             v5QualityPreset: document.getElementById('v5QualityPreset'),
             smeaContainer: document.getElementById('smeaContainer'),
@@ -131,7 +131,6 @@ export class UIController {
             vibeSettingsWrapper: document.getElementById('vibeSettingsWrapper'),
             zimageSettingsWrapper: document.getElementById('zimageSettingsWrapper'),
             advancedSettingsWrapper: document.getElementById('advancedSettingsWrapper'),
-            adminSettingsWrapper: document.getElementById('adminSettingsWrapper'),
             adminPanelBtn: document.getElementById('adminPanelBtn'),
             adminPanelBtnMobile: document.getElementById('adminPanelBtnMobile'),
             adminPanelEntrance: document.getElementById('adminPanelEntrance'),
@@ -370,11 +369,11 @@ export class UIController {
         if (v5ParamsContainer) {
             if (ver === 'v5') {
                 v5ParamsContainer.classList.remove('hidden');
-                this.updateV5EffortUI(document.getElementById('v5Effort')?.value || 'high');
             } else {
                 v5ParamsContainer.classList.add('hidden');
             }
         }
+        this.updateV5EffortUI(document.getElementById('v5Effort')?.value || 'high');
 
         // 控制 SMEA & SMEA DYN 面板的显示/隐藏（仅在 V3 模型下显示）
         const smeaContainer = document.getElementById('smeaContainer');
@@ -446,40 +445,29 @@ export class UIController {
             else advancedWrap.classList.remove('hidden');
         }
 
-        const adminWrap = document.getElementById('adminSettingsWrapper');
-        if (adminWrap) {
-            if (isZImage) adminWrap.classList.add('hidden');
-            else adminWrap.classList.remove('hidden');
-        }
-
         this.updateGenerateButtonText();
     }
 
     updateV5EffortUI(effort = 'high') {
         const isMed = effort === 'medium';
-        const notice = document.getElementById('v5EffortNotice');
         const badge = document.getElementById('v5EffortBadge');
         const v5Effort = document.getElementById('v5Effort');
+        const syncSelectUI = (el) => {
+            const opt = el?.options?.[el.selectedIndex];
+            const lbl = el?.parentElement?.querySelector('.custom-select-label');
+            if (opt && lbl) lbl.textContent = opt.textContent;
+        };
+
         if (v5Effort && v5Effort.value !== effort) {
             v5Effort.value = effort;
+            syncSelectUI(v5Effort);
         }
 
         if (badge) {
-            if (isMed) {
-                badge.textContent = 'Medium (14步)';
-                badge.className = 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400';
-            } else {
-                badge.textContent = 'High';
-                badge.className = 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-indigo-500/10 text-indigo-500 dark:text-indigo-400';
-            }
-        }
-
-        if (notice) {
-            if (isMed) {
-                notice.classList.remove('hidden');
-            } else {
-                notice.classList.add('hidden');
-            }
+            badge.textContent = isMed ? 'Medium (14步)' : 'High';
+            badge.className = isMed
+                ? 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                : 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-indigo-500/10 text-indigo-500 dark:text-indigo-400';
         }
 
         const modelBadge = document.getElementById('modelBadge');
@@ -488,13 +476,36 @@ export class UIController {
             modelBadge.innerText = (isMed ? 'V5 (MED)' : 'V5') + ' MODE';
         }
 
-        if (currentModel === 'v5' && isMed) {
-            const stepsEl = document.getElementById('steps');
-            const stepsVal = document.getElementById('stepsVal');
+        const isLocked = currentModel === 'v5' && isMed;
+        ['stepsWrapper', 'samplerSettingsWrapper', 'v5UcPresetWrapper', 'negativePromptWrapper'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList[isLocked ? 'add' : 'remove']('opacity-50', 'pointer-events-none');
+            }
+        });
+
+        const stepsEl = document.getElementById('steps');
+        const stepsVal = document.getElementById('stepsValue');
+        const samplerEl = document.getElementById('sampler');
+
+        if (isLocked) {
+            this._v5MedLocked = true;
             if (stepsEl) stepsEl.value = '14';
             if (stepsVal) stepsVal.textContent = '14';
-            const samplerEl = document.getElementById('sampler');
-            if (samplerEl) samplerEl.value = 'k_euler_ancestral';
+            if (samplerEl) {
+                samplerEl.value = 'k_euler_ancestral';
+                syncSelectUI(samplerEl);
+            }
+        } else if (this._v5MedLocked) {
+            this._v5MedLocked = false;
+            const savedSteps = localStorage.getItem('nai_steps') || '28';
+            const savedSampler = localStorage.getItem('nai_sampler') || 'k_euler_ancestral';
+            if (stepsEl) stepsEl.value = savedSteps;
+            if (stepsVal) stepsVal.textContent = savedSteps;
+            if (samplerEl) {
+                samplerEl.value = savedSampler;
+                syncSelectUI(samplerEl);
+            }
         }
     }
 
@@ -532,30 +543,37 @@ export class UIController {
         this.els.drawerOverlay.classList.toggle('pointer-events-none');
     }
 
-    switchDrawerTab(tab, renderNotebookCallback = null, isOpening = false) {
+    switchDrawerTab(tab, renderCallback = null, isOpening = false) {
         const activeClass = "active flex-1 py-2 text-xs font-medium rounded-lg transition-all border shadow-sm text-gray-900 bg-white border-gray-200 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-200";
         const inactiveClass = "flex-1 py-2 text-xs font-medium rounded-lg transition-all border border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white";
 
         // Reset all tabs to inactive
-        this.els.tabSearch.className = inactiveClass;
+        if (this.els.tabSearch) this.els.tabSearch.className = inactiveClass;
         if (this.els.tabNotebook) this.els.tabNotebook.className = inactiveClass;
+        if (this.els.tabRandom) this.els.tabRandom.className = inactiveClass;
 
         // Hide all views
-        this.els.viewSearch.classList.add('hidden');
+        if (this.els.viewSearch) this.els.viewSearch.classList.add('hidden');
         if (this.els.viewNotebook) this.els.viewNotebook.classList.add('hidden');
+        if (this.els.viewRandom) this.els.viewRandom.classList.add('hidden');
 
         if (tab === 'search') {
-            this.els.tabSearch.className = activeClass;
-            this.els.viewSearch.classList.remove('hidden');
+            if (this.els.tabSearch) this.els.tabSearch.className = activeClass;
+            if (this.els.viewSearch) this.els.viewSearch.classList.remove('hidden');
         } else if (tab === 'notebook') {
             if (this.els.tabNotebook) this.els.tabNotebook.className = activeClass;
             if (this.els.viewNotebook) this.els.viewNotebook.classList.remove('hidden');
-            if (renderNotebookCallback) {
-                if (isOpening) {
-                    setTimeout(renderNotebookCallback, 300);
-                } else {
-                    renderNotebookCallback();
-                }
+            if (renderCallback) {
+                if (isOpening) setTimeout(renderCallback, 300);
+                else renderCallback();
+            }
+        } else if (tab === 'random') {
+            if (this.els.tabRandom) this.els.tabRandom.className = activeClass;
+            if (this.els.viewRandom) this.els.viewRandom.classList.remove('hidden');
+            const fn = renderCallback || (typeof window !== 'undefined' ? window.renderRandomPromptsList : null);
+            if (fn) {
+                if (isOpening) setTimeout(fn, 300);
+                else fn();
             }
         }
     }
@@ -564,6 +582,12 @@ export class UIController {
         const isOpening = !this.els.sideDrawer.classList.contains('drawer-open');
         if (isOpening) this.toggleDrawer();
         this.switchDrawerTab('notebook', renderNotebookCallback, isOpening);
+    }
+
+    openRandomPrompt(renderRandomCallback = null) {
+        const isOpening = !this.els.sideDrawer.classList.contains('drawer-open');
+        if (isOpening) this.toggleDrawer();
+        this.switchDrawerTab('random', renderRandomCallback, isOpening);
     }
 
     setLoading(loading, text = "生成中...") {
@@ -904,13 +928,6 @@ export class UIController {
                 this.els.adminControls.classList.remove('hidden');
             } else {
                 this.els.adminControls.classList.add('hidden');
-            }
-        }
-        if (this.els.xyPlotSettingsWrapper) {
-            if (isAdmin) {
-                this.els.xyPlotSettingsWrapper.classList.remove('hidden');
-            } else {
-                this.els.xyPlotSettingsWrapper.classList.add('hidden');
             }
         }
 

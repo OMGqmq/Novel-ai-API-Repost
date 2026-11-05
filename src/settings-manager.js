@@ -305,10 +305,13 @@ export class SettingsManager {
         }
 
         this.updateResolutionOptions(enabled);
+        if (this.ui && typeof this.ui.updateGenerateButtonText === 'function') {
+            this.ui.updateGenerateButtonText();
+        }
     }
 
     updateResolutionOptions(bypass) {
-        const resEl = this.ui.els.resolution;
+        const resEl = this.ui?.els?.resolution || (typeof document !== 'undefined' ? document.getElementById('resolution') : null);
         if (!resEl) return;
 
         const standardResolutions = [
@@ -323,6 +326,8 @@ export class SettingsManager {
             { name: 'Square XL (1216 x 1216)', value: '1216,1216' }
         ];
 
+        const currentVal = resEl.value;
+
         resEl.innerHTML = '';
         standardResolutions.forEach(r => {
             resEl.add(new Option(r.name, r.value));
@@ -332,6 +337,16 @@ export class SettingsManager {
             xlResolutions.forEach(r => {
                 resEl.add(new Option(r.name, r.value));
             });
+        }
+
+        let valueToSet = currentVal || '832,1216';
+        if (!bypass && xlResolutions.some(r => r.value === currentVal)) {
+            valueToSet = '832,1216';
+        }
+
+        resEl.value = valueToSet;
+        if (typeof resEl.dispatchEvent === 'function' && typeof Event !== 'undefined') {
+            resEl.dispatchEvent(new Event('change', { bubbles: true }));
         }
     }
 }
