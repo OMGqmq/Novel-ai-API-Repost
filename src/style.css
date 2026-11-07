@@ -79,15 +79,21 @@ html.dark #mobileControls {
 }
 
 #floatingGenerateBtn {
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    background: linear-gradient(135deg, #1f2937 0%, #000000 100%);
-    box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    bottom: calc(4.45rem + env(safe-area-inset-bottom, 0px));
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, box-shadow 0.2s ease;
+    background: #0f172a;
+    box-shadow: 0 12px 26px -6px rgba(15, 23, 42, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
     z-index: 50;
 }
 
 html.dark #floatingGenerateBtn {
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    box-shadow: 0 8px 20px -4px rgba(255, 255, 255, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.1) inset;
+    background: #f8fafc;
+    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(15, 23, 42, 0.08) inset;
+}
+
+#floatingGenerateBtn.is-generating {
+    background: #ef4444 !important;
+    color: #ffffff !important;
 }
 
 #floatingGenerateBtn:active {
@@ -470,10 +476,57 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     transform: scale(0.93);
 }
 
+/* Prompt Header Mini Monochrome SVG Buttons */
+.prompt-mini-svg-btn {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    background: transparent;
+    transition: background-color 0.16s ease, color 0.16s ease, transform 0.14s ease;
+    cursor: pointer;
+}
+.dark .prompt-mini-svg-btn {
+    color: #94a3b8;
+}
+.prompt-mini-svg-btn:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: #0f172a;
+}
+.dark .prompt-mini-svg-btn:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: #f8fafc;
+}
+.prompt-mini-svg-btn:active {
+    transform: scale(0.92);
+}
+
+/* Mobile Top Bar Compactness (< 640px) */
+@media (max-width: 639px) {
+    .view-toggle {
+        width: 106px;
+    }
+    .canvas-icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+    .canvas-pill-btn {
+        width: 28px;
+        height: 28px;
+    }
+    .toolbox-icon-dock {
+        right: -38px;
+    }
+}
+
 /* Floating Pure-SVG Inpaint Brush Capsule (#inpaintModal) */
 #inpaintModal.inpaint-dock-host {
     position: absolute;
-    bottom: 5.25rem;
+    bottom: 1.5rem;
     left: 50%;
     transform: translateX(-50%);
     z-index: 55;
@@ -483,13 +536,8 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     gap: 8px;
     background: transparent;
     pointer-events: none;
-    max-width: calc(100% - 16px);
+    max-width: calc(100% - 24px);
     transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s ease;
-}
-@media (min-width: 768px) {
-    #inpaintModal.inpaint-dock-host {
-        bottom: 1.5rem;
-    }
 }
 #inpaintModal.modal-visible {
     opacity: 1;
@@ -502,12 +550,32 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     visibility: hidden;
     transform: translateX(-50%) translateY(8px);
 }
+@media (max-width: 767px) {
+    #inpaintModal.inpaint-dock-host {
+        bottom: calc(4.45rem + env(safe-area-inset-bottom, 0px));
+        left: 0.75rem;
+        right: 4.15rem;
+        max-width: none;
+        align-items: flex-start;
+        transform: none;
+    }
+    #inpaintModal.modal-visible {
+        transform: translateY(0);
+    }
+    #inpaintModal.modal-hidden {
+        transform: translateY(8px);
+    }
+}
 .inpaint-dock-capsule {
     pointer-events: auto;
     display: flex;
     align-items: center;
     gap: 3px;
     padding: 5px 6px;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     border-radius: 9999px;
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(22px);
@@ -515,6 +583,19 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     border: 1px solid rgba(226, 232, 240, 0.95);
     color: #475569;
     box-shadow: 0 18px 38px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+}
+.inpaint-dock-capsule::-webkit-scrollbar {
+    display: none;
+}
+@media (max-width: 767px) {
+    .inpaint-dock-capsule {
+        padding: 4px 5px;
+        gap: 2px;
+    }
+    .inpaint-dock-capsule .inpaint-dock-btn {
+        width: 32px;
+        height: 32px;
+    }
 }
 .dark .inpaint-dock-capsule {
     background: rgba(15, 23, 42, 0.92);
@@ -1141,43 +1222,135 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     }
 }
 
-/* --- Outpainting Floating Toolbar & Smooth Transitions (R1) --- */
-#outpaintToolbar {
+/* --- Outpainting Stage, Monochrome SVG Dock & Mobile Thumb Adaptation --- */
+.outpaint-dot-stage {
+    background-color: #eef2f6;
+    background-image: radial-gradient(rgba(100, 116, 139, 0.26) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+.dark .outpaint-dot-stage {
+    background-color: #0b1120;
+    background-image: radial-gradient(rgba(148, 163, 184, 0.18) 1px, transparent 1px);
+}
+
+#outpaintToolbar.outpaint-glass-dock {
     position: absolute;
+    top: 50%;
+    right: 1rem;
+    transform: translateY(-50%);
     z-index: 50;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     user-select: none;
     touch-action: none;
 }
 
-.dark #outpaintToolbar {
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+.outpaint-dock-scroll {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 5px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    color: #475569;
+    box-shadow: 0 18px 38px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+}
+.dark .outpaint-dock-scroll {
+    background: rgba(15, 23, 42, 0.92);
+    border-color: rgba(51, 65, 85, 0.9);
+    color: #cbd5e1;
+    box-shadow: 0 20px 44px -8px rgba(0, 0, 0, 0.6);
+}
+
+.outpaint-dock-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    background: transparent;
+    transition: background-color 0.16s ease, color 0.16s ease, transform 0.14s ease;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.dark .outpaint-dock-btn {
+    color: #cbd5e1;
+}
+.outpaint-dock-btn:hover {
+    background: rgba(15, 23, 42, 0.07);
+    color: #0f172a;
+}
+.dark .outpaint-dock-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+.outpaint-dock-btn:active {
+    transform: scale(0.92);
+}
+/* Active toggle compatibility with OutpaintEditor.setMode / toggleSnap (.bg-white) */
+.outpaint-dock-btn.bg-white {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
+}
+.dark .outpaint-dock-btn.bg-white {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
+}
+.outpaint-dock-btn.outpaint-save-btn:hover {
+    background: rgba(16, 185, 129, 0.14);
+    color: #059669;
+}
+.dark .outpaint-dock-btn.outpaint-save-btn:hover {
+    background: rgba(52, 211, 153, 0.18);
+    color: #34d399;
+}
+.outpaint-dock-btn.outpaint-close-btn:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+}
+.dark .outpaint-dock-btn.outpaint-close-btn:hover {
+    background: rgba(248, 113, 113, 0.18);
+    color: #f87171;
+}
+
+.outpaint-dock-sep {
+    width: 16px;
+    height: 1px;
+    background: rgba(148, 163, 184, 0.3);
+    margin: 2px 0;
+    flex-shrink: 0;
 }
 
 #outpaintToolbarInner {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    max-height: 600px;
+    gap: 3px;
+    max-height: 520px;
     opacity: 1;
     transform: scaleY(1);
     transform-origin: top center;
-    transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                max-width 0.28s cubic-bezier(0.16, 1, 0.3, 1),
                 opacity 0.2s ease,
-                transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+                transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
 }
 
 #outpaintToolbarInner.collapsed {
     max-height: 0 !important;
+    max-width: 0 !important;
     opacity: 0 !important;
-    transform: scaleY(0.9) !important;
+    transform: scale(0.92) !important;
     pointer-events: none !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -1185,15 +1358,100 @@ html.low-perf input[type="range"]::-moz-range-thumb {
 }
 
 #outpaintToolbarToggleBtn .toggle-icon {
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 #outpaintToolbarToggleBtn.collapsed .toggle-icon {
     transform: rotate(180deg);
 }
 
+.outpaint-brush-popover {
+    position: absolute;
+    right: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    color: #334155;
+    box-shadow: 0 14px 32px -6px rgba(15, 23, 42, 0.18);
+    white-space: nowrap;
+}
+.dark .outpaint-brush-popover {
+    background: rgba(15, 23, 42, 0.94);
+    border-color: rgba(51, 65, 85, 0.9);
+    color: #e2e8f0;
+    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.55);
+}
+
 #outpaintBrushControl input[type="range"] {
     touch-action: none;
+}
+
+/* Mobile Outpaint Horizontal Bottom Thumb Dock (< 768px) */
+@media (max-width: 767px) {
+    #outpaintToolbar.outpaint-glass-dock {
+        top: auto;
+        right: 4.15rem;
+        left: 0.75rem;
+        bottom: calc(4.45rem + env(safe-area-inset-bottom, 0px));
+        transform: none;
+        align-items: flex-start;
+    }
+    .outpaint-dock-scroll {
+        flex-direction: row;
+        max-width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding: 4px 5px;
+        gap: 2px;
+    }
+    .outpaint-dock-scroll::-webkit-scrollbar {
+        display: none;
+    }
+    .outpaint-dock-btn {
+        width: 32px;
+        height: 32px;
+    }
+    .outpaint-dock-sep {
+        width: 1px;
+        height: 15px;
+        margin: 0 2px;
+    }
+    #outpaintToolbarInner {
+        flex-direction: row;
+        max-height: none;
+        max-width: 520px;
+        gap: 2px;
+    }
+    #outpaintToolbarToggleBtn .toggle-icon {
+        transform: rotate(-90deg);
+    }
+    #outpaintToolbarToggleBtn.collapsed .toggle-icon {
+        transform: rotate(90deg);
+    }
+    .outpaint-brush-popover {
+        right: auto;
+        left: 0;
+        top: auto;
+        bottom: calc(100% + 8px);
+        transform: none;
+    }
+}
+
+/* Outpaint Active Selection Sampling Shimmer */
+#outpaintSelection.is-sampling::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.22) 50%, transparent 70%);
+    animation: canvasShimmerSweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    pointer-events: none;
 }
 
 /* --- Outpainting Container & Zero-Flicker Selection Styling --- */
@@ -1394,12 +1652,12 @@ html.low-perf body.entrance-animating #mobileControls {
    ========================================================================== */
 
 .canvas-shimmer-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(238, 242, 255, 0.45) 100%);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 245, 249, 0.58) 100%);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
 }
 .dark .canvas-shimmer-card {
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.78) 0%, rgba(30, 41, 59, 0.55) 100%);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.82) 0%, rgba(30, 41, 59, 0.62) 100%);
 }
 .canvas-shimmer-card::before {
     content: "";
@@ -1407,12 +1665,71 @@ html.low-perf body.entrance-animating #mobileControls {
     inset: -50%;
     background: linear-gradient(
         115deg,
-        transparent 35%,
-        rgba(99, 102, 241, 0.16) 50%,
-        transparent 65%
+        transparent 36%,
+        rgba(148, 163, 184, 0.18) 50%,
+        transparent 64%
     );
     animation: canvasShimmerSweep 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
     pointer-events: none;
+}
+
+/* Compact Top-Center HUD Pill when Canvas Already Has an Image (Inpaint / Re-roll / Enhance / Upscale) */
+#generationSkeleton.is-compact-hud {
+    inset: auto !important;
+    top: 4.35rem !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    padding: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    z-index: 56 !important;
+}
+#generationSkeleton.is-compact-hud #generationSkeletonFrame {
+    aspect-ratio: auto !important;
+    width: auto !important;
+    height: 34px !important;
+    max-height: none !important;
+    border-radius: 9999px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 7px !important;
+    padding: 0 11px 0 9px !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    border: 1px solid rgba(226, 232, 240, 0.95) !important;
+    box-shadow: 0 12px 28px -6px rgba(15, 23, 42, 0.16) !important;
+}
+.dark #generationSkeleton.is-compact-hud #generationSkeletonFrame {
+    background: rgba(15, 23, 42, 0.92) !important;
+    border-color: rgba(51, 65, 85, 0.9) !important;
+    box-shadow: 0 14px 32px -6px rgba(0, 0, 0, 0.55) !important;
+}
+#generationSkeleton.is-compact-hud .skeleton-spinner-wrap {
+    width: 18px !important;
+    height: 18px !important;
+    background: transparent !important;
+}
+#generationSkeleton.is-compact-hud .skeleton-spinner-svg {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+/* Gentle In-Place Canvas Sampling Sheen (Keeps Artwork & Inpaint Mask Crisp!) */
+#singleResultArea.is-sampling #singleResultImg {
+    opacity: 0.88;
+    transition: opacity 0.25s ease;
+}
+#singleResultArea.is-sampling .inpaint-canvas-stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.16) 50%, transparent 65%);
+    animation: canvasShimmerSweep 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    pointer-events: none;
+    z-index: 6;
+}
+#resultGrid.is-sampling {
+    opacity: 0.72;
+    transition: opacity 0.25s ease;
 }
 @keyframes canvasShimmerSweep {
     0% { transform: translate3d(-45%, -15%, 0); }
@@ -1466,10 +1783,12 @@ html.low-perf body.entrance-animating #mobileControls {
 
 /* Active track fill for range sliders */
 input[type="range"].enhanced-range:not(.brush-size-slider) {
-    background-image: linear-gradient(to right, #6366f1 0%, #6366f1 var(--range-pct, 0%), transparent var(--range-pct, 0%), transparent 100%);
+    accent-color: #0f172a;
+    background-image: linear-gradient(to right, #0f172a 0%, #0f172a var(--range-pct, 0%), transparent var(--range-pct, 0%), transparent 100%);
 }
 .dark input[type="range"].enhanced-range:not(.brush-size-slider) {
-    background-image: linear-gradient(to right, #818cf8 0%, #818cf8 var(--range-pct, 0%), transparent var(--range-pct, 0%), transparent 100%);
+    accent-color: #f8fafc;
+    background-image: linear-gradient(to right, #e2e8f0 0%, #e2e8f0 var(--range-pct, 0%), transparent var(--range-pct, 0%), transparent 100%);
 }
 
 /* View Transitions API Smooth Theme Crossfade */

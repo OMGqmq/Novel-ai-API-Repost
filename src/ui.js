@@ -540,6 +540,9 @@ export class UIController {
             if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
                 window.inpaintEditor.close();
             }
+            if (typeof window !== 'undefined' && window.outpaintEditor && this.els.outpaintArea && !this.els.outpaintArea.classList.contains('hidden')) {
+                window.outpaintEditor.close();
+            }
             this.els.viewBtnPreview.classList.remove('active');
             this.els.viewBtnHistory.classList.add('active');
             this.els.previewArea.classList.add('hidden');
@@ -628,28 +631,27 @@ export class UIController {
             }
         }
 
-        // 悬浮
+        // 悬浮生成按钮 (纯内联 SVG，避免图标闪烁)
         if (floatBtn) {
             floatBtn.disabled = false;
             if (loading) {
-                floatBtn.innerHTML = '<span class="loader border-white"></span>';
-                floatBtn.classList.add('scale-90', 'bg-red-600');
+                floatBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" class="w-4 h-4 animate-spin pointer-events-none"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
+                floatBtn.classList.add('scale-95', 'is-generating');
             } else {
-                floatBtn.innerHTML = '<i data-lucide="sparkles" class="w-7 h-7 text-yellow-400 dark:text-gray-900"></i>';
-                floatBtn.classList.remove('scale-90', 'bg-red-600');
-                if (window.safeCreateIcons) window.safeCreateIcons();
+                floatBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 pointer-events-none"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>';
+                floatBtn.classList.remove('scale-95', 'scale-90', 'bg-red-600', 'is-generating');
             }
         }
 
         if (resultGrid) {
             if (loading && !resultGrid.classList.contains('hidden')) {
-                resultGrid.classList.add('opacity-50', 'blur-sm');
+                resultGrid.classList.add('is-sampling');
             } else if (!loading) {
-                resultGrid.classList.remove('opacity-50', 'blur-sm');
+                resultGrid.classList.remove('opacity-50', 'blur-sm', 'is-sampling');
             }
         }
 
-        // Resolution-matched shimmer skeleton & live elapsed timer
+        // 双态自适应采样提示：空画布显示等比流光画框，已有图像/重绘时切换为顶部悬浮胶囊 HUD
         if (this._loadingTimerId) {
             clearInterval(this._loadingTimerId);
             this._loadingTimerId = null;
@@ -661,6 +663,9 @@ export class UIController {
         const outpaintArea = typeof document !== 'undefined' ? document.getElementById('outpaintArea') : null;
         const outpaintVisible = Boolean(outpaintArea && !outpaintArea.classList?.contains?.('hidden'));
         const activeInpaint = (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) ? window.inpaintEditor : null;
+        const hasSingleNow = Boolean(this.els?.singleResultArea && !this.els.singleResultArea.classList.contains('hidden'));
+        const hasGridNow = Boolean(resultGrid && !resultGrid.classList.contains('hidden'));
+        const useCompactHud = hasSingleNow || hasGridNow;
 
         if (loading) {
             if (skeleton && !outpaintVisible) {
@@ -673,8 +678,12 @@ export class UIController {
                 if (skeletonFrame && skeletonFrame.style && rw > 0 && rh > 0) {
                     skeletonFrame.style.aspectRatio = `${rw} / ${rh}`;
                 }
+                skeleton.classList?.toggle?.('is-compact-hud', useCompactHud);
                 if (skeletonStatus) {
-                    skeletonStatus.textContent = text && !text.includes('停止') ? text : '正在采样绘制...';
+                    const cleanLabel = (text && !text.includes('停止') && text !== '生成中...')
+                        ? text.replace(/\.\.\.$/, '')
+                        : (activeInpaint ? '重绘中' : '采样中');
+                    skeletonStatus.textContent = cleanLabel;
                 }
                 if (skeletonElapsed) {
                     skeletonElapsed.textContent = '0.0s';
@@ -682,8 +691,8 @@ export class UIController {
                 if (this.els?.placeholder) {
                     this.els.placeholder.classList.add('hidden');
                 }
-                if (this.els?.singleResultArea && !this.els.singleResultArea.classList.contains('hidden')) {
-                    this.els.singleResultArea.classList.add('opacity-25', 'blur-[2px]');
+                if (hasSingleNow) {
+                    this.els.singleResultArea.classList.add('is-sampling');
                 }
                 skeleton.classList.remove('hidden');
                 const startedAt = Date.now();
@@ -696,13 +705,12 @@ export class UIController {
         } else {
             if (skeleton) {
                 skeleton.classList.add('hidden');
+                skeleton.classList?.remove?.('is-compact-hud');
             }
             if (this.els?.singleResultArea) {
-                this.els.singleResultArea.classList.remove('opacity-25', 'blur-[2px]');
+                this.els.singleResultArea.classList.remove('opacity-25', 'blur-[2px]', 'is-sampling');
             }
-            const hasSingle = Boolean(this.els?.singleResultArea && !this.els.singleResultArea.classList.contains('hidden'));
-            const hasGrid = Boolean(resultGrid && !resultGrid.classList.contains('hidden'));
-            if (!hasSingle && !hasGrid && this.els?.placeholder) {
+            if (!hasSingleNow && !hasGridNow && this.els?.placeholder) {
                 this.els.placeholder.classList.remove('hidden');
             }
         }
@@ -737,6 +745,11 @@ export class UIController {
         const inpaintModal = typeof document !== 'undefined' ? document.getElementById('inpaintModal') : null;
         if (inpaintModal && !inpaintModal.classList?.contains?.('modal-hidden') && inpaintModal.style?.display !== 'none') {
             deskText.textContent = "确认局部重绘";
+            return;
+        }
+        const outpaintArea = typeof document !== 'undefined' ? document.getElementById('outpaintArea') : null;
+        if (outpaintArea && !outpaintArea.classList?.contains?.('hidden')) {
+            deskText.textContent = "确认扩图";
             return;
         }
         deskText.textContent = this.checkIfConsumesAnlas() ? "耗点生成" : "生成";

@@ -2,12 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { InpaintEditor } from '../src/inpaint.js';
+import { OutpaintEditor } from '../src/outpaint.js';
 import { UIController } from '../src/ui.js';
 import { createLightboxController } from '../src/lightbox-controller.js';
 import {
     adjustPromptTagWeight,
     updateRangeProgress,
-    initRangeSliderEnhancements
+    initRangeSliderEnhancements,
+    bindDrawerSwipeToClose
 } from '../src/ux-enhancements.js';
 
 function createMockClassList(initial = []) {
@@ -460,6 +462,13 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
 
             const ui = new UIController();
 
+            // Empty canvas loading -> full aspect-ratio frame (NOT compact HUD)
+            ui.setLoading(true, '生成中...');
+            expect(mockDom.generationSkeleton.classList.contains('hidden')).toBe(false);
+            expect(mockDom.generationSkeleton.classList.contains('is-compact-hud')).toBe(false);
+            expect(mockDom.generationSkeletonFrame.style.aspectRatio).toBe('1216 / 832');
+            ui.setLoading(false);
+
             // Single image -> auto focuses directly!
             let selectedSingle = null;
             ui.showResultImages([{ imageUrl: 'blob:single-1' }], (sel) => { selectedSingle = sel; });
@@ -471,17 +480,88 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
             expect(mockDom.singleResultImg.classList.contains('img-reveal')).toBe(true);
             expect(mockDom.imageActions.classList.contains('opacity-0')).toBe(false);
 
-            // Loading state -> displays aspect-ratio matched skeleton
+            // Loading state when canvas already has image -> switches to non-blocking top HUD pill!
             ui.setLoading(true, '生成中...');
             expect(mockDom.generationSkeleton.classList.contains('hidden')).toBe(false);
+            expect(mockDom.generationSkeleton.classList.contains('is-compact-hud')).toBe(true);
+            expect(mockDom.singleResultArea.classList.contains('is-sampling')).toBe(true);
+            expect(mockDom.singleResultArea.classList.contains('blur-[2px]')).toBe(false);
             expect(mockDom.generationSkeletonFrame.style.aspectRatio).toBe('1216 / 832');
             ui.setLoading(false);
             expect(mockDom.generationSkeleton.classList.contains('hidden')).toBe(true);
+            expect(mockDom.generationSkeleton.classList.contains('is-compact-hud')).toBe(false);
+            expect(mockDom.singleResultArea.classList.contains('is-sampling')).toBe(false);
 
             // Multi-image batch -> shows grid first
             ui.showResultImages([{ imageUrl: 'blob:batch-1' }, { imageUrl: 'blob:batch-2' }]);
             expect(mockDom.resultGrid.classList.contains('hidden')).toBe(false);
             expect(mockDom.singleResultArea.classList.contains('hidden')).toBe(true);
+        });
+
+        it('supports Outpaint 2-finger mobile pinch-zoom, brush/eraser toggle, and mobile handle swipe-up', () => {
+            const winListeners = {};
+            const outDom = {};
+            [
+                'outpaintArea', 'outpaintContainer', 'outpaintCanvas', 'outpaintMaskCanvas',
+                'outpaintSelection', 'outpaintSizeLabel', 'singleResultImg', 'outpaintBrushControl',
+                'outpaintBrushSize', 'outpaintBrushSizeVal', 'outpaintModeMove', 'outpaintModePaint',
+                'outpaintToolbar', 'outpaintToolbarInner', 'outpaintToolbarToggleBtn', 'outpaintSnapToggle',
+                'outpaintToolBrush', 'outpaintToolEraser', 'outpaintSamplingBadge', 'outpaintElapsedText',
+                'outpaintDimPath', 'outpaintDimOverlay'
+            ].forEach(id => {
+                outDom[id] = createPixelCanvasElement(id, 512, 512);
+            });
+            global.document = {
+                getElementById: (id) => outDom[id] || createMockElement(id),
+                createElement: (tag) => createPixelCanvasElement('tmp_' + tag, 64, 64)
+            };
+            global.window = {
+                innerWidth: 390,
+                addEventListener: (ev, cb) => {
+                    if (!winListeners[ev]) winListeners[ev] = [];
+                    winListeners[ev].push(cb);
+                },
+                requestAnimationFrame: (cb) => { cb(); return 1; }
+            };
+
+            const outEditor = new OutpaintEditor({
+                engine: {},
+                store: { getSetting: () => 'false' }
+            });
+
+            outEditor.setTool('eraser');
+            expect(outDom.outpaintToolEraser.classList.contains('tool-active')).toBe(true);
+            expect(outDom.outpaintToolBrush.classList.contains('tool-active')).toBe(false);
+
+            // 2-finger touch pinch on outpaintArea -> zooms scale up smoothly
+            outEditor.transform = { x: 0, y: 0, scale: 1 };
+            outDom.outpaintArea._trigger('touchstart', {
+                touches: [{ clientX: 100, clientY: 200 }, { clientX: 200, clientY: 200 }],
+                preventDefault: vi.fn(),
+                cancelable: true
+            });
+            (winListeners.touchmove || []).forEach(fn => fn({
+                touches: [{ clientX: 50, clientY: 200 }, { clientX: 250, clientY: 200 }],
+                preventDefault: vi.fn(),
+                cancelable: true
+            }));
+            expect(outEditor.transform.scale).toBeCloseTo(2.0, 2);
+
+            // Mobile bottom-sheet swipe-up opens collapsed drawer
+            const handle = createMockElement('mobileControlsHandle');
+            const drawer = createMockElement('mobileControls', ['collapsed']);
+            let opened = false;
+            bindDrawerSwipeToClose({
+                handleEl: handle,
+                drawerEl: drawer,
+                isExpanded: () => false,
+                onClose: () => {},
+                onOpen: () => { opened = true; }
+            });
+            handle._trigger('pointerdown', { clientY: 620, pointerId: 1 });
+            handle._trigger('pointermove', { clientY: 540, pointerId: 1 });
+            handle._trigger('pointerup', { clientY: 540, pointerId: 1 });
+            expect(opened).toBe(true);
         });
     });
 

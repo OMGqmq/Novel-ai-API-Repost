@@ -677,11 +677,11 @@ async function doGenerateZImage(rawOptions = {}) {
 
     } catch (err) {
         console.error("ZImage Generate Error:", err);
+        ui.toggleMobileControls(true);
         alert(err.message || err);
         return { success: false, error: err.message || String(err) };
     } finally {
         ui.setLoading(false);
-        ui.toggleMobileControls(true);
     }
 }
 
@@ -702,6 +702,7 @@ async function doGenerate(rawOptions = {}) {
 
     // Persistent Main-Canvas Inpaint: as long as Brush UI is open, Generate / Ctrl+Enter executes local inpaint!
     if (inpaintEditor && inpaintEditor.isActive()) {
+        if (ui.toggleMobileControls) ui.toggleMobileControls(false);
         await inpaintEditor.doInpaint();
         return { success: false, error: "正在进行局部重绘" };
     }
@@ -709,6 +710,7 @@ async function doGenerate(rawOptions = {}) {
     // Check if outpaint is active
     const outpaintArea = document.getElementById('outpaintArea');
     if (outpaintArea && !outpaintArea.classList.contains('hidden')) {
+        if (ui.toggleMobileControls) ui.toggleMobileControls(false);
         if (window.outpaintEditor) {
             window.outpaintEditor.generate();
         }
@@ -2187,6 +2189,7 @@ Object.assign(window, {
     toggleInpaintDrawer: () => inpaintEditor.toggleDrawer(),
     doInpaint: () => inpaintEditor.doInpaint(),
     resetLightboxZoom,
+    ui,
     outpaintEditor,
     startOutpaint: () => outpaintEditor.open(),
     exitOutpaint: () => outpaintEditor.close(),

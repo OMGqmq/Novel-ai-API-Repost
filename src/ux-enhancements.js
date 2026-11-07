@@ -186,12 +186,13 @@ export function initRangeSliderEnhancements(root = typeof document !== 'undefine
     }
 }
 
-export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose }) {
+export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose, onOpen }) {
     if (!handleEl || !drawerEl || typeof handleEl.addEventListener !== 'function') return;
 
     let startY = 0;
     let startTime = 0;
     let currentDeltaY = 0;
+    let startedExpanded = false;
     let tracking = false;
     let dragging = false;
     let suppressNextClick = false;
@@ -206,7 +207,8 @@ export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose
 
     handleEl.addEventListener('pointerdown', (e) => {
         if (typeof window !== 'undefined' && window.innerWidth >= 768) return;
-        if (!isExpanded()) return;
+        startedExpanded = Boolean(isExpanded());
+        if (!startedExpanded && typeof onOpen !== 'function') return;
         tracking = true;
         dragging = false;
         startY = e.clientY;
@@ -222,11 +224,14 @@ export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose
         const dy = e.clientY - startY;
         if (!dragging && Math.abs(dy) > 8) {
             dragging = true;
-            drawerEl.style.transition = 'none';
+            if (startedExpanded) drawerEl.style.transition = 'none';
         }
         if (dragging) {
-            currentDeltaY = dy > 0 ? dy : dy * 0.2;
-            drawerEl.style.transform = `translateY(${Math.max(0, currentDeltaY)}px)`;
+            currentDeltaY = dy;
+            if (startedExpanded) {
+                const clampedY = dy > 0 ? dy : dy * 0.2;
+                drawerEl.style.transform = `translateY(${Math.max(0, clampedY)}px)`;
+            }
         }
     });
 
@@ -248,8 +253,14 @@ export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose
         drawerEl.style.transition = '';
         drawerEl.style.transform = '';
 
-        if (currentDeltaY > 72 || (currentDeltaY > 28 && velocity > 0.45)) {
-            onClose();
+        if (startedExpanded) {
+            if (currentDeltaY > 72 || (currentDeltaY > 28 && velocity > 0.45)) {
+                onClose();
+            }
+        } else if (typeof onOpen === 'function') {
+            if (currentDeltaY < -36 || (currentDeltaY < -18 && velocity < -0.35)) {
+                onOpen();
+            }
         }
     };
 
@@ -365,7 +376,7 @@ export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}
         });
     }
 
-    // 4. Mobile Bottom-Sheet Swipe-Down Physics
+    // 4. Mobile Bottom-Sheet Swipe-Up / Swipe-Down Physics
     const mobileControls = document.getElementById('mobileControls');
     const mobileControlsHandle = document.getElementById('mobileControlsHandle');
     if (mobileControls && mobileControlsHandle && ui) {
@@ -373,7 +384,8 @@ export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}
             handleEl: mobileControlsHandle,
             drawerEl: mobileControls,
             isExpanded: () => mobileControls.classList.contains('expanded'),
-            onClose: () => ui.toggleMobileControls(false)
+            onClose: () => ui.toggleMobileControls(false),
+            onOpen: () => ui.toggleMobileControls(true)
         });
     }
 
@@ -384,7 +396,8 @@ export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}
             handleEl: lightboxDrawerHandle,
             drawerEl: lightboxSidebar,
             isExpanded: () => lightboxSidebar.classList.contains('expanded'),
-            onClose: () => lightboxSidebar.classList.remove('expanded')
+            onClose: () => lightboxSidebar.classList.remove('expanded'),
+            onOpen: () => lightboxSidebar.classList.add('expanded')
         });
     }
 

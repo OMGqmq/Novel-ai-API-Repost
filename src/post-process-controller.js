@@ -163,15 +163,15 @@ export function createPostProcessController({
 
         document.querySelectorAll('.enhance-preset-btn').forEach(btn => {
             if (parseFloat(btn.dataset.strength) === parseFloat(strength)) {
-                btn.classList.add('bg-amber-500', 'text-white', 'shadow-md', 'border-amber-500', 'active-preset');
+                btn.classList.add('bg-slate-900', 'dark:bg-white', 'text-white', 'dark:text-slate-900', 'shadow-md', 'border-slate-900', 'dark:border-white', 'active-preset');
                 btn.classList.remove('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
                 const sub = btn.querySelector('span');
-                if (sub) { sub.classList.remove('text-gray-400'); sub.classList.add('text-amber-100'); }
+                if (sub) { sub.classList.remove('text-gray-400'); sub.classList.add('text-slate-300', 'dark:text-slate-500'); }
             } else {
-                btn.classList.remove('bg-amber-500', 'text-white', 'shadow-md', 'border-amber-500', 'active-preset');
+                btn.classList.remove('bg-slate-900', 'dark:bg-white', 'text-white', 'dark:text-slate-900', 'shadow-md', 'border-slate-900', 'dark:border-white', 'active-preset');
                 btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
                 const sub = btn.querySelector('span');
-                if (sub) { sub.classList.add('text-gray-400'); sub.classList.remove('text-amber-100'); }
+                if (sub) { sub.classList.add('text-gray-400'); sub.classList.remove('text-slate-300', 'dark:text-slate-500'); }
             }
         });
     }
@@ -188,10 +188,10 @@ export function createPostProcessController({
                 document.querySelectorAll('.enhance-preset-btn').forEach(btn => {
                     const match = Math.abs(parseFloat(btn.dataset.strength) - parseFloat(strengthSlider.value)) < 0.01;
                     if (!match) {
-                        btn.classList.remove('bg-amber-500', 'text-white', 'shadow-md', 'border-amber-500', 'active-preset');
+                        btn.classList.remove('bg-slate-900', 'dark:bg-white', 'text-white', 'dark:text-slate-900', 'shadow-md', 'border-slate-900', 'dark:border-white', 'active-preset');
                         btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
                         const sub = btn.querySelector('span');
-                        if (sub) { sub.classList.add('text-gray-400'); sub.classList.remove('text-amber-100'); }
+                        if (sub) { sub.classList.add('text-gray-400'); sub.classList.remove('text-slate-300', 'dark:text-slate-500'); }
                     }
                 });
             });
@@ -216,7 +216,7 @@ export function createPostProcessController({
         const noise = noiseSlider ? parseFloat(noiseSlider.value) : 0.0;
 
         closeEnhanceModal();
-        ui.setLoading(true, "AI 图像增强生成中...");
+        ui.setLoading(true, "图像增强");
 
         try {
             const { base64Data, width: w, height: h } = await _imageUrlToCappedBase64(targetSrc);
@@ -285,7 +285,7 @@ export function createPostProcessController({
             return;
         }
 
-        ui.setLoading(true, "AI 4x 超分辨率放大中...");
+        ui.setLoading(true, "4× 放大");
         try {
             const { base64Data, width: w, height: h } = await _imageUrlToCappedBase64(targetSrc);
             const selectedVersion = document.getElementById('modelValue')?.value || appState.currentImageData?.model || "v3";

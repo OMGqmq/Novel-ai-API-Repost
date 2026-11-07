@@ -21,6 +21,10 @@ export class OutpaintEditor {
             toolbarInner: document.getElementById('outpaintToolbarInner'),
             toolbarToggleBtn: document.getElementById('outpaintToolbarToggleBtn'),
             snapToggleBtn: document.getElementById('outpaintSnapToggle'),
+            toolBrushBtn: document.getElementById('outpaintToolBrush'),
+            toolEraserBtn: document.getElementById('outpaintToolEraser'),
+            samplingBadge: document.getElementById('outpaintSamplingBadge'),
+            elapsedText: document.getElementById('outpaintElapsedText'),
             dimPath: document.getElementById('outpaintDimPath'),
             dimOverlay: document.getElementById('outpaintDimOverlay')
         };
@@ -201,6 +205,10 @@ export class OutpaintEditor {
 
     setTool(tool) {
         this.tool = tool; // 'brush' or 'eraser'
+        const bBtn = this.els.toolBrushBtn || (typeof document !== 'undefined' ? document.getElementById('outpaintToolBrush') : null);
+        const eBtn = this.els.toolEraserBtn || (typeof document !== 'undefined' ? document.getElementById('outpaintToolEraser') : null);
+        if (bBtn && bBtn.classList) bBtn.classList.toggle('tool-active', tool !== 'eraser');
+        if (eBtn && eBtn.classList) eBtn.classList.toggle('tool-active', tool === 'eraser');
     }
 
     _getBrushSize() {
@@ -256,11 +264,22 @@ export class OutpaintEditor {
     }
 
     open() {
+        if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
+            window.inpaintEditor.close();
+        }
         this.history = [];
         this.maskHistory = [];
         this.setMode('move');
+        this.setTool('brush');
         this.toggleToolbar(true); // Ensure toolbar is visible / expanded
         this.toggleSnap(false); // Reset snap state
+        if (this.els.toolbar && this.els.toolbar.style) {
+            this.els.toolbar.style.left = '';
+            this.els.toolbar.style.top = '';
+            this.els.toolbar.style.right = '';
+            this.els.toolbar.style.bottom = '';
+            this.els.toolbar.style.transform = '';
+        }
         
         if (this.els.brushSizeInput) this.els.brushSizeInput.value = 60;
         if (this.els.brushSizeVal) this.els.brushSizeVal.textContent = 60;
@@ -293,7 +312,11 @@ export class OutpaintEditor {
             this.clampToolbarPosition();
 
             if (this.els.area) this.els.area.classList.remove('hidden');
-            if (window.safeCreateIcons) window.safeCreateIcons();
+            if (typeof document !== 'undefined') document.body?.classList?.add?.('outpaint-open');
+            if (typeof window !== 'undefined') {
+                if (window.ui?.updateGenerateButtonText) window.ui.updateGenerateButtonText();
+                if (window.safeCreateIcons) window.safeCreateIcons();
+            }
         };
         img.src = this.els.sourceImg.src;
     }
@@ -306,6 +329,11 @@ export class OutpaintEditor {
         this.isDraggingSelection = false;
         this.isResizing = false;
         this.isDraggingToolbar = false;
+        this._pinchLast = null;
+        if (this._samplingTimer) {
+            clearInterval(this._samplingTimer);
+            this._samplingTimer = null;
+        }
         if (this._rafId) {
             const cancelRAF = typeof cancelAnimationFrame !== 'undefined' ? cancelAnimationFrame : (typeof window !== 'undefined' && window.cancelAnimationFrame ? window.cancelAnimationFrame : clearTimeout);
             cancelRAF(this._rafId);
@@ -313,6 +341,10 @@ export class OutpaintEditor {
         }
         if (this.els.area) {
             this.els.area.classList.add('hidden');
+        }
+        if (typeof document !== 'undefined') document.body?.classList?.remove?.('outpaint-open');
+        if (typeof window !== 'undefined' && window.ui?.updateGenerateButtonText) {
+            window.ui.updateGenerateButtonText();
         }
     }
 
@@ -458,13 +490,28 @@ export class OutpaintEditor {
         if (deskBtn) {
             originalDeskHtml = deskBtn.innerHTML;
             deskBtn.disabled = true;
-            deskBtn.innerHTML = '<span class="loader w-4 h-4 border-white/50 border-t-transparent rounded-full animate-spin"></span> 生成中...';
+            deskBtn.innerHTML = '<span class="loader w-4 h-4 border-white/50 border-t-transparent rounded-full animate-spin"></span> 采样中...';
         }
         if (floatBtn) {
             originalFloatHtml = floatBtn.innerHTML;
             floatBtn.disabled = true;
             floatBtn.innerHTML = '<span class="loader w-5 h-5 border-white/50 border-t-transparent rounded-full animate-spin"></span>';
         }
+
+        const selEl = this.els.selection || (typeof document !== 'undefined' ? document.getElementById('outpaintSelection') : null);
+        const samplingBadge = this.els.samplingBadge || (typeof document !== 'undefined' ? document.getElementById('outpaintSamplingBadge') : null);
+        const elapsedEl = this.els.elapsedText || (typeof document !== 'undefined' ? document.getElementById('outpaintElapsedText') : null);
+        if (this._samplingTimer) {
+            clearInterval(this._samplingTimer);
+            this._samplingTimer = null;
+        }
+        if (selEl && selEl.classList) selEl.classList.add('is-sampling');
+        if (samplingBadge && samplingBadge.classList) samplingBadge.classList.remove('hidden');
+        if (elapsedEl) elapsedEl.textContent = '0.0s';
+        const startedAt = Date.now();
+        this._samplingTimer = setInterval(() => {
+            if (elapsedEl) elapsedEl.textContent = `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
+        }, 100);
 
         try {
             const { w, h, x, y } = this.selection;
@@ -726,6 +773,12 @@ export class OutpaintEditor {
             console.error(err);
             alert('操作失败: ' + err.message);
         } finally {
+            if (this._samplingTimer) {
+                clearInterval(this._samplingTimer);
+                this._samplingTimer = null;
+            }
+            if (selEl && selEl.classList) selEl.classList.remove('is-sampling');
+            if (samplingBadge && samplingBadge.classList) samplingBadge.classList.add('hidden');
             if (deskBtn) {
                 deskBtn.disabled = false;
                 deskBtn.innerHTML = originalDeskHtml;
@@ -945,7 +998,25 @@ export class OutpaintEditor {
             if (this.els.brushSizeVal) this.els.brushSizeVal.textContent = e.target.value;
         });
 
+        const startTwoFingerPinch = (e) => {
+            if (!e.touches || e.touches.length < 2) return false;
+            const t0 = e.touches[0];
+            const t1 = e.touches[1];
+            const dist = Math.max(10, Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY));
+            const midX = (t0.clientX + t1.clientX) / 2;
+            const midY = (t0.clientY + t1.clientY) / 2;
+            this.isPainting = false;
+            this.isPanning = false;
+            this.isDraggingSelection = false;
+            this.isResizing = false;
+            this._pinchLast = { dist, midX, midY };
+            if (e.preventDefault && e.cancelable) e.preventDefault();
+            return true;
+        };
+
         const handlePanStart = (e) => {
+            if (startTwoFingerPinch(e)) return;
+
             if (this.mode === 'paint' && (e.target === this.els.maskCanvas || e.target === this.els.selection)) {
                 this.isPainting = true;
                 this.saveMaskState();
@@ -970,6 +1041,7 @@ export class OutpaintEditor {
 
         // --- Selection Interaction ---
         const handleSelectionStart = (e) => {
+            if (startTwoFingerPinch(e)) return;
             if (this.mode === 'paint') return;
 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -995,6 +1067,23 @@ export class OutpaintEditor {
 
         // --- Global Move & Up/End ---
         const handleMove = (e) => {
+            if (e.touches && e.touches.length >= 2) {
+                const t0 = e.touches[0];
+                const t1 = e.touches[1];
+                const dist = Math.max(10, Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY));
+                const midX = (t0.clientX + t1.clientX) / 2;
+                const midY = (t0.clientY + t1.clientY) / 2;
+                if (this._pinchLast) {
+                    if (e.preventDefault && e.cancelable) e.preventDefault();
+                    this.transform.x += (midX - this._pinchLast.midX);
+                    this.transform.y += (midY - this._pinchLast.midY);
+                    this._zoom(dist / this._pinchLast.dist, midX, midY);
+                }
+                this._pinchLast = { dist, midX, midY };
+                return;
+            }
+            if (e.touches && e.touches.length === 0) return;
+
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
@@ -1143,6 +1232,9 @@ export class OutpaintEditor {
 
         const handleUp = (e) => {
             stopToolbarDrag(e);
+            if (!e?.touches || e.touches.length < 2) {
+                this._pinchLast = null;
+            }
             
             if (this.isPainting) {
                 this.isPainting = false;
@@ -1195,6 +1287,11 @@ export class OutpaintEditor {
         window.addEventListener('touchend', handleUp);
         window.addEventListener('resize', () => {
             this.clampToolbarPosition();
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e && e.key === 'Escape' && this.els.area && !this.els.area.classList.contains('hidden')) {
+                this.close();
+            }
         });
     }
 }
