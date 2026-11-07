@@ -537,6 +537,9 @@ export class UIController {
                 this.showImageActions(true);
             }
         } else {
+            if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
+                window.inpaintEditor.close();
+            }
             this.els.viewBtnPreview.classList.remove('active');
             this.els.viewBtnHistory.classList.add('active');
             this.els.previewArea.classList.add('hidden');
@@ -655,15 +658,18 @@ export class UIController {
         const skeletonFrame = typeof document !== 'undefined' ? document.getElementById('generationSkeletonFrame') : null;
         const skeletonStatus = typeof document !== 'undefined' ? document.getElementById('generationSkeletonStatus') : null;
         const skeletonElapsed = typeof document !== 'undefined' ? document.getElementById('generationElapsedText') : null;
-        const inpaintModal = typeof document !== 'undefined' ? document.getElementById('inpaintModal') : null;
         const outpaintArea = typeof document !== 'undefined' ? document.getElementById('outpaintArea') : null;
-        const inpaintVisible = Boolean(inpaintModal && inpaintModal.classList?.contains?.('modal-visible') && inpaintModal.style?.display !== 'none');
         const outpaintVisible = Boolean(outpaintArea && !outpaintArea.classList?.contains?.('hidden'));
+        const activeInpaint = (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) ? window.inpaintEditor : null;
 
         if (loading) {
-            if (skeleton && !inpaintVisible && !outpaintVisible) {
+            if (skeleton && !outpaintVisible) {
                 const resVal = (this.els?.resolution || (typeof document !== 'undefined' ? document.getElementById('resolution') : null))?.value || '832,1216';
-                const [rw, rh] = resVal.split(',').map(Number);
+                let [rw, rh] = resVal.split(',').map(Number);
+                if (activeInpaint && activeInpaint.imgNaturalW > 0 && activeInpaint.imgNaturalH > 0) {
+                    rw = activeInpaint.imgNaturalW;
+                    rh = activeInpaint.imgNaturalH;
+                }
                 if (skeletonFrame && skeletonFrame.style && rw > 0 && rh > 0) {
                     skeletonFrame.style.aspectRatio = `${rw} / ${rh}`;
                 }
@@ -836,6 +842,9 @@ export class UIController {
     }
 
     resetPreview() {
+        if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
+            window.inpaintEditor.close();
+        }
         const { resultGrid, singleResultArea, backToGridBtn, placeholder, dlBtn, canvasDeleteBtn } = this.els;
         if (resultGrid) {
             resultGrid.innerHTML = '';
@@ -867,6 +876,9 @@ export class UIController {
     showGrid() {
         const { resultGrid, singleResultArea, backToGridBtn, placeholder } = this.els;
         if (resultGrid.children.length === 0) return;
+        if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
+            window.inpaintEditor.close();
+        }
         
         placeholder.classList.add('hidden');
         resultGrid.classList.remove('hidden');
@@ -902,6 +914,9 @@ export class UIController {
         if (singleResultImg) {
             singleResultImg.src = item.imageUrl;
             this._triggerImageReveal(singleResultImg);
+        }
+        if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
+            window.inpaintEditor.syncOverlayGeometry?.();
         }
         this.showImageActions(true);
     }

@@ -738,7 +738,7 @@ export function createLightboxController({
 
         if (type === 'enhance') postProcess.openEnhanceModal();
         else if (type === 'upscale') postProcess.doUpscale();
-        else if (type === 'inpaint') inpaintEditor.open();
+        else if (type === 'inpaint') inpaintEditor.open({ imageSrc: imgUrl });
         else if (type === 'outpaint') outpaintEditor.open();
         else if (type === 'lineart') postProcess.doAugment('lineart');
         else if (type === 'sketch') postProcess.doAugment('sketch');

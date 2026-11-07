@@ -264,28 +264,16 @@ html.dark .view-toggle-bg {
     opacity: 1;
 }
 
-/* --- In-Canvas Docked Inpaint Editor --- */
-#inpaintModal {
-    transition: opacity 0.25s ease, visibility 0.25s ease;
-    background: #020617;
-}
-#inpaintModal.modal-visible {
-    opacity: 1;
-    visibility: visible;
-}
-#inpaintModal.modal-hidden {
-    opacity: 0;
-    pointer-events: none;
-    visibility: hidden;
-}
+/* --- Main-Canvas Fused Inpaint & Monochrome Frosted-Glass SVG Controls --- */
 .inpaint-canvas-wrap {
     position: relative;
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex: 1;
-    overflow: hidden;
-    background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+    overflow: visible;
+    background: transparent;
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
@@ -301,138 +289,360 @@ html.dark .view-toggle-bg {
     will-change: transform;
     touch-action: none;
 }
-.inpaint-canvas-stage canvas {
+#inpaintMaskCanvas {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    max-width: calc(100% - 136px);
-    max-height: calc(100% - 76px);
-    object-fit: contain;
-    border-radius: 6px;
-    box-shadow: 0 20px 70px rgba(0, 0, 0, 0.75);
-    touch-action: none;
-}
-@media (max-width: 768px) {
-    .inpaint-canvas-stage canvas {
-        max-width: calc(100% - 108px);
-        max-height: calc(100% - 150px);
-    }
-}
-#inpaintMaskCanvas {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0.5rem;
     cursor: none;
-    z-index: 2;
-    opacity: 0.58;
-    filter: sepia(1) saturate(7) hue-rotate(185deg);
+    z-index: 4;
+    opacity: 0.56;
+    filter: sepia(1) saturate(6.5) hue-rotate(188deg);
+    transition: opacity 0.2s ease;
     touch-action: none;
+}
+#inpaintMaskCanvas.mask-peek {
+    opacity: 0.14;
+}
+#inpaintMaskCanvas.mask-hidden {
+    opacity: 0 !important;
 }
 html.low-perf #inpaintMaskCanvas {
     filter: none;
-    opacity: 0.5;
+    opacity: 0.48;
+}
+html.low-perf #inpaintMaskCanvas.mask-peek {
+    opacity: 0.14;
 }
 #inpaintBaseCanvas {
-    z-index: 1;
     pointer-events: none;
 }
-.inpaint-sidebar {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 8px;
-    background: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 20px;
-    z-index: 100;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.inpaint-sidebar-left { left: 16px; }
-.inpaint-sidebar-right { right: 16px; }
 
-@media (max-width: 768px) {
-    .inpaint-sidebar-left { left: 10px; }
-    .inpaint-sidebar-right { right: 10px; }
-    .inpaint-sidebar {
-        padding: 4px;
-        gap: 8px;
-        border-radius: 16px;
-        background: rgba(15, 23, 42, 0.7);
-    }
-    .inpaint-sidebar button {
-        width: 46px !important;
-        height: 46px !important;
-        border-radius: 12px !important;
-    }
+/* Monochrome Slate Frosted-Glass Top Action Buttons & Pure-SVG Toolbox */
+.canvas-tool-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.08);
 }
-
-.inpaint-sidebar button {
-    width: 50px;
-    height: 50px;
-    border-radius: 16px;
-    display: flex;
+.dark .canvas-tool-pill {
+    background: rgba(30, 41, 59, 0.88);
+    border-color: rgba(51, 65, 85, 0.85);
+    box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.35);
+}
+.canvas-tool-sep {
+    width: 1px;
+    height: 14px;
+    background: rgba(148, 163, 184, 0.3);
+    margin: 0 2px;
+}
+.canvas-icon-btn {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(255,255,255,0.03);
-    color: rgba(255,255,255,0.3);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    color: #475569;
+    box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.08);
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
 }
-.inpaint-sidebar button:hover {
-    background: rgba(255,255,255,0.08);
-    color: #fff;
+.dark .canvas-icon-btn {
+    background: rgba(30, 41, 59, 0.88);
+    border-color: rgba(51, 65, 85, 0.85);
+    color: #cbd5e1;
+    box-shadow: 0 6px 18px -4px rgba(0, 0, 0, 0.35);
 }
-.inpaint-sidebar button.tool-active {
-    background: #2563eb;
-    color: #fff;
-    border-color: #3b82f6;
-    box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+.canvas-pill-btn {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    background: transparent;
+    transition: background-color 0.18s ease, color 0.18s ease, transform 0.15s ease;
+    cursor: pointer;
+}
+.dark .canvas-pill-btn {
+    color: #cbd5e1;
+}
+.canvas-icon-btn:not(:disabled):hover,
+.canvas-pill-btn:hover {
+    color: #0f172a;
+    background: rgba(241, 245, 249, 0.96);
+}
+.dark .canvas-icon-btn:not(:disabled):hover,
+.dark .canvas-pill-btn:hover {
+    color: #ffffff;
+    background: rgba(51, 65, 85, 0.85);
+}
+.canvas-icon-btn.danger-hover:not(:disabled):hover {
+    color: #ef4444;
+    background: rgba(254, 242, 242, 0.95);
+    border-color: rgba(252, 165, 165, 0.6);
+}
+.dark .canvas-icon-btn.danger-hover:not(:disabled):hover {
+    color: #f87171;
+    background: rgba(127, 29, 29, 0.32);
+    border-color: rgba(248, 113, 113, 0.35);
+}
+.canvas-pill-btn.inpaint-toggle-active,
+.canvas-pill-btn.toolbox-open {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
+}
+.dark .canvas-pill-btn.inpaint-toggle-active,
+.dark .canvas-pill-btn.toolbox-open {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.18);
 }
 
-/* --- Inpaint Mobile Drawer --- */
-#inpaintMobileDrawer {
+/* Pure-SVG Toolbox Popover Bar */
+.toolbox-icon-dock {
     position: absolute;
-    bottom: 0;
-    left: 0;
+    top: calc(100% + 8px);
     right: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 5px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    box-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.16), 0 4px 12px -4px rgba(15, 23, 42, 0.06);
+    z-index: 60;
+    transform-origin: top right;
+    transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dark .toolbox-icon-dock {
     background: rgba(15, 23, 42, 0.94);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
-    border-top: 1px solid rgba(255,255,255,0.12);
-    border-radius: 28px 28px 0 0;
-    z-index: 150;
-    transform: translateY(calc(100% - 56px));
-    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+    border-color: rgba(51, 65, 85, 0.9);
+    box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.55);
 }
-#inpaintMobileDrawer.expanded {
-    transform: translateY(0);
-}
-.drawer-handle {
+.toolbox-svg-btn {
+    position: relative;
     width: 36px;
-    height: 4px;
-    background: rgba(255,255,255,0.25);
-    border-radius: 2px;
-    margin: 0 auto 6px auto;
+    height: 36px;
+    border-radius: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    background: transparent;
+    transition: background-color 0.16s ease, color 0.16s ease, transform 0.14s ease;
+    cursor: pointer;
 }
-.brush-size-slider {
-    width: 140px;
-    height: 4px;
-    border-radius: 2px;
-    accent-color: #3b82f6;
-    background: rgba(255,255,255,0.05);
-    appearance: none;
+.dark .toolbox-svg-btn {
+    color: #cbd5e1;
 }
+.toolbox-svg-btn:hover {
+    background: #0f172a;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+.dark .toolbox-svg-btn:hover {
+    background: #f8fafc;
+    color: #0f172a;
+}
+.toolbox-svg-btn:active {
+    transform: scale(0.93);
+}
+
+/* Floating Pure-SVG Inpaint Brush Capsule (#inpaintModal) */
+#inpaintModal.inpaint-dock-host {
+    position: absolute;
+    bottom: 5.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 55;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    pointer-events: none;
+    max-width: calc(100% - 16px);
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s ease;
+}
+@media (min-width: 768px) {
+    #inpaintModal.inpaint-dock-host {
+        bottom: 1.5rem;
+    }
+}
+#inpaintModal.modal-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+#inpaintModal.modal-hidden {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transform: translateX(-50%) translateY(8px);
+}
+.inpaint-dock-capsule {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 5px 6px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    color: #475569;
+    box-shadow: 0 18px 38px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+}
+.dark .inpaint-dock-capsule {
+    background: rgba(15, 23, 42, 0.92);
+    border-color: rgba(51, 65, 85, 0.9);
+    color: #cbd5e1;
+    box-shadow: 0 20px 44px -8px rgba(0, 0, 0, 0.6);
+}
+.inpaint-dock-btn {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    background: transparent;
+    transition: background-color 0.16s ease, color 0.16s ease, transform 0.14s ease;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.inpaint-dock-btn:hover {
+    background: rgba(15, 23, 42, 0.07);
+    color: #0f172a;
+}
+.dark .inpaint-dock-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+.inpaint-dock-btn:active {
+    transform: scale(0.92);
+}
+.inpaint-dock-btn.tool-active {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
+}
+.dark .inpaint-dock-btn.tool-active {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
+}
+.inpaint-dock-btn.inpaint-dock-close:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+}
+.dark .inpaint-dock-btn.inpaint-dock-close:hover {
+    background: rgba(248, 113, 113, 0.18);
+    color: #f87171;
+}
+.inpaint-dock-sep {
+    width: 1px;
+    height: 16px;
+    background: rgba(148, 163, 184, 0.32);
+    margin: 0 2px;
+    flex-shrink: 0;
+}
+
+/* Compact Brush Size & Strength Popover */
+.inpaint-params-popover {
+    pointer-events: auto;
+    width: 224px;
+    padding: 10px 12px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    color: #334155;
+    box-shadow: 0 14px 32px -6px rgba(15, 23, 42, 0.16);
+}
+.dark .inpaint-params-popover {
+    background: rgba(15, 23, 42, 0.94);
+    border-color: rgba(51, 65, 85, 0.9);
+    color: #e2e8f0;
+    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.55);
+}
+
+/* Crisp Minimalist Micro-Tooltips (Hover Devices Only) */
+@media (hover: hover) and (pointer: fine) {
+    [data-tip] {
+        position: relative;
+    }
+    [data-tip]::after {
+        content: attr(data-tip);
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 7px);
+        transform: translateX(-50%) translateY(3px);
+        padding: 3px 7px;
+        border-radius: 6px;
+        background: rgba(15, 23, 42, 0.92);
+        color: #f8fafc;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.2;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.14s ease, transform 0.14s ease;
+        z-index: 120;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+    }
+    .dark [data-tip]::after {
+        background: rgba(248, 250, 252, 0.95);
+        color: #0f172a;
+    }
+    [data-tip][data-tip-pos="bottom"]::after {
+        bottom: auto;
+        top: calc(100% + 7px);
+        transform: translateX(-50%) translateY(-3px);
+    }
+    [data-tip]:hover::after {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
 .brush-cursor {
     position: fixed;
     top: 0;
     left: 0;
-    border: 2px solid #3b82f6;
-    box-shadow: 0 0 0 1.5px rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.5);
+    border: 1.75px solid #0f172a;
+    box-shadow: 0 0 0 1.5px rgba(255,255,255,0.92), 0 2px 8px rgba(0,0,0,0.35);
     border-radius: 50%;
     pointer-events: none;
     z-index: 10000;

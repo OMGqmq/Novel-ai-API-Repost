@@ -700,12 +700,9 @@ async function doGenerate(rawOptions = {}) {
         return { success: false, error: "已有生成任务正在进行中，已发送停止指令" };
     }
 
-    // Check if in-canvas inpaint is active ("体验融合": 主面板生成按钮或 Ctrl+Enter 直接触发局部重绘)
-    const inpaintModalEl = document.getElementById('inpaintModal');
-    if (inpaintModalEl && !inpaintModalEl.classList.contains('modal-hidden') && inpaintModalEl.style.display !== 'none') {
-        if (inpaintEditor) {
-            await inpaintEditor.doInpaint();
-        }
+    // Persistent Main-Canvas Inpaint: as long as Brush UI is open, Generate / Ctrl+Enter executes local inpaint!
+    if (inpaintEditor && inpaintEditor.isActive()) {
+        await inpaintEditor.doInpaint();
         return { success: false, error: "正在进行局部重绘" };
     }
 
@@ -1135,12 +1132,16 @@ async function clearAllHistory() {
 
 function toggleToolbox() {
     const menu = document.getElementById('toolboxMenu');
+    const btn = document.getElementById('toolboxTriggerBtn');
+    if (!menu) return;
     if (menu.classList.contains('opacity-0')) {
         menu.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
         menu.classList.add('opacity-100', 'scale-100', 'pointer-events-auto');
+        if (btn) btn.classList.add('toolbox-open');
     } else {
         menu.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
         menu.classList.remove('opacity-100', 'scale-100', 'pointer-events-auto');
+        if (btn) btn.classList.remove('toolbox-open');
     }
 }
 
@@ -2107,6 +2108,9 @@ const inpaintEditor = new InpaintEditor({
             if (selected.id) appState.currentImageId = selected.id;
             window.lastSelectedImageUrl = selected.imageUrl;
         });
+        if (inpaintEditor.isOpen && successfulResults.length > 1) {
+            ui.focusImage(successfulResults[0]);
+        }
     }
 });
 
@@ -2167,9 +2171,13 @@ if (typeof window !== 'undefined') {
 Object.assign(window, {
     openEnhanceModal, closeEnhanceModal, setEnhancePreset, doEnhance, doUpscale,
     inpaintEditor,
+    toggleInpaintEditor: (opts) => inpaintEditor.toggle(opts),
     openInpaintEditor: (opts) => inpaintEditor.open(opts),
     closeInpaintEditor: () => inpaintEditor.close(),
     setInpaintTool: (t) => inpaintEditor.setTool(t),
+    toggleInpaintParamsPopover: (s) => inpaintEditor.toggleParamsPopover(s),
+    inpaintToggleMaskVis: () => inpaintEditor.toggleMaskVisibility(),
+    inpaintRevertOriginal: () => inpaintEditor.revertToOriginalImage(),
     inpaintUndo: () => inpaintEditor.undo(),
     inpaintClearMask: () => inpaintEditor.clearMask(),
     inpaintRestoreMask: () => inpaintEditor.restoreLastMask(true),

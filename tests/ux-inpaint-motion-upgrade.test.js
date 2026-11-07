@@ -187,23 +187,36 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
         const html = fs.readFileSync(path.resolve('index.html'), 'utf8');
         const css = fs.readFileSync(path.resolve('src/style.css'), 'utf8');
 
-        it('docks #inpaintModal directly inside #previewArea instead of fixed body root', () => {
+        it('fuses #inpaintMaskCanvas directly inside #singleResultArea with a floating pure-SVG brush dock', () => {
             const previewIdx = html.indexOf('id="previewArea"');
+            const singleAreaIdx = html.indexOf('id="singleResultArea"');
+            const maskCanvasIdx = html.indexOf('id="inpaintMaskCanvas"');
+            const inpaintDockIdx = html.indexOf('id="inpaintModal"');
             const historyIdx = html.indexOf('id="historyArea"');
-            const inpaintIdx = html.indexOf('id="inpaintModal"');
+
             expect(previewIdx).toBeGreaterThan(-1);
-            expect(inpaintIdx).toBeGreaterThan(previewIdx);
-            expect(inpaintIdx).toBeLessThan(historyIdx);
+            expect(singleAreaIdx).toBeGreaterThan(previewIdx);
+            expect(maskCanvasIdx).toBeGreaterThan(singleAreaIdx);
+            expect(maskCanvasIdx).toBeLessThan(inpaintDockIdx);
+            expect(inpaintDockIdx).toBeLessThan(historyIdx);
             expect(html).not.toContain('id="inpaintModal" class="fixed');
+            expect(html).not.toContain('<span>退出重绘</span>');
         });
 
-        it('enforces touch-action: none on inpaint canvas wrap, stage, and mask canvas', () => {
+        it('uses pure-SVG monochrome controls for toolbox & brush dock and enforces touch-action: none', () => {
+            const imageActionsSlice = html.slice(html.indexOf('id="imageActions"'), html.indexOf('id="clearBtn"'));
+            expect(html).toContain('id="inpaintToggleBtn"');
+            expect(html).toContain('id="toolboxTriggerBtn"');
             expect(html).toContain('id="inpaintCanvasStage"');
-            expect(html).toContain('id="inpaintQuickRetryBar"');
-            expect(html).toContain('id="inpaintRestoreMaskBtn"');
+            expect(html).toContain('id="inpaintRevertOrigBtn"');
+            expect(html).toContain('id="inpaintMaskVisBtn"');
             expect(html).toContain('id="inpaintMoveBtn"');
             expect(html).toContain('id="generationSkeleton"');
             expect(html).toContain('id="pngDropOverlay"');
+            expect(imageActionsSlice).toContain('<svg');
+            expect(imageActionsSlice).not.toContain('工具箱');
+            expect(imageActionsSlice).not.toContain('图像增强 (Enhance)');
+            expect(imageActionsSlice).not.toContain('AI 放大 (Upscale x4)');
             expect(css).toMatch(/\.inpaint-canvas-wrap\s*\{[\s\S]*?touch-action:\s*none/);
             expect(css).toMatch(/#inpaintMaskCanvas\s*\{[\s\S]*?touch-action:\s*none/);
         });
@@ -237,9 +250,11 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
                 sampler: Object.assign(createMockElement('sampler', [], 'SELECT'), { value: 'k_euler_ancestral' }),
                 modelValue: Object.assign(createMockElement('modelValue', [], 'INPUT'), { value: 'v5' }),
                 singleResultImg: Object.assign(createMockElement('singleResultImg', [], 'IMG'), { src: 'data:image/png;base64,ORIGINAL_IMG' }),
+                inpaintToggleBtn: createMockElement('inpaintToggleBtn'),
+                inpaintRevertOrigBtn: createMockElement('inpaintRevertOrigBtn', ['hidden']),
                 inpaintQuickRetryBar: createMockElement('inpaintQuickRetryBar', ['hidden']),
                 inpaintRestoreMaskBtn: createMockElement('inpaintRestoreMaskBtn', ['hidden']),
-                inpaintZoomBadge: createMockElement('inpaintZoomBadge'),
+                inpaintZoomBadge: createMockElement('inpaintZoomBadge', ['hidden']),
                 deskBtnText: createMockElement('deskBtnText')
             };
 
@@ -341,7 +356,7 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
             expect(elements.prompt.value).toBe('1girl, blushing');
         });
 
-        it('persists lastSession mask across doInpaint() and restores original image + mask on retryLastSession()', async () => {
+        it('stays persistently active across doInpaint(), supports 1-click original revert, and commits new base on clearMask()', async () => {
             const mockEngine = {
                 generate: vi.fn().mockResolvedValue({
                     blob: new Blob(['new_result']),
@@ -364,7 +379,9 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
                 }
             });
 
-            editor.open();
+            editor.toggle();
+            expect(editor.isOpen).toBe(true);
+            expect(elements.inpaintToggleBtn.classList.contains('inpaint-toggle-active')).toBe(true);
 
             // Paint a stroke on maskCanvas
             elements.inpaintMaskCanvas._trigger('pointerdown', {
@@ -382,21 +399,38 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
             elements.inpaintMaskCanvas._trigger('pointerup', { pointerId: 1 });
             expect(editor._hasPaintedMask()).toBe(true);
 
-            // Submit inpaint
+            // Submit inpaint -> stays open in persistent mode with mask intact & softened in peek mode!
             await editor.doInpaint();
 
-            // History stack cleared on close (memory safety), new image shown, quick retry bar visible!
-            expect(editor.history.length).toBe(0);
+            expect(editor.isOpen).toBe(true);
             expect(elements.singleResultImg.src).toBe('data:image/png;base64,NEW_GENERATED_IMG');
-            expect(elements.inpaintQuickRetryBar.classList.contains('hidden')).toBe(false);
-            expect(editor.hasRestorableMask()).toBe(true);
-
-            // User is dissatisfied -> clicks "不满意？回退原图重绘" (retryLastSession)
-            const retried = editor.retryLastSession();
-            expect(retried).toBe(true);
-            expect(elements.singleResultImg.src).toBe('data:image/png;base64,ORIGINAL_IMG');
-            expect(editor.originalImgSrc).toBe('data:image/png;base64,ORIGINAL_IMG');
             expect(editor._hasPaintedMask()).toBe(true);
+            expect(elements.inpaintMaskCanvas.classList.contains('mask-peek')).toBe(true);
+            expect(elements.inpaintRevertOrigBtn.classList.contains('hidden')).toBe(false);
+            expect(editor.originalImgSrc).toBe('data:image/png;base64,ORIGINAL_IMG');
+
+            // User clicks Revert SVG -> restores original image visually while keeping painted mask!
+            editor.revertToOriginalImage();
+            expect(elements.singleResultImg.src).toBe('data:image/png;base64,ORIGINAL_IMG');
+            expect(elements.inpaintMaskCanvas.classList.contains('mask-peek')).toBe(false);
+            expect(editor._hasPaintedMask()).toBe(true);
+
+            // Generate a second time without re-painting -> succeeds!
+            await editor.doInpaint();
+            expect(elements.singleResultImg.src).toBe('data:image/png;base64,NEW_GENERATED_IMG');
+            expect(editor.hasGeneratedInSession).toBe(true);
+
+            // User is happy with NEW_GENERATED_IMG and clicks Clear Mask to paint a new region -> commits new base!
+            editor.clearMask();
+            expect(editor._hasPaintedMask()).toBe(false);
+            expect(editor.originalImgSrc).toBe('data:image/png;base64,NEW_GENERATED_IMG');
+            expect(editor.hasGeneratedInSession).toBe(false);
+
+            // Explicitly closing exits Inpaint mode & frees history
+            editor.close();
+            expect(editor.isOpen).toBe(false);
+            expect(editor.history.length).toBe(0);
+            expect(elements.inpaintToggleBtn.classList.contains('inpaint-toggle-active')).toBe(false);
         });
     });
 

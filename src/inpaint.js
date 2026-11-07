@@ -1,7 +1,8 @@
 /**
  * Inpaint Editor Module
- * Handles in-workspace canvas drawing, multi-touch pinch-zoom/pan, mask persistence,
- * 1-click dissatisfied retry on original image, and official NovelAI infill submission.
+ * True Main-Canvas Fusion: paints directly over #singleResultImg in the main canvas,
+ * stays persistently active across generations until closed, supports multi-touch
+ * pinch-zoom/pan, mask peek/hide, and 1-click base-image revert.
  */
 export class InpaintEditor {
     constructor(dependencies = {}) {
@@ -16,6 +17,7 @@ export class InpaintEditor {
         this.canvasStage = document.getElementById('inpaintCanvasStage');
         this.baseCanvas = document.getElementById('inpaintBaseCanvas');
         this.maskCanvas = document.getElementById('inpaintMaskCanvas');
+        this.singleImg = document.getElementById('singleResultImg');
         this.baseCtx = this.baseCanvas ? this.baseCanvas.getContext('2d') : null;
         this.maskCtx = this.maskCanvas ? this.maskCanvas.getContext('2d') : null;
         this.brushCursor = document.getElementById('brushCursor');
@@ -26,6 +28,11 @@ export class InpaintEditor {
         this.history = [];
         this.lastSession = null;
         this.originalImgSrc = '';
+        this.hasGeneratedInSession = false;
+        this.maskHidden = false;
+        this.maskPeek = false;
+        this.paramsPopoverOpen = false;
+        this._isSubmitting = false;
         this.imgNaturalW = 0;
         this.imgNaturalH = 0;
         this.lastPos = null;
@@ -53,6 +60,14 @@ export class InpaintEditor {
         return !hiddenByClass && !hiddenByStyle;
     }
 
+    toggle(options = {}) {
+        if (this.isActive()) {
+            this.close();
+        } else {
+            this.open(options);
+        }
+    }
+
     hasRestorableMask() {
         return Boolean(this.lastSession && this.lastSession.maskAlpha && this.lastSession.width > 0 && this.lastSession.height > 0);
     }
@@ -67,6 +82,20 @@ export class InpaintEditor {
         }
     }
 
+    _syncToggleBtnState() {
+        const btn = typeof document !== 'undefined' ? document.getElementById('inpaintToggleBtn') : null;
+        if (btn && btn.classList) {
+            btn.classList.toggle('inpaint-toggle-active', Boolean(this.isOpen));
+        }
+    }
+
+    _syncRevertOrigBtnVisibility() {
+        const btn = typeof document !== 'undefined' ? document.getElementById('inpaintRevertOrigBtn') : null;
+        if (btn && btn.classList) {
+            btn.classList.toggle('hidden', !this.hasGeneratedInSession);
+        }
+    }
+
     _syncRestoreBtnVisibility() {
         const btn = typeof document !== 'undefined' ? document.getElementById('inpaintRestoreMaskBtn') : null;
         if (!btn) return;
@@ -77,17 +106,80 @@ export class InpaintEditor {
         }
     }
 
+    setMaskPeek(peek) {
+        this.maskPeek = Boolean(peek);
+        if (this.maskCanvas && this.maskCanvas.classList) {
+            this.maskCanvas.classList.toggle('mask-peek', this.maskPeek && !this.maskHidden);
+        }
+    }
+
+    toggleMaskVisibility(forceHidden) {
+        this.maskHidden = typeof forceHidden === 'boolean' ? forceHidden : !this.maskHidden;
+        if (this.maskPeek && !this.maskHidden) {
+            this.maskPeek = false;
+        }
+        if (this.maskCanvas && this.maskCanvas.classList) {
+            this.maskCanvas.classList.toggle('mask-hidden', this.maskHidden);
+            this.maskCanvas.classList.toggle('mask-peek', this.maskPeek && !this.maskHidden);
+        }
+        const eyeOpen = typeof document !== 'undefined' ? document.getElementById('inpaintEyeOpenIcon') : null;
+        const eyeOff = typeof document !== 'undefined' ? document.getElementById('inpaintEyeOffIcon') : null;
+        const visBtn = typeof document !== 'undefined' ? document.getElementById('inpaintMaskVisBtn') : null;
+        if (eyeOpen?.classList) eyeOpen.classList.toggle('hidden', this.maskHidden);
+        if (eyeOff?.classList) eyeOff.classList.toggle('hidden', !this.maskHidden);
+        if (visBtn?.classList) visBtn.classList.toggle('tool-active', this.maskHidden);
+        return !this.maskHidden;
+    }
+
+    toggleParamsPopover(forceState) {
+        const pop = typeof document !== 'undefined' ? document.getElementById('inpaintParamsPopover') : null;
+        const btn = typeof document !== 'undefined' ? document.getElementById('inpaintParamsBtn') : null;
+        this.paramsPopoverOpen = typeof forceState === 'boolean' ? forceState : !this.paramsPopoverOpen;
+        if (pop?.classList) {
+            pop.classList.toggle('hidden', !this.paramsPopoverOpen);
+        }
+        if (btn?.classList) {
+            btn.classList.toggle('tool-active', this.paramsPopoverOpen);
+        }
+    }
+
+    /**
+     * Locks #inpaintMaskCanvas CSS width/height 1:1 over the visible rendered box of #singleResultImg.
+     */
+    syncOverlayGeometry() {
+        const imgEl = this.singleImg || (typeof document !== 'undefined' ? document.getElementById('singleResultImg') : null);
+        const maskEl = this.maskCanvas || (typeof document !== 'undefined' ? document.getElementById('inpaintMaskCanvas') : null);
+        if (!imgEl || !maskEl || !maskEl.style) return;
+
+        const boxW = imgEl.clientWidth || imgEl.offsetWidth || 0;
+        const boxH = imgEl.clientHeight || imgEl.offsetHeight || 0;
+        const natW = this.imgNaturalW || imgEl.naturalWidth || boxW;
+        const natH = this.imgNaturalH || imgEl.naturalHeight || boxH;
+
+        if (boxW > 0 && boxH > 0 && natW > 0 && natH > 0) {
+            const fitScale = Math.min(boxW / natW, boxH / natH);
+            const dispW = Math.round(natW * fitScale);
+            const dispH = Math.round(natH * fitScale);
+            maskEl.style.width = `${dispW}px`;
+            maskEl.style.height = `${dispH}px`;
+        }
+    }
+
     applyViewportTransform() {
-        const target = this.canvasStage || document.getElementById('inpaintCanvasStage');
+        const target = this.canvasStage || (typeof document !== 'undefined' ? document.getElementById('inpaintCanvasStage') : null);
+        const isIdentity = Math.abs(this.viewport.scale - 1) < 0.005 && Math.abs(this.viewport.x) < 0.5 && Math.abs(this.viewport.y) < 0.5;
         if (target && target.style) {
-            target.style.transform = `translate3d(${this.viewport.x}px, ${this.viewport.y}px, 0) scale(${this.viewport.scale})`;
+            target.style.transform = (!this.isOpen && isIdentity)
+                ? ''
+                : `translate3d(${this.viewport.x}px, ${this.viewport.y}px, 0) scale(${this.viewport.scale})`;
         }
         const badge = typeof document !== 'undefined' ? document.getElementById('inpaintZoomBadge') : null;
         if (badge) {
             const pct = Math.round(this.viewport.scale * 100);
             badge.textContent = `${pct}%`;
             if (badge.classList) {
-                badge.classList.toggle('opacity-60', pct === 100 && this.viewport.x === 0 && this.viewport.y === 0);
+                badge.classList.toggle('opacity-60', isIdentity);
+                badge.classList.toggle('hidden', isIdentity);
             }
         }
     }
@@ -163,7 +255,7 @@ export class InpaintEditor {
         document.getElementById('inpaintStrengthMobile')?.addEventListener('input', e => syncStrength(e.target.value));
         document.getElementById('inpaintStrength')?.addEventListener('input', e => syncStrength(e.target.value));
 
-        // Two-way prompt sync between main workspace #prompt and #inpaintPrompt / #inpaintPromptMobile
+        // Optional prompt sync (kept for backward compatibility with unit tests)
         const syncPromptFromInpaint = (val) => {
             const p = document.getElementById('inpaintPrompt');
             const pm = document.getElementById('inpaintPromptMobile');
@@ -194,7 +286,27 @@ export class InpaintEditor {
             if (v) v.textContent = e.target.value;
         });
 
-        // Spacebar hold for quick desktop canvas panning
+        // Keep #inpaintMaskCanvas overlay geometry synced 1:1 with #singleResultImg
+        if (this.singleImg && typeof this.singleImg.addEventListener === 'function') {
+            this.singleImg.addEventListener('load', () => {
+                if (this.isActive()) this.syncOverlayGeometry();
+            });
+        }
+        if (typeof ResizeObserver !== 'undefined' && this.singleImg) {
+            try {
+                this._resizeObserver = new ResizeObserver(() => {
+                    if (this.isActive()) this.syncOverlayGeometry();
+                });
+                this._resizeObserver.observe(this.singleImg);
+            } catch (_) {}
+        }
+        if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+            window.addEventListener('resize', () => {
+                if (this.isActive()) this.syncOverlayGeometry();
+            });
+        }
+
+        // Spacebar hold for quick desktop canvas panning + Ctrl+Z / Esc
         if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
             document.addEventListener('keydown', (e) => {
                 if (!this.isActive()) return;
@@ -206,7 +318,11 @@ export class InpaintEditor {
                     e.preventDefault();
                     this.undo();
                 } else if (e.key === 'Escape') {
-                    this.close();
+                    if (this.paramsPopoverOpen) {
+                        this.toggleParamsPopover(false);
+                    } else {
+                        this.close();
+                    }
                 }
             });
             document.addEventListener('keyup', (e) => {
@@ -216,7 +332,7 @@ export class InpaintEditor {
             });
         }
 
-        // Wheel zoom on stage wrapper or maskCanvas
+        // Wheel zoom on stage wrapper or maskCanvas (only when inpaint mode is active)
         const wheelTarget = this.canvasWrap || this.maskCanvas;
         if (wheelTarget && typeof wheelTarget.addEventListener === 'function') {
             wheelTarget.addEventListener('wheel', (e) => {
@@ -227,11 +343,13 @@ export class InpaintEditor {
             }, { passive: false });
         }
 
-        // Allow panning / pinching when touching the dark surround outside the canvas as well
+        // Allow panning / pinching when touching the surround outside the image while active
         if (this.canvasWrap && typeof this.canvasWrap.addEventListener === 'function') {
             this.canvasWrap.addEventListener('pointerdown', (e) => {
+                if (!this.isActive()) return;
                 if (e.target !== this.canvasWrap && e.target !== this.canvasStage) return;
                 e.preventDefault();
+                if (this.paramsPopoverOpen) this.toggleParamsPopover(false);
                 const pid = e.pointerId ?? 0;
                 this.activePointers.set(pid, { clientX: e.clientX, clientY: e.clientY });
                 try { this.canvasWrap.setPointerCapture?.(pid); } catch (_) {}
@@ -248,6 +366,7 @@ export class InpaintEditor {
             });
 
             this.canvasWrap.addEventListener('pointermove', (e) => {
+                if (!this.isActive()) return;
                 const pid = e.pointerId ?? 0;
                 if (!this.activePointers.has(pid)) return;
                 if (e.target === this.maskCanvas && !this.isPinching && !this.isPanning) return;
@@ -277,6 +396,9 @@ export class InpaintEditor {
         // Unified Pointer Events on maskCanvas (supports 1-finger draw, move-mode pan, and 2-finger pinch-zoom/pan)
         this.maskCanvas.addEventListener('pointerdown', e => {
             e.preventDefault?.();
+            if (this.paramsPopoverOpen) {
+                this.toggleParamsPopover(false);
+            }
             const pid = e.pointerId ?? 0;
             this.activePointers.set(pid, { clientX: e.clientX, clientY: e.clientY });
 
@@ -304,6 +426,13 @@ export class InpaintEditor {
                     y: e.clientY - this.viewport.y
                 };
                 return;
+            }
+
+            // Restore full mask visibility as soon as user starts painting
+            if (this.maskHidden) {
+                this.toggleMaskVisibility(false);
+            } else if (this.maskPeek) {
+                this.setMaskPeek(false);
             }
 
             if (this.tool === 'fill') {
@@ -482,11 +611,11 @@ export class InpaintEditor {
     }
 
     open(options = {}) {
-        const imgEl = document.getElementById('singleResultImg');
+        const imgEl = this.singleImg || document.getElementById('singleResultImg');
         const targetSrc = options.imageSrc || (imgEl ? imgEl.src : '');
 
         if (!targetSrc) {
-            alert('请先生成或选择一张图片');
+            if (typeof alert === 'function') alert('请先生成或选择一张图片');
             return;
         }
 
@@ -497,6 +626,7 @@ export class InpaintEditor {
             }
         }
         this.originalImgSrc = targetSrc;
+        this.hasGeneratedInSession = false;
 
         // Close outpaint if open so main workspace canvas stays mutually exclusive
         const outpaintArea = document.getElementById('outpaintArea');
@@ -508,24 +638,19 @@ export class InpaintEditor {
             this.ui.switchRightView('preview');
         }
 
+        const singleArea = document.getElementById('singleResultArea');
+        const placeholder = document.getElementById('placeholder');
+        if (singleArea?.classList) singleArea.classList.remove('hidden');
+        if (placeholder?.classList) placeholder.classList.add('hidden');
+
         const mainPrompt = document.getElementById('prompt')?.value || '';
         const inpaintPrompt = document.getElementById('inpaintPrompt');
         const inpaintPromptMobile = document.getElementById('inpaintPromptMobile');
-        if (inpaintPrompt) {
-            inpaintPrompt.value = mainPrompt;
-        }
-        if (inpaintPromptMobile) {
-            inpaintPromptMobile.value = mainPrompt;
-        }
-
-        const drawer = document.getElementById('inpaintMobileDrawer');
-        const label = document.getElementById('drawerToggleLabel');
-        if (drawer) {
-            drawer.classList.remove('expanded');
-            if (label) label.textContent = '展开 ▲';
-        }
+        if (inpaintPrompt) inpaintPrompt.value = mainPrompt;
+        if (inpaintPromptMobile) inpaintPromptMobile.value = mainPrompt;
 
         this.showQuickRetryBar(false);
+        this.toggleParamsPopover(false);
 
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -535,25 +660,36 @@ export class InpaintEditor {
             this._fitCanvasToContainer(img);
             this.history = [];
             this.activePointers.clear();
+            this.isOpen = true;
+            this.maskHidden = false;
+            this.setMaskPeek(false);
+
+            if (this.maskCanvas?.classList) {
+                this.maskCanvas.classList.remove('hidden', 'pointer-events-none', 'mask-hidden', 'mask-peek');
+            }
+            if (this.canvasWrap?.classList) {
+                this.canvasWrap.classList.add('inpaint-live');
+            }
+
+            this.syncOverlayGeometry();
             this.resetZoom();
+            this._syncToggleBtnState();
+            this._syncRevertOrigBtnVisibility();
             this._syncRestoreBtnVisibility();
+            this.toggleMaskVisibility(false);
 
             if (options.restoreMask && this.hasRestorableMask()) {
                 this.restoreLastMask(false);
             }
 
-            this.isOpen = true;
             if (this.modal) {
                 this.modal.style.display = 'flex';
-                this.modal.classList?.remove?.('hidden');
-                setTimeout(() => {
-                    this.modal.classList?.remove?.('modal-hidden');
-                    this.modal.classList?.add?.('modal-visible');
-                }, 10);
+                this.modal.classList?.remove?.('hidden', 'modal-hidden');
+                this.modal.classList?.add?.('modal-visible');
             }
             const deskText = document.getElementById('deskBtnText');
             if (deskText) deskText.textContent = '确认局部重绘';
-            if (window.safeCreateIcons) window.safeCreateIcons();
+            if (typeof window !== 'undefined' && window.safeCreateIcons) window.safeCreateIcons();
         };
         img.src = this.originalImgSrc;
     }
@@ -564,15 +700,25 @@ export class InpaintEditor {
         this.drawing = false;
         this.isPanning = false;
         this.isPinching = false;
+        this.hasGeneratedInSession = false;
         this.activePointers.clear();
+        this.toggleParamsPopover(false);
+
+        if (this.maskCanvas?.classList) {
+            this.maskCanvas.classList.add('hidden', 'pointer-events-none');
+            this.maskCanvas.classList.remove('mask-peek', 'mask-hidden');
+        }
+        if (this.canvasWrap?.classList) {
+            this.canvasWrap.classList.remove('inpaint-live');
+        }
+        this.resetZoom();
+        this._syncToggleBtnState();
+        this._syncRevertOrigBtnVisibility();
+
         if (this.modal) {
             this.modal.classList?.add?.('modal-hidden');
             this.modal.classList?.remove?.('modal-visible');
-            setTimeout(() => {
-                if (!this.isOpen && this.modal) {
-                    this.modal.style.display = 'none';
-                }
-            }, 300);
+            this.modal.style.display = 'none';
         }
         if (this.brushCursor) this.brushCursor.classList.add('hidden');
         if (this._cursorRaf && typeof cancelAnimationFrame === 'function') {
@@ -662,6 +808,7 @@ export class InpaintEditor {
     undo() {
         if (this.history.length === 0) return;
         const state = this.history.pop();
+        if (this.maskPeek) this.setMaskPeek(false);
         if (typeof ImageData !== 'undefined' && state instanceof ImageData) {
             this.maskCtx.putImageData(state, 0, 0);
             return;
@@ -676,6 +823,60 @@ export class InpaintEditor {
     clearMask() {
         this.saveMaskState();
         this.maskCtx.clearRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
+        this.setMaskPeek(false);
+
+        // If user already generated a new inpaint result in this session and clicks Clear Mask,
+        // commit the currently displayed result on #singleResultImg as the new base image!
+        if (this.isOpen && this.hasGeneratedInSession) {
+            const imgEl = this.singleImg || (typeof document !== 'undefined' ? document.getElementById('singleResultImg') : null);
+            const currentDisplayedSrc = imgEl?.src || '';
+            if (currentDisplayedSrc && currentDisplayedSrc !== this.originalImgSrc) {
+                this.originalImgSrc = currentDisplayedSrc;
+                this.hasGeneratedInSession = false;
+                this._syncRevertOrigBtnVisibility();
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const newW = img.naturalWidth || img.width || this.imgNaturalW;
+                    const newH = img.naturalHeight || img.height || this.imgNaturalH;
+                    if (newW > 0 && newH > 0) {
+                        this.imgNaturalW = newW;
+                        this.imgNaturalH = newH;
+                        this.baseCanvas.width = newW;
+                        this.baseCanvas.height = newH;
+                        if (this.maskCanvas.width !== newW || this.maskCanvas.height !== newH) {
+                            this.maskCanvas.width = newW;
+                            this.maskCanvas.height = newH;
+                        }
+                        this.baseCtx.drawImage(img, 0, 0, newW, newH);
+                        this.syncOverlayGeometry();
+                    }
+                };
+                img.src = currentDisplayedSrc;
+            }
+        }
+    }
+
+    /**
+     * Reverts #singleResultImg back to the pre-inpaint base image while keeping the painted mask intact.
+     */
+    revertToOriginalImage() {
+        if (!this.originalImgSrc) return false;
+        const imgEl = this.singleImg || (typeof document !== 'undefined' ? document.getElementById('singleResultImg') : null);
+        if (imgEl) {
+            imgEl.src = this.originalImgSrc;
+        }
+        if (typeof window !== 'undefined') {
+            window.lastSelectedImageUrl = this.originalImgSrc;
+        }
+        this.hasGeneratedInSession = false;
+        this.setMaskPeek(false);
+        this._syncRevertOrigBtnVisibility();
+        this.syncOverlayGeometry();
+        if (typeof window !== 'undefined' && window.showToast) {
+            window.showToast('已还原重绘前原图，涂抹区域已保留', 'info');
+        }
+        return true;
     }
 
     /**
@@ -692,6 +893,7 @@ export class InpaintEditor {
             this.saveMaskState();
         }
         this._writeAlphaToMask(this.lastSession.maskAlpha, this.lastSession.width, this.lastSession.height);
+        this.setMaskPeek(false);
         if (saveUndo && typeof window !== 'undefined' && window.showToast) {
             window.showToast('已恢复上次涂抹区域', 'success');
         }
@@ -699,8 +901,7 @@ export class InpaintEditor {
     }
 
     /**
-     * Reverts to the pre-inpaint base image AND automatically restores the painted mask
-     * so dissatisfied results can be immediately re-rolled or tweaked without repainting.
+     * Reverts to the pre-inpaint base image AND automatically restores the painted mask.
      */
     retryLastSession() {
         if (!this.lastSession || !this.lastSession.originalImgSrc) {
@@ -720,6 +921,12 @@ export class InpaintEditor {
             if (v1) v1.textContent = parseFloat(strVal).toFixed(2);
             if (v2) v2.textContent = parseFloat(strVal).toFixed(2);
         }
+        if (this.isOpen) {
+            this.originalImgSrc = this.lastSession.originalImgSrc;
+            this.revertToOriginalImage();
+            this.restoreLastMask(false);
+            return true;
+        }
         this.open({
             imageSrc: this.lastSession.originalImgSrc,
             restoreMask: true
@@ -730,9 +937,6 @@ export class InpaintEditor {
         return true;
     }
 
-    /**
-     * Opens inpaint on the newly generated result image so the user can keep refining.
-     */
     continueOnCurrentImage(restoreMask = false) {
         this.open({ restoreMask });
     }
@@ -1001,12 +1205,16 @@ export class InpaintEditor {
     }
 
     async doInpaint() {
+        if (this._isSubmitting) return;
         if (!this._hasPaintedMask()) {
             if (typeof window !== 'undefined' && window.showToast) {
-                window.showToast('请先在图片上绘制需要重绘的区域', 'warning');
+                window.showToast('请先在图片上涂抹需要局部重绘的区域', 'warning');
             }
             return;
         }
+
+        this._isSubmitting = true;
+        this.toggleParamsPopover(false);
 
         const targetW = Math.ceil((this.imgNaturalW || 512) / 64) * 64;
         const targetH = Math.ceil((this.imgNaturalH || 512) / 64) * 64;
@@ -1014,7 +1222,7 @@ export class InpaintEditor {
         const selectedVersion = document.getElementById('modelValue')?.value || 'v4_5';
         const isFullRes = selectedVersion.includes('v4') || selectedVersion.includes('v5') || selectedVersion === 'v5';
 
-        // Snapshot current base image & mask BEFORE closing so user can retry in 1 click if dissatisfied
+        // Snapshot current base image & mask so user can always revert or restore even across sessions
         try {
             const extracted = this._extractCurrentAlpha();
             const strengthNum = parseFloat(document.getElementById('inpaintStrength')?.value || 1.0);
@@ -1035,13 +1243,9 @@ export class InpaintEditor {
 
         const submitBtn = document.getElementById('inpaintSubmitBtn');
         const submitBtnMobile = document.getElementById('inpaintSubmitBtnMobile');
-
         if (submitBtn) submitBtn.disabled = true;
         if (submitBtnMobile) submitBtnMobile.disabled = true;
 
-        const loadingHtml = '<span class="loader w-4 h-4 border-white/50"></span> 重绘中...';
-        if (submitBtn) submitBtn.innerHTML = loadingHtml;
-        if (submitBtnMobile) submitBtnMobile.innerHTML = loadingHtml;
         if (this.ui && typeof this.ui.setLoading === 'function') {
             this.ui.setLoading(true, '局部重绘中...');
         }
@@ -1108,7 +1312,6 @@ export class InpaintEditor {
                 throw firstError;
             }
 
-            this.close();
             if (this.ui && this.ui.currentRightView !== 'preview' && typeof this.ui.switchRightView === 'function') {
                 this.ui.switchRightView('preview');
             }
@@ -1117,8 +1320,15 @@ export class InpaintEditor {
                 await this.onComplete(successfulResults, inpaintPromptText, selectedVersion, params);
             }
 
-            // Display quick post-inpaint recovery bar on main canvas
-            this.showQuickRetryBar(true);
+            // Persistent Inpaint Mode: stay open on main canvas, keep mask intact & soften opacity for result inspection!
+            if (this.isOpen) {
+                this.hasGeneratedInSession = true;
+                this.setMaskPeek(true);
+                this._syncRevertOrigBtnVisibility();
+                this.syncOverlayGeometry();
+                const deskText = typeof document !== 'undefined' ? document.getElementById('deskBtnText') : null;
+                if (deskText) deskText.textContent = '确认局部重绘';
+            }
 
         } catch (err) {
             console.error(err);
@@ -1126,18 +1336,12 @@ export class InpaintEditor {
                 window.showToast('重绘失败: ' + err.message, 'error');
             }
         } finally {
+            this._isSubmitting = false;
             if (this.ui && typeof this.ui.setLoading === 'function') {
                 this.ui.setLoading(false);
             }
-            const normalHtml = '<i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘';
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = normalHtml;
-            }
-            if (submitBtnMobile) {
-                submitBtnMobile.disabled = false;
-                submitBtnMobile.innerHTML = normalHtml;
-            }
+            if (submitBtn) submitBtn.disabled = false;
+            if (submitBtnMobile) submitBtnMobile.disabled = false;
             if (typeof window !== 'undefined' && window.safeCreateIcons) window.safeCreateIcons();
         }
     }
