@@ -515,20 +515,33 @@ export class UIController {
         if (view === 'history') toggleBg.style.transform = 'translateX(100%)';
         else toggleBg.style.transform = 'translateX(0)';
 
+        const triggerViewEnter = (el) => {
+            if (!el || !el.classList) return;
+            if (typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf')) return;
+            el.classList.remove('view-fade-enter');
+            try { void el.offsetWidth; } catch (_) {}
+            el.classList.add('view-fade-enter');
+        };
+
         if (view === 'preview') {
             this.els.viewBtnPreview.classList.add('active');
             this.els.viewBtnHistory.classList.remove('active');
             this.els.previewArea.classList.remove('hidden');
             this.els.historyArea.classList.add('hidden');
+            triggerViewEnter(this.els.previewArea);
             this.els.zipBtn.classList.add('hidden');
             this.els.clearBtn.classList.add('hidden');
             this.els.dlBtn.classList.remove('hidden');
             if (this.els.canvasDeleteBtn) this.els.canvasDeleteBtn.classList.remove('hidden');
+            if (this.els.singleResultArea && !this.els.singleResultArea.classList.contains('hidden')) {
+                this.showImageActions(true);
+            }
         } else {
             this.els.viewBtnPreview.classList.remove('active');
             this.els.viewBtnHistory.classList.add('active');
             this.els.previewArea.classList.add('hidden');
             this.els.historyArea.classList.remove('hidden');
+            triggerViewEnter(this.els.historyArea);
             this.els.dlBtn.classList.add('hidden');
             if (this.els.canvasDeleteBtn) this.els.canvasDeleteBtn.classList.add('hidden');
             this.showImageActions(false);
@@ -632,6 +645,61 @@ export class UIController {
                 resultGrid.classList.remove('opacity-50', 'blur-sm');
             }
         }
+
+        // Resolution-matched shimmer skeleton & live elapsed timer
+        if (this._loadingTimerId) {
+            clearInterval(this._loadingTimerId);
+            this._loadingTimerId = null;
+        }
+        const skeleton = typeof document !== 'undefined' ? document.getElementById('generationSkeleton') : null;
+        const skeletonFrame = typeof document !== 'undefined' ? document.getElementById('generationSkeletonFrame') : null;
+        const skeletonStatus = typeof document !== 'undefined' ? document.getElementById('generationSkeletonStatus') : null;
+        const skeletonElapsed = typeof document !== 'undefined' ? document.getElementById('generationElapsedText') : null;
+        const inpaintModal = typeof document !== 'undefined' ? document.getElementById('inpaintModal') : null;
+        const outpaintArea = typeof document !== 'undefined' ? document.getElementById('outpaintArea') : null;
+        const inpaintVisible = Boolean(inpaintModal && inpaintModal.classList?.contains?.('modal-visible') && inpaintModal.style?.display !== 'none');
+        const outpaintVisible = Boolean(outpaintArea && !outpaintArea.classList?.contains?.('hidden'));
+
+        if (loading) {
+            if (skeleton && !inpaintVisible && !outpaintVisible) {
+                const resVal = (this.els?.resolution || (typeof document !== 'undefined' ? document.getElementById('resolution') : null))?.value || '832,1216';
+                const [rw, rh] = resVal.split(',').map(Number);
+                if (skeletonFrame && skeletonFrame.style && rw > 0 && rh > 0) {
+                    skeletonFrame.style.aspectRatio = `${rw} / ${rh}`;
+                }
+                if (skeletonStatus) {
+                    skeletonStatus.textContent = text && !text.includes('停止') ? text : '正在采样绘制...';
+                }
+                if (skeletonElapsed) {
+                    skeletonElapsed.textContent = '0.0s';
+                }
+                if (this.els?.placeholder) {
+                    this.els.placeholder.classList.add('hidden');
+                }
+                if (this.els?.singleResultArea && !this.els.singleResultArea.classList.contains('hidden')) {
+                    this.els.singleResultArea.classList.add('opacity-25', 'blur-[2px]');
+                }
+                skeleton.classList.remove('hidden');
+                const startedAt = Date.now();
+                this._loadingTimerId = setInterval(() => {
+                    if (skeletonElapsed) {
+                        skeletonElapsed.textContent = `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
+                    }
+                }, 100);
+            }
+        } else {
+            if (skeleton) {
+                skeleton.classList.add('hidden');
+            }
+            if (this.els?.singleResultArea) {
+                this.els.singleResultArea.classList.remove('opacity-25', 'blur-[2px]');
+            }
+            const hasSingle = Boolean(this.els?.singleResultArea && !this.els.singleResultArea.classList.contains('hidden'));
+            const hasGrid = Boolean(resultGrid && !resultGrid.classList.contains('hidden'));
+            if (!hasSingle && !hasGrid && this.els?.placeholder) {
+                this.els.placeholder.classList.remove('hidden');
+            }
+        }
     }
 
     checkIfConsumesAnlas() {
@@ -660,6 +728,11 @@ export class UIController {
         const deskText = typeof document !== 'undefined' ? document.getElementById('deskBtnText') : null;
         if (!deskText) return;
         if (typeof window !== 'undefined' && window.appState && window.appState.isGenerating) return;
+        const inpaintModal = typeof document !== 'undefined' ? document.getElementById('inpaintModal') : null;
+        if (inpaintModal && !inpaintModal.classList?.contains?.('modal-hidden') && inpaintModal.style?.display !== 'none') {
+            deskText.textContent = "确认局部重绘";
+            return;
+        }
         deskText.textContent = this.checkIfConsumesAnlas() ? "耗点生成" : "生成";
     }
 
@@ -802,34 +875,64 @@ export class UIController {
         this.showImageActions(false);
     }
 
+    _triggerImageReveal(imgEl) {
+        if (!imgEl || !imgEl.classList) return;
+        if (typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf')) return;
+        imgEl.classList.remove('img-reveal');
+        try { void imgEl.offsetWidth; } catch (_) {}
+        imgEl.classList.add('img-reveal');
+    }
+
     focusImage(item) {
         const { resultGrid, singleResultArea, singleResultImg, backToGridBtn, placeholder } = this.els;
         
-        placeholder.classList.add('hidden');
-        resultGrid.classList.add('hidden');
-        singleResultArea.classList.remove('hidden');
+        if (placeholder) placeholder.classList.add('hidden');
+        if (resultGrid) resultGrid.classList.add('hidden');
+        if (singleResultArea) singleResultArea.classList.remove('hidden');
         
         // 如果网格中有超过一张图，才显示返回按钮
-        if (resultGrid.children.length > 1) {
-            backToGridBtn.classList.remove('hidden');
-        } else {
-            backToGridBtn.classList.add('hidden');
+        if (backToGridBtn) {
+            if (resultGrid && resultGrid.children && resultGrid.children.length > 1) {
+                backToGridBtn.classList.remove('hidden');
+            } else {
+                backToGridBtn.classList.add('hidden');
+            }
         }
 
-        singleResultImg.src = item.imageUrl;
+        if (singleResultImg) {
+            singleResultImg.src = item.imageUrl;
+            this._triggerImageReveal(singleResultImg);
+        }
         this.showImageActions(true);
     }
     
     showResultImages(results, onSelect) {
+        if (!Array.isArray(results) || results.length === 0) return;
         const { resultGrid, singleResultArea, singleResultImg, backToGridBtn, placeholder, dlBtn } = this.els;
-        resultGrid.innerHTML = '';
-        placeholder.classList.add('hidden');
-        if (singleResultArea) singleResultArea.classList.add('hidden');
+        if (resultGrid) resultGrid.innerHTML = '';
+        if (placeholder) placeholder.classList.add('hidden');
         if (backToGridBtn) backToGridBtn.classList.add('hidden');
+
+        // 单图直达聚焦模式 (UX-1: 省去多余的“点击聚焦”步骤，工具箱与局部重绘直接可用)
+        if (results.length === 1) {
+            const singleItem = results[0];
+            if (resultGrid) resultGrid.classList.add('hidden');
+            if (onSelect) onSelect(singleItem);
+            this.focusImage(singleItem);
+            if (dlBtn) {
+                dlBtn.disabled = false;
+                dlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                dlBtn.classList.add('cursor-pointer');
+            }
+            if (typeof window !== 'undefined' && window.safeCreateIcons) window.safeCreateIcons();
+            return;
+        }
+
+        if (singleResultArea) singleResultArea.classList.add('hidden');
         if (singleResultImg) singleResultImg.src = '';
-        resultGrid.classList.remove('hidden');
+        if (resultGrid) resultGrid.classList.remove('hidden');
         
-        // 初始不显示操作按钮，除非之后点击了聚焦
+        // 多图并发网格初始隐藏单图工具箱，点击任一卡片后进入聚焦
         this.showImageActions(false);
 
         // 根据图片数量决定网格列数
@@ -897,11 +1000,9 @@ export class UIController {
         dlBtn.classList.add('cursor-pointer');
     }
 
-    // 保持兼容性，虽然现在主要用 showResultImages
+    // 保持兼容性，单图直接进入聚焦画布
     showResultImage(url) {
-        const item = { imageUrl: url };
-        this.showResultImages([item]);
-        this.focusImage(item);
+        this.showResultImages([{ imageUrl: url }]);
     }
 
     initTheme() {
@@ -913,13 +1014,26 @@ export class UIController {
     }
 
     toggleTheme() {
-        if (document.documentElement.classList.contains('dark')) {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('color-theme', 'light');
-        } else {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('color-theme', 'dark');
+        const applyToggle = () => {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('color-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('color-theme', 'dark');
+            }
+        };
+
+        const isLowPerf = Boolean(document.documentElement?.classList?.contains?.('low-perf')) ||
+            Boolean(typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+
+        if (!isLowPerf && typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
+            try {
+                document.startViewTransition(() => applyToggle());
+                return;
+            } catch (_) {}
         }
+        applyToggle();
     }
 
     updateAdminUI(isAdmin, hasAdminToken, customKey, toggleBypassLimitsEnabledCallback) {

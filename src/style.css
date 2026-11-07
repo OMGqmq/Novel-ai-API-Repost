@@ -264,10 +264,10 @@ html.dark .view-toggle-bg {
     opacity: 1;
 }
 
-/* --- Inpaint Editor --- */
+/* --- In-Canvas Docked Inpaint Editor --- */
 #inpaintModal {
-    transition: opacity 0.3s, visibility 0.3s;
-    background: #000;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    background: #020617;
 }
 #inpaintModal.modal-visible {
     opacity: 1;
@@ -285,36 +285,54 @@ html.dark .view-toggle-bg {
     justify-content: center;
     flex: 1;
     overflow: hidden;
-    background: #020617; /* 更深的背景突出画布 */
+    background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
-@media (max-width: 768px) {
-    .inpaint-canvas-wrap {
-        padding: 50px 40px 70px 40px; /* 顶部留出返回按钮, 两边留出侧边栏, 底部留出抽屉 */
-    }
+.inpaint-canvas-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: center center;
+    will-change: transform;
+    touch-action: none;
 }
-.inpaint-canvas-wrap canvas {
+.inpaint-canvas-stage canvas {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    max-width: calc(100% - 40px);
-    max-height: calc(100% - 40px);
+    max-width: calc(100% - 136px);
+    max-height: calc(100% - 76px);
     object-fit: contain;
-    box-shadow: 0 0 120px rgba(0,0,0,0.9);
+    border-radius: 6px;
+    box-shadow: 0 20px 70px rgba(0, 0, 0, 0.75);
+    touch-action: none;
 }
 @media (max-width: 768px) {
-    .inpaint-canvas-wrap canvas {
-        max-width: calc(100% - 80px); /* 对应 padding 左右 40+40 */
-        max-height: calc(100% - 120px); /* 对应 padding 顶 50 + 底 70 */
+    .inpaint-canvas-stage canvas {
+        max-width: calc(100% - 108px);
+        max-height: calc(100% - 150px);
     }
 }
 #inpaintMaskCanvas {
     cursor: none;
     z-index: 2;
+    opacity: 0.58;
+    filter: sepia(1) saturate(7) hue-rotate(185deg);
+    touch-action: none;
+}
+html.low-perf #inpaintMaskCanvas {
+    filter: none;
     opacity: 0.5;
 }
 #inpaintBaseCanvas {
     z-index: 1;
+    pointer-events: none;
 }
 .inpaint-sidebar {
     position: absolute;
@@ -377,7 +395,7 @@ html.dark .view-toggle-bg {
 
 /* --- Inpaint Mobile Drawer --- */
 #inpaintMobileDrawer {
-    position: fixed;
+    position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
@@ -1160,3 +1178,113 @@ html.low-perf body.entrance-animating #mobileControls {
 
 
 
+
+/* ==========================================================================
+   UX & Motion Polish: Shimmer Skeleton, Reveal, Range Fill & Micro-Transitions
+   ========================================================================== */
+
+.canvas-shimmer-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(238, 242, 255, 0.45) 100%);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+.dark .canvas-shimmer-card {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.78) 0%, rgba(30, 41, 59, 0.55) 100%);
+}
+.canvas-shimmer-card::before {
+    content: "";
+    position: absolute;
+    inset: -50%;
+    background: linear-gradient(
+        115deg,
+        transparent 35%,
+        rgba(99, 102, 241, 0.16) 50%,
+        transparent 65%
+    );
+    animation: canvasShimmerSweep 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    pointer-events: none;
+}
+@keyframes canvasShimmerSweep {
+    0% { transform: translate3d(-45%, -15%, 0); }
+    100% { transform: translate3d(45%, 15%, 0); }
+}
+
+.img-reveal {
+    animation: canvasImgReveal 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes canvasImgReveal {
+    0% {
+        opacity: 0;
+        transform: scale(0.985);
+        filter: blur(8px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: blur(0);
+    }
+}
+
+.panel-expand-anim {
+    animation: panelAccordionEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+    transform-origin: top center;
+}
+@keyframes panelAccordionEnter {
+    0% {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.view-fade-enter {
+    animation: viewMicroFadeEnter 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes viewMicroFadeEnter {
+    0% {
+        opacity: 0.4;
+        transform: translateY(4px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Active track fill for range sliders */
+input[type="range"].enhanced-range:not(.brush-size-slider) {
+    background-image: linear-gradient(to right, #6366f1 0%, #6366f1 var(--range-pct, 0%), transparent var(--range-pct, 0%), transparent 100%);
+}
+.dark input[type="range"].enhanced-range:not(.brush-size-slider) {
+    background-image: linear-gradient(to right, #818cf8 0%, #818cf8 var(--range-pct, 0%), transparent var(--range-pct, 0%), transparent 100%);
+}
+
+/* View Transitions API Smooth Theme Crossfade */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 0.24s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .canvas-shimmer-card::before,
+    .img-reveal,
+    .panel-expand-anim,
+    .view-fade-enter {
+        animation: none !important;
+        filter: none !important;
+    }
+}
+
+html.low-perf .canvas-shimmer-card::before,
+html.low-perf .img-reveal,
+html.low-perf .panel-expand-anim,
+html.low-perf .view-fade-enter {
+    animation: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}

@@ -173,7 +173,30 @@ export class GalleryController {
         }
         const el = document.getElementById(`gallery-item-${id}`) || (this.ui.els.galleryGrid ? this.ui.els.galleryGrid.querySelector(`[data-id="${id}"]`) : null);
         if (el && el.parentNode) {
-            el.remove();
+            const isLowPerf = Boolean(typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf'));
+            if (!isLowPerf && typeof el.animate === 'function') {
+                try {
+                    const anim = el.animate(
+                        [
+                            { opacity: 1, transform: 'scale(1)' },
+                            { opacity: 0, transform: 'scale(0.88)' }
+                        ],
+                        { duration: 160, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }
+                    );
+                    let removedDone = false;
+                    const finalize = () => {
+                        if (removedDone) return;
+                        removedDone = true;
+                        if (el.parentNode) el.remove();
+                    };
+                    anim.onfinish = finalize;
+                    setTimeout(finalize, 190);
+                } catch (_) {
+                    el.remove();
+                }
+            } else {
+                el.remove();
+            }
         }
         if (this.galleryItems.length === 0) {
             if (this.ui.els.emptyGallery) this.ui.els.emptyGallery.classList.remove('hidden');

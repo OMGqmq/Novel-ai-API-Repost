@@ -26,6 +26,10 @@ describe('Source Modules Import Integrity', () => {
     const lightboxMod = await import('../src/lightbox-controller.js');
     expect(lightboxMod.createLightboxController).toBeDefined();
 
+    const uxMod = await import('../src/ux-enhancements.js');
+    expect(uxMod.initUxEnhancements).toBeDefined();
+    expect(uxMod.adjustPromptTagWeight).toBeDefined();
+
     const inpaintMod = await import('../src/inpaint.js');
     expect(inpaintMod.InpaintEditor).toBeDefined();
 

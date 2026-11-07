@@ -38,7 +38,7 @@
             }
         } catch (e) {}
     </script>
-    <link rel="stylesheet" href="src/style.css?v=20260818_2">
+    <link rel="stylesheet" href="src/style.css?v=20261106_1">
 </head>
 
 <body
@@ -250,12 +250,161 @@
                     class="md:hidden mt-3 text-[10px] font-bold text-gray-300 dark:text-slate-600 bg-white/50 dark:bg-slate-800/50 px-3 py-1 rounded-full border border-gray-100 dark:border-slate-700">
                     V3</div>
             </div>
+            <!-- 生成中等比例流光骨架屏与实时计时器 -->
+            <div id="generationSkeleton" class="hidden absolute inset-0 z-15 flex items-center justify-center p-6 md:p-12 pointer-events-none">
+                <div id="generationSkeletonFrame" class="canvas-shimmer-card relative max-w-full max-h-full w-auto h-full rounded-2xl border border-indigo-400/30 dark:border-indigo-500/30 shadow-2xl flex flex-col items-center justify-center gap-3 px-8 py-6 overflow-hidden" style="aspect-ratio: 832 / 1216;">
+                    <div class="w-12 h-12 rounded-2xl bg-white/75 dark:bg-slate-800/80 backdrop-blur-md border border-white/50 dark:border-slate-700/60 flex items-center justify-center shadow-lg">
+                        <span class="loader border-indigo-500 dark:border-indigo-400 w-5 h-5"></span>
+                    </div>
+                    <div class="flex flex-col items-center gap-1 text-center z-10">
+                        <span id="generationSkeletonStatus" class="text-xs font-bold text-gray-700 dark:text-gray-200 tracking-wide">正在采样绘制...</span>
+                        <span id="generationElapsedText" class="text-[11px] font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full">0.0s</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
                 <div id="resultGrid" class="hidden absolute inset-0 w-full h-full grid gap-4 p-2 place-items-center overflow-y-auto custom-scroll">
                     <!-- 并发生成的图片将并排显示在这里 -->
                 </div>
                 <div id="singleResultArea" class="hidden absolute inset-0 w-full h-full flex items-center justify-center p-2">
                     <img id="singleResultImg" class="max-w-full max-h-full object-contain shadow-2xl rounded-lg">
+                </div>
+            </div>
+
+            <!-- 局部重绘完成后快捷复盘胶囊栏 (免重涂一键回退原图或继续精修) -->
+            <div id="inpaintQuickRetryBar" class="hidden absolute bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 p-1.5 rounded-full bg-slate-900/85 dark:bg-slate-900/90 backdrop-blur-xl border border-white/15 shadow-2xl text-white max-w-[94vw]">
+                <button type="button" onclick="window.inpaintRetryOriginal && window.inpaintRetryOriginal()" class="px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 active:scale-95 text-[11px] font-bold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer" title="还原重绘前的原图并自动铺回上次涂抹的蒙版，可直接换种子或改词再抽">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    <span>不满意？回退原图重绘</span>
+                </button>
+                <button type="button" onclick="window.inpaintContinueNew && window.inpaintContinueNew()" class="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-[11px] font-medium text-slate-200 flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer" title="在当前新生成图的基础上继续局部涂抹">
+                    <i data-lucide="paintbrush" class="w-3.5 h-3.5 text-blue-300"></i>
+                    <span>继续涂抹新图</span>
+                </button>
+                <button type="button" onclick="document.getElementById('inpaintQuickRetryBar')?.classList.add('hidden')" class="w-6 h-6 rounded-full hover:bg-white/15 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer" title="收起提示">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+
+            <!-- 主画布融合式局部重绘工作台 (In-Canvas Inpainting) -->
+            <div id="inpaintModal" class="absolute inset-0 z-[55] modal-hidden flex flex-col overflow-hidden" style="display:none">
+                <!-- 顶部轻量悬浮状态与缩放栏 -->
+                <div class="shrink-0 flex items-center justify-between px-3 md:px-5 pt-16 md:pt-4 pb-2 bg-transparent absolute top-0 left-0 right-0 z-[110] pointer-events-none">
+                    <div class="flex items-center gap-2 pointer-events-auto">
+                        <button onclick="closeInpaintEditor()" class="h-9 px-3 flex items-center gap-1.5 rounded-full bg-slate-900/65 hover:bg-slate-900/85 backdrop-blur-xl border border-white/15 text-white/90 hover:text-white text-xs font-semibold transition-all shadow-lg cursor-pointer" title="退出局部重绘 (Esc)">
+                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                            <span>退出重绘</span>
+                        </button>
+                    </div>
+                    <div class="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/65 backdrop-blur-xl border border-white/15 shadow-lg">
+                        <span class="hidden sm:inline text-[11px] font-bold text-blue-300 tracking-tight">主画布涂抹中</span>
+                        <span class="hidden sm:inline text-white/20">·</span>
+                        <button type="button" id="inpaintZoomBadge" onclick="window.inpaintResetZoom && window.inpaintResetZoom()" class="text-[11px] font-mono font-bold text-white/90 hover:text-blue-300 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors cursor-pointer opacity-60" title="滚轮或双指捏合缩放，点击恢复 100%">100%</button>
+                    </div>
+                </div>
+
+                <!-- 触控防抖画布视口 & 左右悬浮工具栏 -->
+                <div class="inpaint-canvas-wrap group touch-none select-none" id="inpaintCanvasWrap">
+                    <!-- 左侧工具栏: 画笔 / 橡皮 / 抓手平移 / 画笔大小 -->
+                    <div class="inpaint-sidebar inpaint-sidebar-left">
+                        <button onclick="setInpaintTool('brush')" id="inpaintBrushBtn" class="tool-active" title="画笔涂抹">
+                            <i data-lucide="pencil" class="w-5 h-5"></i>
+                        </button>
+                        <button onclick="setInpaintTool('eraser')" id="inpaintEraserBtn" title="橡皮擦除">
+                            <i data-lucide="eraser" class="w-5 h-5"></i>
+                        </button>
+                        <button onclick="setInpaintTool('move')" id="inpaintMoveBtn" title="抓手平移画布 (也可双指捏合拖动 / 按住空格拖动)">
+                            <i data-lucide="hand" class="w-5 h-5"></i>
+                        </button>
+
+                        <!-- 桌面端大小调节 (垂直) -->
+                        <div class="hidden md:flex flex-col items-center gap-3 py-3 mt-1 border-t border-white/10">
+                            <div class="h-28 flex items-center justify-center touch-none">
+                                <input type="range" id="inpaintBrushSize" min="5" max="300" value="60"
+                                    class="brush-size-slider -rotate-90 origin-center touch-none" style="width: 96px;">
+                            </div>
+                            <span id="inpaintBrushSizeVal" class="text-[10px] font-mono text-white/60">60</span>
+                        </div>
+                    </div>
+
+                    <!-- 右侧工具栏: 恢复上次涂抹 / 撤销 / 清空 -->
+                    <div class="inpaint-sidebar inpaint-sidebar-right">
+                        <button onclick="window.inpaintRestoreMask && window.inpaintRestoreMask()" id="inpaintRestoreMaskBtn" class="hidden !text-amber-300 hover:!bg-amber-500/20" title="恢复上次涂抹的蒙版区域">
+                            <i data-lucide="history" class="w-5 h-5"></i>
+                        </button>
+                        <button onclick="inpaintUndo()" title="撤销一步 (Ctrl+Z)">
+                            <i data-lucide="undo-2" class="w-5 h-5"></i>
+                        </button>
+                        <button onclick="inpaintClearMask()" title="清空当前蒙版">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <!-- 可无损缩放与平移的画布双层舞台 -->
+                    <div id="inpaintCanvasStage" class="inpaint-canvas-stage">
+                        <canvas id="inpaintBaseCanvas"></canvas>
+                        <canvas id="inpaintMaskCanvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- 桌面端轻量底部控制栏 (左侧主参数栏全程开放联动) -->
+                <div class="hidden md:flex shrink-0 px-5 py-3 border-t border-white/10 bg-slate-900/85 backdrop-blur-2xl flex-row gap-4 items-center z-[110]">
+                    <div class="flex-1 relative">
+                        <input type="text" id="inpaintPrompt" placeholder="重绘提示词（与左侧主提示词实时同步，也可直接在左侧调整角色与参数）..."
+                            class="w-full px-4 py-2.5 rounded-xl text-xs bg-white/5 border border-white/10 text-white placeholder-white/35 outline-none focus:border-blue-500/60 transition-all">
+                    </div>
+                    <div class="flex items-center gap-3 px-2 min-w-[175px]">
+                        <div class="flex flex-col gap-1.5 w-full">
+                            <div class="flex justify-between text-[10px] font-bold text-white/50 uppercase tracking-wider">
+                                <span>重绘幅度</span>
+                                <span id="inpaintStrengthVal" class="text-blue-400 font-mono">1.00</span>
+                            </div>
+                            <input type="range" id="inpaintStrength" min="0.1" max="1.0" value="1.0" step="0.01" class="w-full accent-blue-500 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                    <button onclick="doInpaint()" id="inpaintSubmitBtn"
+                        class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-[0_0_24px_rgba(59,130,246,0.35)] transition-all active:scale-[0.96] flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘
+                    </button>
+                </div>
+
+                <!-- 移动端抽屉 (仅手机显示，支持按住顶部把手下滑收起) -->
+                <div id="inpaintMobileDrawer" class="md:hidden flex flex-col">
+                    <div class="drawer-header w-full flex flex-col items-center pt-2.5 pb-2 cursor-pointer touch-none select-none" onclick="toggleInpaintDrawer()" id="inpaintDrawerHeader">
+                        <div class="drawer-handle"></div>
+                        <div class="flex items-center justify-between w-full px-5 text-[11px] font-medium text-white/75">
+                            <span class="flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-blue-400"></i> 重绘参数 (双指可缩放画布)</span>
+                            <span id="drawerToggleLabel" class="text-[10px] text-blue-400 font-mono font-bold">展开 ▲</span>
+                        </div>
+                    </div>
+
+                    <div class="drawer-content flex flex-col gap-3.5 px-5 pb-6 overflow-y-auto custom-scroll max-h-[65vh]">
+                        <div class="flex items-center gap-4 bg-white/5 rounded-2xl px-4 py-2.5 border border-white/5">
+                            <span class="text-[10px] font-bold text-white/50 uppercase tracking-widest w-10">画笔</span>
+                            <input type="range" id="inpaintBrushSizeMobile" min="5" max="300" value="60" class="flex-1 accent-blue-500 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer touch-none">
+                            <span id="inpaintBrushSizeValMobile" class="text-xs font-mono text-white/70 w-8 text-right">60</span>
+                        </div>
+
+                        <div class="relative group">
+                            <textarea id="inpaintPromptMobile" placeholder="重绘提示词 (与主面板同步)..." rows="2"
+                                class="w-full px-4 py-2.5 rounded-2xl text-xs bg-white/5 border border-white/10 text-white placeholder-white/30 outline-none focus:border-blue-500/50 transition-all resize-none"></textarea>
+                        </div>
+
+                        <div class="flex flex-col gap-3">
+                            <div class="flex flex-col gap-1.5 bg-white/5 rounded-2xl px-4 py-2.5 border border-white/5">
+                                <div class="flex justify-between text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                                    <span>Strength (重绘幅度)</span>
+                                    <span id="inpaintStrengthValMobile" class="text-blue-400 font-mono">1.00</span>
+                                </div>
+                                <input type="range" id="inpaintStrengthMobile" min="0.1" max="1.0" value="1.0" step="0.01" class="w-full accent-blue-500 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer touch-none">
+                            </div>
+                            <button onclick="doInpaint()" id="inpaintSubmitBtnMobile"
+                                class="w-full py-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                                <i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -346,7 +495,7 @@
     <div id="mobileControls"
         class="collapsed md:relative md:h-full md:w-[400px] glass-panel flex flex-col z-40 shadow-[0_-10px_60px_-15px_rgba(0,0,0,0.1)] md:shadow-xl md:order-1 md:rounded-none border-t border-white/60 dark:border-slate-700/50">
 
-        <div class="md:hidden w-full flex flex-col items-center pt-3 pb-2 cursor-pointer touch-none"
+        <div id="mobileControlsHandle" class="md:hidden w-full flex flex-col items-center pt-3 pb-2 cursor-pointer touch-none"
             onclick="toggleMobileControls()">
             <div class="w-10 h-1 bg-gray-300 dark:bg-slate-600 rounded-full mb-2"></div>
             <div
@@ -2132,9 +2281,12 @@
         
         <!-- 左/上侧：图片大图区域 -->
         <div class="relative flex-1 flex items-center justify-center p-4 md:p-8 z-10 select-none group">
-            <!-- 顶部返回/关闭按钮 -->
+            <!-- 顶部返回/关闭按钮与缩放复位 -->
             <button onclick="closeLightbox()" class="absolute top-4 left-4 w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-900/50 backdrop-blur border border-white/10 text-white/80 hover:text-white hover:bg-slate-900/80 active:scale-95 transition-all z-20">
                 <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            <button id="lightboxZoomReset" onclick="window.resetLightboxZoom && window.resetLightboxZoom()" class="hidden absolute top-4 right-4 px-3 h-9 items-center gap-1.5 rounded-full bg-slate-900/65 backdrop-blur border border-white/15 text-xs font-mono font-bold text-white/90 hover:text-white hover:bg-slate-900/90 active:scale-95 transition-all z-20 cursor-pointer" title="点击恢复 100% 原始视图">
+                100%
             </button>
             
             <!-- 上一张/下一张按钮 (仅桌面悬浮) -->
@@ -2145,16 +2297,16 @@
                 <i data-lucide="chevron-right" class="w-6 h-6"></i>
             </button>
 
-            <!-- 主图显示 -->
-            <div class="w-full h-full flex items-center justify-center overflow-hidden">
-                <img id="lightboxMainImg" src="" class="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-all duration-300" style="-webkit-user-drag:none">
+            <!-- 主图显示 (支持滚轮/双击/双指缩放漫游) -->
+            <div id="lightboxViewport" class="w-full h-full flex items-center justify-center overflow-hidden touch-none">
+                <img id="lightboxMainImg" src="" class="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-opacity duration-300 select-none" style="-webkit-user-drag:none; will-change: transform;">
             </div>
         </div>
 
         <!-- 右/下侧：元数据参数面板 -->
         <div id="lightboxSidebar" class="relative z-10 w-full md:w-[380px] bg-slate-900/85 backdrop-blur-2xl border-t md:border-t-0 md:border-l border-white/10 text-slate-200 flex flex-col shrink-0 transform translate-y-full md:translate-y-0 md:translate-x-full transition-transform duration-350">
             <!-- 手机端可拉动拖拽条 -->
-            <div class="md:hidden w-full flex justify-center py-2 cursor-pointer" onclick="toggleLightboxSidebarMobile()">
+            <div id="lightboxDrawerHandle" class="md:hidden w-full flex justify-center py-2.5 cursor-pointer touch-none" onclick="toggleLightboxSidebarMobile()">
                 <div class="w-10 h-1 bg-white/20 rounded-full"></div>
             </div>
 
@@ -2275,118 +2427,14 @@
         </div>
     </div>
 
-    <!-- 局部重绘 (Inpainting) 编辑器弹窗 -->
-    <div id="inpaintModal" class="fixed inset-0 z-[200] modal-hidden flex flex-col" style="display:none">
-        <!-- 顶部: 导航 (极致精简) -->
-        <div class="shrink-0 flex items-center justify-between px-4 md:px-6 py-4 bg-transparent absolute top-0 left-0 right-0 z-[110] pointer-events-none">
-            <div class="flex items-center gap-4 pointer-events-auto">
-                <button onclick="closeInpaintEditor()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-900/40 backdrop-blur-xl border border-white/10 text-white/80 hover:text-white transition-all">
-                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
-                </button>
+    <!-- 全局 PNG 原图拖拽解析毛玻璃引导浮层 -->
+    <div id="pngDropOverlay" class="hidden opacity-0 pointer-events-none fixed inset-0 z-[320] bg-slate-950/60 backdrop-blur-md transition-opacity duration-200 flex items-center justify-center p-6">
+        <div class="max-w-md w-full rounded-[2rem] border-2 border-dashed border-indigo-400/70 bg-slate-900/80 px-8 py-10 text-center shadow-2xl flex flex-col items-center gap-3">
+            <div class="w-14 h-14 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+                <i data-lucide="file-down" class="w-7 h-7"></i>
             </div>
-            <div class="pointer-events-auto md:flex hidden items-center gap-2 px-4 py-2 rounded-2xl bg-slate-900/40 backdrop-blur-xl border border-white/10">
-                <span class="text-xs font-bold text-white/90 tracking-tight">局部重绘模式</span>
-            </div>
-        </div>
-
-        <!-- 画布区域 & 侧边工具栏 -->
-        <div class="inpaint-canvas-wrap group" id="inpaintCanvasWrap">
-            <!-- 左侧工具栏: 工具选择 -->
-            <div class="inpaint-sidebar inpaint-sidebar-left">
-                <button onclick="setInpaintTool('brush')" id="inpaintBrushBtn" class="tool-active" title="画笔">
-                    <i data-lucide="pencil" class="w-5 h-5"></i>
-                </button>
-                <button onclick="setInpaintTool('eraser')" id="inpaintEraserBtn" title="橡皮擦">
-                    <i data-lucide="eraser" class="w-5 h-5"></i>
-                </button>
-                
-                <!-- 桌面端大小调节 (垂直) -->
-                <div class="hidden md:flex flex-col items-center gap-3 py-4 mt-2 border-t border-white/5">
-                    <div class="h-32 flex items-center justify-center">
-                        <input type="range" id="inpaintBrushSize" min="5" max="300" value="60" 
-                            class="brush-size-slider -rotate-90 origin-center" style="width: 100px;">
-                    </div>
-                    <span id="inpaintBrushSizeVal" class="text-[10px] font-mono text-white/50">60</span>
-                </div>
-            </div>
-
-            <!-- 右侧工具栏: 操作按钮 -->
-            <div class="inpaint-sidebar inpaint-sidebar-right">
-                <button onclick="inpaintUndo()" title="撤销">
-                    <i data-lucide="undo-2" class="w-5 h-5"></i>
-                </button>
-                <button onclick="inpaintClearMask()" title="全部清除">
-                    <i data-lucide="trash-2" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <canvas id="inpaintBaseCanvas"></canvas>
-            <canvas id="inpaintMaskCanvas"></canvas>
-        </div>
-
-        <!-- 桌面端底部参数栏 (仅桌面显示) -->
-        <div class="hidden md:flex shrink-0 px-8 py-6 border-t border-white/5 bg-slate-900/90 backdrop-blur-2xl flex-row gap-6 items-center">
-            <div class="flex-1 flex flex-row gap-6">
-                <div class="flex-1 relative">
-                    <input type="text" id="inpaintPrompt" placeholder="留空则沿用当前提示词..."
-                        class="w-full px-5 py-4 rounded-2xl text-sm bg-white/5 border border-white/10 text-white placeholder-white/20 outline-none focus:border-blue-500/50 transition-all">
-                </div>
-                <div class="flex items-center gap-6 px-2 min-w-[200px]">
-                    <div class="flex flex-col gap-2 w-full">
-                        <div class="flex justify-between text-[10px] font-bold text-white/30 uppercase tracking-widest">
-                            <span>Strength</span>
-                            <span id="inpaintStrengthVal" class="text-blue-400 font-mono">1.00</span>
-                        </div>
-                        <input type="range" id="inpaintStrength" min="0.1" max="1.0" value="1.0" step="0.01" class="w-full accent-blue-500 h-1 bg-white/10 rounded-full appearance-none cursor-pointer">
-                    </div>
-                </div>
-            </div>
-            <button onclick="doInpaint()" id="inpaintSubmitBtn"
-                class="px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-black rounded-2xl shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all active:scale-[0.95] flex items-center justify-center gap-3">
-                <i data-lucide="sparkles" class="w-5 h-5"></i> 确认重绘
-            </button>
-        </div>
-
-        <!-- 移动端抽屉 (仅手机显示) -->
-        <div id="inpaintMobileDrawer" class="md:hidden flex flex-col">
-            <!-- 抽屉头部把手与状态栏 (点击可自由折叠/展开) -->
-            <div class="drawer-header w-full flex flex-col items-center pt-2.5 pb-2 cursor-pointer touch-none select-none" onclick="toggleInpaintDrawer()" id="inpaintDrawerHeader">
-                <div class="drawer-handle"></div>
-                <div class="flex items-center justify-between w-full px-5 text-[11px] font-medium text-white/70">
-                    <span class="flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-blue-400"></i> 重绘参数</span>
-                    <span id="drawerToggleLabel" class="text-[10px] text-blue-400 font-mono font-bold">展开 ▲</span>
-                </div>
-            </div>
-            
-            <div class="drawer-content flex flex-col gap-4 px-5 pb-6 overflow-y-auto custom-scroll max-h-[70vh]">
-                <!-- 第一行: 画笔大小调节 -->
-                <div class="flex items-center gap-4 bg-white/5 rounded-2xl px-4 py-3 border border-white/5">
-                    <span class="text-[10px] font-bold text-white/40 uppercase tracking-widest w-8">Size</span>
-                    <input type="range" id="inpaintBrushSizeMobile" min="5" max="300" value="60" class="flex-1 accent-blue-500 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer">
-                    <span id="inpaintBrushSizeValMobile" class="text-xs font-mono text-white/60 w-8 text-right">60</span>
-                </div>
-
-                <!-- 第二行: 提示词 -->
-                <div class="relative group">
-                    <textarea id="inpaintPromptMobile" placeholder="重绘提示词 (留空则沿用当前提示词)..." rows="2"
-                        class="w-full px-4 py-3 rounded-2xl text-xs bg-white/5 border border-white/10 text-white placeholder-white/30 outline-none focus:border-blue-500/50 transition-all resize-none"></textarea>
-                </div>
-
-                <!-- 第三行: 强度 & 提交 -->
-                <div class="flex flex-col gap-4">
-                    <div class="flex flex-col gap-1.5 bg-white/5 rounded-2xl px-4 py-3 border border-white/5">
-                        <div class="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-widest">
-                            <span>Strength (重绘幅度)</span>
-                            <span id="inpaintStrengthValMobile" class="text-blue-400 font-mono">1.00</span>
-                        </div>
-                        <input type="range" id="inpaintStrengthMobile" min="0.1" max="1.0" value="1.0" step="0.01" class="w-full accent-blue-500 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer">
-                    </div>
-                    <button onclick="doInpaint()" id="inpaintSubmitBtnMobile"
-                        class="w-full py-3.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                        <i data-lucide="sparkles" class="w-4 h-4"></i> 确认重绘
-                    </button>
-                </div>
-            </div>
+            <div class="text-base font-bold text-white tracking-wide">释放 NovelAI 原图自动填入参数</div>
+            <p class="text-xs text-slate-300 leading-relaxed">自动解析 PNG 元数据中的正向/负向提示词、步数、CFG、采样器、画幅与随机种子</p>
         </div>
     </div>
     <div class="brush-cursor hidden" id="brushCursor"></div>
@@ -2557,7 +2605,7 @@
     <!-- 全局统一下载静默锚点，用于规避 Chrome/Edge 对动态创建 A 标签的多文件安全拦截 -->
     <a id="globalDownloadAnchor" style="display: none;" rel="noopener"></a>
 
-    <script type="module" src="src/main.js?v=20260822_19"></script>
+    <script type="module" src="src/main.js?v=20261106_1"></script>
 </body>
 
 </html>

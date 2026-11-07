@@ -62,6 +62,60 @@ export function createLightboxController({
 }) {
     let lightboxItems = [];
     let lightboxIndex = 0;
+    const zoomState = { scale: 1, x: 0, y: 0 };
+
+    function applyLightboxZoom() {
+        const mainImg = typeof document !== 'undefined' ? document.getElementById('lightboxMainImg') : null;
+        if (mainImg && mainImg.style) {
+            const isTransformed = zoomState.scale > 1.005 || Math.abs(zoomState.x) > 0.5 || Math.abs(zoomState.y) > 0.5;
+            mainImg.style.transform = isTransformed
+                ? `translate3d(${zoomState.x}px, ${zoomState.y}px, 0) scale(${zoomState.scale})`
+                : '';
+            mainImg.style.cursor = zoomState.scale > 1.02 ? 'grab' : 'zoom-in';
+        }
+        const resetBtn = typeof document !== 'undefined' ? document.getElementById('lightboxZoomReset') : null;
+        if (resetBtn && resetBtn.classList) {
+            if (zoomState.scale > 1.02) {
+                resetBtn.classList.remove('hidden');
+                resetBtn.classList.add('flex');
+                resetBtn.textContent = `${Math.round(zoomState.scale * 100)}% · 重置`;
+            } else {
+                resetBtn.classList.add('hidden');
+                resetBtn.classList.remove('flex');
+            }
+        }
+    }
+
+    function resetLightboxZoom() {
+        zoomState.scale = 1;
+        zoomState.x = 0;
+        zoomState.y = 0;
+        applyLightboxZoom();
+    }
+
+    function setLightboxZoom(nextScale, anchorClientX = null, anchorClientY = null) {
+        const clamped = Math.max(1, Math.min(5, nextScale));
+        const prevScale = zoomState.scale || 1;
+        if (clamped <= 1.02) {
+            resetLightboxZoom();
+            return;
+        }
+        const viewport = typeof document !== 'undefined' ? document.getElementById('lightboxViewport') : null;
+        if (viewport && typeof viewport.getBoundingClientRect === 'function' && anchorClientX !== null && anchorClientY !== null) {
+            const rect = viewport.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const ox = anchorClientX - cx;
+                const oy = anchorClientY - cy;
+                const ratio = clamped / prevScale;
+                zoomState.x = ox - (ox - zoomState.x) * ratio;
+                zoomState.y = oy - (oy - zoomState.y) * ratio;
+            }
+        }
+        zoomState.scale = clamped;
+        applyLightboxZoom();
+    }
 
     async function openLightbox(item) {
         if (typeof item === 'string') {
@@ -113,12 +167,14 @@ export function createLightboxController({
     }
 
     function closeLightbox() {
+        resetLightboxZoom();
         closeModal('imageLightboxModal');
     }
 
     function renderLightboxCurrent() {
         if (lightboxItems.length === 0 || lightboxIndex < 0 || lightboxIndex >= lightboxItems.length) return;
         const item = lightboxItems[lightboxIndex];
+        resetLightboxZoom();
 
         const mainImg = document.getElementById('lightboxMainImg');
         if (mainImg) {
@@ -699,29 +755,158 @@ export function createLightboxController({
             if (modal && modal.classList.contains('modal-active')) {
                 if (e.key === 'ArrowLeft') prevLightboxImage();
                 else if (e.key === 'ArrowRight') nextLightboxImage();
-                else if (e.key === 'Escape') closeLightbox();
+                else if (e.key === 'Escape') {
+                    if (zoomState.scale > 1.02) resetLightboxZoom();
+                    else closeLightbox();
+                }
             }
         });
 
-        let touchStartX = 0;
-        const lightboxModal = document.getElementById('imageLightboxModal');
-        if (lightboxModal) {
-            lightboxModal.addEventListener('touchstart', (e) => {
-                touchStartX = e.changedTouches[0].screenX;
-            }, { passive: true });
+        const viewport = document.getElementById('lightboxViewport') || document.getElementById('lightboxMainImg');
+        if (viewport && typeof viewport.addEventListener === 'function') {
+            viewport.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+                setLightboxZoom(zoomState.scale * factor, e.clientX, e.clientY);
+            }, { passive: false });
 
-            lightboxModal.addEventListener('touchend', (e) => {
-                const touchEndX = e.changedTouches[0].screenX;
-                const swipeThreshold = 50;
-                if (touchEndX < touchStartX - swipeThreshold) nextLightboxImage();
-                else if (touchEndX > touchStartX + swipeThreshold) prevLightboxImage();
-            }, { passive: true });
+            viewport.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                if (zoomState.scale > 1.05) {
+                    resetLightboxZoom();
+                } else {
+                    setLightboxZoom(2.5, e.clientX, e.clientY);
+                }
+            });
+
+            const lbPointers = new Map();
+            let isPanning = false;
+            let isPinching = false;
+            let panStart = { x: 0, y: 0 };
+            let pinchStart = null;
+            let swipeStartX = 0;
+            let swipeStartY = 0;
+            let hadMultiTouch = false;
+            let lastTapTime = 0;
+            let lastTapPos = { x: 0, y: 0 };
+
+            viewport.addEventListener('pointerdown', (e) => {
+                const pid = e.pointerId ?? 0;
+                lbPointers.set(pid, { x: e.clientX, y: e.clientY });
+                try { viewport.setPointerCapture?.(pid); } catch (_) {}
+
+                if (lbPointers.size >= 2) {
+                    hadMultiTouch = true;
+                    isPinching = true;
+                    isPanning = false;
+                    const pts = Array.from(lbPointers.values());
+                    const dist = Math.max(10, Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y));
+                    pinchStart = {
+                        dist,
+                        midX: (pts[0].x + pts[1].x) / 2,
+                        midY: (pts[0].y + pts[1].y) / 2,
+                        scale: zoomState.scale,
+                        x: zoomState.x,
+                        y: zoomState.y
+                    };
+                    return;
+                }
+
+                hadMultiTouch = false;
+                swipeStartX = e.clientX;
+                swipeStartY = e.clientY;
+
+                if (e.pointerType === 'touch') {
+                    const now = Date.now();
+                    if (now - lastTapTime < 280 && Math.hypot(e.clientX - lastTapPos.x, e.clientY - lastTapPos.y) < 26) {
+                        lastTapTime = 0;
+                        if (zoomState.scale > 1.05) resetLightboxZoom();
+                        else setLightboxZoom(2.5, e.clientX, e.clientY);
+                        return;
+                    }
+                    lastTapTime = now;
+                    lastTapPos = { x: e.clientX, y: e.clientY };
+                }
+
+                if (zoomState.scale > 1.02) {
+                    isPanning = true;
+                    panStart = {
+                        x: e.clientX - zoomState.x,
+                        y: e.clientY - zoomState.y
+                    };
+                }
+            });
+
+            viewport.addEventListener('pointermove', (e) => {
+                const pid = e.pointerId ?? 0;
+                if (!lbPointers.has(pid)) return;
+                lbPointers.set(pid, { x: e.clientX, y: e.clientY });
+
+                if (isPinching && lbPointers.size >= 2 && pinchStart) {
+                    const pts = Array.from(lbPointers.values());
+                    const dist = Math.max(10, Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y));
+                    const midX = (pts[0].x + pts[1].x) / 2;
+                    const midY = (pts[0].y + pts[1].y) / 2;
+                    const nextScale = Math.max(1, Math.min(5, pinchStart.scale * (dist / pinchStart.dist)));
+                    if (nextScale <= 1.02) {
+                        resetLightboxZoom();
+                    } else {
+                        const ratio = nextScale / pinchStart.scale;
+                        const rect = typeof viewport.getBoundingClientRect === 'function'
+                            ? viewport.getBoundingClientRect()
+                            : { left: 0, top: 0, width: 0, height: 0 };
+                        const cx = rect.left + rect.width / 2;
+                        const cy = rect.top + rect.height / 2;
+                        const ox = pinchStart.midX - cx;
+                        const oy = pinchStart.midY - cy;
+                        zoomState.scale = nextScale;
+                        zoomState.x = (ox - (ox - pinchStart.x) * ratio) + (midX - pinchStart.midX);
+                        zoomState.y = (oy - (oy - pinchStart.y) * ratio) + (midY - pinchStart.midY);
+                        applyLightboxZoom();
+                    }
+                    return;
+                }
+
+                if (isPanning && zoomState.scale > 1.02) {
+                    zoomState.x = e.clientX - panStart.x;
+                    zoomState.y = e.clientY - panStart.y;
+                    applyLightboxZoom();
+                }
+            });
+
+            const finishLbPointer = (e) => {
+                const pid = e?.pointerId ?? 0;
+                lbPointers.delete(pid);
+                try { viewport.releasePointerCapture?.(pid); } catch (_) {}
+
+                if (lbPointers.size < 2) {
+                    isPinching = false;
+                    pinchStart = null;
+                }
+                if (lbPointers.size === 0) {
+                    if (!hadMultiTouch && !isPanning && zoomState.scale <= 1.02 && e?.pointerType === 'touch') {
+                        const dx = e.clientX - swipeStartX;
+                        const dy = e.clientY - swipeStartY;
+                        if (Math.abs(dx) > 52 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+                            if (dx < 0) nextLightboxImage();
+                            else prevLightboxImage();
+                        }
+                    }
+                    isPanning = false;
+                }
+            };
+
+            viewport.addEventListener('pointerup', finishLbPointer);
+            viewport.addEventListener('pointercancel', finishLbPointer);
         }
     }
 
     return {
         openLightbox,
         closeLightbox,
+        resetLightboxZoom,
+        setLightboxZoom,
+        getLightboxZoomState: () => ({ ...zoomState }),
         resolveLightboxMeta,
         normalizeModelVersion,
         renderLightboxCurrent,

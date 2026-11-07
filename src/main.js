@@ -19,6 +19,7 @@ import { AdminController } from './admin-controller.js';
 import { openModal, closeModal, showToast, showAlert, showConfirm, initModalToastGlobals } from './modal-toast.js';
 import { createPostProcessController } from './post-process-controller.js';
 import { createLightboxController, resolveLightboxMeta, normalizeModelVersion } from './lightbox-controller.js';
+import { initUxEnhancements } from './ux-enhancements.js';
 import { RandomPromptManager } from './random-prompt-manager.js';
 import { RandomPromptController } from './random-prompt-controller.js';
 import { InspirationManager } from './inspiration-manager.js';
@@ -454,9 +455,15 @@ window.togglePanel = function(panelId, chevronId) {
     if (panel) {
         if (panel.classList.contains('hidden')) {
             panel.classList.remove('hidden');
+            if (!document.documentElement.classList.contains('low-perf')) {
+                panel.classList.remove('panel-expand-anim');
+                try { void panel.offsetWidth; } catch (_) {}
+                panel.classList.add('panel-expand-anim');
+            }
             if (chevron) chevron.style.transform = 'rotate(180deg)';
         } else {
             panel.classList.add('hidden');
+            panel.classList.remove('panel-expand-anim');
             if (chevron) chevron.style.transform = 'rotate(0deg)';
         }
     }
@@ -693,6 +700,15 @@ async function doGenerate(rawOptions = {}) {
         return { success: false, error: "已有生成任务正在进行中，已发送停止指令" };
     }
 
+    // Check if in-canvas inpaint is active ("体验融合": 主面板生成按钮或 Ctrl+Enter 直接触发局部重绘)
+    const inpaintModalEl = document.getElementById('inpaintModal');
+    if (inpaintModalEl && !inpaintModalEl.classList.contains('modal-hidden') && inpaintModalEl.style.display !== 'none') {
+        if (inpaintEditor) {
+            await inpaintEditor.doInpaint();
+        }
+        return { success: false, error: "正在进行局部重绘" };
+    }
+
     // Check if outpaint is active
     const outpaintArea = document.getElementById('outpaintArea');
     if (outpaintArea && !outpaintArea.classList.contains('hidden')) {
@@ -700,6 +716,10 @@ async function doGenerate(rawOptions = {}) {
             window.outpaintEditor.generate();
         }
         return { success: false, error: "正在进行画布扩图" };
+    }
+
+    if (inpaintEditor && typeof inpaintEditor.showQuickRetryBar === 'function') {
+        inpaintEditor.showQuickRetryBar(false);
     }
 
     const selectedVersion = (typeof options.model === 'string' && options.model)
@@ -1580,18 +1600,7 @@ function removeApiKeyInputRow(button) {
 
 // --- 角色提示词 (Character Prompts) 管理 ---
 function toggleCharacterPromptsPanel() {
-    const panel = document.getElementById('characterPromptsPanel');
-    const chevron = document.getElementById('charChevron');
-    if (!panel) return;
-    
-    const isHidden = panel.classList.contains('hidden');
-    if (isHidden) {
-        panel.classList.remove('hidden');
-        if (chevron) chevron.style.transform = 'rotate(180deg)';
-    } else {
-        panel.classList.add('hidden');
-        if (chevron) chevron.style.transform = 'rotate(0deg)';
-    }
+    window.togglePanel('characterPromptsPanel', 'charChevron');
 }
 window.toggleCharacterPromptsPanel = toggleCharacterPromptsPanel;
 
@@ -2131,6 +2140,7 @@ const lightboxController = createLightboxController({
 const {
     openLightbox,
     closeLightbox,
+    resetLightboxZoom,
     renderLightboxCurrent,
     prevLightboxImage,
     nextLightboxImage,
@@ -2156,13 +2166,19 @@ if (typeof window !== 'undefined') {
 // --- 暴露局部重绘、主题、API Key和鉴权等所有函数到全局 ---
 Object.assign(window, {
     openEnhanceModal, closeEnhanceModal, setEnhancePreset, doEnhance, doUpscale,
-    openInpaintEditor: () => inpaintEditor.open(),
+    inpaintEditor,
+    openInpaintEditor: (opts) => inpaintEditor.open(opts),
     closeInpaintEditor: () => inpaintEditor.close(),
     setInpaintTool: (t) => inpaintEditor.setTool(t),
     inpaintUndo: () => inpaintEditor.undo(),
     inpaintClearMask: () => inpaintEditor.clearMask(),
+    inpaintRestoreMask: () => inpaintEditor.restoreLastMask(true),
+    inpaintRetryOriginal: () => inpaintEditor.retryLastSession(),
+    inpaintContinueNew: () => inpaintEditor.continueOnCurrentImage(false),
+    inpaintResetZoom: () => inpaintEditor.resetZoom(),
     toggleInpaintDrawer: () => inpaintEditor.toggleDrawer(),
     doInpaint: () => inpaintEditor.doInpaint(),
+    resetLightboxZoom,
     outpaintEditor,
     startOutpaint: () => outpaintEditor.open(),
     exitOutpaint: () => outpaintEditor.close(),
@@ -2351,6 +2367,13 @@ function importRandomPromptFile(event) {
     randomPromptController.importFile(event);
 }
 window.importRandomPromptFile = importRandomPromptFile;
+
+// Initialize UX & Motion Enhancements (shortcuts, PNG drop overlay, range progress, drawer swipe physics)
+initUxEnhancements({
+    onTriggerGenerate: () => doGenerate(),
+    ui,
+    inpaintEditor
+});
 
 // --- Native HTML5 Drag and Drop NovelAI PNG Metadata Auto-Fill ---
 if (typeof window !== 'undefined') {
