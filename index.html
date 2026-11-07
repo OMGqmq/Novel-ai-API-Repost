@@ -443,9 +443,9 @@
             </div>
 
             <!-- 主画布原位多角色定位舞台 (V4.5 5×5 网格 / V5 连续坐标，叠加主图或等比毛玻璃画框 + 底部纯 SVG 胶囊) -->
-            <div id="charPositionStage" class="hidden absolute inset-0 z-[48] flex flex-col items-center justify-center p-3 sm:p-6 pointer-events-none select-none">
-                <div class="flex-1 w-full flex items-center justify-center relative overflow-hidden">
-                    <div id="charStageBox" class="char-stage-box relative rounded-2xl overflow-hidden cursor-crosshair transition-all pointer-events-auto touch-none" style="width: 320px; height: 468px;">
+            <div id="charPositionStage" class="hidden absolute inset-0 z-[48] flex flex-col items-center justify-center p-0 pointer-events-none select-none">
+                <div class="w-full h-full flex items-center justify-center relative overflow-hidden pt-[4.25rem] pb-[13rem] px-3 sm:pt-16 sm:pb-40 sm:px-6">
+                    <div id="charStageBox" class="char-stage-box relative rounded-2xl overflow-hidden cursor-crosshair transition-colors pointer-events-auto touch-none" style="width: 320px; height: 468px;">
                         <!-- 构图辅助网格 SVG (Thirds / Phi / Center / None + V4.5 5x5) -->
                         <svg id="charStageGridSvg" class="absolute inset-0 w-full h-full pointer-events-none opacity-45" xmlns="http://www.w3.org/2000/svg"></svg>
 
@@ -461,8 +461,11 @@
 
                 <!-- 角色定位纯 SVG 底部胶囊坞 (与局部重绘/无限扩图统一单色毛玻璃美学) -->
                 <div class="char-stage-dock-host pointer-events-auto">
-                    <!-- 角色提示词原位悬浮编辑卡 (与当前选中定位点双向实时同步) -->
+                    <!-- 角色切换与提示词原位悬浮编辑卡 (全宽滑动角色选择栏 + 提示词双向实时同步) -->
                     <div id="charStagePromptCard" class="char-stage-prompt-card">
+                        <!-- 独立全宽角色横向滑动选择栏 (解决手机端过窄不好滑动问题) -->
+                        <div id="charStageChips" class="char-stage-chips-bar"></div>
+
                         <div class="flex items-center gap-1.5">
                             <span id="charStagePromptBadge" class="px-2 py-0.5 rounded-full bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-[10px] font-extrabold font-mono shrink-0 select-none">#1</span>
                             <input type="text" id="charStagePromptInput" class="flex-1 min-w-0 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-slate-400 dark:focus:border-slate-500 transition-colors" placeholder="角色 #1 提示词 (如: 1girl, silver hair)..." />
@@ -482,10 +485,6 @@
                         </div>
                     </div>
                     <div class="char-stage-dock-capsule">
-                        <!-- 角色切换紧凑数字胶囊组 -->
-                        <div id="charStageChips" class="flex items-center gap-1 overflow-x-auto custom-scroll max-w-[175px] sm:max-w-[260px] px-0.5"></div>
-
-                        <div class="inpaint-dock-sep"></div>
 
                         <!-- 构图辅助线纯 SVG 组 (保留原有 ID 兼容测试与脚本调用) -->
                         <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('thirds') : null" id="charGridModeThirds" class="inpaint-dock-btn tool-active" data-tip="三分构图" title="三分法网格" aria-label="三分法网格">

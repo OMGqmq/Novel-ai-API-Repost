@@ -718,9 +718,10 @@ export class CharPromptManager {
             });
         }
 
-        // 同时自适应更新主画布原位角色定位舞台（若存在 #singleResultImg 则精确贴合图片尺寸，否则按画幅比例居中）
+        // 同时自适应更新主画布原位角色定位舞台（若存在 #singleResultImg 则 1:1 像素级对齐图片坐标与尺寸，否则按画幅比例居中）
         const boxEl = typeof document !== 'undefined' ? document.getElementById('charStageBox') : null;
         if (boxEl && boxEl.style) {
+            const stageEl = typeof document !== 'undefined' ? document.getElementById('charPositionStage') : null;
             const singleArea = typeof document !== 'undefined' ? document.getElementById('singleResultArea') : null;
             const singleImg = typeof document !== 'undefined' ? document.getElementById('singleResultImg') : null;
             const hasVisibleImg = Boolean(
@@ -730,13 +731,24 @@ export class CharPromptManager {
             const imgRect = (hasVisibleImg && typeof singleImg.getBoundingClientRect === 'function')
                 ? singleImg.getBoundingClientRect()
                 : null;
+            const stageRect = (stageEl && typeof stageEl.getBoundingClientRect === 'function')
+                ? stageEl.getBoundingClientRect()
+                : null;
 
             if (imgRect && imgRect.width > 24 && imgRect.height > 24) {
                 boxEl.style.width = Math.round(imgRect.width) + 'px';
                 boxEl.style.height = Math.round(imgRect.height) + 'px';
+                if (stageRect && stageRect.width > 0 && stageRect.height > 0) {
+                    boxEl.style.position = 'absolute';
+                    boxEl.style.left = Math.round(imgRect.left - stageRect.left) + 'px';
+                    boxEl.style.top = Math.round(imgRect.top - stageRect.top) + 'px';
+                }
                 boxEl.classList?.add?.('is-image-overlay');
             } else {
                 boxEl.classList?.remove?.('is-image-overlay');
+                boxEl.style.position = 'relative';
+                boxEl.style.left = '';
+                boxEl.style.top = '';
                 const previewEl = typeof document !== 'undefined' ? document.getElementById('previewArea') : null;
                 const pRect = (previewEl && typeof previewEl.getBoundingClientRect === 'function')
                     ? previewEl.getBoundingClientRect()
@@ -744,9 +756,9 @@ export class CharPromptManager {
                 const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
                 const baseW = (pRect && pRect.width > 100) ? pRect.width : (typeof window !== 'undefined' ? window.innerWidth : 1200);
                 const baseH = (pRect && pRect.height > 100) ? pRect.height : (typeof window !== 'undefined' ? window.innerHeight : 800);
-                const availableH = baseH - (isMobile ? 185 : 150);
-                const availableW = baseW - (isMobile ? 28 : 72);
-                let maxH = Math.max(180, Math.min(availableH, 540));
+                const availableH = baseH - (isMobile ? 275 : 220);
+                const availableW = baseW - (isMobile ? 24 : 72);
+                let maxH = Math.max(160, Math.min(availableH, 520));
                 let calcW = maxH * ratio;
                 if (calcW > availableW) {
                     calcW = availableW;
@@ -816,6 +828,11 @@ export class CharPromptManager {
         this.setStageGridMode(this.stageGridMode);
         this.renderStage();
         this._initStageInteractions();
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => {
+                if (this.isOpen) this.updatePadAspectRatio();
+            });
+        }
     }
 
     closeStage() {
@@ -981,25 +998,28 @@ export class CharPromptManager {
             return { x, y, prompt, enabled };
         });
 
+        let activeChipEl = null;
+
         rows.forEach((row, idx) => {
             const { x, y, prompt, enabled } = charPositions[idx];
             const isActive = idx === this.activeStageCharIndex;
 
-            // 1. 底部胶囊角色选择紧凑 Chip (#1, #2...) + 快速新增按钮
+            // 1. 顶部全宽角色横向选择栏 Chip (#1, #2...) + 快速新增按钮
             if (chipsContainer) {
                 const chip = document.createElement('button');
                 chip.type = 'button';
-                const shortTag = prompt ? (prompt.length > 6 ? prompt.slice(0, 6) + '…' : prompt) : '';
+                const shortTag = prompt ? (prompt.length > 7 ? prompt.slice(0, 7) + '…' : prompt) : '';
                 chip.className = 'char-stage-chip-btn' + (isActive ? ' active' : '') + (!enabled ? ' opacity-45' : '');
                 chip.title = prompt ? ('角色 ' + (idx + 1) + ': ' + prompt) : ('角色 ' + (idx + 1));
                 chip.innerHTML = shortTag
-                    ? ('<span>#' + (idx + 1) + '</span><span class="hidden sm:inline text-[10px] font-medium opacity-80">' + shortTag + '</span>')
+                    ? ('<span>#' + (idx + 1) + '</span><span class="text-[11px] font-medium opacity-85">' + shortTag + '</span>')
                     : ('<span>#' + (idx + 1) + '</span>');
                 chip.onclick = () => {
                     this.activeStageCharIndex = idx;
                     this.renderStage();
                 };
                 chipsContainer.appendChild(chip);
+                if (isActive) activeChipEl = chip;
             }
 
             // 2. 检测该角色是否与其他角色过于接近 (< 0.1 欧氏距离)
@@ -1040,14 +1060,14 @@ export class CharPromptManager {
             }
         });
 
-        // 在 Chips 末尾提供一个轻量纯 SVG "+" 按钮，支持在主画布直接新增角色定位点
+        // 在 Chips 末尾提供一个轻量纯 SVG "+ 新增" 按钮，支持在主画布直接新增角色定位点
         if (chipsContainer && rows.length < 22) {
             const addBtn = document.createElement('button');
             addBtn.type = 'button';
-            addBtn.className = 'char-stage-chip-btn opacity-75 hover:opacity-100';
+            addBtn.className = 'char-stage-chip-btn opacity-80 hover:opacity-100';
             addBtn.title = '新增角色定位点';
             addBtn.setAttribute?.('aria-label', '新增角色定位点');
-            addBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>';
+            addBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg><span class="text-[11px] font-semibold">新增</span>';
             addBtn.onclick = (e) => {
                 e.stopPropagation();
                 this.addCharacterPromptRow('', '', 0.5, 0.5, false, true);
@@ -1058,6 +1078,15 @@ export class CharPromptManager {
                 if (stageInput && typeof stageInput.focus === 'function') stageInput.focus();
             };
             chipsContainer.appendChild(addBtn);
+        }
+
+        if (activeChipEl && this._lastScrolledCharIndex !== this.activeStageCharIndex) {
+            this._lastScrolledCharIndex = this.activeStageCharIndex;
+            if (typeof activeChipEl.scrollIntoView === 'function') {
+                try {
+                    activeChipEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                } catch (_) {}
+            }
         }
 
         this._syncStagePromptEditor(rows);
@@ -1178,11 +1207,15 @@ export class CharPromptManager {
 
         if (typeof window !== 'undefined' && !this._stageResizeBound) {
             this._stageResizeBound = true;
-            window.addEventListener('resize', () => {
+            const handleViewportSync = () => {
                 if (this.isOpen) {
                     this.updatePadAspectRatio();
                 }
-            });
+            };
+            window.addEventListener('resize', handleViewportSync);
+            if (window.visualViewport && typeof window.visualViewport.addEventListener === 'function') {
+                window.visualViewport.addEventListener('resize', handleViewportSync);
+            }
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && this.isOpen) {
                     this.closeStage();
@@ -1192,6 +1225,17 @@ export class CharPromptManager {
     }
 
     _initStagePromptCardInteractions() {
+        const chipsEl = document.getElementById('charStageChips');
+        if (chipsEl && chipsEl.dataset?.wheelBound !== 'true') {
+            if (chipsEl.dataset) chipsEl.dataset.wheelBound = 'true';
+            chipsEl.addEventListener('wheel', (e) => {
+                if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                    e.preventDefault();
+                    chipsEl.scrollLeft += e.deltaY;
+                }
+            }, { passive: false });
+        }
+
         const promptInput = document.getElementById('charStagePromptInput');
         if (!promptInput || promptInput.dataset?.interactionBound === 'true') return;
         if (promptInput.dataset) promptInput.dataset.interactionBound = 'true';
