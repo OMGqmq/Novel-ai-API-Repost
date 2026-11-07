@@ -267,6 +267,9 @@ export class OutpaintEditor {
         if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
             window.inpaintEditor.close();
         }
+        if (typeof window !== 'undefined' && window.charPromptManager?.isOpen) {
+            window.charPromptManager.closeStage();
+        }
         this.history = [];
         this.maskHistory = [];
         this.setMode('move');
@@ -312,7 +315,7 @@ export class OutpaintEditor {
             this.clampToolbarPosition();
 
             if (this.els.area) this.els.area.classList.remove('hidden');
-            if (typeof document !== 'undefined') document.body?.classList?.add?.('outpaint-open');
+            if (typeof document !== 'undefined') document.body?.classList?.add?.('outpaint-open', 'outpaint-active');
             if (typeof window !== 'undefined') {
                 if (window.ui?.updateGenerateButtonText) window.ui.updateGenerateButtonText();
                 if (window.safeCreateIcons) window.safeCreateIcons();
@@ -342,7 +345,7 @@ export class OutpaintEditor {
         if (this.els.area) {
             this.els.area.classList.add('hidden');
         }
-        if (typeof document !== 'undefined') document.body?.classList?.remove?.('outpaint-open');
+        if (typeof document !== 'undefined') document.body?.classList?.remove?.('outpaint-open', 'outpaint-active');
         if (typeof window !== 'undefined' && window.ui?.updateGenerateButtonText) {
             window.ui.updateGenerateButtonText();
         }

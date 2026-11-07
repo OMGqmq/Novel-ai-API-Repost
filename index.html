@@ -186,12 +186,24 @@
                 </div>
             </div>
 
-            <!-- 右侧: 纯 SVG 极简毛玻璃操作栏 (局部重绘直达 + 工具图标集 + 删除 + 保存) -->
+            <!-- 右侧: 纯 SVG 极简毛玻璃操作栏 (角色定位 + 局部重绘直达 + 工具图标集 + 删除 + 保存) -->
             <div class="pointer-events-auto flex items-center gap-1.5 relative z-10 flex-shrink-0">
+                <!-- 一键激活/退出主画布角色坐标选点 (V4.5 / V5 显示，空画布与有图均可原位选点) -->
+                <button type="button" onclick="window.toggleCharPositionStage ? window.toggleCharPositionStage() : null" id="charStageTopBtn"
+                    class="hidden canvas-icon-btn cursor-pointer" data-tip="角色定位" data-tip-pos="bottom" title="主画布角色坐标定位" aria-label="主画布角色坐标定位">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><circle cx="12" cy="12" r="9"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg>
+                </button>
+
                 <!-- 画布图像工具胶囊 (仅在聚焦单图时显现) -->
                 <div id="imageActions"
                     class="opacity-0 transition-all duration-300 pointer-events-none transform -translate-y-1 relative flex items-center">
                     <div class="canvas-tool-pill">
+                        <!-- 前后对比 (长按瞬时闪看原图 / 点击开启左右分割滑杆) -->
+                        <button type="button" id="canvasCompareBtn"
+                            class="hidden canvas-pill-btn" data-tip="长按闪看 / 点击对比" data-tip-pos="bottom" title="长按闪看原图 / 点击开启分割对比" aria-label="前后对比">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><rect width="18" height="18" x="3" y="3" rx="2.5"/><line x1="12" x2="12" y1="3" y2="21"/><path d="m8.5 10-2 2 2 2"/><path d="m15.5 10 2 2-2 2"/></svg>
+                        </button>
+                        <div id="canvasCompareSep" class="hidden canvas-tool-sep"></div>
                         <!-- 一键激活/退出主画布画笔 (局部重绘) -->
                         <button type="button" onclick="toggleInpaintEditor()" id="inpaintToggleBtn"
                             class="canvas-pill-btn" data-tip="局部重绘" data-tip-pos="bottom" title="局部重绘" aria-label="局部重绘">
@@ -213,6 +225,9 @@
                                 </button>
                                 <button type="button" onclick="toggleToolbox(); window.startOutpaint()" class="toolbox-svg-btn" data-tip="无限扩图" data-tip-pos="bottom" title="无限扩图" aria-label="无限扩图">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><path d="M3 7V3h4"/><path d="M17 3h4v4"/><path d="M21 17v4h-4"/><path d="M7 21H3v-4"/><rect x="7" y="7" width="10" height="10" rx="1.5" stroke-dasharray="2.5 2.5"/></svg>
+                                </button>
+                                <button type="button" id="toolboxSendToImg2ImgBtn" onclick="toggleToolbox(); window.sendCanvasToImg2Img && window.sendCanvasToImg2Img()" class="toolbox-svg-btn" data-tip="设为垫图" data-tip-pos="bottom" title="设为参考垫图 (Img2Img)" aria-label="设为参考垫图">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><rect width="18" height="18" x="3" y="3" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/><path d="M14 3h7v7"/><path d="m21 3-6 6"/></svg>
                                 </button>
                                 <button type="button" onclick="toggleToolbox(); doAugment('lineart')" class="toolbox-svg-btn" data-tip="提取线稿" data-tip-pos="bottom" title="提取线稿" aria-label="提取线稿">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z"/><path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18"/><path d="m2.3 2.3 7.286 7.286"/><circle cx="11" cy="11" r="2"/></svg>
@@ -288,6 +303,15 @@
                     <div id="inpaintCanvasWrap" class="inpaint-canvas-wrap">
                         <div id="inpaintCanvasStage" class="inpaint-canvas-stage">
                             <img id="singleResultImg" class="max-w-full max-h-full object-contain shadow-2xl rounded-lg select-none" draggable="false">
+                            <!-- 原位 Before / After 对比层 (支持长按闪看 100% 原图 & 点击开启拖动分割线) -->
+                            <div id="canvasCompareOverlay" class="canvas-compare-overlay hidden">
+                                <img id="canvasBeforeImg" class="canvas-before-img select-none" draggable="false" alt="Before">
+                                <div id="canvasCompareDivider" class="canvas-compare-divider" title="左右拖动对比">
+                                    <div class="canvas-compare-handle">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="m9 18-6-6 6-6"/><path d="m15 6 6 6-6 6"/></svg>
+                                    </div>
+                                </div>
+                            </div>
                             <canvas id="inpaintBaseCanvas" class="hidden pointer-events-none"></canvas>
                             <canvas id="inpaintMaskCanvas" class="hidden pointer-events-none"></canvas>
                         </div>
@@ -414,6 +438,78 @@
                             <button type="button" onclick="window.outpaintEditor.undo()" class="outpaint-dock-btn" title="撤销" aria-label="撤销"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
                             <button type="button" onclick="window.exitOutpaint()" class="outpaint-dock-btn outpaint-close-btn" title="退出扩图 (Esc)" aria-label="退出扩图"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主画布原位多角色定位舞台 (V4.5 5×5 网格 / V5 连续坐标，叠加主图或等比毛玻璃画框 + 底部纯 SVG 胶囊) -->
+            <div id="charPositionStage" class="hidden absolute inset-0 z-[48] flex flex-col items-center justify-center p-3 sm:p-6 pointer-events-none select-none">
+                <div class="flex-1 w-full flex items-center justify-center relative overflow-hidden">
+                    <div id="charStageBox" class="char-stage-box relative rounded-2xl overflow-hidden cursor-crosshair transition-all pointer-events-auto touch-none" style="width: 320px; height: 468px;">
+                        <!-- 构图辅助网格 SVG (Thirds / Phi / Center / None + V4.5 5x5) -->
+                        <svg id="charStageGridSvg" class="absolute inset-0 w-full h-full pointer-events-none opacity-45" xmlns="http://www.w3.org/2000/svg"></svg>
+
+                        <!-- 角色定位标记 Pins 容器 -->
+                        <div id="charStagePinsContainer" class="absolute inset-0 w-full h-full pointer-events-auto"></div>
+
+                        <!-- 当前选中角色坐标实时浮标 -->
+                        <div id="charStageActiveCoords" class="absolute top-2.5 right-2.5 px-2.5 py-0.5 rounded-full bg-slate-950/72 backdrop-blur-md text-[10px] font-mono font-semibold text-white/95 pointer-events-none border border-white/12 shadow-md tabular-nums">
+                            #1 · 50%, 50%
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 角色定位纯 SVG 底部胶囊坞 (与局部重绘/无限扩图统一单色毛玻璃美学) -->
+                <div class="char-stage-dock-host pointer-events-auto">
+                    <div class="char-stage-dock-capsule">
+                        <!-- 角色切换紧凑数字胶囊组 -->
+                        <div id="charStageChips" class="flex items-center gap-1 overflow-x-auto custom-scroll max-w-[175px] sm:max-w-[260px] px-0.5"></div>
+
+                        <div class="inpaint-dock-sep"></div>
+
+                        <!-- 构图辅助线纯 SVG 组 (保留原有 ID 兼容测试与脚本调用) -->
+                        <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('thirds') : null" id="charGridModeThirds" class="inpaint-dock-btn tool-active" data-tip="三分构图" title="三分法网格" aria-label="三分法网格">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+                        </button>
+                        <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('phi') : null" id="charGridModePhi" class="inpaint-dock-btn" data-tip="黄金分割" title="黄金分割网格" aria-label="黄金分割网格">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 10.5h18"/><path d="M3 13.5h18"/><path d="M10.5 3v18"/><path d="M13.5 3v18"/></svg>
+                        </button>
+                        <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('center') : null" id="charGridModeCenter" class="inpaint-dock-btn" data-tip="中心十字" title="中心十字线" aria-label="中心十字线">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><circle cx="12" cy="12" r="8"/><line x1="12" x2="12" y1="2" y2="22"/><line x1="2" x2="22" y1="12" y2="12"/></svg>
+                        </button>
+                        <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('none') : null" id="charGridModeNone" class="inpaint-dock-btn" data-tip="隐藏网格" title="隐藏构图网格" aria-label="隐藏构图网格">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><rect width="18" height="18" x="3" y="3" rx="2" stroke-dasharray="3 3"/></svg>
+                        </button>
+
+                        <!-- 自动分散排列 -->
+                        <button type="button" onclick="window.autoArrangeCharPositions ? window.autoArrangeCharPositions() : null" id="charStageAutoArrangeBtn" class="inpaint-dock-btn" data-tip="自动散开" title="自动均匀排布" aria-label="自动均匀排布">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><circle cx="6" cy="12" r="2.5"/><circle cx="12" cy="8" r="2.5"/><circle cx="18" cy="14" r="2.5"/><path d="M8.2 10.8 9.8 9.2"/><path d="m14.2 9.8 1.6 2.4"/></svg>
+                        </button>
+
+                        <div class="inpaint-dock-sep"></div>
+
+                        <!-- 完成/退出原位定位舞台 -->
+                        <button type="button" onclick="window.closeCharPositionStage ? window.closeCharPositionStage() : null" class="inpaint-dock-btn inpaint-dock-close" data-tip="完成定位" title="完成定位 (Esc)" aria-label="完成定位">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><polyline points="20 6 9 17 4 12"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主画布底部微型历史胶片坞 (Mini History Filmstrip Dock - 点击仅切图，独立 SVG 按钮按需回填参数) -->
+            <div id="canvasFilmstripDock" class="canvas-filmstrip-dock hidden">
+                <div class="canvas-filmstrip-capsule">
+                    <button type="button" id="filmstripToggleBtn" onclick="window.toggleFilmstripCollapsed && window.toggleFilmstripCollapsed()" class="canvas-filmstrip-icon-btn" data-tip="收起/展开胶片" title="收起/展开最近生成胶片" aria-label="收起/展开最近生成胶片">
+                        <svg id="filmstripToggleSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none transition-transform duration-200"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+
+                    <div id="filmstripInner" class="canvas-filmstrip-inner">
+                        <div id="filmstripTrack" class="canvas-filmstrip-track custom-scroll"></div>
+                        <div class="inpaint-dock-sep"></div>
+                        <!-- 独立纯 SVG 参数回填按钮 (绝不自动回填，仅点击此图标时回填当前图片参数) -->
+                        <button type="button" id="filmstripApplyParamsBtn" onclick="window.applyFilmstripActiveParams && window.applyFilmstripActiveParams()" class="canvas-filmstrip-icon-btn" data-tip="回填此图参数" title="回填当前画布图片的 Prompt / Seed 等参数" aria-label="回填当前画布图片参数">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><line x1="4" x2="10" y1="6" y2="6"/><line x1="14" x2="20" y1="6" y2="6"/><circle cx="12" cy="6" r="2"/><line x1="4" x2="8" y1="12" y2="12"/><line x1="12" x2="20" y1="12" y2="12"/><circle cx="10" cy="12" r="2"/><path d="M15 16l-3 3 3 3"/><path d="M12 19h8"/></svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2488,76 +2584,7 @@
             </div>
         </div>
     </div>
-
-    <!-- Character Position Canvas Stage (V5 全屏角色自由选点画板 - 顶层全局视图) -->
-    <div id="charPositionStage" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-2xl touch-none overflow-hidden z-[250] flex flex-col justify-between p-3.5 sm:p-4 md:p-6 pb-6 sm:pb-4 select-none animate-fadeIn">
-        <!-- 顶部角色选择栏 (Display Grid Top) -->
-        <div class="w-full flex items-center justify-between z-10 gap-2 sm:gap-3 flex-shrink-0">
-            <div class="flex items-center gap-2 flex-shrink-0">
-                <div class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center gap-1.5 shadow-sm">
-                    <i data-lucide="crosshair" class="w-3.5 h-3.5 text-indigo-400"></i>
-                    <span class="hidden xs:inline">角色位置编排</span>
-                    <span class="xs:hidden">定位</span>
-                </div>
-            </div>
-            
-            <!-- 角色切换 Chips -->
-            <div id="charStageChips" class="flex items-center gap-1 sm:gap-1.5 overflow-x-auto custom-scroll flex-1 px-1 py-1">
-                <!-- 动态生成角色切换标签 -->
-            </div>
-
-            <!-- 顶部快捷保存按钮 (在手机端极易触达) -->
-            <button type="button" onclick="window.closeCharPositionStage ? window.closeCharPositionStage() : null" class="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white text-xs font-bold shadow-md flex items-center gap-1.5 flex-shrink-0 cursor-pointer">
-                <i data-lucide="check" class="w-3.5 h-3.5"></i>
-                <span>保存</span>
-            </button>
-        </div>
-
-        <!-- 中间画板选点交互区域 (Display Grid Main) -->
-        <div class="flex-1 w-full flex items-center justify-center relative my-1 sm:my-2 overflow-hidden">
-            <div id="charStageBox" class="relative rounded-2xl border-2 border-indigo-500/40 bg-slate-900/95 shadow-2xl overflow-hidden cursor-crosshair transition-all" style="width: 320px; height: 468px;">
-                <!-- 构图辅助网格 SVG (Thirds / Phi / Center / None) -->
-                <svg id="charStageGridSvg" class="absolute inset-0 w-full h-full pointer-events-none opacity-40" xmlns="http://www.w3.org/2000/svg">
-                    <!-- 动态绘制辅助线 -->
-                </svg>
-
-                <!-- 角色定位标记 Pins 容器 (绝对定位) -->
-                <div id="charStagePinsContainer" class="absolute inset-0 w-full h-full pointer-events-auto">
-                    <!-- 动态注入所有角色的 Marker Pin -->
-                </div>
-
-                <!-- 当前选中角色坐标实时浮标 -->
-                <div id="charStageActiveCoords" class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-md text-[10px] font-mono text-white/90 pointer-events-none border border-white/10 shadow-md">
-                    角色 1: X 50% | Y 50%
-                </div>
-            </div>
-        </div>
-
-        <!-- 底部控制与退出栏 (Display Grid Bottom) -->
-        <div class="w-full flex items-center justify-between z-10 pt-2 border-t border-white/10 flex-wrap gap-2 flex-shrink-0">
-            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                <!-- 网格模式切换 -->
-                <div class="flex items-center bg-white/10 rounded-xl p-0.5 border border-white/10 text-[11px] sm:text-xs text-white">
-                    <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('thirds') : null" id="charGridModeThirds" class="px-2 sm:px-2.5 py-1 rounded-lg bg-indigo-600 font-semibold transition-all">三分法</button>
-                    <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('phi') : null" id="charGridModePhi" class="px-2 sm:px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all">黄金分割</button>
-                    <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('center') : null" id="charGridModeCenter" class="px-2 sm:px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all">中心十字</button>
-                    <button type="button" onclick="window.setCharStageGridMode ? window.setCharStageGridMode('none') : null" id="charGridModeNone" class="px-2 sm:px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all">无网格</button>
-                </div>
-                <!-- 自动分散排列 -->
-                <button type="button" onclick="window.autoArrangeCharPositions ? window.autoArrangeCharPositions() : null" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] sm:text-xs font-semibold flex items-center gap-1.5 transition-all border border-white/10 cursor-pointer">
-                    <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-amber-400"></i> 自动排布
-                </button>
-            </div>
-
-            <!-- 底部完成退出按钮 -->
-            <button type="button" onclick="window.closeCharPositionStage ? window.closeCharPositionStage() : null" class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white text-xs font-bold shadow-lg flex items-center gap-1.5 transition-all cursor-pointer">
-                <i data-lucide="check" class="w-4 h-4"></i>
-                <span>完成位置编辑</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- 全局统一下载静默锚点，用于规避 Chrome/Edge 对动态创建 A 标签的多文件安全拦截 -->
+<!-- 全局统一下载静默锚点，用于规避 Chrome/Edge 对动态创建 A 标签的多文件安全拦截 -->
     <a id="globalDownloadAnchor" style="display: none;" rel="noopener"></a>
 
     <script type="module" src="src/main.js?v=20261107_2"></script>

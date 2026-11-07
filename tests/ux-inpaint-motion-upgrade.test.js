@@ -4,6 +4,7 @@ import path from 'node:path';
 import { InpaintEditor } from '../src/inpaint.js';
 import { OutpaintEditor } from '../src/outpaint.js';
 import { UIController } from '../src/ui.js';
+import { CharPromptManager } from '../src/char-prompt-manager.js';
 import { createLightboxController } from '../src/lightbox-controller.js';
 import {
     adjustPromptTagWeight,
@@ -656,6 +657,170 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
             expect(lb.getLightboxZoomState().scale).toBe(1);
             expect(mainImg.style.transform).toBe('');
             expect(resetBtn.classList.contains('hidden')).toBe(true);
+        });
+    });
+
+    describe('5. In-Place Before/After Comparison, Mini Filmstrip (Non-Overwrite) & In-Place Character Stage', () => {
+        it('supports Before/After split slider drag and hold-to-peek (>160ms) directly on main canvas', () => {
+            vi.useFakeTimers();
+            const mockDom = {};
+            [
+                'canvasCompareBtn', 'canvasCompareSep', 'canvasCompareOverlay',
+                'canvasBeforeImg', 'canvasCompareDivider', 'singleResultImg', 'singleResultArea'
+            ].forEach(id => {
+                mockDom[id] = createMockElement(id, ['hidden']);
+            });
+            mockDom.singleResultImg.src = 'blob:after-img';
+
+            global.document = {
+                documentElement: createMockElement('html'),
+                getElementById: (id) => mockDom[id] || createMockElement(id),
+                createElement: (tag) => createMockElement('created_' + tag, [], tag),
+                querySelectorAll: () => [],
+                addEventListener: vi.fn()
+            };
+            global.window = { safeCreateIcons: vi.fn(), innerWidth: 1280 };
+
+            const ui = new UIController();
+
+            // Set Before/After state -> reveals #canvasCompareBtn & #canvasCompareSep
+            ui.setBeforeAfterImage('blob:before-img', 'blob:after-img');
+            expect(mockDom.canvasCompareBtn.classList.contains('hidden')).toBe(false);
+            expect(mockDom.canvasCompareSep.classList.contains('hidden')).toBe(false);
+            expect(mockDom.canvasBeforeImg.src).toBe('blob:before-img');
+
+            // 1. Short click (<160ms) -> toggles split comparison overlay
+            mockDom.canvasCompareBtn._trigger('pointerdown', { button: 0 });
+            vi.advanceTimersByTime(60);
+            mockDom.canvasCompareBtn._trigger('pointerup', { button: 0 });
+
+            expect(ui._isCompareSplitOpen).toBe(true);
+            expect(mockDom.canvasCompareOverlay.classList.contains('hidden')).toBe(false);
+            expect(mockDom.canvasCompareOverlay.classList.contains('peek-mode')).toBe(false);
+            expect(mockDom.canvasCompareBtn.classList.contains('compare-active')).toBe(true);
+
+            // Dragging divider updates --split-pct
+            mockDom.canvasCompareDivider._trigger('pointerdown', { pointerId: 1, clientX: 228 }); // (228 - 100) / 512 = 25%
+            expect(mockDom.canvasCompareOverlay.style.getPropertyValue('--split-pct')).toBe('25.0%');
+            mockDom.canvasCompareDivider._trigger('pointerup', { pointerId: 1 });
+
+            // Short click again -> closes split overlay
+            mockDom.canvasCompareBtn._trigger('pointerdown', { button: 0 });
+            vi.advanceTimersByTime(40);
+            mockDom.canvasCompareBtn._trigger('pointerup', { button: 0 });
+            expect(ui._isCompareSplitOpen).toBe(false);
+            expect(mockDom.canvasCompareOverlay.classList.contains('hidden')).toBe(true);
+
+            // 2. Hold press (>160ms) -> enters peek-mode (100% Before image), releasing restores After image
+            mockDom.canvasCompareBtn._trigger('pointerdown', { button: 0 });
+            vi.advanceTimersByTime(200);
+            expect(ui._isComparePeeking).toBe(true);
+            expect(mockDom.canvasCompareOverlay.classList.contains('hidden')).toBe(false);
+            expect(mockDom.canvasCompareOverlay.classList.contains('peek-mode')).toBe(true);
+
+            mockDom.canvasCompareBtn._trigger('pointerup', { button: 0 });
+            expect(ui._isComparePeeking).toBe(false);
+            expect(mockDom.canvasCompareOverlay.classList.contains('hidden')).toBe(true);
+
+            vi.useRealTimers();
+        });
+
+        it('switches main canvas image on Filmstrip thumbnail click WITHOUT overwriting sidebar prompt/seed, and backfills only on SVG button', () => {
+            const mockDom = {};
+            [
+                'canvasFilmstripDock', 'filmstripToggleBtn', 'filmstripToggleSvg',
+                'filmstripInner', 'filmstripTrack', 'filmstripApplyParamsBtn',
+                'prompt', 'negativePrompt', 'seed', 'steps', 'scale', 'singleResultImg', 'singleResultArea'
+            ].forEach(id => {
+                mockDom[id] = createMockElement(id, id === 'canvasFilmstripDock' ? ['hidden'] : []);
+            });
+            mockDom.prompt.value = 'USER_WORKING_PROMPT_DO_NOT_OVERWRITE';
+            mockDom.seed.value = '999999';
+
+            global.Event = class { constructor(type) { this.type = type; } };
+            global.document = {
+                documentElement: createMockElement('html'),
+                getElementById: (id) => mockDom[id] || createMockElement(id),
+                createElement: (tag) => createMockElement('created_' + tag, [], tag),
+                querySelectorAll: () => [],
+                addEventListener: vi.fn()
+            };
+
+            let selectedFilmstripId = null;
+            global.window = {
+                safeCreateIcons: vi.fn(),
+                showToast: vi.fn(),
+                setModel: vi.fn(),
+                innerWidth: 1280,
+                selectFilmstripImage: (id) => {
+                    selectedFilmstripId = id;
+                    // Simulate selectFilmstripImage: only switches canvas image, never touches prompt/seed
+                    mockDom.singleResultImg.src = `blob:img-${id}`;
+                }
+            };
+
+            const ui = new UIController();
+            const historyItems = [
+                { id: 101, imageUrl: 'blob:img-101', prompt: 'historical prompt 101', seed: 12345, steps: 24, scale: 4.5, model: 'v5' },
+                { id: 102, imageUrl: 'blob:img-102', prompt: 'historical prompt 102', seed: 67890, steps: 28, scale: 6.0, model: 'v5' }
+            ];
+
+            ui.renderFilmstrip(historyItems, 101);
+            expect(mockDom.canvasFilmstripDock.classList.contains('hidden')).toBe(false);
+            expect(mockDom.filmstripTrack.children.length).toBe(2);
+
+            // Click thumbnail #2 -> switches canvas image ONLY; sidebar prompt & seed MUST remain untouched!
+            const secondThumb = mockDom.filmstripTrack.children[1];
+            secondThumb.onclick({ stopPropagation: vi.fn() });
+            expect(selectedFilmstripId).toBe(102);
+            expect(mockDom.singleResultImg.src).toBe('blob:img-102');
+            expect(mockDom.prompt.value).toBe('USER_WORKING_PROMPT_DO_NOT_OVERWRITE');
+            expect(mockDom.seed.value).toBe('999999');
+
+            // Clicking the dedicated pure-SVG applyItemParams button backfills parameters on demand
+            const lb = createLightboxController({
+                ui,
+                els: { prompt: mockDom.prompt, negative: mockDom.negativePrompt },
+                store: { setSetting: vi.fn() },
+                appState: { showcaseData: [] },
+                galleryController: { galleryItems: historyItems },
+                charPromptManager: { addCharacterPromptRow: vi.fn(), updateCharacterIndexLabels: vi.fn(), onModelChange: vi.fn(), saveCharacterPromptsState: vi.fn() },
+                charRefManager: { getCharRefKey: (k) => k, loadState: vi.fn() },
+                vibeManager: { getVibeKey: (k) => k, loadState: vi.fn() },
+                inpaintEditor: {},
+                outpaintEditor: {},
+                postProcess: {},
+                triggerDownload: vi.fn()
+            });
+
+            lb.applyItemParams(historyItems[1], { closeAfter: false });
+            expect(mockDom.prompt.value).toBe('historical prompt 102');
+            expect(mockDom.seed.value).toBe(67890);
+        });
+
+        it('renders In-Place Character Position Stage inside #previewArea with V4.5 5x5 grid snapping and V5 continuous coords', () => {
+            const htmlPath = path.resolve(process.cwd(), 'index.html');
+            const html = fs.readFileSync(htmlPath, 'utf8');
+
+            // Verify #charPositionStage is inside #previewArea (before #historyArea) and NOT a full-screen fixed z-[250] modal
+            const previewIdx = html.indexOf('id="previewArea"');
+            const charStageIdx = html.indexOf('id="charPositionStage"');
+            const historyIdx = html.indexOf('id="historyArea"');
+            expect(charStageIdx).toBeGreaterThan(previewIdx);
+            expect(charStageIdx).toBeLessThan(historyIdx);
+            expect(html).toContain('id="canvasFilmstripDock"');
+            expect(html).toContain('id="filmstripApplyParamsBtn"');
+            expect(html).toContain('id="toolboxSendToImg2ImgBtn"');
+
+            const manager = new CharPromptManager();
+            // Verify V4.5 5x5 grid snapping math & A1..E5 label mapping
+            expect(manager._snapToV45Grid(0.04)).toBe(0.1);
+            expect(manager._snapToV45Grid(0.28)).toBe(0.3);
+            expect(manager._snapToV45Grid(0.52)).toBe(0.5);
+            expect(manager._snapToV45Grid(0.88)).toBe(0.9);
+            expect(manager._coordToGridLabel(0.1, 0.1)).toBe('A1');
+            expect(manager._coordToGridLabel(0.5, 0.5)).toBe('C3');
+            expect(manager._coordToGridLabel(0.9, 0.9)).toBe('E5');
         });
     });
 });

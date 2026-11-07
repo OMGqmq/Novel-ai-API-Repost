@@ -74,6 +74,7 @@ export class GalleryController {
                     this.ui.els.emptyGallery.classList.remove('hidden');
                     this.ui.els.zipBtn.classList.add('hidden');
                     this.ui.els.clearBtn.classList.add('hidden');
+                    this.ui.renderFilmstrip?.([], null);
                 }
                 return;
             }
@@ -91,6 +92,7 @@ export class GalleryController {
                 fragment.appendChild(this._createGalleryItemElement(item));
             });
             this.ui.els.galleryGrid.appendChild(fragment);
+            this.ui.renderFilmstrip?.(this.galleryItems, this.appState?.currentImageId);
 
             this.galleryPage++;
         } catch (e) {
@@ -110,7 +112,7 @@ export class GalleryController {
 
         const fullSrc = (typeof Blob !== 'undefined' && item.image instanceof Blob)
             ? (item.imageUrl ||= URL.createObjectURL(item.image))
-            : (item.image || item.imageUrl || '');
+            : (item.imageUrl ||= (item.image || ''));
 
         const displaySrc = item.thumb || fullSrc;
 
@@ -160,6 +162,7 @@ export class GalleryController {
             if (this.ui.els.zipBtn) this.ui.els.zipBtn.classList.remove('hidden');
             if (this.ui.els.clearBtn) this.ui.els.clearBtn.classList.remove('hidden');
         }
+        this.ui.renderFilmstrip?.(this.galleryItems, this.appState?.currentImageId || item.id);
     }
 
     removeImage(id) {
@@ -203,6 +206,7 @@ export class GalleryController {
             if (this.ui.els.zipBtn) this.ui.els.zipBtn.classList.add('hidden');
             if (this.ui.els.clearBtn) this.ui.els.clearBtn.classList.add('hidden');
         }
+        this.ui.renderFilmstrip?.(this.galleryItems, this.appState?.currentImageId);
     }
     
     switchGalleryTab(tab) {

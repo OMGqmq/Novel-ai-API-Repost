@@ -8,6 +8,7 @@ export class CharPromptManager {
         this.currentModel = 'v3';
         this.activeStageCharIndex = 0;
         this.stageGridMode = 'thirds';
+        this.isOpen = false;
     }
 
     bind(store) {
@@ -36,14 +37,20 @@ export class CharPromptManager {
             this.loadState(targetModel, { skipModelChange: true });
         }
         
-        // 控制顶部“大画布位置编排”按钮（仅 V5 支持自由选点与全屏画布）
+        // 控制“画布位置编排”按钮（V4.5 支持 5×5 网格吸附原位定位，V5 支持 2D 连续自由选点）
+        const supportsCharStage = this.currentModel === 'v5' || this.currentModel === 'v4.5';
         const launchBtn = document.getElementById('charStageLaunchBtn');
         if (launchBtn) {
-            if (this.currentModel === 'v5') {
-                launchBtn.classList.remove('hidden');
-            } else {
-                launchBtn.classList.add('hidden');
-            }
+            if (supportsCharStage) launchBtn.classList.remove('hidden');
+            else launchBtn.classList.add('hidden');
+        }
+        const topBtn = document.getElementById('charStageTopBtn');
+        if (topBtn) {
+            if (supportsCharStage) topBtn.classList.remove('hidden');
+            else topBtn.classList.add('hidden');
+        }
+        if (!supportsCharStage && this.isOpen) {
+            this.closeStage();
         }
 
         // 遍历所有角色行，切换 5x5 网格 (V4.5) / 2D 连续自由画板 (V5)
@@ -82,6 +89,9 @@ export class CharPromptManager {
         }
 
         this.updatePadAspectRatio();
+        if (this.isOpen) {
+            this.renderStage();
+        }
     }
 
     /**
@@ -221,6 +231,28 @@ export class CharPromptManager {
                 </button>
             `;
         }).join('');
+    }
+
+    _snapToV45Grid(val) {
+        const centers = [0.1, 0.3, 0.5, 0.7, 0.9];
+        let best = 0.5;
+        let minDiff = Infinity;
+        for (const c of centers) {
+            const d = Math.abs(val - c);
+            if (d < minDiff) {
+                minDiff = d;
+                best = c;
+            }
+        }
+        return best;
+    }
+
+    _coordToGridLabel(x, y) {
+        const cols = ['1', '2', '3', '4', '5'];
+        const rows = ['A', 'B', 'C', 'D', 'E'];
+        const cIdx = Math.max(0, Math.min(4, Math.round((x - 0.1) / 0.2)));
+        const rIdx = Math.max(0, Math.min(4, Math.round((y - 0.1) / 0.2)));
+        return rows[rIdx] + cols[cIdx];
     }
 
     _highlightMatchingGridCell(row, x, y) {
@@ -679,72 +711,135 @@ export class CharPromptManager {
             });
         }
 
-        // 同时自适应更新大画布选点画板（若已打开）
+        // 同时自适应更新主画布原位角色定位舞台（若存在 #singleResultImg 则精确贴合图片尺寸，否则按画幅比例居中）
         const boxEl = typeof document !== 'undefined' ? document.getElementById('charStageBox') : null;
-        if (boxEl) {
-            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-            const availableH = (typeof window !== 'undefined' ? window.innerHeight : 800) - (isMobile ? 190 : 160);
-            const availableW = (typeof window !== 'undefined' ? window.innerWidth : 1200) - (isMobile ? 28 : 64);
-            let maxH = Math.max(180, Math.min(availableH, 520));
-            let calcW = maxH * ratio;
-            if (calcW > availableW) {
-                calcW = availableW;
-                maxH = calcW / ratio;
+        if (boxEl && boxEl.style) {
+            const singleArea = typeof document !== 'undefined' ? document.getElementById('singleResultArea') : null;
+            const singleImg = typeof document !== 'undefined' ? document.getElementById('singleResultImg') : null;
+            const hasVisibleImg = Boolean(
+                singleArea && !singleArea.classList?.contains?.('hidden') &&
+                singleImg && singleImg.getAttribute?.('src') !== '' && singleImg.src
+            );
+            const imgRect = (hasVisibleImg && typeof singleImg.getBoundingClientRect === 'function')
+                ? singleImg.getBoundingClientRect()
+                : null;
+
+            if (imgRect && imgRect.width > 24 && imgRect.height > 24) {
+                boxEl.style.width = Math.round(imgRect.width) + 'px';
+                boxEl.style.height = Math.round(imgRect.height) + 'px';
+                boxEl.classList?.add?.('is-image-overlay');
+            } else {
+                boxEl.classList?.remove?.('is-image-overlay');
+                const previewEl = typeof document !== 'undefined' ? document.getElementById('previewArea') : null;
+                const pRect = (previewEl && typeof previewEl.getBoundingClientRect === 'function')
+                    ? previewEl.getBoundingClientRect()
+                    : null;
+                const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+                const baseW = (pRect && pRect.width > 100) ? pRect.width : (typeof window !== 'undefined' ? window.innerWidth : 1200);
+                const baseH = (pRect && pRect.height > 100) ? pRect.height : (typeof window !== 'undefined' ? window.innerHeight : 800);
+                const availableH = baseH - (isMobile ? 185 : 150);
+                const availableW = baseW - (isMobile ? 28 : 72);
+                let maxH = Math.max(180, Math.min(availableH, 540));
+                let calcW = maxH * ratio;
+                if (calcW > availableW) {
+                    calcW = availableW;
+                    maxH = calcW / ratio;
+                }
+                boxEl.style.height = Math.round(maxH) + 'px';
+                boxEl.style.width = Math.round(calcW) + 'px';
             }
-            boxEl.style.height = `${Math.round(maxH)}px`;
-            boxEl.style.width = `${Math.round(calcW)}px`;
         }
     }
 
     /**
      * =========================================================================
-     * V5 全屏大画布角色自由位置编排 Stage (Official-grade Character Position Stage)
+     * 主画布原位多角色定位舞台 (In-Place Main Canvas Character Position Stage)
+     * 兼容 V4.5 (5×5 离散网格吸附) 与 V5 (2D 连续自由坐标)
      * =========================================================================
      */
+    toggleStage(activeIdx = 0) {
+        if (this.isOpen) {
+            this.closeStage();
+            return false;
+        }
+        this.openStage(activeIdx);
+        return true;
+    }
+
     openStage(activeIdx = 0) {
         const stageEl = document.getElementById('charPositionStage');
         if (!stageEl) return;
 
+        // 互斥保护：自动退出局部重绘与无限扩图，确保主画布只有一个原位模式激活
+        if (typeof window !== 'undefined') {
+            if (window.inpaintEditor?.isOpen) {
+                window.inpaintEditor.close();
+            }
+            const outpaintArea = document.getElementById('outpaintArea');
+            if (window.outpaintEditor && outpaintArea && !outpaintArea.classList?.contains?.('hidden')) {
+                window.outpaintEditor.close();
+            }
+        }
+
         const container = document.getElementById('characterPromptsContainer');
         const rows = container ? container.querySelectorAll('.character-prompt-row') : [];
         if (rows.length === 0) {
-            this.addCharacterPromptRow();
+            this.addCharacterPromptRow('', '', 0.5, 0.5, false, true);
         }
 
+        this.isOpen = true;
         this.activeStageCharIndex = activeIdx;
         this.stageGridMode = this.stageGridMode || 'thirds';
 
-        // 移动端体验：打开大画布时自动折叠底部抽屉，避免遮挡
+        if (typeof document !== 'undefined' && document.body?.classList) {
+            document.body.classList.add('char-stage-active');
+        }
+        const topBtn = document.getElementById('charStageTopBtn');
+        if (topBtn && topBtn.classList) {
+            topBtn.classList.add('inpaint-toggle-active');
+        }
+
+        // 移动端体验：打开画布定位时自动收起底部参数抽屉，释放全部画布空间
         if (typeof window !== 'undefined' && typeof window.toggleMobileControls === 'function') {
             window.toggleMobileControls(false);
         }
 
-        this.updatePadAspectRatio();
-
         stageEl.classList.remove('hidden');
-        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-
+        this.updatePadAspectRatio();
+        this.setStageGridMode(this.stageGridMode);
         this.renderStage();
         this._initStageInteractions();
     }
 
     closeStage() {
+        this.isOpen = false;
         const stageEl = document.getElementById('charPositionStage');
         if (stageEl) stageEl.classList.add('hidden');
+        if (typeof document !== 'undefined' && document.body?.classList) {
+            document.body.classList.remove('char-stage-active');
+        }
+        const topBtn = document.getElementById('charStageTopBtn');
+        if (topBtn && topBtn.classList) {
+            topBtn.classList.remove('inpaint-toggle-active');
+        }
         this.saveCharacterPromptsState();
+    }
+
+    cycleStageGridMode() {
+        const order = ['thirds', 'phi', 'center', 'none'];
+        const curIdx = order.indexOf(this.stageGridMode || 'thirds');
+        const nextMode = order[(curIdx + 1) % order.length];
+        this.setStageGridMode(nextMode);
+        return nextMode;
     }
 
     setStageGridMode(mode) {
         this.stageGridMode = mode;
         const modes = ['thirds', 'phi', 'center', 'none'];
         modes.forEach(m => {
-            const btn = document.getElementById(`charGridMode${m.charAt(0).toUpperCase() + m.slice(1)}`);
-            if (btn) {
-                if (m === mode) {
-                    btn.className = 'px-2.5 py-1 rounded-lg bg-indigo-600 font-semibold transition-all text-white shadow-sm';
-                } else {
-                    btn.className = 'px-2.5 py-1 rounded-lg hover:bg-white/10 transition-all text-gray-300';
-                }
+            const btn = document.getElementById('charGridMode' + m.charAt(0).toUpperCase() + m.slice(1));
+            if (btn && btn.classList) {
+                btn.classList.toggle('tool-active', m === mode);
             }
         });
         this._renderStageGridSvg();
@@ -760,27 +855,43 @@ export class CharPromptManager {
             return;
         }
 
-        if (mode === 'thirds') {
-            svg.innerHTML = `
-                <line x1="33.33%" y1="0" x2="33.33%" y2="100%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
-                <line x1="66.67%" y1="0" x2="66.67%" y2="100%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
-                <line x1="0" y1="33.33%" x2="100%" y2="33.33%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
-                <line x1="0" y1="66.67%" x2="100%" y2="66.67%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
-            `;
-        } else if (mode === 'phi') {
-            svg.innerHTML = `
-                <line x1="38.2%" y1="0" x2="38.2%" y2="100%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
-                <line x1="61.8%" y1="0" x2="61.8%" y2="100%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
-                <line x1="0" y1="38.2%" x2="100%" y2="38.2%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
-                <line x1="0" y1="61.8%" x2="100%" y2="61.8%" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4" stroke-width="1.5"/>
-            `;
-        } else if (mode === 'center') {
-            svg.innerHTML = `
-                <line x1="50%" y1="0" x2="50%" y2="100%" stroke="rgba(99,102,241,0.6)" stroke-dasharray="5 5" stroke-width="1.5"/>
-                <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(99,102,241,0.6)" stroke-dasharray="5 5" stroke-width="1.5"/>
-                <circle cx="50%" cy="50%" r="8" fill="none" stroke="rgba(99,102,241,0.8)" stroke-width="1.5"/>
+        let gridLines = '';
+        // V4.5 模式下叠加 5×5 宫格细线与中心点提示
+        if (this.currentModel === 'v4.5') {
+            gridLines += `
+                <line x1="20%" y1="0" x2="20%" y2="100%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="40%" y1="0" x2="40%" y2="100%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="60%" y1="0" x2="60%" y2="100%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="80%" y1="0" x2="80%" y2="100%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="0" y1="20%" x2="100%" y2="20%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="0" y1="40%" x2="100%" y2="40%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="0" y1="60%" x2="100%" y2="60%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="0" y1="80%" x2="100%" y2="80%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
             `;
         }
+
+        if (mode === 'thirds') {
+            gridLines += `
+                <line x1="33.33%" y1="0" x2="33.33%" y2="100%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="66.67%" y1="0" x2="66.67%" y2="100%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="0" y1="33.33%" x2="100%" y2="33.33%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="0" y1="66.67%" x2="100%" y2="66.67%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
+            `;
+        } else if (mode === 'phi') {
+            gridLines += `
+                <line x1="38.2%" y1="0" x2="38.2%" y2="100%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="61.8%" y1="0" x2="61.8%" y2="100%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="0" y1="38.2%" x2="100%" y2="38.2%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="0" y1="61.8%" x2="100%" y2="61.8%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
+            `;
+        } else if (mode === 'center') {
+            gridLines += `
+                <line x1="50%" y1="0" x2="50%" y2="100%" stroke="rgba(255,255,255,0.6)" stroke-dasharray="5 5" stroke-width="1.5"/>
+                <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(255,255,255,0.6)" stroke-dasharray="5 5" stroke-width="1.5"/>
+                <circle cx="50%" cy="50%" r="8" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="1.5"/>
+            `;
+        }
+        svg.innerHTML = gridLines;
     }
 
     autoArrange() {
@@ -789,23 +900,38 @@ export class CharPromptManager {
         const rows = Array.from(container.querySelectorAll('.character-prompt-row'));
         if (rows.length === 0) return;
 
-        // 依据角色总数进行黄金螺旋 / 审美离散布局
-        const presets = [
-            [0.5, 0.5],
-            [0.3, 0.5],
-            [0.7, 0.5],
-            [0.2, 0.35],
-            [0.8, 0.35],
-            [0.5, 0.75],
-            [0.35, 0.7],
-            [0.65, 0.7],
-            [0.15, 0.5],
-            [0.85, 0.5]
-        ];
+        const isV45 = this.currentModel === 'v4.5';
+        const presets = isV45
+            ? [
+                [0.5, 0.5],
+                [0.3, 0.5],
+                [0.7, 0.5],
+                [0.1, 0.3],
+                [0.9, 0.3],
+                [0.5, 0.7],
+                [0.3, 0.7],
+                [0.7, 0.7],
+                [0.1, 0.5],
+                [0.9, 0.5]
+            ]
+            : [
+                [0.5, 0.5],
+                [0.3, 0.5],
+                [0.7, 0.5],
+                [0.2, 0.35],
+                [0.8, 0.35],
+                [0.5, 0.75],
+                [0.35, 0.7],
+                [0.65, 0.7],
+                [0.15, 0.5],
+                [0.85, 0.5]
+            ];
 
         rows.forEach((row, i) => {
             const coord = presets[i] || [0.1 + (i * 0.15) % 0.8, 0.2 + (i * 0.2) % 0.6];
-            this.setCharPosition(row, coord[0], coord[1]);
+            const fx = isV45 ? this._snapToV45Grid(coord[0]) : coord[0];
+            const fy = isV45 ? this._snapToV45Grid(coord[1]) : coord[1];
+            this.setCharPosition(row, fx, fy);
             const autoPosCheckbox = row.querySelector('.char-auto-pos');
             if (autoPosCheckbox) autoPosCheckbox.checked = false;
         });
@@ -832,12 +958,17 @@ export class CharPromptManager {
             this.activeStageCharIndex = Math.max(0, rows.length - 1);
         }
 
+        this.updatePadAspectRatio();
         this._renderStageGridSvg();
+
+        const isV45 = this.currentModel === 'v4.5';
 
         // 收集所有角色的当前位置，用于碰撞检测 (距离 < 0.1 警告)
         const charPositions = rows.map(r => {
-            const x = parseFloat(r.querySelector('.char-pos-x')?.value || '0.5');
-            const y = parseFloat(r.querySelector('.char-pos-y')?.value || '0.5');
+            const rawX = parseFloat(r.querySelector('.char-pos-x')?.value || '0.5');
+            const rawY = parseFloat(r.querySelector('.char-pos-y')?.value || '0.5');
+            const x = isV45 ? this._snapToV45Grid(rawX) : rawX;
+            const y = isV45 ? this._snapToV45Grid(rawY) : rawY;
             const prompt = r.querySelector('.char-prompt-input')?.value.trim() || '';
             const enabled = r.querySelector('.char-enable-toggle')?.checked !== false;
             return { x, y, prompt, enabled };
@@ -847,20 +978,16 @@ export class CharPromptManager {
             const { x, y, prompt, enabled } = charPositions[idx];
             const isActive = idx === this.activeStageCharIndex;
 
-            // 1. 顶部角色选择 Chip
+            // 1. 底部胶囊角色选择紧凑 Chip (#1, #2...) + 快速新增按钮
             if (chipsContainer) {
                 const chip = document.createElement('button');
                 chip.type = 'button';
-                const summary = prompt ? (prompt.length > 8 ? prompt.slice(0, 8) + '...' : prompt) : `角色 ${idx + 1}`;
-                chip.className = `px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all flex-shrink-0 cursor-pointer ${
-                    isActive 
-                        ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-400' 
-                        : 'bg-white/10 hover:bg-white/20 text-gray-300'
-                } ${!enabled ? 'opacity-50' : ''}`;
-                chip.innerHTML = `
-                    <span class="w-4 h-4 rounded-full ${isActive ? 'bg-white text-indigo-700' : 'bg-white/20 text-white'} flex items-center justify-center text-[10px] font-bold">${idx + 1}</span>
-                    <span>${summary}</span>
-                `;
+                const shortTag = prompt ? (prompt.length > 6 ? prompt.slice(0, 6) + '…' : prompt) : '';
+                chip.className = 'char-stage-chip-btn' + (isActive ? ' active' : '') + (!enabled ? ' opacity-45' : '');
+                chip.title = prompt ? ('角色 ' + (idx + 1) + ': ' + prompt) : ('角色 ' + (idx + 1));
+                chip.innerHTML = shortTag
+                    ? ('<span>#' + (idx + 1) + '</span><span class="hidden sm:inline text-[10px] font-medium opacity-80">' + shortTag + '</span>')
+                    : ('<span>#' + (idx + 1) + '</span>');
                 chip.onclick = () => {
                     this.activeStageCharIndex = idx;
                     this.renderStage();
@@ -877,36 +1004,60 @@ export class CharPromptManager {
                 }
             });
 
-            // 3. 画板上的 Marker Pin
+            // 3. 画板上的 Marker Pin (单色高对比圆章)
             if (pinsContainer) {
                 const pin = document.createElement('div');
-                pin.className = `char-stage-pin absolute w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold cursor-grab active:cursor-grabbing select-none transition-transform ${
-                    isActive 
-                        ? 'bg-white text-slate-900 shadow-2xl ring-4 ring-indigo-500 scale-110 z-20' 
-                        : 'bg-slate-900/90 text-white border-2 border-white/60 shadow-lg z-10 hover:scale-105'
-                } ${isTooClose ? 'ring-4 !ring-amber-500 animate-pulse' : ''} ${!enabled ? 'opacity-40' : ''}`;
-                pin.style.left = `${x * 100}%`;
-                pin.style.top = `${y * 100}%`;
+                pin.className = 'char-stage-pin absolute w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold cursor-grab active:cursor-grabbing select-none transition-transform ' +
+                    (isActive
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xl ring-2 ring-white dark:ring-slate-900 scale-110 z-20'
+                        : 'bg-slate-900/80 text-white border border-white/70 shadow-lg z-10 hover:scale-105') +
+                    (isTooClose ? ' ring-2 !ring-amber-400 animate-pulse' : '') +
+                    (!enabled ? ' opacity-40' : '');
+                pin.style.left = (x * 100) + '%';
+                pin.style.top = (y * 100) + '%';
                 pin.style.transform = 'translate(-50%, -50%)';
                 pin.setAttribute('data-index', idx);
-                pin.title = `角色 ${idx + 1} (${(x * 100).toFixed(0)}%, ${(y * 100).toFixed(0)}%)${isTooClose ? ' - 提示: 角色距离较近' : ''}`;
-                pin.innerHTML = `<span>${idx + 1}</span>`;
+                const coordText = isV45 ? this._coordToGridLabel(x, y) : ((x * 100).toFixed(0) + '%, ' + (y * 100).toFixed(0) + '%');
+                pin.title = '角色 ' + (idx + 1) + ' (' + coordText + ')' + (isTooClose ? ' - 距离过近' : '');
+                pin.innerHTML = '<span>' + (idx + 1) + '</span>';
                 pinsContainer.appendChild(pin);
             }
 
             if (isActive && activeCoordsLabel) {
-                activeCoordsLabel.innerHTML = `角色 <b>${idx + 1}</b>: X <b>${(x * 100).toFixed(0)}%</b> | Y <b>${(y * 100).toFixed(0)}%</b>${isTooClose ? ' <span class="text-amber-400">⚠ 距离过近</span>' : ''}`;
+                if (isV45) {
+                    const gridLbl = this._coordToGridLabel(x, y);
+                    activeCoordsLabel.innerHTML = '#' + (idx + 1) + ' · <b>' + gridLbl + '</b> (' + (x * 100).toFixed(0) + '%, ' + (y * 100).toFixed(0) + '%)' + (isTooClose ? ' <span class="text-amber-300">⚠</span>' : '');
+                } else {
+                    activeCoordsLabel.innerHTML = '#' + (idx + 1) + ' · <b>' + (x * 100).toFixed(0) + '%</b>, <b>' + (y * 100).toFixed(0) + '%</b>' + (isTooClose ? ' <span class="text-amber-300">⚠</span>' : '');
+                }
             }
         });
+
+        // 在 Chips 末尾提供一个轻量纯 SVG "+" 按钮，支持在主画布直接新增角色定位点
+        if (chipsContainer && rows.length < 22) {
+            const addBtn = document.createElement('button');
+            addBtn.type = 'button';
+            addBtn.className = 'char-stage-chip-btn opacity-75 hover:opacity-100';
+            addBtn.title = '新增角色定位点';
+            addBtn.setAttribute?.('aria-label', '新增角色定位点');
+            addBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>';
+            addBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.addCharacterPromptRow('', '', 0.5, 0.5, false, true);
+                const updatedRows = container.querySelectorAll('.character-prompt-row');
+                this.activeStageCharIndex = Math.max(0, updatedRows.length - 1);
+                this.renderStage();
+            };
+            chipsContainer.appendChild(addBtn);
+        }
     }
 
     _initStageInteractions() {
         const box = document.getElementById('charStageBox');
-        if (!box || box.dataset.interactionBound === 'true') return;
-        box.dataset.interactionBound = 'true';
+        if (!box || box.dataset?.interactionBound === 'true') return;
+        if (box.dataset) box.dataset.interactionBound = 'true';
 
         let isDragging = false;
-        let activeDragIndex = this.activeStageCharIndex;
 
         const updateCoord = (clientX, clientY) => {
             const container = document.getElementById('characterPromptsContainer');
@@ -923,22 +1074,28 @@ export class CharPromptManager {
             normX = Math.max(0.01, Math.min(0.99, normX));
             normY = Math.max(0.01, Math.min(0.99, normY));
 
-            const finalX = parseFloat(normX.toFixed(3));
-            const finalY = parseFloat(normY.toFixed(3));
+            const isV45 = this.currentModel === 'v4.5';
+            const finalX = isV45 ? this._snapToV45Grid(normX) : parseFloat(normX.toFixed(3));
+            const finalY = isV45 ? this._snapToV45Grid(normY) : parseFloat(normY.toFixed(3));
+
+            const autoPosCheckbox = targetRow.querySelector('.char-auto-pos');
+            if (autoPosCheckbox && autoPosCheckbox.checked) {
+                autoPosCheckbox.checked = false;
+                const v5Wrap = targetRow.querySelector('.char-v5-pos-wrapper');
+                const v45Wrap = targetRow.querySelector('.char-v45-grid-wrapper');
+                if (this.currentModel === 'v5' && v5Wrap) v5Wrap.classList.remove('hidden');
+                if (this.currentModel === 'v4.5' && v45Wrap) v45Wrap.classList.remove('hidden');
+            }
 
             this.setCharPosition(targetRow, finalX, finalY);
-            const autoPosCheckbox = targetRow.querySelector('.char-auto-pos');
-            if (autoPosCheckbox) autoPosCheckbox.checked = false;
-
             this.renderStage();
         };
 
         box.addEventListener('pointerdown', (e) => {
-            const pinTarget = e.target.closest('.char-stage-pin');
+            const pinTarget = e.target?.closest ? e.target.closest('.char-stage-pin') : null;
             if (pinTarget) {
-                const idx = parseInt(pinTarget.getAttribute('data-index') || '0');
+                const idx = parseInt(pinTarget.getAttribute('data-index') || '0', 10);
                 this.activeStageCharIndex = idx;
-                activeDragIndex = idx;
             }
             isDragging = true;
             try { box.setPointerCapture(e.pointerId); } catch (_) {}
@@ -960,5 +1117,19 @@ export class CharPromptManager {
 
         box.addEventListener('pointerup', endDrag);
         box.addEventListener('pointercancel', endDrag);
+
+        if (typeof window !== 'undefined' && !this._stageResizeBound) {
+            this._stageResizeBound = true;
+            window.addEventListener('resize', () => {
+                if (this.isOpen) {
+                    this.updatePadAspectRatio();
+                }
+            });
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && this.isOpen) {
+                    this.closeStage();
+                }
+            });
+        }
     }
 }

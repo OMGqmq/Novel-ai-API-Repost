@@ -1817,3 +1817,362 @@ html.low-perf .view-fade-enter {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
 }
+
+
+/* ==========================================================================
+   In-Place Before / After Comparison Slider & Hold-to-Peek
+   ========================================================================== */
+.canvas-compare-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 15;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: 0.5rem;
+}
+
+.canvas-before-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    clip-path: inset(0 calc(100% - var(--split-pct, 50%)) 0 0);
+    user-select: none;
+    pointer-events: none;
+}
+
+.canvas-compare-overlay.peek-mode .canvas-before-img {
+    clip-path: inset(0 0 0 0) !important;
+}
+
+.canvas-compare-overlay.peek-mode .canvas-compare-divider {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.canvas-compare-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--split-pct, 50%);
+    width: 28px;
+    transform: translateX(-50%);
+    cursor: ew-resize;
+    pointer-events: auto;
+    touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 16;
+}
+
+.canvas-compare-divider::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1.5px;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 0 8px rgba(15, 23, 42, 0.45);
+}
+
+.canvas-compare-handle {
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    color: #0f172a;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.14s ease, background-color 0.15s ease;
+}
+
+.dark .canvas-compare-handle {
+    background: rgba(15, 23, 42, 0.94);
+    border-color: rgba(71, 85, 105, 0.9);
+    color: #f8fafc;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+
+.canvas-compare-divider:hover .canvas-compare-handle,
+.canvas-compare-divider:active .canvas-compare-handle {
+    transform: scale(1.1);
+}
+
+.canvas-icon-btn.compare-active {
+    background: #0f172a !important;
+    color: #ffffff !important;
+}
+
+.dark .canvas-icon-btn.compare-active {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+}
+
+/* ==========================================================================
+   Main Canvas Bottom Mini History Filmstrip Dock
+   ========================================================================== */
+.canvas-filmstrip-dock {
+    position: absolute;
+    left: 50%;
+    bottom: 1.1rem;
+    transform: translateX(-50%);
+    z-index: 36;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Automatically yield space when Inpaint, Outpaint, or Character Stage is active */
+body.inpaint-active #canvasFilmstripDock,
+body.outpaint-active #canvasFilmstripDock,
+body.char-stage-active #canvasFilmstripDock {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateX(-50%) translateY(10px) scale(0.96) !important;
+}
+
+.canvas-filmstrip-capsule {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 5px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    box-shadow: 0 14px 32px -8px rgba(15, 23, 42, 0.16), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
+}
+
+.dark .canvas-filmstrip-capsule {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(51, 65, 85, 0.88);
+    box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.58);
+}
+
+.canvas-filmstrip-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 360px;
+    overflow: hidden;
+    transition: max-width 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
+}
+
+.canvas-filmstrip-inner.collapsed {
+    max-width: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    gap: 0 !important;
+}
+
+.canvas-filmstrip-track {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 1px 2px;
+}
+
+.canvas-filmstrip-track::-webkit-scrollbar {
+    display: none;
+}
+
+.filmstrip-thumb-btn {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1.5px solid rgba(148, 163, 184, 0.35);
+    opacity: 0.72;
+    transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+    background: rgba(15, 23, 42, 0.08);
+}
+
+.filmstrip-thumb-btn:hover {
+    opacity: 0.95;
+    transform: translateY(-1px);
+}
+
+.filmstrip-thumb-btn.active {
+    opacity: 1;
+    border-color: #0f172a;
+    box-shadow: 0 0 0 1.5px rgba(15, 23, 42, 0.25);
+    transform: scale(1.06);
+}
+
+.dark .filmstrip-thumb-btn.active {
+    border-color: #f8fafc;
+    box-shadow: 0 0 0 1.5px rgba(248, 250, 252, 0.3);
+}
+
+.filmstrip-thumb-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+}
+
+.canvas-filmstrip-icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    background: transparent;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.14s ease;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.dark .canvas-filmstrip-icon-btn {
+    color: #cbd5e1;
+}
+
+.canvas-filmstrip-icon-btn:hover {
+    background: rgba(15, 23, 42, 0.07);
+    color: #0f172a;
+}
+
+.dark .canvas-filmstrip-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.canvas-filmstrip-icon-btn:active {
+    transform: scale(0.92);
+}
+
+/* ==========================================================================
+   In-Place Character Position Stage & Monochrome SVG Dock
+   ========================================================================== */
+.char-stage-box {
+    background: rgba(255, 255, 255, 0.52);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1.5px solid rgba(15, 23, 42, 0.22);
+    box-shadow: 0 20px 48px -12px rgba(15, 23, 42, 0.18);
+}
+
+.dark .char-stage-box {
+    background: rgba(15, 23, 42, 0.56);
+    border-color: rgba(248, 250, 252, 0.22);
+    box-shadow: 0 22px 52px -12px rgba(0, 0, 0, 0.62);
+}
+
+/* When overlaying directly on an existing #singleResultImg, keep background transparent so artwork shines through */
+.char-stage-box.is-image-overlay {
+    background: rgba(15, 23, 42, 0.08) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.28) !important;
+}
+
+.char-stage-dock-host {
+    position: absolute;
+    left: 50%;
+    bottom: 1.25rem;
+    transform: translateX(-50%);
+    z-index: 52;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.char-stage-dock-capsule {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 5px 6px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    color: #334155;
+    box-shadow: 0 18px 38px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+}
+
+.dark .char-stage-dock-capsule {
+    background: rgba(15, 23, 42, 0.92);
+    border-color: rgba(51, 65, 85, 0.9);
+    color: #cbd5e1;
+    box-shadow: 0 20px 44px -8px rgba(0, 0, 0, 0.6);
+}
+
+.char-stage-chip-btn {
+    height: 26px;
+    min-width: 26px;
+    padding: 0 7px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: transform 0.14s ease, background-color 0.15s ease, color 0.15s ease;
+    border: 1px solid transparent;
+    flex-shrink: 0;
+}
+
+.char-stage-chip-btn.active {
+    background: #0f172a;
+    color: #ffffff;
+}
+
+.dark .char-stage-chip-btn.active {
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+@media (max-width: 767px) {
+    .canvas-filmstrip-dock {
+        left: 0.75rem;
+        right: 4.15rem;
+        bottom: calc(4.45rem + env(safe-area-inset-bottom, 0px));
+        transform: none;
+        justify-content: flex-start;
+    }
+    body.inpaint-active #canvasFilmstripDock,
+    body.outpaint-active #canvasFilmstripDock,
+    body.char-stage-active #canvasFilmstripDock {
+        transform: translateY(10px) scale(0.96) !important;
+    }
+    .canvas-filmstrip-inner {
+        max-width: calc(100vw - 8.2rem);
+    }
+    .char-stage-dock-host {
+        left: 0.75rem;
+        right: 4.15rem;
+        bottom: calc(4.45rem + env(safe-area-inset-bottom, 0px));
+        transform: none;
+        align-items: flex-start;
+    }
+    .char-stage-dock-capsule {
+        max-width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .char-stage-dock-capsule::-webkit-scrollbar {
+        display: none;
+    }
+}

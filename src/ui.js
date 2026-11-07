@@ -9,8 +9,16 @@ export class UIController {
         this.isControlsExpanded = false;
         this.currentGalleryTab = 'showcase';
 
+        this._compareBeforeUrl = null;
+        this._compareAfterUrl = null;
+        this._isCompareSplitOpen = false;
+        this._isComparePeeking = false;
+        this._compareSplitPct = 50;
+        this._isFilmstripCollapsed = false;
+
         this._initBasicBindings();
         this._initCustomSelects();
+        this._initCompareInteractions();
     }
 
     _getElements() {
@@ -135,7 +143,18 @@ export class UIController {
             adminPanelBtnMobile: document.getElementById('adminPanelBtnMobile'),
             adminPanelEntrance: document.getElementById('adminPanelEntrance'),
             apiBtn: document.getElementById('apiBtn'),
-            apiBtnMobile: document.getElementById('apiBtnMobile')
+            apiBtnMobile: document.getElementById('apiBtnMobile'),
+            canvasCompareBtn: document.getElementById('canvasCompareBtn'),
+            canvasCompareSep: document.getElementById('canvasCompareSep'),
+            canvasCompareOverlay: document.getElementById('canvasCompareOverlay'),
+            canvasBeforeImg: document.getElementById('canvasBeforeImg'),
+            canvasCompareDivider: document.getElementById('canvasCompareDivider'),
+            canvasFilmstripDock: document.getElementById('canvasFilmstripDock'),
+            filmstripToggleBtn: document.getElementById('filmstripToggleBtn'),
+            filmstripToggleSvg: document.getElementById('filmstripToggleSvg'),
+            filmstripInner: document.getElementById('filmstripInner'),
+            filmstripTrack: document.getElementById('filmstripTrack'),
+            filmstripApplyParamsBtn: document.getElementById('filmstripApplyParamsBtn')
         };
     }
 
@@ -543,6 +562,9 @@ export class UIController {
             if (typeof window !== 'undefined' && window.outpaintEditor && this.els.outpaintArea && !this.els.outpaintArea.classList.contains('hidden')) {
                 window.outpaintEditor.close();
             }
+            if (typeof window !== 'undefined' && window.charPromptManager?.isOpen) {
+                window.charPromptManager.closeStage();
+            }
             this.els.viewBtnPreview.classList.remove('active');
             this.els.viewBtnHistory.classList.add('active');
             this.els.previewArea.classList.add('hidden');
@@ -876,6 +898,7 @@ export class UIController {
             canvasDeleteBtn.classList.add('opacity-50', 'cursor-not-allowed');
             canvasDeleteBtn.classList.remove('cursor-pointer');
         }
+        this.clearBeforeAfterState();
         this.showImageActions(false);
         if (typeof window !== 'undefined') {
             if (window.appState) {
@@ -895,6 +918,7 @@ export class UIController {
         
         placeholder.classList.add('hidden');
         resultGrid.classList.remove('hidden');
+        this.toggleCompareSplit(false);
         singleResultArea.classList.add('hidden');
         backToGridBtn.classList.add('hidden');
         this.showImageActions(false);
@@ -928,8 +952,18 @@ export class UIController {
             singleResultImg.src = item.imageUrl;
             this._triggerImageReveal(singleResultImg);
         }
+        if (this._compareAfterUrl && item?.imageUrl && item.imageUrl !== this._compareAfterUrl) {
+            this.clearBeforeAfterState();
+        }
         if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
             window.inpaintEditor.syncOverlayGeometry?.();
+        }
+        if (typeof window !== 'undefined' && window.charPromptManager?.isOpen) {
+            window.charPromptManager.updatePadAspectRatio?.();
+            window.charPromptManager.renderStage?.();
+        }
+        if (item?.id != null) {
+            this.updateFilmstripActive(item.id);
         }
         this.showImageActions(true);
     }
@@ -1161,5 +1195,267 @@ export class UIController {
             this.els.lowPerfBtnMobile.title = enabled ? "高性能模式" : "低性能模式";
         }
         if (window.safeCreateIcons) window.safeCreateIcons();
+    }
+
+    // =========================================================================
+    // In-Place Main Canvas Before / After Comparison (Split Slider + Hold Peek)
+    // =========================================================================
+
+    _initCompareInteractions() {
+        const btn = this.els?.canvasCompareBtn || (typeof document !== 'undefined' ? document.getElementById('canvasCompareBtn') : null);
+        const divider = this.els?.canvasCompareDivider || (typeof document !== 'undefined' ? document.getElementById('canvasCompareDivider') : null);
+
+        if (btn && !btn.dataset.compareBound) {
+            btn.dataset.compareBound = 'true';
+            let holdTimer = null;
+            let didHold = false;
+
+            const clearHold = () => {
+                if (holdTimer) {
+                    clearTimeout(holdTimer);
+                    holdTimer = null;
+                }
+            };
+
+            btn.addEventListener('pointerdown', (e) => {
+                if (e.button && e.button !== 0) return;
+                didHold = false;
+                clearHold();
+                holdTimer = setTimeout(() => {
+                    didHold = true;
+                    this.startComparePeek();
+                }, 160);
+            });
+
+            const finishPress = () => {
+                clearHold();
+                if (didHold) {
+                    this.endComparePeek();
+                } else {
+                    this.toggleCompareSplit();
+                }
+                didHold = false;
+            };
+
+            btn.addEventListener('pointerup', finishPress);
+            btn.addEventListener('pointercancel', () => {
+                clearHold();
+                if (didHold) this.endComparePeek();
+                didHold = false;
+            });
+            btn.addEventListener('pointerleave', () => {
+                if (didHold) {
+                    clearHold();
+                    this.endComparePeek();
+                    didHold = false;
+                }
+            });
+        }
+
+        if (divider && !divider.dataset.compareDividerBound) {
+            divider.dataset.compareDividerBound = 'true';
+            let dragging = false;
+
+            const updateFromClientX = (clientX) => {
+                const overlay = this.els?.canvasCompareOverlay || document.getElementById('canvasCompareOverlay');
+                const rect = overlay?.getBoundingClientRect?.();
+                if (!rect || rect.width <= 0) return;
+                const pct = ((clientX - rect.left) / rect.width) * 100;
+                this.setCompareSplitPct(pct);
+            };
+
+            divider.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dragging = true;
+                try { divider.setPointerCapture?.(e.pointerId); } catch (_) {}
+                updateFromClientX(e.clientX);
+            });
+
+            divider.addEventListener('pointermove', (e) => {
+                if (!dragging) return;
+                updateFromClientX(e.clientX);
+            });
+
+            const stopDrag = (e) => {
+                if (!dragging) return;
+                dragging = false;
+                try { divider.releasePointerCapture?.(e.pointerId); } catch (_) {}
+            };
+
+            divider.addEventListener('pointerup', stopDrag);
+            divider.addEventListener('pointercancel', stopDrag);
+        }
+    }
+
+    setBeforeAfterImage(beforeUrl, afterUrl = null) {
+        if (!beforeUrl) {
+            this.clearBeforeAfterState();
+            return;
+        }
+        const resolvedAfter = afterUrl || this.els?.singleResultImg?.src || null;
+        if (resolvedAfter && beforeUrl === resolvedAfter) return;
+
+        this._compareBeforeUrl = beforeUrl;
+        this._compareAfterUrl = resolvedAfter;
+
+        const beforeImg = this.els?.canvasBeforeImg || (typeof document !== 'undefined' ? document.getElementById('canvasBeforeImg') : null);
+        const btn = this.els?.canvasCompareBtn || (typeof document !== 'undefined' ? document.getElementById('canvasCompareBtn') : null);
+        const sep = this.els?.canvasCompareSep || (typeof document !== 'undefined' ? document.getElementById('canvasCompareSep') : null);
+
+        if (beforeImg) beforeImg.src = beforeUrl;
+        if (btn) btn.classList.remove('hidden');
+        if (sep) sep.classList.remove('hidden');
+        this.setCompareSplitPct(this._compareSplitPct || 50);
+    }
+
+    clearBeforeAfterState() {
+        this._compareBeforeUrl = null;
+        this._compareAfterUrl = null;
+        this._isCompareSplitOpen = false;
+        this._isComparePeeking = false;
+
+        const overlay = this.els?.canvasCompareOverlay || (typeof document !== 'undefined' ? document.getElementById('canvasCompareOverlay') : null);
+        const beforeImg = this.els?.canvasBeforeImg || (typeof document !== 'undefined' ? document.getElementById('canvasBeforeImg') : null);
+        const btn = this.els?.canvasCompareBtn || (typeof document !== 'undefined' ? document.getElementById('canvasCompareBtn') : null);
+        const sep = this.els?.canvasCompareSep || (typeof document !== 'undefined' ? document.getElementById('canvasCompareSep') : null);
+
+        if (overlay) {
+            overlay.classList.add('hidden');
+            overlay.classList.remove('peek-mode');
+        }
+        if (beforeImg) beforeImg.src = '';
+        if (btn) {
+            btn.classList.add('hidden');
+            btn.classList.remove('compare-active');
+        }
+        if (sep) sep.classList.add('hidden');
+    }
+
+    setCompareSplitPct(pct) {
+        const clamped = Math.max(2, Math.min(98, Number.isFinite(Number(pct)) ? Number(pct) : 50));
+        this._compareSplitPct = clamped;
+        const overlay = this.els?.canvasCompareOverlay || (typeof document !== 'undefined' ? document.getElementById('canvasCompareOverlay') : null);
+        if (overlay && overlay.style) {
+            overlay.style.setProperty('--split-pct', clamped.toFixed(1) + '%');
+        }
+    }
+
+    toggleCompareSplit(forceState) {
+        if (!this._compareBeforeUrl && forceState !== false) return false;
+        const next = typeof forceState === 'boolean' ? forceState : !this._isCompareSplitOpen;
+        this._isCompareSplitOpen = next;
+
+        const overlay = this.els?.canvasCompareOverlay || (typeof document !== 'undefined' ? document.getElementById('canvasCompareOverlay') : null);
+        const btn = this.els?.canvasCompareBtn || (typeof document !== 'undefined' ? document.getElementById('canvasCompareBtn') : null);
+
+        if (overlay) {
+            overlay.classList.remove('peek-mode');
+            if (next) {
+                this.setCompareSplitPct(this._compareSplitPct || 50);
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
+        }
+        if (btn) {
+            btn.classList.toggle('compare-active', next);
+        }
+        return next;
+    }
+
+    startComparePeek() {
+        if (!this._compareBeforeUrl) return;
+        this._isComparePeeking = true;
+        const overlay = this.els?.canvasCompareOverlay || (typeof document !== 'undefined' ? document.getElementById('canvasCompareOverlay') : null);
+        const btn = this.els?.canvasCompareBtn || (typeof document !== 'undefined' ? document.getElementById('canvasCompareBtn') : null);
+        if (overlay) {
+            overlay.classList.add('peek-mode');
+            overlay.classList.remove('hidden');
+        }
+        if (btn) btn.classList.add('compare-active');
+    }
+
+    endComparePeek() {
+        if (!this._isComparePeeking) return;
+        this._isComparePeeking = false;
+        const overlay = this.els?.canvasCompareOverlay || (typeof document !== 'undefined' ? document.getElementById('canvasCompareOverlay') : null);
+        const btn = this.els?.canvasCompareBtn || (typeof document !== 'undefined' ? document.getElementById('canvasCompareBtn') : null);
+        if (overlay) {
+            overlay.classList.remove('peek-mode');
+            if (!this._isCompareSplitOpen) {
+                overlay.classList.add('hidden');
+            }
+        }
+        if (btn) {
+            btn.classList.toggle('compare-active', Boolean(this._isCompareSplitOpen));
+        }
+    }
+
+    // =========================================================================
+    // Main Canvas Bottom Mini History Filmstrip Dock
+    // =========================================================================
+
+    renderFilmstrip(items = [], activeId = null) {
+        const dock = this.els?.canvasFilmstripDock || (typeof document !== 'undefined' ? document.getElementById('canvasFilmstripDock') : null);
+        const track = this.els?.filmstripTrack || (typeof document !== 'undefined' ? document.getElementById('filmstripTrack') : null);
+        if (!dock || !track) return;
+
+        const validItems = Array.isArray(items) ? items.filter(it => it && it.imageUrl).slice(0, 8) : [];
+        if (validItems.length === 0) {
+            dock.classList.add('hidden');
+            track.innerHTML = '';
+            return;
+        }
+
+        dock.classList.remove('hidden');
+        track.innerHTML = '';
+
+        validItems.forEach((item, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const isActive = activeId != null && String(item.id) === String(activeId);
+            btn.className = 'filmstrip-thumb-btn' + (isActive ? ' active' : '');
+            btn.dataset.imageId = String(item.id ?? idx);
+            btn.title = item.seed ? ('Seed: ' + item.seed + ' (点击仅切图)') : '点击切换主画布图片';
+            btn.setAttribute?.('aria-label', btn.title);
+
+            const img = document.createElement('img');
+            img.src = item.imageUrl;
+            img.alt = '';
+            img.loading = 'lazy';
+            btn.appendChild(img);
+
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                if (typeof window !== 'undefined' && typeof window.selectFilmstripImage === 'function') {
+                    window.selectFilmstripImage(item.id);
+                }
+            };
+
+            track.appendChild(btn);
+        });
+    }
+
+    updateFilmstripActive(activeId) {
+        const track = this.els?.filmstripTrack || (typeof document !== 'undefined' ? document.getElementById('filmstripTrack') : null);
+        if (!track || !track.querySelectorAll) return;
+        track.querySelectorAll('.filmstrip-thumb-btn').forEach(btn => {
+            const isMatch = activeId != null && String(btn.dataset?.imageId) === String(activeId);
+            btn.classList.toggle('active', isMatch);
+        });
+    }
+
+    toggleFilmstripCollapsed(forceState) {
+        const inner = this.els?.filmstripInner || (typeof document !== 'undefined' ? document.getElementById('filmstripInner') : null);
+        const svg = this.els?.filmstripToggleSvg || (typeof document !== 'undefined' ? document.getElementById('filmstripToggleSvg') : null);
+        this._isFilmstripCollapsed = typeof forceState === 'boolean' ? forceState : !this._isFilmstripCollapsed;
+        if (inner) {
+            inner.classList.toggle('collapsed', this._isFilmstripCollapsed);
+        }
+        if (svg && svg.style) {
+            svg.style.transform = this._isFilmstripCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+        return this._isFilmstripCollapsed;
     }
 }

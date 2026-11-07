@@ -628,10 +628,16 @@ export class InpaintEditor {
         this.originalImgSrc = targetSrc;
         this.hasGeneratedInSession = false;
 
-        // Close outpaint if open so main workspace canvas stays mutually exclusive
+        // Close outpaint or charPositionStage if open so main workspace canvas stays mutually exclusive
         const outpaintArea = document.getElementById('outpaintArea');
         if (outpaintArea && !outpaintArea.classList.contains('hidden') && typeof window !== 'undefined' && window.outpaintEditor) {
             window.outpaintEditor.close();
+        }
+        if (typeof window !== 'undefined' && window.charPromptManager?.isOpen) {
+            window.charPromptManager.closeStage();
+        }
+        if (typeof document !== 'undefined' && document.body?.classList) {
+            document.body.classList.add('inpaint-active');
         }
 
         if (this.ui && this.ui.currentRightView !== 'preview' && typeof this.ui.switchRightView === 'function') {
@@ -697,6 +703,9 @@ export class InpaintEditor {
     close() {
         this.isOpen = false;
         this.history = [];
+        if (typeof document !== 'undefined' && document.body?.classList) {
+            document.body.classList.remove('inpaint-active');
+        }
         this.drawing = false;
         this.isPanning = false;
         this.isPinching = false;
@@ -1318,6 +1327,9 @@ export class InpaintEditor {
 
             if (this.onComplete) {
                 await this.onComplete(successfulResults, inpaintPromptText, selectedVersion, params);
+            }
+            if (this.ui && typeof this.ui.setBeforeAfterImage === 'function' && this.originalImgSrc && successfulResults[0]?.imageUrl) {
+                this.ui.setBeforeAfterImage(this.originalImgSrc, successfulResults[0].imageUrl);
             }
 
             // Persistent Inpaint Mode: stay open on main canvas, keep mask intact & soften opacity for result inspection!

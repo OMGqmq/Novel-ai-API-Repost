@@ -371,9 +371,8 @@ export function createLightboxController({
         });
     }
 
-    function lightboxApplyParams() {
-        if (lightboxItems.length === 0) return;
-        const item = lightboxItems[lightboxIndex];
+    function applyItemParams(item, { closeAfter = true } = {}) {
+        if (!item) return false;
         const meta = resolveLightboxMeta(item);
 
         let rawModel = item.model || meta?.model || '';
@@ -623,11 +622,20 @@ export function createLightboxController({
 
         const applyBtnText = document.getElementById('lightboxApplyBtnText');
         if (applyBtnText) applyBtnText.textContent = "已套用 ✓";
-        window.showToast("生成参数已载入主控制台！", "success");
-        setTimeout(() => {
-            closeLightbox();
-            ui.toggleMobileControls(true);
-        }, 200);
+        if (window.showToast) window.showToast("生成参数已载入主控制台！", "success");
+        if (closeAfter) {
+            setTimeout(() => {
+                closeLightbox();
+                ui.toggleMobileControls(true);
+            }, 200);
+        }
+        return true;
+    }
+
+    function lightboxApplyParams() {
+        if (lightboxItems.length === 0) return false;
+        const item = lightboxItems[lightboxIndex];
+        return applyItemParams(item, { closeAfter: true });
     }
 
     function lightboxDownload() {
@@ -914,6 +922,7 @@ export function createLightboxController({
         nextLightboxImage,
         copyLightboxAllCharacters,
         copyLightboxText,
+        applyItemParams,
         lightboxApplyParams,
         lightboxDownload,
         lightboxSaveCurrentToGallery,

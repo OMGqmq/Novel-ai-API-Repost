@@ -794,6 +794,9 @@ async function doGenerate(rawOptions = {}) {
         }
 
         const allGeneratedResults = [];
+        const prevCanvasSingleUrl = (ui.els?.singleResultArea && !ui.els.singleResultArea.classList.contains('hidden'))
+            ? (ui.els?.singleResultImg?.src || window.lastSelectedImageUrl || null)
+            : null;
 
         for (let i = 0; i < batchTotal; i++) {
             if (appState.cancelRequested) {
@@ -993,6 +996,9 @@ async function doGenerate(rawOptions = {}) {
                     if (selected.id) appState.currentImageId = selected.id;
                     window.lastSelectedImageUrl = selected.imageUrl;
                 });
+                if (successfulResults.length === 1 && prevCanvasSingleUrl && successfulResults[0]?.imageUrl) {
+                    ui.setBeforeAfterImage?.(prevCanvasSingleUrl, successfulResults[0].imageUrl);
+                }
 
                 allGeneratedResults.push(...successfulResults);
 
@@ -1652,6 +1658,16 @@ function autoArrangeCharPositions() {
 }
 window.autoArrangeCharPositions = autoArrangeCharPositions;
 
+function toggleCharPositionStage(idx = 0) {
+    return charPromptManager.toggleStage(idx);
+}
+window.toggleCharPositionStage = toggleCharPositionStage;
+
+function cycleCharStageGridMode() {
+    return charPromptManager.cycleStageGridMode();
+}
+window.cycleCharStageGridMode = cycleCharStageGridMode;
+
 async function forceReloadApp() {
     if (window.showToast) window.showToast("正在清理页面离线缓存...", "info");
     
@@ -2152,6 +2168,7 @@ const {
     nextLightboxImage,
     copyLightboxAllCharacters,
     copyLightboxText,
+    applyItemParams,
     lightboxApplyParams,
     lightboxDownload,
     lightboxSaveCurrentToGallery,
@@ -2201,7 +2218,7 @@ Object.assign(window, {
     saveAdminToken, clearAdminToken,
     addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleKeyConcurrent, toggleV45Experimental, randomizeSeed, toggleBypassLimitsEnabled,
     addCharacterPromptRow, removeCharacterPromptRow, selectCharGridCell, setCharPosition, toggleCharacterPromptsPanel,
-    openCharPositionStage, closeCharPositionStage, setCharStageGridMode, autoArrangeCharPositions,
+    openCharPositionStage, closeCharPositionStage, toggleCharPositionStage, setCharStageGridMode, cycleCharStageGridMode, autoArrangeCharPositions,
     saveCurrentPromptToNotebook, switchNotebookModel, renderNotebookNotes,
     applyNotebookNote, editNotebookNote, confirmEditNote, cancelEditNote, deleteNotebookNote,
     bindCurrentCanvasToNote, removeNotePreview, viewNotebookNotePreview,
@@ -2378,6 +2395,51 @@ function importRandomPromptFile(event) {
     randomPromptController.importFile(event);
 }
 window.importRandomPromptFile = importRandomPromptFile;
+
+// --- Mini History Filmstrip & Canvas-to-Img2Img Quick Actions ---
+function selectFilmstripImage(id) {
+    const items = galleryController?.galleryItems || [];
+    const target = items.find(it => String(it.id) === String(id));
+    if (!target) return false;
+    // CRITICAL: Only switch main canvas image & active state; NEVER auto-backfill sidebar parameters!
+    galleryController.loadPreviewFromHistory(target);
+    ui.updateFilmstripActive(target.id);
+    return true;
+}
+window.selectFilmstripImage = selectFilmstripImage;
+
+function applyFilmstripActiveParams() {
+    let target = appState.currentImageData;
+    if (!target && appState.currentImageId != null) {
+        const items = galleryController?.galleryItems || [];
+        target = items.find(it => String(it.id) === String(appState.currentImageId)) || null;
+    }
+    if (!target && galleryController?.galleryItems?.length > 0) {
+        target = galleryController.galleryItems[0];
+    }
+    if (!target) {
+        if (window.showToast) window.showToast("当前暂无可回填参数的图片", "info");
+        return false;
+    }
+    return applyItemParams(target, { closeAfter: false });
+}
+window.applyFilmstripActiveParams = applyFilmstripActiveParams;
+
+function toggleFilmstripCollapsed(forceState) {
+    return ui.toggleFilmstripCollapsed(forceState);
+}
+window.toggleFilmstripCollapsed = toggleFilmstripCollapsed;
+
+async function sendCanvasToImg2Img() {
+    const src = getActiveCanvasImage();
+    if (!src) {
+        if (window.showToast) window.showToast("请先生成或选择一张主画布图片", "warning");
+        return false;
+    }
+    await window.applyImageAsCanvasInit(src);
+    return true;
+}
+window.sendCanvasToImg2Img = sendCanvasToImg2Img;
 
 // Initialize UX & Motion Enhancements (shortcuts, PNG drop overlay, range progress, drawer swipe physics)
 initUxEnhancements({

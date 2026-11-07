@@ -106,6 +106,7 @@ export function createPostProcessController({
                 if (selected.id) appState.currentImageId = selected.id;
                 window.lastSelectedImageUrl = selected.imageUrl;
             });
+            ui.setBeforeAfterImage?.(imageUrl, result.imageUrl);
         } catch (err) {
             console.error(err);
             if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
@@ -269,6 +270,7 @@ export function createPostProcessController({
                 if (selected.id) appState.currentImageId = selected.id;
                 window.lastSelectedImageUrl = selected.imageUrl;
             });
+            ui.setBeforeAfterImage?.(targetSrc, result.imageUrl);
         } catch (err) {
             console.error(err);
             if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
@@ -326,6 +328,7 @@ export function createPostProcessController({
                 if (selected.id) appState.currentImageId = selected.id;
                 window.lastSelectedImageUrl = selected.imageUrl;
             });
+            ui.setBeforeAfterImage?.(targetSrc, result.imageUrl);
         } catch (err) {
             console.error(err);
             if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
