@@ -410,8 +410,10 @@ export class CharPromptManager {
         enableToggle.addEventListener('change', (e) => {
             applyEnabledState(e.target.checked);
             this.saveCharacterPromptsState();
+            if (this.isOpen) this.renderStage();
         });
 
+        div._applyEnabledState = applyEnabledState;
         applyEnabledState(enabled);
 
         // 监听折叠/展开
@@ -456,10 +458,12 @@ export class CharPromptManager {
                 summarySpan.textContent = '';
             }
         };
+        div._updateSummary = updateSummary;
         if (promptInput) {
             promptInput.addEventListener('input', () => {
                 updateSummary();
                 this.saveCharacterPromptsState();
+                if (this.isOpen) this.renderStage();
             });
             updateSummary();
         }
@@ -468,7 +472,10 @@ export class CharPromptManager {
         const negInput = div.querySelector('.char-neg-input');
         if (negInput) {
             negInput.value = negVal || '';
-            negInput.addEventListener('input', () => this.saveCharacterPromptsState());
+            negInput.addEventListener('input', () => {
+                this.saveCharacterPromptsState();
+                if (this.isOpen) this.renderStage();
+            });
         }
 
         // 自由选点交互逻辑 (Pointer Events + Dragging)
@@ -1047,12 +1054,63 @@ export class CharPromptManager {
                 const updatedRows = container.querySelectorAll('.character-prompt-row');
                 this.activeStageCharIndex = Math.max(0, updatedRows.length - 1);
                 this.renderStage();
+                const stageInput = document.getElementById('charStagePromptInput');
+                if (stageInput && typeof stageInput.focus === 'function') stageInput.focus();
             };
             chipsContainer.appendChild(addBtn);
+        }
+
+        this._syncStagePromptEditor(rows);
+    }
+
+    _syncStagePromptEditor(rows) {
+        const activeRow = rows[this.activeStageCharIndex];
+        if (!activeRow) return;
+
+        const badge = document.getElementById('charStagePromptBadge');
+        const promptInput = document.getElementById('charStagePromptInput');
+        const negInput = document.getElementById('charStageNegInput');
+        const negWrap = document.getElementById('charStageNegWrap');
+        const negToggleBtn = document.getElementById('charStageNegToggleBtn');
+        const enableBtn = document.getElementById('charStageEnableBtn');
+
+        const rowPrompt = activeRow.querySelector('.char-prompt-input')?.value || '';
+        const rowNeg = activeRow.querySelector('.char-neg-input')?.value || '';
+        const rowEnabled = activeRow.querySelector('.char-enable-toggle')?.checked !== false;
+
+        if (badge) {
+            badge.textContent = '#' + (this.activeStageCharIndex + 1);
+        }
+        if (promptInput) {
+            if (typeof document === 'undefined' || document.activeElement !== promptInput) {
+                promptInput.value = rowPrompt;
+            }
+            promptInput.disabled = !rowEnabled;
+            promptInput.placeholder = '角色 #' + (this.activeStageCharIndex + 1) + ' 提示词 (如: 1girl, silver hair)...';
+        }
+        if (negInput) {
+            if (typeof document === 'undefined' || document.activeElement !== negInput) {
+                negInput.value = rowNeg;
+            }
+            negInput.disabled = !rowEnabled;
+        }
+        if (negWrap && negToggleBtn) {
+            if (rowNeg.trim().length > 0 && !this._negManuallyCollapsed) {
+                negWrap.classList.remove('hidden');
+                negWrap.classList.add('flex');
+            }
+            const isNegOpen = !negWrap.classList.contains('hidden');
+            negToggleBtn.classList.toggle('tool-active', isNegOpen || rowNeg.trim().length > 0);
+        }
+        if (enableBtn) {
+            enableBtn.classList.toggle('tool-active', rowEnabled);
+            enableBtn.classList.toggle('opacity-45', !rowEnabled);
         }
     }
 
     _initStageInteractions() {
+        this._initStagePromptCardInteractions();
+
         const box = document.getElementById('charStageBox');
         if (!box || box.dataset?.interactionBound === 'true') return;
         if (box.dataset) box.dataset.interactionBound = 'true';
@@ -1128,6 +1186,118 @@ export class CharPromptManager {
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && this.isOpen) {
                     this.closeStage();
+                }
+            });
+        }
+    }
+
+    _initStagePromptCardInteractions() {
+        const promptInput = document.getElementById('charStagePromptInput');
+        if (!promptInput || promptInput.dataset?.interactionBound === 'true') return;
+        if (promptInput.dataset) promptInput.dataset.interactionBound = 'true';
+
+        const negInput = document.getElementById('charStageNegInput');
+        const negWrap = document.getElementById('charStageNegWrap');
+        const negToggleBtn = document.getElementById('charStageNegToggleBtn');
+        const enableBtn = document.getElementById('charStageEnableBtn');
+        const deleteBtn = document.getElementById('charStageDeleteBtn');
+
+        const getActiveRow = () => {
+            const container = document.getElementById('characterPromptsContainer');
+            if (!container) return null;
+            const rows = Array.from(container.querySelectorAll('.character-prompt-row'));
+            return rows[this.activeStageCharIndex] || null;
+        };
+
+        promptInput.addEventListener('input', () => {
+            const row = getActiveRow();
+            if (!row) return;
+            const rowPrompt = row.querySelector('.char-prompt-input');
+            if (rowPrompt) {
+                rowPrompt.value = promptInput.value;
+            }
+            if (typeof row._updateSummary === 'function') {
+                row._updateSummary();
+            }
+            this.saveCharacterPromptsState();
+            this.renderStage();
+        });
+
+        if (negInput) {
+            negInput.addEventListener('input', () => {
+                const row = getActiveRow();
+                if (!row) return;
+                const rowNeg = row.querySelector('.char-neg-input');
+                if (rowNeg) {
+                    rowNeg.value = negInput.value;
+                }
+                this.saveCharacterPromptsState();
+                this.renderStage();
+            });
+        }
+
+        if (negToggleBtn && negWrap) {
+            negToggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isHidden = negWrap.classList.contains('hidden');
+                if (isHidden) {
+                    this._negManuallyCollapsed = false;
+                    negWrap.classList.remove('hidden');
+                    negWrap.classList.add('flex');
+                    negToggleBtn.classList.add('tool-active');
+                    if (negInput && typeof negInput.focus === 'function') negInput.focus();
+                } else {
+                    this._negManuallyCollapsed = true;
+                    negWrap.classList.add('hidden');
+                    negWrap.classList.remove('flex');
+                    const row = getActiveRow();
+                    const hasNeg = (row?.querySelector('.char-neg-input')?.value || '').trim().length > 0;
+                    negToggleBtn.classList.toggle('tool-active', hasNeg);
+                }
+            });
+        }
+
+        if (enableBtn) {
+            enableBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const row = getActiveRow();
+                if (!row) return;
+                const toggle = row.querySelector('.char-enable-toggle');
+                if (!toggle) return;
+                toggle.checked = !toggle.checked;
+                if (typeof row._applyEnabledState === 'function') {
+                    row._applyEnabledState(toggle.checked);
+                }
+                this.saveCharacterPromptsState();
+                this.renderStage();
+            });
+        }
+
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const container = document.getElementById('characterPromptsContainer');
+                if (!container) return;
+                const rows = Array.from(container.querySelectorAll('.character-prompt-row'));
+                const row = rows[this.activeStageCharIndex];
+                if (!row) return;
+
+                if (rows.length <= 1) {
+                    // 仅剩最后一个角色时，清空其提示词并重置为中心点
+                    const rowPrompt = row.querySelector('.char-prompt-input');
+                    const rowNeg = row.querySelector('.char-neg-input');
+                    if (rowPrompt) rowPrompt.value = '';
+                    if (rowNeg) rowNeg.value = '';
+                    if (typeof row._updateSummary === 'function') row._updateSummary();
+                    this.setCharPosition(row, 0.5, 0.5);
+                    this.saveCharacterPromptsState();
+                    this.renderStage();
+                } else {
+                    row.remove();
+                    this.updateCharacterIndexLabels();
+                    this.activeStageCharIndex = Math.max(0, Math.min(this.activeStageCharIndex, rows.length - 2));
+                    this.saveCharacterPromptsState();
+                    this.renderStage();
                 }
             });
         }

@@ -798,9 +798,15 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
             expect(mockDom.seed.value).toBe(67890);
         });
 
-        it('renders In-Place Character Position Stage inside #previewArea with V4.5 5x5 grid snapping and V5 continuous coords', () => {
+        it('renders In-Place Character Position Stage inside #previewArea with V4.5 5x5 grid snapping, V5 continuous coords, and integrated prompt editor without secondary shimmer sweep', () => {
             const htmlPath = path.resolve(process.cwd(), 'index.html');
             const html = fs.readFileSync(htmlPath, 'utf8');
+            const cssPath = path.resolve(process.cwd(), 'src/style.css');
+            const css = fs.readFileSync(cssPath, 'utf8');
+
+            // Bug 1: Secondary generation shimmer sweep on existing canvas image is removed
+            expect(css).not.toContain('#singleResultArea.is-sampling .inpaint-canvas-stage::after');
+            expect(css).toContain('#generationSkeleton.is-compact-hud .canvas-shimmer-card::before');
 
             // Verify #charPositionStage is inside #previewArea (before #historyArea) and NOT a full-screen fixed z-[250] modal
             const previewIdx = html.indexOf('id="previewArea"');
@@ -811,6 +817,13 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
             expect(html).toContain('id="canvasFilmstripDock"');
             expect(html).toContain('id="filmstripApplyParamsBtn"');
             expect(html).toContain('id="toolboxSendToImg2ImgBtn"');
+
+            // Bug 2: Integrated character prompt card inside #charPositionStage
+            expect(html).toContain('id="charStagePromptCard"');
+            expect(html).toContain('id="charStagePromptInput"');
+            expect(html).toContain('id="charStageNegInput"');
+            expect(html).toContain('id="charStageEnableBtn"');
+            expect(html).toContain('id="charStageDeleteBtn"');
 
             const manager = new CharPromptManager();
             // Verify V4.5 5x5 grid snapping math & A1..E5 label mapping
