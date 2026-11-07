@@ -1316,6 +1316,8 @@ export class UIController {
         this._isComparePeeking = false;
 
         const overlay = this.els?.canvasCompareOverlay || (typeof document !== 'undefined' ? document.getElementById('canvasCompareOverlay') : null);
+        const stage = typeof document !== 'undefined' ? document.getElementById('inpaintCanvasStage') : null;
+        const singleImg = this.els?.singleResultImg || (typeof document !== 'undefined' ? document.getElementById('singleResultImg') : null);
         const beforeImg = this.els?.canvasBeforeImg || (typeof document !== 'undefined' ? document.getElementById('canvasBeforeImg') : null);
         const btn = this.els?.canvasCompareBtn || (typeof document !== 'undefined' ? document.getElementById('canvasCompareBtn') : null);
         const sep = this.els?.canvasCompareSep || (typeof document !== 'undefined' ? document.getElementById('canvasCompareSep') : null);
@@ -1323,6 +1325,12 @@ export class UIController {
         if (overlay) {
             overlay.classList.add('hidden');
             overlay.classList.remove('peek-mode');
+        }
+        if (stage && stage.classList) {
+            stage.classList.remove('is-compare-split', 'is-compare-peek');
+        }
+        if (singleImg && singleImg.style) {
+            singleImg.style.clipPath = '';
         }
         if (beforeImg) beforeImg.src = '';
         if (btn) {
@@ -1335,9 +1343,18 @@ export class UIController {
     setCompareSplitPct(pct) {
         const clamped = Math.max(2, Math.min(98, Number.isFinite(Number(pct)) ? Number(pct) : 50));
         this._compareSplitPct = clamped;
+        const val = clamped.toFixed(1) + '%';
         const overlay = this.els?.canvasCompareOverlay || (typeof document !== 'undefined' ? document.getElementById('canvasCompareOverlay') : null);
-        if (overlay && overlay.style) {
-            overlay.style.setProperty('--split-pct', clamped.toFixed(1) + '%');
+        const stage = typeof document !== 'undefined' ? document.getElementById('inpaintCanvasStage') : null;
+        const singleImg = this.els?.singleResultImg || (typeof document !== 'undefined' ? document.getElementById('singleResultImg') : null);
+        if (overlay && overlay.style && typeof overlay.style.setProperty === 'function') {
+            overlay.style.setProperty('--split-pct', val);
+        }
+        if (stage && stage.style && typeof stage.style.setProperty === 'function') {
+            stage.style.setProperty('--split-pct', val);
+        }
+        if (singleImg && singleImg.style && typeof singleImg.style.setProperty === 'function') {
+            singleImg.style.setProperty('--split-pct', val);
         }
     }
 
@@ -1347,6 +1364,7 @@ export class UIController {
         this._isCompareSplitOpen = next;
 
         const overlay = this.els?.canvasCompareOverlay || (typeof document !== 'undefined' ? document.getElementById('canvasCompareOverlay') : null);
+        const stage = typeof document !== 'undefined' ? document.getElementById('inpaintCanvasStage') : null;
         const btn = this.els?.canvasCompareBtn || (typeof document !== 'undefined' ? document.getElementById('canvasCompareBtn') : null);
 
         if (overlay) {
@@ -1358,6 +1376,10 @@ export class UIController {
                 overlay.classList.add('hidden');
             }
         }
+        if (stage && stage.classList) {
+            stage.classList.remove('is-compare-peek');
+            stage.classList.toggle('is-compare-split', next);
+        }
         if (btn) {
             btn.classList.toggle('compare-active', next);
         }
@@ -1368,10 +1390,14 @@ export class UIController {
         if (!this._compareBeforeUrl) return;
         this._isComparePeeking = true;
         const overlay = this.els?.canvasCompareOverlay || (typeof document !== 'undefined' ? document.getElementById('canvasCompareOverlay') : null);
+        const stage = typeof document !== 'undefined' ? document.getElementById('inpaintCanvasStage') : null;
         const btn = this.els?.canvasCompareBtn || (typeof document !== 'undefined' ? document.getElementById('canvasCompareBtn') : null);
         if (overlay) {
             overlay.classList.add('peek-mode');
             overlay.classList.remove('hidden');
+        }
+        if (stage && stage.classList) {
+            stage.classList.add('is-compare-peek');
         }
         if (btn) btn.classList.add('compare-active');
     }
@@ -1380,12 +1406,17 @@ export class UIController {
         if (!this._isComparePeeking) return;
         this._isComparePeeking = false;
         const overlay = this.els?.canvasCompareOverlay || (typeof document !== 'undefined' ? document.getElementById('canvasCompareOverlay') : null);
+        const stage = typeof document !== 'undefined' ? document.getElementById('inpaintCanvasStage') : null;
         const btn = this.els?.canvasCompareBtn || (typeof document !== 'undefined' ? document.getElementById('canvasCompareBtn') : null);
         if (overlay) {
             overlay.classList.remove('peek-mode');
             if (!this._isCompareSplitOpen) {
                 overlay.classList.add('hidden');
             }
+        }
+        if (stage && stage.classList) {
+            stage.classList.remove('is-compare-peek');
+            stage.classList.toggle('is-compare-split', Boolean(this._isCompareSplitOpen));
         }
         if (btn) {
             btn.classList.toggle('compare-active', Boolean(this._isCompareSplitOpen));

@@ -1830,6 +1830,16 @@ html.low-perf .view-fade-enter {
     pointer-events: none;
 }
 
+.inpaint-canvas-stage.is-compare-split #singleResultImg,
+.inpaint-canvas-stage:has(#canvasCompareOverlay:not(.hidden):not(.peek-mode)) #singleResultImg {
+    clip-path: inset(0 0 0 var(--split-pct, 50%));
+}
+
+.inpaint-canvas-stage.is-compare-peek #singleResultImg,
+.inpaint-canvas-stage:has(#canvasCompareOverlay.peek-mode:not(.hidden)) #singleResultImg {
+    clip-path: inset(0 0 0 100%) !important;
+}
+
 .canvas-compare-overlay.peek-mode .canvas-before-img {
     clip-path: inset(0 0 0 0) !important;
 }
