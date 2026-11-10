@@ -4,6 +4,8 @@
   "description": "如何在cloudflare配置你的novel ai key？",
   "type": "module",
   "scripts": {
+    "start": "node server.js",
+    "server:dev": "node --watch server.js",
     "test": "vitest run",
     "dev": "wrangler pages dev . --d1 DB=nai_db"
   },

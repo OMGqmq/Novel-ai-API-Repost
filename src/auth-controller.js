@@ -1,3 +1,5 @@
+import { apiUrl } from './api-config.js';
+
 /**
  * User Authentication & Account Profile Controller
  * Manages user sessions, login/registration API requests, credits sync, and recharge cards.
@@ -18,7 +20,7 @@ export class AuthController {
         if (!token) return;
 
         try {
-            const res = await fetch('/api/auth/profile', {
+            const res = await fetch(apiUrl('/api/auth/profile'), {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -123,7 +125,7 @@ export class AuthController {
         }
         
         const isLogin = authPanel.dataset.tab !== 'register';
-        const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+        const endpoint = isLogin ? apiUrl('/api/auth/login') : apiUrl('/api/auth/register');
         
         statusEl.innerHTML = '<span class="text-gray-500"><span class="loader inline-block w-3 h-3 border-gray-500 border-t-transparent rounded-full animate-spin"></span> 处理中...</span>';
         statusEl.classList.remove('hidden');
@@ -202,7 +204,7 @@ export class AuthController {
         submitBtn.disabled = true;
         
         try {
-            const res = await fetch('/api/auth/recharge', {
+            const res = await fetch(apiUrl('/api/auth/recharge'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

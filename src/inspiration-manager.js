@@ -1,3 +1,5 @@
+import { apiUrl } from './api-config.js';
+
 /**
  * Inspiration Manager Module (Danbooru Online Live Integration)
  * Pulls real-time popular tag combinations and reference compositions from Danbooru
@@ -91,7 +93,7 @@ export class InspirationManager {
         this.customKeyword = '';
 
         // API 直连配置 (客户端本地存储)
-        const getLocal = (k) => typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null;
+        const getLocal = (k) => (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function') ? localStorage.getItem(k) : null;
         this.sourceType = getLocal('insp_source_type') || 'hf_dataset';
         this.danbooruUsername = getLocal('insp_danbooru_user') || '';
         this.danbooruApiKey = getLocal('insp_danbooru_key') || '';
@@ -164,7 +166,7 @@ export class InspirationManager {
         if (keyEl) this.danbooruApiKey = keyEl.value.trim();
         if (customUrlEl) this.customApiUrl = customUrlEl.value.trim();
 
-        if (typeof localStorage !== 'undefined') {
+        if (typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function') {
             localStorage.setItem('insp_source_type', this.sourceType);
             localStorage.setItem('insp_danbooru_user', this.danbooruUsername);
             localStorage.setItem('insp_danbooru_key', this.danbooruApiKey);
@@ -369,7 +371,7 @@ export class InspirationManager {
                 // 通道 B：通过多源实时中继 /danbooru 接口（Safebooru -> TBIB -> Yande）精准检索
                 if (rawPosts.length === 0) {
                     try {
-                        const endpoint = `/danbooru?tags=${encodeURIComponent(targetQuery)}&limit=15&page=${randomPage}`;
+                        const endpoint = apiUrl(`/danbooru?tags=${encodeURIComponent(targetQuery)}&limit=15&page=${randomPage}`);
                         const res = await fetch(endpoint, { method: 'GET' });
                         if (res.ok) {
                             const data = await res.json();
@@ -433,7 +435,7 @@ export class InspirationManager {
                 }
 
                 if (rawPosts.length === 0) {
-                    const fallbackRes = await fetch(`/danbooru?tags=1girl&limit=15&page=${randomPage}`);
+                    const fallbackRes = await fetch(apiUrl(`/danbooru?tags=1girl&limit=15&page=${randomPage}`));
                     if (fallbackRes.ok) {
                         const fbData = await fallbackRes.json();
                         if (fbData && fbData.success && Array.isArray(fbData.posts)) {

@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from './api-config.js';
+
 /**
  * Image Generation Engine Module
  * Encapsulates the communication with NovelAI proxy and image processing.
@@ -7,6 +9,10 @@ export class ImageEngine {
         this.baseUrl = config.baseUrl || '';
         // JSZip is expected to be available globally via CDN
         this.JSZip = (typeof window !== 'undefined' && window.JSZip) ? window.JSZip : null;
+    }
+
+    getEffectiveBaseUrl() {
+        return this.baseUrl || getApiBaseUrl();
     }
 
     async generate(params, auth) {
@@ -36,7 +42,7 @@ export class ImageEngine {
             requestSignal = AbortSignal.timeout(60000);
         }
 
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        const response = await fetch(`${this.getEffectiveBaseUrl()}${endpoint}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

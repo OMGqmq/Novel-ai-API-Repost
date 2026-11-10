@@ -1,3 +1,5 @@
+import { apiUrl } from './api-config.js';
+
 /**
  * Administrative Dashboard Controller
  * Manages administrative tasks like user state manipulation, points adjustment, VIP card bulk writing, and usage trend charts.
@@ -54,7 +56,7 @@ export class AdminController {
         `;
 
         try {
-            const res = await fetch('/api/admin/users', {
+            const res = await fetch(apiUrl('/api/admin/users'), {
                 headers: {
                     'x-admin-token': adminToken
                 }
@@ -132,7 +134,7 @@ export class AdminController {
         const adminToken = localStorage.getItem('nai_admin_token');
         
         try {
-            const res = await fetch('/api/admin/users/approve', {
+            const res = await fetch(apiUrl('/api/admin/users/approve'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -162,7 +164,7 @@ export class AdminController {
         const adminToken = localStorage.getItem('nai_admin_token');
         
         try {
-            const res = await fetch('/api/admin/users/approve', {
+            const res = await fetch(apiUrl('/api/admin/users/approve'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -194,7 +196,7 @@ export class AdminController {
         const adminToken = localStorage.getItem('nai_admin_token');
         
         try {
-            const res = await fetch('/api/admin/users/approve', {
+            const res = await fetch(apiUrl('/api/admin/users/approve'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -240,7 +242,7 @@ export class AdminController {
         btn.innerHTML = '<span class="loader inline-block w-4 h-4 border-gray-800 dark:border-white border-t-transparent rounded-full animate-spin mr-2"></span> 正在批量写入...';
 
         try {
-            const res = await fetch('/api/admin/cards/generate', {
+            const res = await fetch(apiUrl('/api/admin/cards/generate'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -296,7 +298,7 @@ export class AdminController {
         const errorsList = document.getElementById('statsErrorsList');
 
         try {
-            const res = await fetch(`/api/admin/stats?range=${range}`, {
+            const res = await fetch(apiUrl(`/api/admin/stats?range=${range}`), {
                 headers: {
                     'x-admin-token': adminToken
                 }

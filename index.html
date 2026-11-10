@@ -2109,6 +2109,25 @@
                             </button>
                         </div>
 
+                        <!-- 独立后端服务器配置 (适配 CF Pages 纯前端托管) -->
+                        <div class="border-t border-gray-100 dark:border-slate-800/80 pt-4 space-y-2">
+                            <div class="flex flex-col gap-0.5">
+                                <h5 class="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                                    <i data-lucide="server" class="w-3.5 h-3.5 text-blue-500"></i> 自定义后端服务器地址
+                                </h5>
+                                <span class="text-[10px] text-gray-400 dark:text-gray-500">
+                                    前端托管在 Cloudflare Pages 等平台时填写您的独立服务器地址 (如 <code>http://IP:3000</code> 或 <code>https://api.domain.com</code>)。留空默认使用当前域名同源路径。
+                                </span>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="backendServerUrlInput" placeholder="http://YOUR_SERVER_IP:3000 或留空" class="art-input flex-1 px-3 py-2.5 rounded-xl text-xs outline-none font-mono">
+                                <button onclick="saveBackendServerUrl()" class="px-4 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow transition-all active:scale-[0.98]">
+                                    保存
+                                </button>
+                            </div>
+                            <div id="backendServerUrlStatus" class="hidden text-xs px-1"></div>
+                        </div>
+
                         <!-- 进阶系统开关区 -->
                         <div class="border-t border-gray-100 dark:border-slate-800/80 pt-4 space-y-3">
                             <h5 class="text-xs font-bold text-gray-700 dark:text-gray-300">系统性能与实验功能</h5>

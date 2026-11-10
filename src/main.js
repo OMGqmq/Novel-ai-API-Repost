@@ -27,6 +27,7 @@ import { MotionController } from './motion-controller.js';
 
 import { getMimeFromFilename, dataUrlToBlob, triggerDownload } from './download-helper.js';
 import { extractMetadata } from './png-metadata.js';
+import { apiUrl, getApiBaseUrl, setApiBaseUrl } from './api-config.js';
 
 const motionController = new MotionController();
 if (typeof window !== 'undefined') {
@@ -1488,6 +1489,25 @@ function clearAdminToken() {
     }, 1000);
 }
 
+function saveBackendServerUrl() {
+    const input = document.getElementById('backendServerUrlInput');
+    const statusEl = document.getElementById('backendServerUrlStatus');
+    if (!input) return;
+    const val = input.value.trim();
+    setApiBaseUrl(val);
+    if (statusEl) {
+        statusEl.classList.remove('hidden');
+        if (val) {
+            statusEl.innerHTML = `<span class="text-emerald-500 font-semibold">✔ 后端服务器地址已保存: ${val}</span>`;
+        } else {
+            statusEl.innerHTML = `<span class="text-gray-400">✔ 已恢复为默认同源相对路径</span>`;
+        }
+    }
+    if (window.showToast) {
+        window.showToast("后端服务器地址配置已更新！", "success");
+    }
+}
+
 function enterUserKey() {
     openSettingsModal('card');
 }
@@ -1549,7 +1569,7 @@ window.refreshAnlasDisplay = async function() {
     const keyToVerify = keys[0];
 
     try {
-        const res = await fetch('/verify-key', {
+        const res = await fetch(apiUrl('/verify-key'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ apiKey: keyToVerify, apiKeys: keys })
@@ -1765,6 +1785,12 @@ function openSettingsModal(defaultTab) {
         if (adminTokenClearBtn) adminTokenClearBtn.classList.add('hidden');
     }
 
+    // 载入后端服务器配置
+    const backendServerUrlInput = document.getElementById('backendServerUrlInput');
+    if (backendServerUrlInput) {
+        backendServerUrlInput.value = getApiBaseUrl();
+    }
+
     // 载入账户中心状态
     const token = localStorage.getItem('nai_user_token');
     if (token) {
@@ -1952,7 +1978,7 @@ window.fetchAndShowAllKeysBalances = async function(keys) {
         balanceEl.innerHTML = '<span class="text-gray-400">⭮ 正在查询余额...</span>';
         
         try {
-            const res = await fetch('/verify-key', {
+            const res = await fetch(apiUrl('/verify-key'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ apiKey: key })
@@ -2036,7 +2062,7 @@ async function verifyCustomApiKey() {
     statusEl.classList.remove('hidden');
 
     try {
-        const res = await fetch('/verify-key', {
+        const res = await fetch(apiUrl('/verify-key'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ apiKey: keyToVerify, apiKeys: keys })
@@ -2215,7 +2241,7 @@ Object.assign(window, {
     openLightbox, closeLightbox, prevLightboxImage, nextLightboxImage,
     copyLightboxText, lightboxApplyParams, lightboxDownload, lightboxDelete, lightboxSaveCurrentToGallery,
     lightboxCreate, toggleLightboxSidebarMobile,
-    saveAdminToken, clearAdminToken,
+    saveAdminToken, clearAdminToken, saveBackendServerUrl, getApiBaseUrl, setApiBaseUrl,
     addApiKeyInputRow, removeApiKeyInputRow, toggleLowPerf, toggleKeyConcurrent, toggleV45Experimental, randomizeSeed, toggleBypassLimitsEnabled,
     addCharacterPromptRow, removeCharacterPromptRow, selectCharGridCell, setCharPosition, toggleCharacterPromptsPanel,
     openCharPositionStage, closeCharPositionStage, toggleCharPositionStage, setCharStageGridMode, cycleCharStageGridMode, autoArrangeCharPositions,

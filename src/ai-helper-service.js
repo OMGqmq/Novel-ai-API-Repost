@@ -2,6 +2,7 @@
  * AI Chat & Prompt Helper Service
  * Manages LLM configuration and multi-turn chat / prompt generation requests.
  */
+import { apiUrl } from './api-config.js';
 
 export const AI_PROVIDER_PRESETS = {
     deepseek: {
@@ -112,7 +113,7 @@ export class AiHelperService {
         } catch (fetchErr) {
             if (fetchErr.name !== 'AbortError' && !cleanUrl.includes('/api/chat-proxy')) {
                 try {
-                    response = await fetch('/api/chat-proxy', {
+                    response = await fetch(apiUrl('/api/chat-proxy'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -216,7 +217,7 @@ export class AiHelperService {
         } catch (fetchErr) {
             if (fetchErr.name !== 'AbortError' && !cleanUrl.includes('/api/chat-proxy')) {
                 try {
-                    response = await fetch('/api/chat-proxy', {
+                    response = await fetch(apiUrl('/api/chat-proxy'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         signal: options.signal,
