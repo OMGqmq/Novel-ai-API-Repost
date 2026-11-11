@@ -255,5 +255,66 @@ describe('V4.5 Vibe Transfer Custom API Direct Encoding', () => {
       expect(vibeManager.isRawImage(vibeManager.currentVibeImageBase64)).toBe(false);
       expect(vibeManager.currentVibeImageBase64).toBe(btoa(String.fromCharCode(...binaryContent)));
     });
+
+    it('should parse official .nai4vibe.json bundle containing multiple information_extracted strengths', async () => {
+      const officialDoc = {
+        identifier: "novelai-vibe-transfer",
+        version: 1,
+        type: "image",
+        id: "2b2863c8789d3cb542713f044e3923d8eb9687e35b7190f845d045d656093d98",
+        name: "test_official_bundle",
+        image: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        thumbnail: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        createdAt: 1731300000000,
+        importInfo: {
+          model: "nai-diffusion-4-5-full",
+          information_extracted: 0.35,
+          strength: 0.65
+        },
+        encodings: {
+          "v4-5full": {
+            "key1": {
+              encoding: "TOKEN_INFO_018",
+              params: { information_extracted: 0.18 }
+            },
+            "key2": {
+              encoding: "TOKEN_INFO_030",
+              params: { information_extracted: 0.3 }
+            },
+            "key3": {
+              encoding: "TOKEN_INFO_035",
+              params: { information_extracted: 0.35 }
+            },
+            "key4": {
+              encoding: "TOKEN_INFO_045",
+              params: { information_extracted: 0.45 }
+            }
+          }
+        }
+      };
+
+      const mockFile = {
+        name: 'test_official.nai4vibe.json',
+        slice: () => ({
+          text: async () => '{"identifier":"novelai-vibe-transfer"'
+        }),
+        text: async () => JSON.stringify(officialDoc)
+      };
+
+      await vibeManager.handleVibeImage({ target: { files: [mockFile] } }, 'v4.5');
+
+      expect(vibeManager.currentVibeIsJson).toBe(true);
+      expect(vibeManager.availableVibeEncodings.length).toBe(4);
+      // It should activate the one from importInfo (0.35)
+      expect(vibeManager.currentVibeImageBase64).toBe("TOKEN_INFO_035");
+
+      // Switching to 0.18 should retrieve cached token without re-encoding
+      expect(vibeManager.getCachedEncoding(vibeManager.rawImageBase64, 0.18)).toBe("TOKEN_INFO_018");
+      // Switching to 0.45
+      expect(vibeManager.getCachedEncoding(vibeManager.rawImageBase64, 0.45)).toBe("TOKEN_INFO_045");
+      // Switching to 0.5 (not in bundle)
+      expect(vibeManager.getCachedEncoding(vibeManager.rawImageBase64, 0.5)).toBeNull();
+    });
   });
 });
+

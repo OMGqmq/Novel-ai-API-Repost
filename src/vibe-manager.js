@@ -1,14 +1,80 @@
 /**
  * Vibe Reference Image Manager Module
- * Handles file reading, JSON vibe-encoding structure parsing, status rendering, and parameter serialization.
+ * Handles file reading, official .nai4vibe JSON bundle structure parsing,
+ * multi-intensity encoding caching, IndexedDB persistence, status rendering, and parameter serialization.
  */
+
+class VibeDB {
+    constructor() {
+        this.dbName = 'nai_vibe_cache_db';
+        this.storeName = 'vibe_docs';
+        this.db = null;
+    }
+
+    async getDb() {
+        if (typeof indexedDB === 'undefined') return null;
+        if (this.db) return this.db;
+        return new Promise((resolve) => {
+            try {
+                const req = indexedDB.open(this.dbName, 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(this.storeName)) {
+                        db.createObjectStore(this.storeName, { keyPath: 'id' });
+                    }
+                };
+                req.onsuccess = (e) => {
+                    this.db = e.target.result;
+                    resolve(this.db);
+                };
+                req.onerror = () => resolve(null);
+            } catch {
+                resolve(null);
+            }
+        });
+    }
+
+    async saveDoc(doc) {
+        if (!doc || !doc.id) return;
+        try {
+            const db = await this.getDb();
+            if (!db) return;
+            return new Promise((resolve) => {
+                const tx = db.transaction(this.storeName, 'readwrite');
+                const store = tx.objectStore(this.storeName);
+                store.put(doc);
+                tx.oncomplete = () => resolve(true);
+                tx.onerror = () => resolve(false);
+            });
+        } catch {}
+    }
+
+    async getDoc(id) {
+        if (!id) return null;
+        try {
+            const db = await this.getDb();
+            if (!db) return null;
+            return new Promise((resolve) => {
+                const tx = db.transaction(this.storeName, 'readonly');
+                const store = tx.objectStore(this.storeName);
+                const req = store.get(id);
+                req.onsuccess = (e) => resolve(e.target.result || null);
+                req.onerror = () => resolve(null);
+            });
+        } catch {
+            return null;
+        }
+    }
+}
 
 export class VibeManager {
     constructor(config = {}) {
         this.store = config.store;
         this.compressImage = config.compressImage;
         this.onShowToast = config.onShowToast || (() => {});
-        
+        this.vibeDb = new VibeDB();
+
+        this.currentVibeDoc = null; // Official .nai4vibe JSON bundle containing multiple encodings
         this.currentVibeImageBase64 = null;
         this.rawImageBase64 = null;
         this.encodedVibeData = null;
@@ -45,6 +111,25 @@ export class VibeManager {
     }
 
     getCachedEncoding(rawImg, info) {
+        // 1. Check in currentVibeDoc
+        if (this.currentVibeDoc && this.currentVibeDoc.encodings) {
+            const section = this.currentVibeDoc.encodings['v4-5full'] || this.currentVibeDoc.encodings['v4full'];
+            if (section) {
+                const targetInfo = parseFloat(info);
+                for (const item of Object.values(section)) {
+                    if (item && item.encoding) {
+                        const itemInfo = item.params?.information_extracted !== undefined 
+                            ? parseFloat(item.params.information_extracted) 
+                            : parseFloat(item.information_extracted ?? 1.0);
+                        if (Math.abs(itemInfo - targetInfo) < 0.005) {
+                            return item.encoding;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback to Map cache
         if (!rawImg) return null;
         const key = this.getCacheKey(rawImg, info);
         return this.vibeEncodingsCache.get(key) || null;
@@ -61,7 +146,123 @@ export class VibeManager {
         };
     }
 
+    generateDocId(b64, name = '') {
+        const clean = (b64 || name || 'vibe').replace(/^data:image\/[a-z]+;base64,/, '').slice(0, 5000);
+        let h1 = 0xdeadbeef, h2 = 0x41c64e6d, h3 = 0x9e3779b9, h4 = 0x85ebca6b;
+        for (let i = 0; i < clean.length; i++) {
+            const ch = clean.charCodeAt(i);
+            h1 = Math.imul(h1 ^ ch, 2654435761);
+            h2 = Math.imul(h2 ^ ch, 1597334677);
+            h3 = Math.imul(h3 ^ ch, 2246822507);
+            h4 = Math.imul(h4 ^ ch, 3266489909);
+        }
+        const p1 = (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+        const p2 = (h3 >>> 0).toString(16).padStart(8, '0') + (h4 >>> 0).toString(16).padStart(8, '0');
+        return (p1 + p2 + p1 + p2).slice(0, 64);
+    }
+
+    generateEncodingKey(docId, info, encoding) {
+        const raw = `${docId || 'vibe'}_${parseFloat(info).toFixed(2)}_${encoding ? encoding.slice(0, 64) : ''}`;
+        let h1 = 0x12345678, h2 = 0x87654321, h3 = 0xabcdef01, h4 = 0x10fedcba;
+        for (let i = 0; i < raw.length; i++) {
+            const ch = raw.charCodeAt(i);
+            h1 = Math.imul(h1 ^ ch, 2654435761);
+            h2 = Math.imul(h2 ^ ch, 1597334677);
+            h3 = Math.imul(h3 ^ ch, 2246822507);
+            h4 = Math.imul(h4 ^ ch, 3266489909);
+        }
+        const p1 = (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+        const p2 = (h3 >>> 0).toString(16).padStart(8, '0') + (h4 >>> 0).toString(16).padStart(8, '0');
+        return (p1 + p2 + p1 + p2).slice(0, 64);
+    }
+
+    syncDocToCache() {
+        if (!this.currentVibeDoc) return;
+        this.availableVibeEncodings = [];
+
+        if (this.currentVibeDoc.image && typeof this.currentVibeDoc.image === 'string' && this.isRawImage(this.currentVibeDoc.image)) {
+            this.rawImageBase64 = this.currentVibeDoc.image.replace(/^data:image\/[a-z]+;base64,/, '');
+        }
+
+        if (this.currentVibeDoc.encodings) {
+            const section = this.currentVibeDoc.encodings['v4-5full'] || this.currentVibeDoc.encodings['v4full'];
+            if (section) {
+                Object.values(section).forEach(item => {
+                    if (item && item.encoding) {
+                        const info = item.params?.information_extracted !== undefined 
+                            ? parseFloat(item.params.information_extracted) 
+                            : parseFloat(item.information_extracted ?? 1.0);
+                        this.availableVibeEncodings.push({
+                            base64: item.encoding,
+                            info: info
+                        });
+                        if (this.rawImageBase64) {
+                            this.setCachedEncoding(this.rawImageBase64, info, item.encoding);
+                        }
+                    }
+                });
+            }
+        }
+
+        // Sort encodings by info ascending
+        this.availableVibeEncodings.sort((a, b) => a.info - b.info);
+    }
+
+    buildDocFromCurrentState(model) {
+        const raw = this.rawImageBase64 || this.currentVibeImageBase64;
+        if (!raw) return null;
+        const docId = this.generateDocId(raw);
+        const vibeInfoEl = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
+        const info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : 1.0;
+        const vibeStrengthEl = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
+        const str = vibeStrengthEl ? parseFloat(vibeStrengthEl.value) : 0.6;
+
+        this.currentVibeDoc = {
+            identifier: "novelai-vibe-transfer",
+            version: 1,
+            type: "image",
+            id: docId,
+            name: `vibe_${docId.slice(0, 6)}`,
+            image: this.isRawImage(raw) ? raw : null,
+            thumbnail: null,
+            createdAt: Date.now(),
+            importInfo: {
+                model: 'nai-diffusion-4-5-full',
+                information_extracted: info,
+                strength: str
+            },
+            encodings: {
+                "v4-5full": {}
+            }
+        };
+
+        // Populate from cache
+        for (const [k, v] of this.vibeEncodingsCache.entries()) {
+            const infoStr = k.split('_').pop();
+            const infoNum = parseFloat(infoStr);
+            if (!isNaN(infoNum)) {
+                const encKey = this.generateEncodingKey(docId, infoNum, v);
+                this.currentVibeDoc.encodings['v4-5full'][encKey] = {
+                    encoding: v,
+                    params: { information_extracted: infoNum }
+                };
+            }
+        }
+
+        if (this.currentVibeImageBase64 && !this.isRawImage(this.currentVibeImageBase64)) {
+            const encKey = this.generateEncodingKey(docId, info, this.currentVibeImageBase64);
+            this.currentVibeDoc.encodings['v4-5full'][encKey] = {
+                encoding: this.currentVibeImageBase64,
+                params: { information_extracted: info }
+            };
+        }
+
+        this.syncDocToCache();
+        return this.currentVibeDoc;
+    }
+
     loadState(model) {
+        // 1. Restore map cache from local store
         const savedCache = this.store.getSetting(this.getVibeKey('nai_vibe_cache', model));
         if (savedCache) {
             try {
@@ -72,6 +273,15 @@ export class VibeManager {
             } catch {}
         }
 
+        // 2. Restore synchronous document summary if available
+        const savedSummary = this.store.getSetting(this.getVibeKey('nai_vibe_doc_summary', model));
+        if (savedSummary) {
+            try {
+                this.currentVibeDoc = JSON.parse(savedSummary);
+                this.syncDocToCache();
+            } catch {}
+        }
+
         const savedVibeData = this.store.getSetting(this.getVibeKey('nai_vibe_image', model));
         const savedRawImage = this.store.getSetting(this.getVibeKey('nai_vibe_raw_image', model));
         const savedVibeIsJson = this.store.getSetting(this.getVibeKey('nai_vibe_is_json', model)) === 'true';
@@ -79,80 +289,87 @@ export class VibeManager {
         const savedVibeInfo = this.store.getSetting(this.getVibeKey('nai_vibe_info', model));
         const savedVibeStrength = this.store.getSetting(this.getVibeKey('nai_vibe_strength', model));
         const savedVibePreview = this.store.getSetting(this.getVibeKey('nai_vibe_preview', model));
-        const savedVibeEncodings = this.store.getSetting(this.getVibeKey('nai_vibe_encodings', model));
+        const savedDocId = this.store.getSetting(this.getVibeKey('nai_vibe_doc_id', model));
 
-        const enabledCheckbox = document.getElementById('vibeEnabled');
+        const enabledCheckbox = typeof document !== 'undefined' ? document.getElementById('vibeEnabled') : null;
         if (enabledCheckbox) {
             enabledCheckbox.checked = savedVibeEnabled;
         }
 
-        if (savedVibeData) {
-            this.currentVibeImageBase64 = savedVibeData;
-            this.rawImageBase64 = savedRawImage || (this.isRawImage(savedVibeData) ? savedVibeData : null);
-            this.currentVibeIsJson = savedVibeIsJson;
-            if (savedVibeEncodings) {
-                try {
-                    this.availableVibeEncodings = JSON.parse(savedVibeEncodings);
-                } catch {
-                    this.availableVibeEncodings = [];
-                }
-            } else {
-                this.availableVibeEncodings = [];
-            }
+        if (savedVibeData || this.currentVibeDoc) {
+            this.currentVibeImageBase64 = savedVibeData || (this.currentVibeDoc?.image);
+            this.rawImageBase64 = savedRawImage || (this.currentVibeDoc?.image) || (this.isRawImage(savedVibeData) ? savedVibeData : null);
+            this.currentVibeIsJson = savedVibeIsJson || Boolean(this.currentVibeDoc?.encodings);
 
-            const previewImg = document.getElementById('vibeImagePreview');
-            if (previewImg) {
-                if (savedVibePreview) {
-                    previewImg.src = savedVibePreview;
-                    if (savedVibePreview.includes('svg')) previewImg.classList.add('p-3');
-                    else previewImg.classList.remove('p-4', 'p-3');
-                } else {
-                    if (this.currentVibeIsJson) {
-                        // fallback placeholder
-                        previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
-                        previewImg.classList.add('p-4');
+            if (typeof document !== 'undefined') {
+                const previewImg = document.getElementById('vibeImagePreview');
+                if (previewImg) {
+                    if (savedVibePreview) {
+                        previewImg.src = savedVibePreview;
+                        if (savedVibePreview.includes('svg')) previewImg.classList.add('p-3');
+                        else previewImg.classList.remove('p-4', 'p-3');
+                    } else if (this.currentVibeDoc?.image) {
+                        previewImg.src = this.currentVibeDoc.image.startsWith('data:') ? this.currentVibeDoc.image : ('data:image/png;base64,' + this.currentVibeDoc.image);
+                        previewImg.classList.remove('p-4', 'p-3');
+                    } else if (this.currentVibeDoc?.thumbnail) {
+                        previewImg.src = this.currentVibeDoc.thumbnail.startsWith('data:') ? this.currentVibeDoc.thumbnail : ('data:image/webp;base64,' + this.currentVibeDoc.thumbnail);
+                        previewImg.classList.remove('p-4', 'p-3');
                     } else {
-                        previewImg.src = 'data:image/jpeg;base64,' + savedVibeData;
+                        previewImg.src = 'data:image/jpeg;base64,' + (this.rawImageBase64 || savedVibeData);
                         previewImg.classList.remove('p-4', 'p-3');
                     }
+                    previewImg.classList.remove('hidden');
                 }
-                previewImg.classList.remove('hidden');
+
+                const placeholder = document.getElementById('vibeImagePlaceholder');
+                if (placeholder) placeholder.classList.add('hidden');
+
+                const clearBtn = document.getElementById('clearVibeImageBtn');
+                if (clearBtn) clearBtn.classList.remove('hidden');
+
+                const exportBtn = document.getElementById('exportVibeHeaderBtn');
+                if (exportBtn) exportBtn.classList.remove('hidden');
+
+                const vibeControls = document.getElementById('vibeControls');
+                if (vibeControls) vibeControls.classList.remove('hidden');
             }
-
-            const placeholder = document.getElementById('vibeImagePlaceholder');
-            if (placeholder) placeholder.classList.add('hidden');
-
-            const clearBtn = document.getElementById('clearVibeImageBtn');
-            if (clearBtn) clearBtn.classList.remove('hidden');
-
-            const exportBtn = document.getElementById('exportVibeHeaderBtn');
-            if (exportBtn) exportBtn.classList.remove('hidden');
-
-            const vibeControls = document.getElementById('vibeControls');
-            if (vibeControls) vibeControls.classList.remove('hidden');
 
             this.updateVibeInfoUI(this.currentVibeIsJson, model);
 
-            if (this.currentVibeIsJson && this.availableVibeEncodings.length > 1) {
-                const savedIndex = this.store.getSetting(this.getVibeKey('nai_vibe_selected_index', model));
-                const vibeSelect = document.getElementById('vibeInfoSelect');
-                if (vibeSelect && savedIndex) {
-                    vibeSelect.value = savedIndex;
-                    this.selectVibeStrength(savedIndex, model);
-                }
-            } else if (!this.currentVibeIsJson && savedVibeInfo) {
+            if (typeof document !== 'undefined') {
                 const slider = document.getElementById('vibeInfo');
                 if (slider) {
-                    slider.value = savedVibeInfo;
-                    const valSpan = document.getElementById('vibeInfoValue');
-                    if (valSpan) valSpan.textContent = parseFloat(savedVibeInfo).toFixed(2);
+                    const infoToSet = savedVibeInfo || this.currentVibeDoc?.importInfo?.information_extracted || (this.availableVibeEncodings[0]?.info);
+                    if (infoToSet !== undefined) {
+                        slider.value = infoToSet;
+                        const valSpan = document.getElementById('vibeInfoValue');
+                        if (valSpan) valSpan.textContent = parseFloat(infoToSet).toFixed(2);
+                    }
                 }
+            }
+
+            // Asynchronously retrieve full document from IndexedDB
+            if (savedDocId && (!this.currentVibeDoc || !this.currentVibeDoc.image)) {
+                this.vibeDb.getDoc(savedDocId).then(fullDoc => {
+                    if (fullDoc) {
+                        this.currentVibeDoc = fullDoc;
+                        this.syncDocToCache();
+                        if (typeof document !== 'undefined' && fullDoc.image) {
+                            const pImg = document.getElementById('vibeImagePreview');
+                            if (pImg) {
+                                pImg.src = fullDoc.image.startsWith('data:') ? fullDoc.image : ('data:image/png;base64,' + fullDoc.image);
+                                pImg.classList.remove('p-4', 'p-3');
+                            }
+                        }
+                        this.updateVibeStatus(model);
+                    }
+                });
             }
         } else {
             this.clearVibeImage(model);
         }
 
-        if (savedVibeStrength) {
+        if (savedVibeStrength && typeof document !== 'undefined') {
             const strSlider = document.getElementById('vibeStrength');
             if (strSlider) {
                 strSlider.value = savedVibeStrength;
@@ -165,6 +382,30 @@ export class VibeManager {
     }
 
     saveState(model) {
+        if (!this.currentVibeDoc && (this.rawImageBase64 || this.currentVibeImageBase64)) {
+            this.buildDocFromCurrentState(model);
+        }
+
+        if (this.currentVibeDoc) {
+            // 1. Asynchronously persist full document (with image) to IndexedDB
+            this.vibeDb.saveDoc(this.currentVibeDoc);
+
+            // 2. Persist lightweight summary (without the massive image) to localStorage
+            const docSummary = {
+                identifier: this.currentVibeDoc.identifier,
+                version: this.currentVibeDoc.version,
+                type: this.currentVibeDoc.type,
+                id: this.currentVibeDoc.id,
+                name: this.currentVibeDoc.name,
+                thumbnail: this.currentVibeDoc.thumbnail,
+                createdAt: this.currentVibeDoc.createdAt,
+                importInfo: this.currentVibeDoc.importInfo,
+                encodings: this.currentVibeDoc.encodings
+            };
+            this.store.setSetting(this.getVibeKey('nai_vibe_doc_summary', model), JSON.stringify(docSummary));
+            this.store.setSetting(this.getVibeKey('nai_vibe_doc_id', model), this.currentVibeDoc.id);
+        }
+
         this.store.setSetting(this.getVibeKey('nai_vibe_image', model), this.currentVibeImageBase64 || '');
         this.store.setSetting(this.getVibeKey('nai_vibe_raw_image', model), this.rawImageBase64 || '');
         this.store.setSetting(this.getVibeKey('nai_vibe_is_json', model), this.currentVibeIsJson.toString());
@@ -186,6 +427,7 @@ export class VibeManager {
     }
 
     clearVibeImage(model) {
+        this.currentVibeDoc = null;
         this.currentVibeImageBase64 = null;
         this.rawImageBase64 = null;
         this.encodedVibeData = null;
@@ -196,6 +438,8 @@ export class VibeManager {
         this.store.setSetting(this.getVibeKey('nai_vibe_is_json', model), 'false');
         this.store.setSetting(this.getVibeKey('nai_vibe_encodings', model), '[]');
         this.store.setSetting(this.getVibeKey('nai_vibe_preview', model), '');
+        this.store.setSetting(this.getVibeKey('nai_vibe_doc_id', model), '');
+        this.store.setSetting(this.getVibeKey('nai_vibe_doc_summary', model), '');
         
         if (typeof document !== 'undefined') {
             const input = document.getElementById('vibeImageInput');
@@ -228,6 +472,7 @@ export class VibeManager {
     }
 
     toggleVibeEnabled(model) {
+        if (typeof document === 'undefined') return;
         const enabledCheckbox = document.getElementById('vibeEnabled');
         const enabled = enabledCheckbox ? enabledCheckbox.checked : true;
         this.store.setSetting(this.getVibeKey('nai_vibe_enabled', model), enabled.toString());
@@ -277,77 +522,62 @@ export class VibeManager {
                 this.currentVibeIsJson = true;
                 const text = await file.text();
                 const obj = JSON.parse(text);
-                
-                const extractEncoding = (item) => {
-                    if (!item || typeof item !== 'object') return null;
-                    const img = item.image || item.latent || item.vibe_image || item.encoded_image;
-                    
-                    let info = undefined;
-                    if (item.params && item.params.information_extracted !== undefined) {
-                        info = item.params.information_extracted;
-                    } else {
-                        info = item.information_extracted ?? item.info ?? item.strength ?? item.extract_strength;
-                    }
-                    
-                    if (img && info !== undefined) {
-                        return { base64: img, info: parseFloat(info) };
-                    }
-                    return null;
-                };
 
-                const items = [];
-                if (Array.isArray(obj)) {
-                    items.push(...obj);
-                } else if (obj.images && Array.isArray(obj.images)) {
-                    items.push(...obj.images);
-                } else if (obj.encodings) {
-                    const section = obj.encodings['v4-5full'] || obj.encodings['v4full'];
-                    if (section) {
-                        Object.values(section).forEach(item => {
-                            if (item.encoding) {
-                                let info = 0.35;
-                                if (item.params && item.params.information_extracted !== undefined) {
-                                    info = item.params.information_extracted;
-                                }
-                                this.availableVibeEncodings.push({ base64: item.encoding, info: parseFloat(info) });
-                            }
-                        });
-                    }
-                    items.push(obj);
-                } else {
-                    items.push(obj);
+                // Load directly into currentVibeDoc
+                this.currentVibeDoc = obj;
+                if (!this.currentVibeDoc.id) {
+                    this.currentVibeDoc.id = this.generateDocId(obj.image || file.name, file.name);
+                }
+                if (!this.currentVibeDoc.name) {
+                    this.currentVibeDoc.name = file.name.replace(/\.[^/.]+$/, '');
                 }
 
-                items.forEach(item => {
-                    const enc = extractEncoding(item);
-                    if (enc) {
-                        this.availableVibeEncodings.push(enc);
-                    } else if (item.vibe && typeof item.vibe === 'object') {
-                        const nestedEnc = extractEncoding(item.vibe);
-                        if (nestedEnc) this.availableVibeEncodings.push(nestedEnc);
+                this.syncDocToCache();
+
+                if (this.availableVibeEncodings.length === 0) {
+                    // Check if old array structure or flat json structure
+                    if (Array.isArray(obj)) {
+                        this.currentVibeDoc.encodings = { "v4-5full": {} };
+                        obj.forEach(item => {
+                            if (item.image && item.information_extracted !== undefined) {
+                                const k = this.generateEncodingKey(this.currentVibeDoc.id, item.information_extracted, item.image);
+                                this.currentVibeDoc.encodings["v4-5full"][k] = {
+                                    encoding: item.image,
+                                    params: { information_extracted: parseFloat(item.information_extracted) }
+                                };
+                            }
+                        });
+                        this.syncDocToCache();
+                    } else if (obj && (obj.image || obj.encoding) && obj.information_extracted !== undefined) {
+                        const encData = obj.image || obj.encoding;
+                        const infoVal = parseFloat(obj.information_extracted);
+                        this.currentVibeDoc.encodings = { "v4-5full": {} };
+                        const k = this.generateEncodingKey(this.currentVibeDoc.id, infoVal, encData);
+                        this.currentVibeDoc.encodings["v4-5full"][k] = {
+                            encoding: encData,
+                            params: { information_extracted: infoVal }
+                        };
+                        this.syncDocToCache();
                     }
-                });
+                }
 
                 if (this.availableVibeEncodings.length === 0) {
                     console.error("Vibe JSON structure unrecognized:", obj);
                     throw new Error("未在文件中找到有效的 Vibe 编码数据 (识别到的字段不全)");
                 }
 
-                const firstItem = items[0];
-                let sourceImg = obj.source_image || firstItem?.source_image || obj.thumbnail || firstItem?.thumbnail || obj.image || firstItem?.image;
-                if (sourceImg && typeof sourceImg === 'string') {
-                    this.rawImageBase64 = sourceImg.replace(/^data:image\/[a-z]+;base64,/, '');
+                // Determine active encoding and set currentVibeImageBase64
+                if (obj.importInfo && obj.importInfo.information_extracted !== undefined) {
+                    const targetInfo = parseFloat(obj.importInfo.information_extracted);
+                    const matched = this.availableVibeEncodings.find(e => Math.abs(e.info - targetInfo) < 0.005);
+                    this.currentVibeImageBase64 = matched ? matched.base64 : (this.availableVibeEncodings[0]?.base64 || obj.image);
                 } else {
-                    this.rawImageBase64 = null;
+                    this.currentVibeImageBase64 = this.availableVibeEncodings[0]?.base64 || obj.image;
                 }
 
-                if (this.rawImageBase64) {
-                    this.availableVibeEncodings.forEach(e => {
-                        this.setCachedEncoding(this.rawImageBase64, e.info, e.base64);
-                    });
-                }
+                let sourceImg = obj.image || obj.source_image || obj.thumbnail;
                 
-                const previewImg = document.getElementById('vibeImagePreview');
+                const previewImg = typeof document !== 'undefined' ? document.getElementById('vibeImagePreview') : null;
                 if (previewImg) {
                     if (sourceImg && (sourceImg.startsWith('data:image') || sourceImg.length > 1000)) {
                          previewImg.src = sourceImg.startsWith('data:image') ? sourceImg : ('data:image/png;base64,' + sourceImg);
@@ -357,6 +587,28 @@ export class VibeManager {
                          previewImg.classList.add('p-4');
                     }
                     previewImg.classList.remove('hidden');
+                }
+
+                // Restore importInfo slider positions
+                if (obj.importInfo) {
+                    if (obj.importInfo.information_extracted !== undefined) {
+                        const slider = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
+                        if (slider) slider.value = obj.importInfo.information_extracted;
+                        const valSpan = typeof document !== 'undefined' ? document.getElementById('vibeInfoValue') : null;
+                        if (valSpan) valSpan.textContent = parseFloat(obj.importInfo.information_extracted).toFixed(2);
+                    }
+                    if (obj.importInfo.strength !== undefined) {
+                        const strSlider = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
+                        if (strSlider) strSlider.value = obj.importInfo.strength;
+                        const strSpan = typeof document !== 'undefined' ? document.getElementById('vibeStrengthValue') : null;
+                        if (strSpan) strSpan.textContent = parseFloat(obj.importInfo.strength).toFixed(2);
+                    }
+                } else if (this.availableVibeEncodings.length > 0) {
+                    const firstEnc = this.availableVibeEncodings[0];
+                    const slider = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
+                    if (slider) slider.value = firstEnc.info;
+                    const valSpan = typeof document !== 'undefined' ? document.getElementById('vibeInfoValue') : null;
+                    if (valSpan) valSpan.textContent = firstEnc.info.toFixed(2);
                 }
                 
                 this.updateVibeInfoUI(true, model);
@@ -371,6 +623,31 @@ export class VibeManager {
                 }
                 const base64 = btoa(binary);
 
+                const docId = this.generateDocId(base64, file.name);
+                this.currentVibeDoc = {
+                    identifier: "novelai-vibe-transfer",
+                    version: 1,
+                    type: "image",
+                    id: docId,
+                    name: file.name.replace(/\.[^/.]+$/, ''),
+                    image: null,
+                    thumbnail: null,
+                    createdAt: Date.now(),
+                    importInfo: {
+                        model: 'nai-diffusion-4-5-full',
+                        information_extracted: 1.0,
+                        strength: 0.6
+                    },
+                    encodings: {
+                        "v4-5full": {
+                            [this.generateEncodingKey(docId, 1.0, base64)]: {
+                                encoding: base64,
+                                params: { information_extracted: 1.0 }
+                            }
+                        }
+                    }
+                };
+                this.syncDocToCache();
                 this.currentVibeImageBase64 = base64;
                 this.rawImageBase64 = null;
                 this.encodedVibeData = {
@@ -392,8 +669,37 @@ export class VibeManager {
                 this.rawImageBase64 = compressedDataUrl.split(',')[1];
                 this.currentVibeImageBase64 = this.rawImageBase64;
                 this.currentVibeIsJson = false;
+
+                const docId = this.generateDocId(this.rawImageBase64, file.name);
+
+                // Check if existing document for this image already exists in IndexedDB
+                const cachedDoc = await this.vibeDb.getDoc(docId);
+                if (cachedDoc && cachedDoc.encodings) {
+                    this.currentVibeDoc = cachedDoc;
+                    this.syncDocToCache();
+                } else {
+                    this.currentVibeDoc = {
+                        identifier: "novelai-vibe-transfer",
+                        version: 1,
+                        type: "image",
+                        id: docId,
+                        name: file.name.replace(/\.[^/.]+$/, ''),
+                        image: this.rawImageBase64,
+                        thumbnail: compressedDataUrl,
+                        createdAt: Date.now(),
+                        importInfo: {
+                            model: 'nai-diffusion-4-5-full',
+                            information_extracted: 1.0,
+                            strength: 0.6
+                        },
+                        encodings: {
+                            "v4-5full": {}
+                        }
+                    };
+                    this.syncDocToCache();
+                }
                 
-                const previewImg = document.getElementById('vibeImagePreview');
+                const previewImg = typeof document !== 'undefined' ? document.getElementById('vibeImagePreview') : null;
                 if (previewImg) {
                     previewImg.src = compressedDataUrl;
                     previewImg.classList.remove('hidden', 'p-4', 'p-3');
@@ -403,34 +709,35 @@ export class VibeManager {
             
             this.saveState(model);
             
-            const placeholder = document.getElementById('vibeImagePlaceholder');
+            const placeholder = typeof document !== 'undefined' ? document.getElementById('vibeImagePlaceholder') : null;
             if (placeholder) placeholder.classList.add('hidden');
 
-            const clearBtn = document.getElementById('clearVibeImageBtn');
+            const clearBtn = typeof document !== 'undefined' ? document.getElementById('clearVibeImageBtn') : null;
             if (clearBtn) clearBtn.classList.remove('hidden');
 
-            const exportBtn = document.getElementById('exportVibeHeaderBtn');
+            const exportBtn = typeof document !== 'undefined' ? document.getElementById('exportVibeHeaderBtn') : null;
             if (exportBtn) exportBtn.classList.remove('hidden');
 
-            const vibeControls = document.getElementById('vibeControls');
+            const vibeControls = typeof document !== 'undefined' ? document.getElementById('vibeControls') : null;
             if (vibeControls) vibeControls.classList.remove('hidden');
 
             this.toggleVibeEnabled(model); 
         } catch (e) {
             console.error("Failed to process vibe file", e);
-            alert("文件处理失败: " + e.message);
+            if (typeof alert === 'function') {
+                alert("文件处理失败: " + e.message);
+            }
         }
     }
 
-    selectVibeStrength(index, model) {
-        const enc = this.availableVibeEncodings[index];
-        if (enc) {
-            this.currentVibeImageBase64 = enc.base64;
-            const valSpan = document.getElementById('vibeInfoValue');
-            if (valSpan) valSpan.textContent = enc.info.toFixed(2);
-            this.store.setSetting(this.getVibeKey('nai_vibe_selected_index', model), index);
-            this.store.setSetting(this.getVibeKey('nai_vibe_image', model), this.currentVibeImageBase64);
-        }
+    selectStrengthValue(val, model = 'v4.5') {
+        const slider = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
+        const infoVal = typeof document !== 'undefined' ? document.getElementById('vibeInfoValue') : null;
+        const num = parseFloat(val);
+        if (slider) slider.value = num;
+        if (infoVal) infoVal.textContent = num.toFixed(2);
+        this.store.setSetting(this.getVibeKey('nai_vibe_info', model), num.toString());
+        this.updateVibeStatus(model);
     }
 
     updateVibeInfoUI(isJson, model) {
@@ -438,61 +745,38 @@ export class VibeManager {
         const container = document.getElementById('vibeInfoContainer');
         const infoVal = document.getElementById('vibeInfoValue');
         if (!container) return;
-        
-        if (isJson && this.availableVibeEncodings.length > 0) {
-            if (this.availableVibeEncodings.length === 1) {
-                const enc = this.availableVibeEncodings[0];
-                this.currentVibeImageBase64 = enc.base64;
-                container.innerHTML = `<div class="text-[10px] text-gray-400 bg-gray-100 dark:bg-slate-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700 italic">固定强度: ${enc.info.toFixed(2)} (已锁定)</div>`;
-                if (infoVal) infoVal.textContent = enc.info.toFixed(2);
-            } else {
-                let html = `<select id="vibeInfoSelect" class="art-input w-full px-3 py-2 rounded-xl text-xs font-medium outline-none shadow-sm appearance-none cursor-pointer text-gray-700 dark:text-gray-200">`;
-                this.availableVibeEncodings.forEach((enc, index) => {
-                    html += `<option value="${index}">强度: ${enc.info.toFixed(2)}</option>`;
-                });
-                html += `</select>`;
-                container.innerHTML = html;
-                
-                const selectEl = container.querySelector('#vibeInfoSelect');
-                if (selectEl) {
-                    selectEl.addEventListener('change', (e) => {
-                        this.selectVibeStrength(e.target.value, model);
-                    });
-                }
-                this.selectVibeStrength(0, model);
-            }
-        } else {
-            const isV45 = model === 'v4.5';
-            const existingSlider = document.getElementById('vibeInfo');
-            const savedInfo = this.store.getSetting(this.getVibeKey('nai_vibe_info', model));
-            const currentVal = existingSlider ? existingSlider.value : (savedInfo || "1.0");
 
-            container.innerHTML = `
-                <div class="space-y-2">
-                    <input type="range" id="vibeInfo" min="0.01" max="1.0" value="${currentVal}" step="0.01" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
-                    <div id="vibeEncodeStatus"></div>
-                </div>
-            `;
-            const slider = container.querySelector('#vibeInfo');
-            if (slider) {
-                slider.addEventListener('input', (e) => {
-                    const val = parseFloat(e.target.value);
-                    if (infoVal) infoVal.textContent = val.toFixed(2);
-                    this.store.setSetting(this.getVibeKey('nai_vibe_info', model), e.target.value);
-                    if (isV45) {
-                        this.updateVibeStatus(model);
-                    }
-                });
-                if (infoVal) infoVal.textContent = parseFloat(slider.value).toFixed(2);
-            }
-            if (isV45) {
-                this.updateVibeStatus(model);
-            }
+        const isV45 = model === 'v4.5';
+        const existingSlider = document.getElementById('vibeInfo');
+        const savedInfo = this.store.getSetting(this.getVibeKey('nai_vibe_info', model));
+        const currentVal = existingSlider ? existingSlider.value : (savedInfo || this.currentVibeDoc?.importInfo?.information_extracted || "1.0");
+
+        container.innerHTML = `
+            <div class="space-y-2">
+                <input type="range" id="vibeInfo" min="0.01" max="1.0" value="${currentVal}" step="0.01" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
+                <div id="vibeStrengthsChips"></div>
+                <div id="vibeEncodeStatus"></div>
+            </div>
+        `;
+        const slider = container.querySelector('#vibeInfo');
+        if (slider) {
+            slider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                if (infoVal) infoVal.textContent = val.toFixed(2);
+                this.store.setSetting(this.getVibeKey('nai_vibe_info', model), e.target.value);
+                if (isV45) {
+                    this.updateVibeStatus(model);
+                }
+            });
+            if (infoVal) infoVal.textContent = parseFloat(slider.value).toFixed(2);
+        }
+        if (isV45) {
+            this.updateVibeStatus(model);
         }
 
         const exportBtn = document.getElementById('exportVibeHeaderBtn');
         if (exportBtn) {
-            if (this.currentVibeImageBase64) {
+            if (this.currentVibeImageBase64 || this.currentVibeDoc) {
                 exportBtn.classList.remove('hidden');
             } else {
                 exportBtn.classList.add('hidden');
@@ -503,22 +787,43 @@ export class VibeManager {
     updateVibeStatus(model) {
         if (typeof document === 'undefined') return;
         const statusContainer = document.getElementById('vibeEncodeStatus');
+        const chipsContainer = document.getElementById('vibeStrengthsChips');
         if (!statusContainer) return;
 
         const isV45 = model === 'v4.5';
-        if (!isV45 || !this.currentVibeImageBase64) {
+        if (!isV45 || (!this.currentVibeImageBase64 && !this.currentVibeDoc)) {
             statusContainer.innerHTML = '';
+            if (chipsContainer) chipsContainer.innerHTML = '';
             return;
         }
 
         const vibeInfoEl = document.getElementById('vibeInfo');
-        const info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : 1.0;
+        const currentInfo = vibeInfoEl ? parseFloat(vibeInfoEl.value) : 1.0;
         const rawImg = this.rawImageBase64 || (this.isRawImage(this.currentVibeImageBase64) ? this.currentVibeImageBase64 : null);
 
-        let cachedToken = null;
-        if (rawImg) {
-            cachedToken = this.getCachedEncoding(rawImg, info);
+        // Render chips for all strengths contained in this .nai4vibe file
+        if (chipsContainer) {
+            if (this.availableVibeEncodings.length > 0) {
+                let chipsHtml = `
+                    <div class="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        <span class="text-[10px] text-gray-400 font-medium">已包含强度:</span>
+                `;
+                this.availableVibeEncodings.forEach(enc => {
+                    const isMatched = Math.abs(enc.info - currentInfo) < 0.005;
+                    chipsHtml += `
+                        <button type="button" onclick="window.vibeManager && window.vibeManager.selectStrengthValue(${enc.info}, '${model}')" class="px-2 py-0.5 rounded text-[10px] font-mono transition-all ${isMatched ? 'bg-blue-600 text-white shadow-sm font-bold scale-105' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700'}">
+                            ${enc.info.toFixed(2)}
+                        </button>
+                    `;
+                });
+                chipsHtml += `</div>`;
+                chipsContainer.innerHTML = chipsHtml;
+            } else {
+                chipsContainer.innerHTML = '';
+            }
         }
+
+        let cachedToken = this.getCachedEncoding(rawImg, currentInfo);
 
         if (cachedToken) {
             this.currentVibeImageBase64 = cachedToken;
@@ -526,8 +831,8 @@ export class VibeManager {
                 <div class="mt-2 flex items-center justify-between text-[11px] bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-2.5 py-1.5 rounded-lg shadow-sm">
                     <span class="flex items-center gap-1 font-medium">✓ 已官方编码 (出图免耗点)</span>
                     <div class="flex items-center gap-1.5">
-                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportVibeBinary('${model}')" class="bg-green-600 hover:bg-green-700 active:scale-95 text-white px-2 py-0.5 rounded text-[10px] font-medium shadow-sm transition-all" title="导出 .vibe 二进制文件">导出 .vibe</button>
-                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportNai4Vibe('${model}')" class="border border-green-600/50 hover:bg-green-100 dark:hover:bg-green-900/50 active:scale-95 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-medium transition-all" title="导出 .nai4vibe JSON 文件">导出 .nai4vibe</button>
+                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportNai4Vibe('${model}')" class="bg-green-600 hover:bg-green-700 active:scale-95 text-white px-2 py-0.5 rounded text-[10px] font-medium shadow-sm transition-all" title="导出 .nai4vibe.json 官方多强度文件">导出 .nai4vibe</button>
+                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportVibeBinary('${model}')" class="border border-green-600/50 hover:bg-green-100 dark:hover:bg-green-900/50 active:scale-95 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-medium transition-all" title="导出当前强度 .vibe 二进制文件">.vibe</button>
                     </div>
                 </div>`;
         } else if (rawImg) {
@@ -542,8 +847,8 @@ export class VibeManager {
                 <div class="mt-2 flex items-center justify-between text-[11px] bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-2.5 py-1.5 rounded-lg shadow-sm">
                     <span class="flex items-center gap-1 font-medium">✓ 已载入编码 Token (出图免耗点)</span>
                     <div class="flex items-center gap-1.5">
-                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportVibeBinary('${model}')" class="bg-green-600 hover:bg-green-700 active:scale-95 text-white px-2 py-0.5 rounded text-[10px] font-medium shadow-sm transition-all" title="导出 .vibe 二进制文件">导出 .vibe</button>
-                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportNai4Vibe('${model}')" class="border border-green-600/50 hover:bg-green-100 dark:hover:bg-green-900/50 active:scale-95 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-medium transition-all" title="导出 .nai4vibe JSON 文件">导出 .nai4vibe</button>
+                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportNai4Vibe('${model}')" class="bg-green-600 hover:bg-green-700 active:scale-95 text-white px-2 py-0.5 rounded text-[10px] font-medium shadow-sm transition-all">导出 .nai4vibe</button>
+                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportVibeBinary('${model}')" class="border border-green-600/50 hover:bg-green-100 dark:hover:bg-green-900/50 active:scale-95 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-medium transition-all">.vibe</button>
                     </div>
                 </div>`;
         }
@@ -552,14 +857,13 @@ export class VibeManager {
     needsV45Encoding(model = 'v4.5') {
         const enabledCheckbox = typeof document !== 'undefined' ? document.getElementById('vibeEnabled') : null;
         const vibeEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
-        if (!vibeEnabled || model !== 'v4.5' || this.currentVibeIsJson) return false;
-        if (!this.currentVibeImageBase64) return false;
+        if (!vibeEnabled || model !== 'v4.5') return false;
+        if (this.currentVibeIsJson) return false;
+        if (!this.currentVibeImageBase64 && !this.currentVibeDoc) return false;
 
-        if (!this.isRawImage(this.currentVibeImageBase64)) return false;
-
-        const rawImg = this.rawImageBase64 || this.currentVibeImageBase64;
         const vibeInfoEl = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
         const info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : 1.0;
+        const rawImg = this.rawImageBase64 || (this.isRawImage(this.currentVibeImageBase64) ? this.currentVibeImageBase64 : null);
 
         const cached = this.getCachedEncoding(rawImg, info);
         if (cached) {
@@ -572,12 +876,14 @@ export class VibeManager {
             return false;
         }
 
+        if (!this.isRawImage(this.currentVibeImageBase64)) return false;
+
         return true;
     }
 
     async ensureV45Encoded(engine, auth, model = 'v4.5') {
-        if (model !== 'v4.5' || this.currentVibeIsJson) return;
-        if (!this.currentVibeImageBase64) return;
+        if (model !== 'v4.5') return;
+        if (!this.currentVibeImageBase64 && !this.currentVibeDoc) return;
 
         const vibeInfoEl = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
         const info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : 1.0;
@@ -604,7 +910,31 @@ export class VibeManager {
         }, auth);
 
         if (res && res.encoding) {
-            this.setCachedEncoding(rawImg, info, res.encoding);
+            if (!this.currentVibeDoc) {
+                this.buildDocFromCurrentState(model);
+            }
+            if (!this.currentVibeDoc.encodings) {
+                this.currentVibeDoc.encodings = { "v4-5full": {} };
+            }
+            if (!this.currentVibeDoc.encodings["v4-5full"]) {
+                this.currentVibeDoc.encodings["v4-5full"] = {};
+            }
+
+            const encKey = this.generateEncodingKey(this.currentVibeDoc.id, info, res.encoding);
+            this.currentVibeDoc.encodings["v4-5full"][encKey] = {
+                encoding: res.encoding,
+                params: {
+                    information_extracted: info
+                }
+            };
+            const strengthEl = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
+            this.currentVibeDoc.importInfo = {
+                model: 'nai-diffusion-4-5-full',
+                information_extracted: info,
+                strength: parseFloat(strengthEl?.value || 0.6)
+            };
+
+            this.syncDocToCache();
             this.currentVibeImageBase64 = res.encoding;
             this.saveState(model);
             this.updateVibeStatus(model);
@@ -642,7 +972,8 @@ export class VibeManager {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
                 const infoStr = info.toFixed(2).replace('.', '_');
-                a.download = `novelai_vibe_${infoStr}_${Date.now()}.vibe`;
+                const docName = this.currentVibeDoc?.name || 'novelai_vibe';
+                a.download = `${docName}_${infoStr}.vibe`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -655,78 +986,34 @@ export class VibeManager {
     }
 
     exportNai4Vibe(model = 'v4.5') {
-        const rawImg = this.rawImageBase64;
-        const vibeInfoEl = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
-        const currentInfo = vibeInfoEl ? parseFloat(vibeInfoEl.value) : (this.encodedVibeData?.info || 1.0);
-
-        let currentToken = (!this.isRawImage(this.currentVibeImageBase64)) ? this.currentVibeImageBase64 : null;
-        if (!currentToken && rawImg) {
-            currentToken = this.getCachedEncoding(rawImg, currentInfo);
+        if (!this.currentVibeDoc) {
+            this.buildDocFromCurrentState(model);
         }
 
-        if (!currentToken && (!this.availableVibeEncodings || this.availableVibeEncodings.length === 0)) {
-            if (typeof alert === 'function') alert("当前尚未完成官方编码，请先点击【立即编码】后再导出 .nai4vibe 文件。");
+        const vibeInfoEl = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
+        const currentInfo = vibeInfoEl ? parseFloat(vibeInfoEl.value) : (this.encodedVibeData?.info || 1.0);
+        const vibeStrengthEl = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
+        const currentStrength = vibeStrengthEl ? parseFloat(vibeStrengthEl.value) : 0.6;
+
+        if (!this.currentVibeDoc || !this.currentVibeDoc.encodings || Object.keys(this.currentVibeDoc.encodings['v4-5full'] || {}).length === 0) {
+            if (typeof alert === 'function') alert("当前尚未包含官方编码，请先点击【立即编码】后再导出 .nai4vibe 文件。");
             return;
         }
 
+        this.currentVibeDoc.importInfo = {
+            model: 'nai-diffusion-4-5-full',
+            information_extracted: currentInfo,
+            strength: currentStrength
+        };
+
         try {
-            const encodingsObj = {};
-            let idx = 0;
-
-            if (currentToken) {
-                encodingsObj[String(idx++)] = {
-                    encoding: currentToken,
-                    params: {
-                        information_extracted: currentInfo
-                    }
-                };
-            }
-
-            if (rawImg) {
-                const fp = this.getImageFingerprint(rawImg);
-                for (const [key, enc] of this.vibeEncodingsCache.entries()) {
-                    if (key.startsWith(fp + '_')) {
-                        const infoStr = key.substring(fp.length + 1);
-                        const infoNum = parseFloat(infoStr);
-                        if (Math.abs(infoNum - currentInfo) > 0.005) {
-                            encodingsObj[String(idx++)] = {
-                                encoding: enc,
-                                params: {
-                                    information_extracted: infoNum
-                                }
-                            };
-                        }
-                    }
-                }
-            }
-
-            if (this.availableVibeEncodings && this.availableVibeEncodings.length > 0) {
-                this.availableVibeEncodings.forEach(enc => {
-                    const alreadyExists = Object.values(encodingsObj).some(e => Math.abs(e.params.information_extracted - enc.info) < 0.005);
-                    if (!alreadyExists) {
-                        encodingsObj[String(idx++)] = {
-                            encoding: enc.base64,
-                            params: {
-                                information_extracted: enc.info
-                            }
-                        };
-                    }
-                });
-            }
-
-            const exportData = {
-                encodings: {
-                    "v4-5full": encodingsObj
-                },
-                source_image: rawImg ? (rawImg.startsWith('data:') ? rawImg : `data:image/png;base64,${rawImg}`) : null
-            };
-
-            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const jsonString = JSON.stringify(this.currentVibeDoc, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
             if (typeof document !== 'undefined') {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                const infoStr = currentInfo.toFixed(2).replace('.', '_');
-                a.download = `novelai_vibe_${infoStr}_${Date.now()}.nai4vibe`;
+                const docName = this.currentVibeDoc.name || 'novelai_vibe';
+                a.download = `${docName}.nai4vibe.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -742,7 +1029,7 @@ export class VibeManager {
         const enabledCheckbox = typeof document !== 'undefined' ? document.getElementById('vibeEnabled') : null;
         const vibeEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
         
-        if (vibeEnabled && this.currentVibeImageBase64) {
+        if (vibeEnabled && (this.currentVibeImageBase64 || this.currentVibeDoc)) {
             if (selectedVersion === 'v5') {
                 return {
                     isValid: false,
@@ -763,7 +1050,7 @@ export class VibeManager {
         const enabledCheckbox = typeof document !== 'undefined' ? document.getElementById('vibeEnabled') : null;
         const vibeEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
 
-        if (vibeEnabled && this.currentVibeImageBase64 && model !== 'v5') {
+        if (vibeEnabled && (this.currentVibeImageBase64 || this.currentVibeDoc) && model !== 'v5') {
             const vibeInfoEl = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
             const vibeStrengthEl = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
             
