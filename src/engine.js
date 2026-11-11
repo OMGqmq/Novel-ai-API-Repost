@@ -27,6 +27,41 @@ export class ImageEngine {
         return this._request('/upscale', params, auth);
     }
 
+    async encodeVibe(params, auth) {
+        return this._requestJson('/encode-vibe', params, auth);
+    }
+
+    async _requestJson(endpoint, params, auth = {}) {
+        const { adminToken, userKey, customApiKey, userToken, signal } = auth;
+        let requestSignal;
+        if (signal) {
+            requestSignal = typeof AbortSignal.any === 'function'
+                ? AbortSignal.any([signal, AbortSignal.timeout(60000)])
+                : signal;
+        } else {
+            requestSignal = AbortSignal.timeout(60000);
+        }
+
+        const response = await fetch(`${this.getEffectiveBaseUrl()}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-admin-token': adminToken || "",
+                'x-user-key': userKey || "",
+                'x-custom-api-key': customApiKey || "",
+                ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {})
+            },
+            body: JSON.stringify(params),
+            signal: requestSignal
+        });
+
+        const data = await response.json().catch(() => null);
+        if (!response.ok || (data && data.error)) {
+            throw new Error((data && data.error) || `HTTP Error: ${response.status}`);
+        }
+        return data;
+    }
+
     async _request(endpoint, params, auth = {}) {
         if (!this.JSZip) {
             throw new Error("JSZip library not found. Please ensure it is loaded.");

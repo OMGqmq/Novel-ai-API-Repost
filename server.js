@@ -58,6 +58,7 @@ const routeModules = {
   '/generate': './functions/generate.js',
   '/augment': './functions/augment.js',
   '/upscale': './functions/upscale.js',
+  '/encode-vibe': './functions/encode-vibe.js',
   '/verify-key': './functions/verify-key.js',
   '/danbooru': './functions/danbooru.js',
   '/api/auth/login': './functions/api/auth/login.js',

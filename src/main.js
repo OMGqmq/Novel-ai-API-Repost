@@ -534,6 +534,35 @@ window.handleVibeImage = (event) => vibeManager.handleVibeImage(event, document.
 window.clearVibeImage = () => vibeManager.clearVibeImage(document.getElementById('modelValue').value);
 window.toggleVibeEnabled = () => vibeManager.toggleVibeEnabled(document.getElementById('modelValue').value);
 window.onVibeStrengthSelect = (index) => vibeManager.selectVibeStrength(index, document.getElementById('modelValue').value);
+window.triggerEncodeVibe = async () => {
+    const model = document.getElementById('modelValue').value;
+    const customApiKeys = (store.getSetting('nai_custom_api_key') || localStorage.getItem('nai_custom_api_key') || '')
+        .split(/[\n,]/).map(k => k.trim()).filter(Boolean);
+    const hasCustomKey = customApiKeys.length > 0;
+    const adminToken = store.getSetting('nai_admin_token') || localStorage.getItem('nai_admin_token') || "";
+    const userKey = store.getSetting('nai_user_key') || localStorage.getItem('nai_user_key') || "";
+    const userToken = store.getSetting('nai_token') || localStorage.getItem('nai_token') || "";
+
+    if (!hasCustomKey && !adminToken) {
+        alert("氛围编码功能需要向官方接口编码并消耗 2 Anlas 算力，请先在右上角配置您的【自定义 API Key】后再执行编码。");
+        return;
+    }
+
+    try {
+        ui.setLoading(true, "正在向官方接口编码 Vibe (消耗 2 Anlas)...");
+        await vibeManager.ensureV45Encoded(engine, {
+            adminToken,
+            userKey,
+            customApiKey: customApiKeys[0] || "",
+            userToken
+        }, model);
+        if (typeof showToast === 'function') showToast("Vibe 官方编码成功！已缓存，后续出图无需重复耗点。");
+    } catch (err) {
+        alert("官方 Vibe 编码失败: " + err.message);
+    } finally {
+        ui.setLoading(false);
+    }
+};
 window.handleCharRefImage = (event) => charRefManager.handleCharRefImage(event, document.getElementById('modelValue').value);
 window.clearCharRefImage = () => charRefManager.clearCharRefImage(document.getElementById('modelValue').value);
 window.toggleCharRefEnabled = () => charRefManager.toggleCharRefEnabled(document.getElementById('modelValue').value);
@@ -778,7 +807,7 @@ async function doGenerate(rawOptions = {}) {
         
         const hasCustomKey = customApiKeys.length > 0;
 
-        const vibeVal = vibeManager.isValidForModel(selectedVersion);
+        const vibeVal = vibeManager.isValidForModel(selectedVersion, hasCustomKey);
         if (!vibeVal.isValid) {
             alert(vibeVal.error);
             ui.setLoading(false);
@@ -792,6 +821,19 @@ async function doGenerate(rawOptions = {}) {
             ui.setLoading(false);
             ui.toggleMobileControls(true);
             return;
+        }
+
+        if (vibeManager.needsV45Encoding && vibeManager.needsV45Encoding(selectedVersion)) {
+            ui.setLoading(true, "正在向官方接口编码 Vibe (消耗 2 Anlas)...");
+            try {
+                const activeCustomKey = customApiKeys[0] || "";
+                await vibeManager.ensureV45Encoded(engine, { adminToken, userKey, customApiKey: activeCustomKey, userToken }, selectedVersion);
+            } catch (encodeErr) {
+                alert("官方 Vibe 编码失败: " + encodeErr.message);
+                ui.setLoading(false);
+                ui.toggleMobileControls(true);
+                return;
+            }
         }
 
         const allGeneratedResults = [];
@@ -2131,6 +2173,10 @@ const inpaintEditor = new InpaintEditor({
     engine: engine,
     store: store,
     getExtraParams: (model, hasCustomKey) => {
+        const vibeVal = vibeManager.isValidForModel(model, hasCustomKey);
+        if (!vibeVal.isValid) {
+            throw new Error(vibeVal.error);
+        }
         const charRefVal = charRefManager.isValidForModel(model, hasCustomKey);
         if (!charRefVal.isValid) {
             throw new Error(charRefVal.error);
@@ -2162,6 +2208,10 @@ const outpaintEditor = new OutpaintEditor({
     engine: engine,
     store: store,
     getExtraParams: (model, hasCustomKey) => {
+        const vibeVal = vibeManager.isValidForModel(model, hasCustomKey);
+        if (!vibeVal.isValid) {
+            throw new Error(vibeVal.error);
+        }
         const charRefVal = charRefManager.isValidForModel(model, hasCustomKey);
         if (!charRefVal.isValid) {
             throw new Error(charRefVal.error);

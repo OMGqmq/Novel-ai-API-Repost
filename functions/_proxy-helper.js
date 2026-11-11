@@ -7,6 +7,15 @@ export const json = (data, status = 200, extraHeaders = {}) =>
     headers: { 'Content-Type': 'application/json', ...extraHeaders }
   });
 
+function isRawImageBase64(b64) {
+  if (!b64 || typeof b64 !== 'string') return false;
+  const clean = b64.replace(/^data:image\/[a-z]+;base64,/, '').trim();
+  return clean.startsWith('iVBORw0KGgo') || 
+         clean.startsWith('/9j/') || 
+         clean.startsWith('UklGR') || 
+         clean.startsWith('R0lGOD');
+}
+
 async function writeRequestLog(env, { userId, authType, model, statusCode, durationMs, ip, errorMessage }) {
   if (!env.DB) return;
   try {
@@ -61,6 +70,11 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
       throw new AuthError("角色参考功能会消耗 Anlas 算力，仅限自定义 API Key 或管理员使用", 403);
     }
 
+    const isV45 = (data.version === 'v4.5' || (data.model && data.model.includes('4-5')));
+    if (isRestricted && isV45 && data.vibe_image && isRawImageBase64(data.vibe_image)) {
+      throw new AuthError("V4.5 氛围直接编码会消耗官方 Anlas 算力，仅限自定义 API Key 或管理员使用", 403);
+    }
+
     if (targetUrl && targetUrl.includes('/ai/upscale') && isRestricted && userRole === 'Free') {
       throw new AuthError("4x AI 超分辨率放大功能会消耗服务器付费 Anlas 算力，仅限 VIP 用户或自定义 API Key 使用", 403);
     }
@@ -112,6 +126,47 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
           signal: AbortSignal.timeout(45000)
         });
       } else {
+        // 如果是 V4.5 并且携带了未编码的原始参考图，且调用方拥有自定义 Key/管理员权限，自动在此完成官方 encode-vibe
+        if (payload?.parameters?.reference_image_multiple && payload.parameters.reference_image_multiple.length > 0) {
+          const isV45Model = payload.model && (payload.model.includes('4-5') || payload.model.includes('4.5'));
+          if (isV45Model) {
+            for (let idx = 0; idx < payload.parameters.reference_image_multiple.length; idx++) {
+              const item = payload.parameters.reference_image_multiple[idx];
+              if (isRawImageBase64(item)) {
+                const cleanImg = item.replace(/^data:image\/[a-z]+;base64,/, '').trim();
+                const info = payload.parameters.reference_information_extracted_multiple?.[idx] !== undefined
+                  ? payload.parameters.reference_information_extracted_multiple[idx]
+                  : 1.0;
+                const encRes = await fetch('https://image.novelai.net/ai/encode-vibe', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                  },
+                  body: JSON.stringify({
+                    image: cleanImg,
+                    model: payload.model || 'nai-diffusion-4-5-full',
+                    information_extracted: info
+                  }),
+                  signal: AbortSignal.timeout(60000)
+                });
+                if (encRes.ok) {
+                  const arrayBuf = await encRes.arrayBuffer();
+                  let binary = '';
+                  const bytes = new Uint8Array(arrayBuf);
+                  for (let b = 0; b < bytes.byteLength; b += 8192) {
+                    binary += String.fromCharCode.apply(null, bytes.subarray(b, b + 8192));
+                  }
+                  payload.parameters.reference_image_multiple[idx] = btoa(binary);
+                } else {
+                  const errTxt = await encRes.text();
+                  throw new Error(`NovelAI Vibe 自动编码失败: ${errTxt}`);
+                }
+              }
+            }
+          }
+        }
+
         let fetchOptions = {
           method: 'POST',
           headers: {
