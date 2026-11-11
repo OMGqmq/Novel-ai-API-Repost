@@ -150,4 +150,110 @@ describe('V4.5 Vibe Transfer Custom API Direct Encoding', () => {
       }
     });
   });
+
+  describe('Vibe multi-intensity cache and export/import tests', () => {
+    it('should cache per-intensity token and restore token when sliding back to same info', async () => {
+      const rawImg = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      vibeManager.currentVibeImageBase64 = rawImg;
+      vibeManager.rawImageBase64 = rawImg;
+      vibeManager.currentVibeIsJson = false;
+
+      const mockEngine = {
+        encodeVibe: vi.fn().mockImplementation(async (params) => ({
+          success: true,
+          encoding: `TOKEN_FOR_${params.information_extracted}`,
+          info: params.information_extracted,
+          model: 'nai-diffusion-4-5-full'
+        }))
+      };
+
+      // 1. Initially needs encoding at 1.0
+      expect(vibeManager.needsV45Encoding('v4.5')).toBe(true);
+      await vibeManager.ensureV45Encoded(mockEngine, { customApiKey: 'k' }, 'v4.5');
+      expect(mockEngine.encodeVibe).toHaveBeenCalledTimes(1);
+      expect(vibeManager.currentVibeImageBase64).toBe('TOKEN_FOR_1');
+
+      // 2. Setting cache for 0.8 as well
+      vibeManager.setCachedEncoding(rawImg, 0.8, 'TOKEN_FOR_0.8');
+
+      // 3. Slider moves to 0.5 (not cached)
+      expect(vibeManager.getCachedEncoding(rawImg, 0.5)).toBeNull();
+
+      // 4. Slider moves back to 1.0 -> should retrieve from cache
+      const cached10 = vibeManager.getCachedEncoding(rawImg, 1.0);
+      expect(cached10).toBe('TOKEN_FOR_1');
+
+      // 5. Slider moves to 0.8 -> should retrieve from cache
+      const cached08 = vibeManager.getCachedEncoding(rawImg, 0.8);
+      expect(cached08).toBe('TOKEN_FOR_0.8');
+    });
+
+    it('should export .vibe binary token and .nai4vibe json format correctly', () => {
+      const rawImg = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      vibeManager.rawImageBase64 = rawImg;
+      // Provide valid base64 token
+      const token = btoa("mock_vibe_binary_data");
+      vibeManager.currentVibeImageBase64 = token;
+      vibeManager.setCachedEncoding(rawImg, 0.8, token);
+
+      let createdBlob = null;
+      let downloadedName = '';
+      global.URL.createObjectURL = vi.fn((blob) => {
+        createdBlob = blob;
+        return 'blob:mock-url';
+      });
+      global.URL.revokeObjectURL = vi.fn();
+
+      const mockA = {
+        href: '',
+        download: '',
+        click: vi.fn()
+      };
+      const originalCreateElement = global.document?.createElement;
+      const originalAppendChild = global.document?.body?.appendChild;
+      const originalRemoveChild = global.document?.body?.removeChild;
+
+      global.document = {
+        createElement: vi.fn(() => mockA),
+        body: {
+          appendChild: vi.fn(),
+          removeChild: vi.fn()
+        },
+        getElementById: vi.fn(() => null)
+      };
+
+      try {
+        // Export .vibe
+        vibeManager.exportVibeBinary('v4.5');
+        expect(mockA.download).toContain('.vibe');
+        expect(createdBlob.type).toBe('application/octet-stream');
+
+        // Export .nai4vibe
+        vibeManager.exportNai4Vibe('v4.5');
+        expect(mockA.download).toContain('.nai4vibe');
+        expect(createdBlob.type).toBe('application/json');
+      } finally {
+        if (originalCreateElement) global.document.createElement = originalCreateElement;
+        if (originalAppendChild) global.document.body.appendChild = originalAppendChild;
+        if (originalRemoveChild) global.document.body.removeChild = originalRemoveChild;
+      }
+    });
+
+    it('should parse binary .vibe file into base64 token', async () => {
+      const binaryContent = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+      const mockFile = {
+        name: 'reference.vibe',
+        slice: () => ({
+          text: async () => 'binary-non-json-header'
+        }),
+        arrayBuffer: async () => binaryContent.buffer
+      };
+
+      const event = { target: { files: [mockFile] } };
+      await vibeManager.handleVibeImage(event, 'v4.5');
+
+      expect(vibeManager.isRawImage(vibeManager.currentVibeImageBase64)).toBe(false);
+      expect(vibeManager.currentVibeImageBase64).toBe(btoa(String.fromCharCode(...binaryContent)));
+    });
+  });
 });

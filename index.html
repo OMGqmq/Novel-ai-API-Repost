@@ -878,9 +878,27 @@
                                     <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                                 </label>
                             </div>
-                            <button onclick="clearVibeImage()" id="clearVibeImageBtn"
-                                class="hidden text-[10px] text-red-500 hover:text-red-600 transition-colors flex items-center gap-1"><i
-                                    data-lucide="x" class="w-3 h-3"></i> 移除</button>
+                            <div class="flex items-center gap-2">
+                                <div class="relative" id="vibeExportMenuWrap">
+                                    <button type="button" onclick="window.toggleVibeExportMenu ? window.toggleVibeExportMenu() : null" id="exportVibeHeaderBtn"
+                                        class="hidden text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold transition-colors flex items-center gap-1">
+                                        <i data-lucide="download" class="w-3 h-3"></i> 导出 Vibe
+                                    </button>
+                                    <div id="vibeExportMenu" class="hidden absolute right-0 top-full mt-1.5 w-44 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 py-1.5 z-30 text-xs">
+                                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportVibeBinary(); window.toggleVibeExportMenu(false);" class="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-slate-700/60 text-gray-700 dark:text-gray-200 flex items-center justify-between transition-colors">
+                                            <span class="font-medium">导出 .vibe</span>
+                                            <span class="text-[9px] text-gray-400 font-mono">原生 Token</span>
+                                        </button>
+                                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportNai4Vibe(); window.toggleVibeExportMenu(false);" class="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-slate-700/60 text-gray-700 dark:text-gray-200 flex items-center justify-between transition-colors">
+                                            <span class="font-medium">导出 .nai4vibe</span>
+                                            <span class="text-[9px] text-gray-400 font-mono">官方 JSON</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button onclick="clearVibeImage()" id="clearVibeImageBtn"
+                                    class="hidden text-[10px] text-red-500 hover:text-red-600 transition-colors flex items-center gap-1"><i
+                                        data-lucide="x" class="w-3 h-3"></i> 移除</button>
+                            </div>
                         </div>
                         <div class="relative flex items-center justify-center w-full">
                             <label for="vibeImageInput"
@@ -892,7 +910,7 @@
                                 </div>
                                 <img id="vibeImagePreview" class="hidden h-full object-contain">
                             </label>
-                            <input id="vibeImageInput" type="file" class="hidden" accept="image/png, image/jpeg, image/webp, .json, .nai4vibe"
+                            <input id="vibeImageInput" type="file" class="hidden" accept="image/png, image/jpeg, image/webp, .json, .nai4vibe, .vibe, .vibe40"
                                 onchange="handleVibeImage(event)" />
                         </div>
                     </div>

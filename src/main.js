@@ -563,6 +563,25 @@ window.triggerEncodeVibe = async () => {
         ui.setLoading(false);
     }
 };
+window.toggleVibeExportMenu = (force) => {
+    const menu = document.getElementById('vibeExportMenu');
+    if (!menu) return;
+    if (typeof force === 'boolean') {
+        if (force) menu.classList.remove('hidden');
+        else menu.classList.add('hidden');
+    } else {
+        menu.classList.toggle('hidden');
+    }
+};
+
+document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('vibeExportMenuWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        const menu = document.getElementById('vibeExportMenu');
+        if (menu) menu.classList.add('hidden');
+    }
+});
+
 window.handleCharRefImage = (event) => charRefManager.handleCharRefImage(event, document.getElementById('modelValue').value);
 window.clearCharRefImage = () => charRefManager.clearCharRefImage(document.getElementById('modelValue').value);
 window.toggleCharRefEnabled = () => charRefManager.toggleCharRefEnabled(document.getElementById('modelValue').value);
