@@ -1261,30 +1261,85 @@ async function clearAllHistory() {
     }
 }
 
-function toggleToolbox() {
-    const menu = document.getElementById('toolboxMenu');
-    const btn = document.getElementById('toolboxTriggerBtn');
-    if (!menu) return;
-    if (menu.classList.contains('opacity-0')) {
-        menu.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
-        menu.classList.add('opacity-100', 'scale-100', 'pointer-events-auto');
-        if (btn) btn.classList.add('toolbox-open');
-    } else {
-        menu.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
-        menu.classList.remove('opacity-100', 'scale-100', 'pointer-events-auto');
-        if (btn) btn.classList.remove('toolbox-open');
+function syncLegacyToolboxState(menu, btn, isOpen) {
+    menu.classList.toggle('toolbox-open', isOpen);
+    menu.classList.toggle('opacity-100', isOpen);
+    menu.classList.toggle('scale-100', isOpen);
+    menu.classList.toggle('pointer-events-auto', isOpen);
+    menu.classList.toggle('opacity-0', !isOpen);
+    menu.classList.toggle('scale-95', !isOpen);
+    menu.classList.toggle('pointer-events-none', !isOpen);
+    if (btn) {
+        btn.classList.toggle('toolbox-open', isOpen);
+        btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     }
 }
 
-document.addEventListener('click', (e) => {
-    const container = document.getElementById('toolboxContainer');
-    if (container && !container.contains(e.target)) {
-        const menu = document.getElementById('toolboxMenu');
-        if (menu && menu.classList.contains('opacity-100')) {
-            toggleToolbox();
-        }
+function positionToolboxFallbackPopover(menu, btn) {
+    if (!menu || !btn || typeof CSS === 'undefined') return;
+    if (typeof CSS.supports === 'function' && CSS.supports('position-area', 'block-end')) return;
+    const rect = btn.getBoundingClientRect?.();
+    if (!rect) return;
+    menu.style.position = 'fixed';
+    menu.style.inset = 'auto';
+    menu.style.margin = '0';
+    menu.style.top = `${Math.round(rect.bottom + 8)}px`;
+    menu.style.right = `${Math.max(8, Math.round((window.innerWidth || 0) - rect.right))}px`;
+}
+
+function toggleToolbox(force) {
+    const menu = document.getElementById('toolboxMenu');
+    const btn = document.getElementById('toolboxTriggerBtn');
+    if (!menu) return;
+
+    if (supportsNativePopover && menu.hasAttribute('popover')) {
+        const isOpen = menu.matches(':popover-open');
+        const shouldOpen = typeof force === 'boolean' ? force : !isOpen;
+        try {
+            if (shouldOpen && !isOpen) {
+                positionToolboxFallbackPopover(menu, btn);
+                menu.showPopover();
+            } else if (!shouldOpen && isOpen) {
+                menu.hidePopover();
+            }
+        } catch (_) {}
+        return;
     }
-});
+
+    const isCurrentlyOpen = menu.classList.contains('toolbox-open') || menu.classList.contains('opacity-100');
+    const nextOpen = typeof force === 'boolean' ? force : !isCurrentlyOpen;
+    syncLegacyToolboxState(menu, btn, nextOpen);
+}
+
+if (typeof document !== 'undefined') {
+    const toolboxMenuEl = document.getElementById('toolboxMenu');
+    const toolboxBtnEl = document.getElementById('toolboxTriggerBtn');
+    if (supportsNativePopover && toolboxMenuEl?.hasAttribute('popover')) {
+        toolboxMenuEl.addEventListener('toggle', (e) => {
+            const isOpen = e.newState === 'open';
+            if (isOpen) positionToolboxFallbackPopover(toolboxMenuEl, toolboxBtnEl);
+            toolboxMenuEl.classList.toggle('toolbox-open', isOpen);
+            if (toolboxBtnEl) {
+                toolboxBtnEl.classList.toggle('toolbox-open', isOpen);
+                toolboxBtnEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+        });
+    } else {
+        toolboxBtnEl?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleToolbox();
+        });
+        document.addEventListener('click', (e) => {
+            const container = document.getElementById('toolboxContainer');
+            if (container && !container.contains(e.target)) {
+                const menu = document.getElementById('toolboxMenu');
+                if (menu && (menu.classList.contains('toolbox-open') || menu.classList.contains('opacity-100'))) {
+                    toggleToolbox(false);
+                }
+            }
+        });
+    }
+}
 
 const postProcess = createPostProcessController({
     ui,

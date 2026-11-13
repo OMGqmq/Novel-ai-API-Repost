@@ -1,4 +1,5 @@
 import { apiUrl } from './api-config.js';
+import { openModal, closeModal } from './modal-toast.js';
 
 /**
  * Inspiration Manager Module (Danbooru Online Live Integration)
@@ -181,13 +182,7 @@ export class InspirationManager {
         const modal = document.getElementById('inspirationModal');
         if (!modal) return;
 
-        modal.style.display = 'flex';
-        modal.offsetHeight; // Force reflow
-        modal.classList.remove('opacity-0', 'pointer-events-none');
-        const content = modal.querySelector('.relative');
-        if (content) {
-            content.classList.remove('scale-95', 'opacity-0');
-        }
+        openModal('inspirationModal');
 
         this.renderFilters();
         this.syncApiConfigUI();
@@ -203,16 +198,7 @@ export class InspirationManager {
     }
 
     close() {
-        const modal = document.getElementById('inspirationModal');
-        if (!modal) return;
-        modal.classList.add('opacity-0', 'pointer-events-none');
-        const content = modal.querySelector('.relative');
-        if (content) {
-            content.classList.add('scale-95', 'opacity-0');
-        }
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300);
+        closeModal('inspirationModal');
     }
 
     setEra(era) {

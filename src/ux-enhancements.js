@@ -124,6 +124,35 @@ export function updateRangeProgress(slider) {
     if (slider.classList && typeof slider.classList.add === 'function') {
         slider.classList.add('enhanced-range');
     }
+    if (typeof slider.setAttribute === 'function') {
+        slider.setAttribute('aria-valuetext', `${slider.value} (${Math.round(pct)}%)`);
+    }
+}
+
+export function initSwitchAccessibility(root = typeof document !== 'undefined' ? document : null) {
+    if (!root || typeof root.querySelectorAll !== 'function') return;
+
+    const syncSwitch = (checkbox) => {
+        if (!checkbox || checkbox.type !== 'checkbox') return;
+        if (typeof checkbox.setAttribute === 'function') {
+            if (!checkbox.getAttribute('role')) {
+                checkbox.setAttribute('role', 'switch');
+            }
+            checkbox.setAttribute('aria-checked', checkbox.checked ? 'true' : 'false');
+        }
+    };
+
+    root.querySelectorAll('input[type="checkbox"].sr-only.peer, input[type="checkbox"][role="switch"]').forEach(syncSwitch);
+
+    if (typeof root.addEventListener === 'function' && !root._switchA11yBound) {
+        root._switchA11yBound = true;
+        root.addEventListener('change', (e) => {
+            const target = e?.target;
+            if (target?.type === 'checkbox' && (target.getAttribute?.('role') === 'switch' || target.classList?.contains('peer'))) {
+                syncSwitch(target);
+            }
+        });
+    }
 }
 
 function isPromptEditableTarget(el) {
@@ -271,28 +300,43 @@ export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose
 export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}) {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
-    // 1. Range Slider Progress & Double-Click Reset
+    // 1. Range Slider Progress, Switch Roles & Double-Click Reset
     initRangeSliderEnhancements(document);
+    initSwitchAccessibility(document);
 
-    // Refresh range progress whenever external scripts mutate values (e.g. preset/model switches)
+    // Refresh range progress & switch states whenever external scripts mutate values
     const refreshAllRanges = () => {
         try {
             document.querySelectorAll?.('input[type="range"]')?.forEach(updateRangeProgress);
+            initSwitchAccessibility(document);
         } catch (_) {}
     };
     setTimeout(refreshAllRanges, 120);
 
     // 2. Desktop Productivity Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const sideDrawer = document.getElementById('sideDrawer');
+            const openModalEl = document.querySelector?.('dialog[open]');
+            if (sideDrawer?.classList?.contains('drawer-open') && !openModalEl && ui && typeof ui.toggleDrawer === 'function') {
+                e.preventDefault();
+                ui.toggleDrawer();
+                return;
+            }
+        }
         const isMod = e.ctrlKey || e.metaKey;
         if (!isMod) return;
 
         // Ctrl/Cmd + Enter -> Trigger Generate / Inpaint / Outpaint / Stop
         if (e.key === 'Enter') {
-            const blockingModalIds = ['settingsModal', 'customConfirmModal', 'imageLightboxModal', 'toolboxModal', 'enhanceModal'];
-            const hasBlockingModal = blockingModalIds.some(id => {
+            const blockingModalIds = [
+                'settingsModal', 'confirmModal', 'customConfirmModal',
+                'imageLightboxModal', 'toolboxModal', 'enhanceModal',
+                'inspirationModal', 'aiChatModal'
+            ];
+            const hasBlockingModal = Boolean(document.querySelector?.('dialog[open]')) || blockingModalIds.some(id => {
                 const el = document.getElementById(id);
-                return el && el.classList?.contains('modal-active');
+                return el && (el.open || el.classList?.contains('modal-active'));
             });
             if (hasBlockingModal) return;
 
@@ -414,5 +458,33 @@ export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}
                 }
             }
         });
+    }
+
+    const sideDrawer = document.getElementById('sideDrawer');
+    if (sideDrawer) {
+        if ('inert' in sideDrawer) {
+            sideDrawer.inert = !sideDrawer.classList.contains('drawer-open');
+        }
+        if (typeof sideDrawer.addEventListener === 'function' && ui && typeof ui.toggleDrawer === 'function') {
+            let swipeStart = null;
+            sideDrawer.addEventListener('pointerdown', (e) => {
+                if (!sideDrawer.classList.contains('drawer-open')) return;
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                swipeStart = { x: e.clientX, y: e.clientY };
+            });
+            sideDrawer.addEventListener('pointerup', (e) => {
+                if (!swipeStart || !sideDrawer.classList.contains('drawer-open')) {
+                    swipeStart = null;
+                    return;
+                }
+                const dx = e.clientX - swipeStart.x;
+                const dy = e.clientY - swipeStart.y;
+                swipeStart = null;
+                if (dx < -64 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+                    ui.toggleDrawer();
+                }
+            });
+            sideDrawer.addEventListener('pointercancel', () => { swipeStart = null; });
+        }
     }
 }

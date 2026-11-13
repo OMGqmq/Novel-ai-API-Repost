@@ -6,6 +6,7 @@
 import { AI_PROVIDER_PRESETS, AI_SYSTEM_PROMPTS } from './ai-helper-service.js';
 import { AGENT_TOOLS, executeToolCall, parseToolCallsFromText } from './ai-agent-tools.js';
 import { NAI5_PROMPT_RULES } from './nai5-rules.js';
+import { openModal, closeModal } from './modal-toast.js';
 
 function escapeHtml(str) {
     if (!str) return '';
@@ -244,13 +245,21 @@ export class AiChatManager {
         }
         this.hydrateSettingsInputs();
         this.renderMessages({ forceScrollToBottom: true });
-        this.modalEl.style.display = 'flex';
+
+        if (this.modalEl.id && typeof document !== 'undefined' && document.getElementById?.(this.modalEl.id) === this.modalEl) {
+            openModal(this.modalEl.id);
+        } else {
+            this.modalEl.style.display = 'flex';
+            requestAnimationFrame(() => {
+                this.modalEl.classList.remove('opacity-0', 'pointer-events-none');
+                const backdrop = this.modalEl.querySelector?.('.custom-modal-backdrop');
+                const content = this.modalEl.querySelector?.('.custom-modal-content');
+                if (backdrop) backdrop.classList.remove('opacity-0');
+                if (content) content.classList.remove('opacity-0', 'scale-95');
+            });
+        }
+
         requestAnimationFrame(() => {
-            this.modalEl.classList.remove('opacity-0', 'pointer-events-none');
-            const backdrop = this.modalEl.querySelector('.custom-modal-backdrop');
-            const content = this.modalEl.querySelector('.custom-modal-content');
-            if (backdrop) backdrop.classList.remove('opacity-0');
-            if (content) content.classList.remove('opacity-0', 'scale-95');
             this.scrollToBottom();
             if (this.inputEl && typeof window !== 'undefined' && window.innerWidth >= 640) {
                 this.inputEl.focus();
@@ -262,8 +271,12 @@ export class AiChatManager {
 
     close() {
         if (!this.modalEl) return;
-        const backdrop = this.modalEl.querySelector('.custom-modal-backdrop');
-        const content = this.modalEl.querySelector('.custom-modal-content');
+        if (this.modalEl.id && typeof document !== 'undefined' && document.getElementById?.(this.modalEl.id) === this.modalEl) {
+            closeModal(this.modalEl.id);
+            return;
+        }
+        const backdrop = this.modalEl.querySelector?.('.custom-modal-backdrop');
+        const content = this.modalEl.querySelector?.('.custom-modal-content');
         if (backdrop) backdrop.classList.add('opacity-0');
         if (content) content.classList.add('opacity-0', 'scale-95');
         this.modalEl.classList.add('opacity-0', 'pointer-events-none');

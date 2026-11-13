@@ -310,7 +310,7 @@ export class CharPromptManager {
                 </div>
                 <div class="flex items-center gap-1.5 char-row-actions">
                     <label class="flex items-center gap-1 cursor-pointer select-none text-[9px] text-gray-400 dark:text-gray-500 font-bold">
-                        <input type="checkbox" class="char-enable-toggle sr-only peer" ${enabled ? 'checked' : ''}>
+                        <input type="checkbox" role="switch" aria-checked="${enabled ? 'true' : 'false'}" class="char-enable-toggle sr-only peer" ${enabled ? 'checked' : ''}>
                         <div class="w-6 h-3.5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-green-600 relative scale-90"></div>
                         <span class="char-enable-text text-green-600 dark:text-green-500">已启用</span>
                     </label>
@@ -332,7 +332,7 @@ export class CharPromptManager {
                     <div class="flex justify-between items-center text-[9px] text-gray-400 dark:text-gray-500">
                         <span class="char-pos-title">${isV5 ? '角色定位 (Position - 自由选点)' : '角色定位 (Position - 5x5网格)'}</span>
                         <label class="flex items-center gap-1 cursor-pointer select-none">
-                            <input type="checkbox" class="char-auto-pos sr-only peer" ${autoPos ? 'checked' : ''}>
+                            <input type="checkbox" role="switch" aria-checked="${autoPos ? 'true' : 'false'}" class="char-auto-pos sr-only peer" ${autoPos ? 'checked' : ''}>
                             <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600 relative scale-90"></div>
                             <span>AI 自动位置</span>
                         </label>

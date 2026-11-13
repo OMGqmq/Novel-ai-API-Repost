@@ -117,7 +117,27 @@ export function createLightboxController({
         applyLightboxZoom();
     }
 
-    async function openLightbox(item) {
+    function isLightboxReducedMotion() {
+        if (typeof document !== 'undefined' && document.documentElement?.classList?.contains('low-perf')) {
+            return true;
+        }
+        if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+            return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        }
+        return false;
+    }
+
+    function clearLightboxViewTransitionNames() {
+        if (typeof document === 'undefined') return;
+        document.querySelectorAll?.('[data-vt-lightbox]')?.forEach((el) => {
+            if (el.style) el.style.viewTransitionName = '';
+            delete el.dataset?.vtLightbox;
+        });
+        const mainImg = document.getElementById('lightboxMainImg');
+        if (mainImg?.style) mainImg.style.viewTransitionName = '';
+    }
+
+    async function openLightbox(item, triggerEl = null) {
         if (typeof item === 'string') {
             const found = (galleryController.galleryItems || []).find(x => x.image === item || x.imageUrl === item);
             if (found) {
@@ -159,30 +179,93 @@ export function createLightboxController({
             lightboxIndex = 0;
         }
 
-        renderLightboxCurrent();
-        openModal('imageLightboxModal');
+        const modal = document.getElementById('imageLightboxModal');
+        const mainImg = document.getElementById('lightboxMainImg');
+        const sourceImg = (triggerEl?.tagName === 'IMG' ? triggerEl : triggerEl?.querySelector?.('img')) || null;
+        if (modal && typeof modal.showModal === 'function') {
+            modal._onNativeCancel = (e) => {
+                if (zoomState.scale > 1.02) {
+                    e.preventDefault();
+                    resetLightboxZoom();
+                }
+            };
+            modal._onNativeClose = () => {
+                resetLightboxZoom();
+                clearLightboxViewTransitionNames();
+            };
+        }
 
-        const sidebar = document.getElementById('lightboxSidebar');
-        if (sidebar) sidebar.classList.remove('expanded');
+        const finalizeOpen = () => {
+            openModal('imageLightboxModal');
+            const sidebar = document.getElementById('lightboxSidebar');
+            if (sidebar) sidebar.classList.remove('expanded');
+        };
+
+        const canUseVT = Boolean(
+            typeof document !== 'undefined' &&
+            typeof document.startViewTransition === 'function' &&
+            !isLightboxReducedMotion() &&
+            modal &&
+            typeof modal.showModal === 'function' &&
+            mainImg &&
+            sourceImg?.isConnected
+        );
+
+        if (canUseVT) {
+            clearLightboxViewTransitionNames();
+            try {
+                if (sourceImg.dataset) sourceImg.dataset.vtLightbox = '1';
+                sourceImg.style.viewTransitionName = 'lightbox-hero';
+                const transition = document.startViewTransition(async () => {
+                    sourceImg.style.viewTransitionName = '';
+                    renderLightboxCurrent({ immediate: true });
+                    finalizeOpen();
+                    mainImg.style.viewTransitionName = 'lightbox-hero';
+                    if (typeof mainImg.decode === 'function') {
+                        await Promise.race([
+                            mainImg.decode().catch(() => {}),
+                            new Promise((r) => setTimeout(r, 60))
+                        ]);
+                    }
+                });
+                return Promise.resolve(transition?.finished)
+                    .catch(() => {})
+                    .finally(() => {
+                        clearLightboxViewTransitionNames();
+                    });
+            } catch (_) {
+                clearLightboxViewTransitionNames();
+            }
+        }
+
+        renderLightboxCurrent();
+        finalizeOpen();
     }
 
     function closeLightbox() {
         resetLightboxZoom();
+        clearLightboxViewTransitionNames();
         closeModal('imageLightboxModal');
     }
 
-    function renderLightboxCurrent() {
+    function renderLightboxCurrent(options = {}) {
         if (lightboxItems.length === 0 || lightboxIndex < 0 || lightboxIndex >= lightboxItems.length) return;
         const item = lightboxItems[lightboxIndex];
         resetLightboxZoom();
 
         const mainImg = document.getElementById('lightboxMainImg');
         if (mainImg) {
-            mainImg.style.opacity = 0;
-            setTimeout(() => {
-                mainImg.src = item.image || item.imageUrl;
-                mainImg.onload = () => { mainImg.style.opacity = 1; };
-            }, 100);
+            const targetSrc = item.image || item.imageUrl;
+            if (options?.immediate) {
+                mainImg.src = targetSrc;
+                mainImg.style.opacity = 1;
+            } else {
+                mainImg.style.opacity = 0;
+                setTimeout(() => {
+                    mainImg.src = targetSrc;
+                    mainImg.onload = () => { mainImg.style.opacity = 1; };
+                }, 100);
+            }
         }
 
         const meta = resolveLightboxMeta(item);
@@ -760,10 +843,11 @@ export function createLightboxController({
     if (typeof document !== 'undefined') {
         document.addEventListener('keydown', (e) => {
             const modal = document.getElementById('imageLightboxModal');
-            if (modal && modal.classList.contains('modal-active')) {
+            const isOpen = Boolean(modal && (modal.open || modal.classList?.contains('modal-active')));
+            if (isOpen) {
                 if (e.key === 'ArrowLeft') prevLightboxImage();
                 else if (e.key === 'ArrowRight') nextLightboxImage();
-                else if (e.key === 'Escape') {
+                else if (e.key === 'Escape' && typeof modal.showModal !== 'function') {
                     if (zoomState.scale > 1.02) resetLightboxZoom();
                     else closeLightbox();
                 }
@@ -772,6 +856,11 @@ export function createLightboxController({
 
         const viewport = document.getElementById('lightboxViewport') || document.getElementById('lightboxMainImg');
         if (viewport && typeof viewport.addEventListener === 'function') {
+            viewport.addEventListener('click', (e) => {
+                if (e.target === viewport && zoomState.scale <= 1.02) {
+                    closeLightbox();
+                }
+            });
             viewport.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 const factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;

@@ -1,3 +1,5 @@
+import { openModal, closeModal } from './modal-toast.js';
+
 /**
  * Post-Process Controller Module
  * Encapsulates Canvas Image Augmentation (lineart/sketch), AI Enhance, and 4x Upscaling.
@@ -122,33 +124,11 @@ export function createPostProcessController({
             alert("请先生成或在画廊中选择一张图片以进行增强");
             return;
         }
-        const modal = document.getElementById('enhanceModal');
-        if (!modal) return;
-        modal.style.display = 'flex';
-        setTimeout(() => {
-            modal.classList.add('modal-active');
-            if (modal.firstElementChild) modal.firstElementChild.classList.remove('opacity-0');
-            const content = modal.querySelector('.custom-modal-content');
-            if (content) {
-                content.classList.remove('opacity-0', 'scale-95');
-                content.classList.add('opacity-100', 'scale-100');
-            }
-        }, 10);
+        openModal('enhanceModal');
     }
 
     function closeEnhanceModal() {
-        const modal = document.getElementById('enhanceModal');
-        if (!modal) return;
-        modal.classList.remove('modal-active');
-        if (modal.firstElementChild) modal.firstElementChild.classList.add('opacity-0');
-        const content = modal.querySelector('.custom-modal-content');
-        if (content) {
-            content.classList.remove('opacity-100', 'scale-100');
-            content.classList.add('opacity-0', 'scale-95');
-        }
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300);
+        closeModal('enhanceModal');
     }
 
     function setEnhancePreset(strength, noise) {

@@ -140,7 +140,7 @@ export class GalleryController {
             };
         }
 
-        el.onclick = () => window.openLightbox(item);
+        el.onclick = () => window.openLightbox(item, el.querySelector?.('img') || null);
         return el;
     }
 
@@ -258,7 +258,7 @@ export class GalleryController {
                 img.src = `images/${item.id}.png`;
                 img.alt = '';
                 el.appendChild(img);
-                el.onclick = () => { item.isShowcase = true; window.openLightbox(item); };
+                el.onclick = () => { item.isShowcase = true; window.openLightbox(item, img); };
                 fragment.appendChild(el);
             }
             grid.appendChild(fragment);

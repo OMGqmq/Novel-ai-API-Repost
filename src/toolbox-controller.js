@@ -4,6 +4,7 @@
  */
 import { processImageScrambler } from './image-scrambler.js';
 import { extractMetadata } from './png-metadata.js';
+import { openModal, closeModal } from './modal-toast.js';
 
 let store = null;
 let charRefManager = null;
@@ -13,31 +14,6 @@ let isScrambleDecryptMode = false;
 let isHistoryListOpen = false;
 let parsedMetadata = null;
 let isMetadataHistoryListOpen = false;
-
-// Helpers for modal management to avoid tight coupling
-function openModal(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (el._closeTimeout) {
-        clearTimeout(el._closeTimeout);
-        el._closeTimeout = null;
-    }
-    el.style.display = 'flex';
-    setTimeout(() => {
-        el.classList.add('modal-active');
-    }, 10);
-}
-
-function closeModal(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.remove('modal-active');
-    if (el._closeTimeout) clearTimeout(el._closeTimeout);
-    el._closeTimeout = setTimeout(() => {
-        el.style.display = 'none';
-        el._closeTimeout = null;
-    }, 300);
-}
 
 /**
  * Initialize the toolbox controller with required store instance and dependencies

@@ -578,10 +578,33 @@ export class UIController {
     }
 
     toggleDrawer() {
-        this.els.sideDrawer.classList.toggle('drawer-open');
-        this.els.sideDrawer.classList.toggle('drawer-closed');
-        this.els.drawerOverlay.classList.toggle('opacity-0');
-        this.els.drawerOverlay.classList.toggle('pointer-events-none');
+        const drawer = this.els?.sideDrawer;
+        const overlay = this.els?.drawerOverlay;
+        if (!drawer) return;
+        const isOpen = !drawer.classList.contains('drawer-open');
+        if (isOpen && typeof document !== 'undefined' && document.activeElement && !drawer.contains?.(document.activeElement)) {
+            this._lastDrawerTrigger = document.activeElement;
+        }
+        drawer.classList.toggle('drawer-open');
+        drawer.classList.toggle('drawer-closed');
+        if (overlay) {
+            overlay.classList.toggle('opacity-0');
+            overlay.classList.toggle('pointer-events-none');
+        }
+        if ('inert' in drawer) drawer.inert = !isOpen;
+        drawer.setAttribute?.('aria-hidden', isOpen ? 'false' : 'true');
+        if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
+            document.querySelectorAll('[data-drawer-toggle]').forEach((btn) => {
+                btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+        }
+        if (isOpen) {
+            const firstFocus = drawer.querySelector?.('#tagSearchInput, button');
+            firstFocus?.focus?.({ preventScroll: true });
+        } else if (this._lastDrawerTrigger && typeof this._lastDrawerTrigger.focus === 'function') {
+            this._lastDrawerTrigger.focus();
+            this._lastDrawerTrigger = null;
+        }
     }
 
     switchDrawerTab(tab, renderCallback = null, isOpening = false) {
