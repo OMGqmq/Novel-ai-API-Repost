@@ -80,6 +80,40 @@ export class AiHelperService {
         if (nai5RulesEnabled !== undefined) this.store.setSetting('ai_agent_nai5_rules', Boolean(nai5RulesEnabled));
     }
 
+    _readAuthSetting(key) {
+        const fromStore = typeof this.store?.getSetting === 'function' ? this.store.getSetting(key, '') : '';
+        if (fromStore) return String(fromStore).trim();
+        try {
+            if (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function') {
+                return (localStorage.getItem(key) || '').trim();
+            }
+        } catch (_) {}
+        return '';
+    }
+
+    _buildChatProxyHeaders() {
+        const headers = { 'Content-Type': 'application/json' };
+        const adminToken = this._readAuthSetting('nai_admin_token');
+        const userToken = this._readAuthSetting('nai_user_token');
+        if (adminToken) headers['x-admin-token'] = adminToken;
+        if (userToken) headers['Authorization'] = `Bearer ${userToken}`;
+        return headers;
+    }
+
+    async _fetchViaChatProxy({ endpoint, apiKey, body, signal, originalError }) {
+        try {
+            const init = {
+                method: 'POST',
+                headers: this._buildChatProxyHeaders(),
+                body: JSON.stringify({ endpoint, apiKey, body })
+            };
+            if (signal) init.signal = signal;
+            return await fetch(apiUrl('/api/chat-proxy'), init);
+        } catch (_) {
+            throw originalError;
+        }
+    }
+
     /**
      * Legacy single-shot prompt generation
      */
@@ -112,19 +146,12 @@ export class AiHelperService {
             });
         } catch (fetchErr) {
             if (fetchErr.name !== 'AbortError' && !cleanUrl.includes('/api/chat-proxy')) {
-                try {
-                    response = await fetch(apiUrl('/api/chat-proxy'), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            endpoint: targetEndpoint,
-                            apiKey,
-                            body: requestPayload
-                        })
-                    });
-                } catch (_) {
-                    throw fetchErr;
-                }
+                response = await this._fetchViaChatProxy({
+                    endpoint: targetEndpoint,
+                    apiKey,
+                    body: requestPayload,
+                    originalError: fetchErr
+                });
             } else {
                 throw fetchErr;
             }
@@ -216,20 +243,13 @@ export class AiHelperService {
             });
         } catch (fetchErr) {
             if (fetchErr.name !== 'AbortError' && !cleanUrl.includes('/api/chat-proxy')) {
-                try {
-                    response = await fetch(apiUrl('/api/chat-proxy'), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        signal: options.signal,
-                        body: JSON.stringify({
-                            endpoint: targetEndpoint,
-                            apiKey: effectiveApiKey,
-                            body: requestBody
-                        })
-                    });
-                } catch (_) {
-                    throw fetchErr;
-                }
+                response = await this._fetchViaChatProxy({
+                    endpoint: targetEndpoint,
+                    apiKey: effectiveApiKey,
+                    body: requestBody,
+                    signal: options.signal,
+                    originalError: fetchErr
+                });
             } else {
                 throw fetchErr;
             }

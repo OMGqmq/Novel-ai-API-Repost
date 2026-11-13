@@ -530,18 +530,67 @@ function clearInitImage() {
     document.getElementById('img2imgControls').classList.add('hidden');
 }
 
+function getCurrentAuthPool() {
+    const customApiKeyRaw = store.getSetting('nai_custom_api_key') || (typeof localStorage !== 'undefined' ? localStorage.getItem('nai_custom_api_key') : '') || '';
+    const customApiKeys = customApiKeyRaw.split(/[\n,]/).map(k => k.trim()).filter(Boolean);
+    const adminToken = store.getSetting('nai_admin_token') || (typeof localStorage !== 'undefined' ? localStorage.getItem('nai_admin_token') : '') || '';
+    const userKey = store.getSetting('nai_user_key') || (typeof localStorage !== 'undefined' ? localStorage.getItem('nai_user_key') : '') || '';
+    const userToken = store.getSetting('nai_user_token') || (typeof localStorage !== 'undefined' ? localStorage.getItem('nai_user_token') : '') || '';
+    const base = { adminToken, userKey, userToken };
+    const auths = customApiKeys.length > 0
+        ? customApiKeys.map(customApiKey => ({ ...base, customApiKey }))
+        : [{ ...base, customApiKey: '' }];
+    return { customApiKeys, adminToken, userKey, userToken, auths };
+}
+
+async function ensureV45VibeWithKeyFailover(model, authsOverride = null) {
+    const { auths } = getCurrentAuthPool();
+    const candidates = Array.isArray(authsOverride) && authsOverride.length > 0 ? authsOverride : auths;
+    let lastErr = null;
+    for (const auth of candidates) {
+        try {
+            await vibeManager.ensureV45Encoded(engine, auth, model);
+            return;
+        } catch (err) {
+            lastErr = err;
+            console.warn('[Vibe Encode] Key attempt failed, trying next if available...', err?.message || err);
+        }
+    }
+    if (lastErr) throw lastErr;
+}
+
+function assertExtraParamsValid(model, hasCustomKey) {
+    const vibeVal = vibeManager.isValidForModel(model, hasCustomKey);
+    if (!vibeVal.isValid) {
+        throw new Error(vibeVal.error);
+    }
+    const charRefVal = charRefManager.isValidForModel(model, hasCustomKey);
+    if (!charRefVal.isValid) {
+        throw new Error(charRefVal.error);
+    }
+}
+
+function validateAndCollectExtraParams(model, hasCustomKey) {
+    assertExtraParamsValid(model, hasCustomKey);
+    return collectAdvancedAndModelParams(model);
+}
+
+async function prepareEditorBeforeGenerate(model, auths, hasCustomKey = false) {
+    assertExtraParamsValid(model, hasCustomKey);
+    if (vibeManager.needsV45Encoding && vibeManager.needsV45Encoding(model)) {
+        ui.setLoading(true, "正在向官方接口编码 Vibe (消耗 2 Anlas)...");
+        await ensureV45VibeWithKeyFailover(model, auths);
+    }
+}
+
 window.handleVibeImage = (event) => vibeManager.handleVibeImage(event, document.getElementById('modelValue').value);
 window.clearVibeImage = () => vibeManager.clearVibeImage(document.getElementById('modelValue').value);
 window.toggleVibeEnabled = () => vibeManager.toggleVibeEnabled(document.getElementById('modelValue').value);
-window.onVibeStrengthSelect = (index) => vibeManager.selectVibeStrength(index, document.getElementById('modelValue').value);
+window.onVibeStrengthSelect = (val) => vibeManager.selectStrengthValue(val, document.getElementById('modelValue').value);
 window.triggerEncodeVibe = async () => {
     const model = document.getElementById('modelValue').value;
-    const customApiKeys = (store.getSetting('nai_custom_api_key') || localStorage.getItem('nai_custom_api_key') || '')
-        .split(/[\n,]/).map(k => k.trim()).filter(Boolean);
+    const { customApiKeys, adminToken, auths } = getCurrentAuthPool();
     const hasCustomKey = customApiKeys.length > 0;
-    const adminToken = store.getSetting('nai_admin_token') || localStorage.getItem('nai_admin_token') || "";
-    const userKey = store.getSetting('nai_user_key') || localStorage.getItem('nai_user_key') || "";
-    const userToken = store.getSetting('nai_token') || localStorage.getItem('nai_token') || "";
 
     if (!hasCustomKey && !adminToken) {
         alert("氛围编码功能需要向官方接口编码并消耗 2 Anlas 算力，请先在右上角配置您的【自定义 API Key】后再执行编码。");
@@ -550,12 +599,7 @@ window.triggerEncodeVibe = async () => {
 
     try {
         ui.setLoading(true, "正在向官方接口编码 Vibe (消耗 2 Anlas)...");
-        await vibeManager.ensureV45Encoded(engine, {
-            adminToken,
-            userKey,
-            customApiKey: customApiKeys[0] || "",
-            userToken
-        }, model);
+        await ensureV45VibeWithKeyFailover(model, auths);
         if (typeof showToast === 'function') showToast("Vibe 官方编码成功！已缓存，后续出图无需重复耗点。");
     } catch (err) {
         alert("官方 Vibe 编码失败: " + err.message);
@@ -563,24 +607,39 @@ window.triggerEncodeVibe = async () => {
         ui.setLoading(false);
     }
 };
+const supportsNativePopover = typeof HTMLElement !== 'undefined' && Object.hasOwn(HTMLElement.prototype, 'popover');
+
 window.toggleVibeExportMenu = (force) => {
     const menu = document.getElementById('vibeExportMenu');
     if (!menu) return;
+    if (supportsNativePopover && menu.hasAttribute('popover')) {
+        const isOpen = menu.matches(':popover-open');
+        const shouldOpen = typeof force === 'boolean' ? force : !isOpen;
+        try {
+            if (shouldOpen && !isOpen) menu.showPopover();
+            else if (!shouldOpen && isOpen) menu.hidePopover();
+        } catch (_) {}
+        return;
+    }
     if (typeof force === 'boolean') {
-        if (force) menu.classList.remove('hidden');
-        else menu.classList.add('hidden');
+        menu.classList.toggle('hidden', !force);
     } else {
         menu.classList.toggle('hidden');
     }
 };
 
-document.addEventListener('click', (e) => {
-    const wrap = document.getElementById('vibeExportMenuWrap');
-    if (wrap && !wrap.contains(e.target)) {
-        const menu = document.getElementById('vibeExportMenu');
-        if (menu) menu.classList.add('hidden');
-    }
-});
+if (!supportsNativePopover && typeof document !== 'undefined') {
+    document.getElementById('exportVibeHeaderBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.toggleVibeExportMenu();
+    });
+    document.addEventListener('click', (e) => {
+        const wrap = document.getElementById('vibeExportMenuWrap');
+        if (wrap && !wrap.contains(e.target)) {
+            window.toggleVibeExportMenu(false);
+        }
+    });
+}
 
 window.handleCharRefImage = (event) => charRefManager.handleCharRefImage(event, document.getElementById('modelValue').value);
 window.clearCharRefImage = () => charRefManager.clearCharRefImage(document.getElementById('modelValue').value);
@@ -845,8 +904,10 @@ async function doGenerate(rawOptions = {}) {
         if (vibeManager.needsV45Encoding && vibeManager.needsV45Encoding(selectedVersion)) {
             ui.setLoading(true, "正在向官方接口编码 Vibe (消耗 2 Anlas)...");
             try {
-                const activeCustomKey = customApiKeys[0] || "";
-                await vibeManager.ensureV45Encoded(engine, { adminToken, userKey, customApiKey: activeCustomKey, userToken }, selectedVersion);
+                const encodeAuths = customApiKeys.length > 0
+                    ? customApiKeys.map(customApiKey => ({ ...authBase, customApiKey }))
+                    : [{ ...authBase, customApiKey: "" }];
+                await ensureV45VibeWithKeyFailover(selectedVersion, encodeAuths);
             } catch (encodeErr) {
                 alert("官方 Vibe 编码失败: " + encodeErr.message);
                 ui.setLoading(false);
@@ -1555,14 +1616,32 @@ function saveBackendServerUrl() {
     const statusEl = document.getElementById('backendServerUrlStatus');
     if (!input) return;
     const val = input.value.trim();
-    setApiBaseUrl(val);
+    try {
+        setApiBaseUrl(val);
+    } catch (err) {
+        if (statusEl) {
+            statusEl.classList.remove('hidden');
+            const errSpan = document.createElement('span');
+            errSpan.className = 'text-red-500 font-semibold';
+            errSpan.textContent = `✗ ${err?.message || '后端地址无效'}`;
+            statusEl.replaceChildren(errSpan);
+        }
+        if (window.showToast) {
+            window.showToast(err?.message || '后端地址无效', 'error');
+        }
+        return;
+    }
     if (statusEl) {
         statusEl.classList.remove('hidden');
+        const msgSpan = document.createElement('span');
         if (val) {
-            statusEl.innerHTML = `<span class="text-emerald-500 font-semibold">✔ 后端服务器地址已保存: ${val}</span>`;
+            msgSpan.className = 'text-emerald-500 font-semibold';
+            msgSpan.textContent = `✔ 后端服务器地址已保存: ${val}`;
         } else {
-            statusEl.innerHTML = `<span class="text-gray-400">✔ 已恢复为默认同源相对路径</span>`;
+            msgSpan.className = 'text-gray-400';
+            msgSpan.textContent = '✔ 已恢复为默认同源相对路径';
         }
+        statusEl.replaceChildren(msgSpan);
     }
     if (window.showToast) {
         window.showToast("后端服务器地址配置已更新！", "success");
@@ -2191,17 +2270,8 @@ const inpaintEditor = new InpaintEditor({
     ui: ui,
     engine: engine,
     store: store,
-    getExtraParams: (model, hasCustomKey) => {
-        const vibeVal = vibeManager.isValidForModel(model, hasCustomKey);
-        if (!vibeVal.isValid) {
-            throw new Error(vibeVal.error);
-        }
-        const charRefVal = charRefManager.isValidForModel(model, hasCustomKey);
-        if (!charRefVal.isValid) {
-            throw new Error(charRefVal.error);
-        }
-        return collectAdvancedAndModelParams(model);
-    },
+    getExtraParams: validateAndCollectExtraParams,
+    prepareBeforeGenerate: prepareEditorBeforeGenerate,
     onComplete: async (successfulResults, promptText, selectedVersion, inpaintParams = null) => {
         for (const result of successfulResults) {
             const reader = new FileReader();
@@ -2226,17 +2296,8 @@ const inpaintEditor = new InpaintEditor({
 const outpaintEditor = new OutpaintEditor({
     engine: engine,
     store: store,
-    getExtraParams: (model, hasCustomKey) => {
-        const vibeVal = vibeManager.isValidForModel(model, hasCustomKey);
-        if (!vibeVal.isValid) {
-            throw new Error(vibeVal.error);
-        }
-        const charRefVal = charRefManager.isValidForModel(model, hasCustomKey);
-        if (!charRefVal.isValid) {
-            throw new Error(charRefVal.error);
-        }
-        return collectAdvancedAndModelParams(model);
-    }
+    getExtraParams: validateAndCollectExtraParams,
+    prepareBeforeGenerate: prepareEditorBeforeGenerate
 });
 
 // =================== 图库大图详情弹窗 (Lightbox) ===================

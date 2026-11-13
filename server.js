@@ -1,4 +1,5 @@
 import http from 'node:http';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,6 +7,7 @@ import { D1Adapter } from './d1-adapter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const REAL_ROOT_DIR = fs.realpathSync(__dirname);
 
 // 1. Lightweight .env loader (zero external dependency)
 function loadEnv() {
@@ -34,8 +36,22 @@ loadEnv();
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || '0.0.0.0';
-const DB_PATH = process.env.DB_PATH || './data/nai.db';
+const DB_PATH = process.env.DB_PATH || (process.env.VITEST ? ':memory:' : './data/nai.db');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const TRUST_PROXY = process.env.TRUST_PROXY === 'true';
+const MAX_BODY_BYTES = (() => {
+  const parsed = parseInt(process.env.MAX_BODY_BYTES || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 25 * 1024 * 1024;
+})();
+
+function resolveJwtSecret() {
+  const configured = (process.env.JWT_SECRET || '').trim();
+  if (configured) return configured;
+  if (!process.env.VITEST) {
+    console.warn('[Security] WARNING: JWT_SECRET is not set. Using an ephemeral random secret; existing login sessions will invalidate on restart.');
+  }
+  return crypto.randomBytes(32).toString('hex');
+}
 
 // 2. Initialize Database with D1 Adapter
 console.log(`[DB] Initializing SQLite database at ${DB_PATH}...`);
@@ -48,7 +64,7 @@ const env = {
   DB: d1,
   NOVELAI_API_KEY: process.env.NOVELAI_API_KEY || '',
   ADMIN_TOKEN: process.env.ADMIN_TOKEN || '',
-  JWT_SECRET: process.env.JWT_SECRET || 'nai-server-secret-change-in-env',
+  JWT_SECRET: resolveJwtSecret(),
   ALLOW_CUSTOM_LIMITS: process.env.ALLOW_CUSTOM_LIMITS || 'true',
   POLLINATIONS_API_KEY: process.env.POLLINATIONS_API_KEY || ''
 };
@@ -99,10 +115,68 @@ const MIME_TYPES = {
   '.wasm': 'application/wasm'
 };
 
+const PUBLIC_STATIC_FILES = new Set([
+  'index.html',
+  'classified_tags.json',
+  'gallery_index.json'
+]);
+const PUBLIC_STATIC_DIRS = new Set(['src', 'images', 'presets']);
+
+function createHttpError(statusCode, message) {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  return err;
+}
+
+function sanitizeHostHeader(hostHeader) {
+  const candidate = String(hostHeader || '').trim();
+  if (/^[a-zA-Z0-9.-]+(?::\d{1,5})?$/.test(candidate) || /^\[[0-9a-fA-F:]+\](?::\d{1,5})?$/.test(candidate)) {
+    return candidate;
+  }
+  return `localhost:${PORT}`;
+}
+
+function extractClientIp(req) {
+  const socketIp = req.socket?.remoteAddress || '127.0.0.1';
+  if (!TRUST_PROXY) return socketIp;
+  const forwarded = req.headers['x-forwarded-for']?.split(',')[0]?.trim();
+  return req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || forwarded || socketIp;
+}
+
+async function readRequestBody(req) {
+  const contentLength = Number(req.headers['content-length']);
+  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+    throw createHttpError(413, 'Payload Too Large');
+  }
+  const chunks = [];
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += buf.length;
+    if (totalBytes > MAX_BODY_BYTES) {
+      if (typeof req.destroy === 'function') req.destroy();
+      throw createHttpError(413, 'Payload Too Large');
+    }
+    chunks.push(buf);
+  }
+  return Buffer.concat(chunks);
+}
+
 // 6. Convert Node HTTP request to WHATWG Request
 async function nodeToWebRequest(req, hostHeader) {
-  const protocol = req.headers['x-forwarded-proto'] || 'http';
-  const fullUrl = new URL(req.url, `${protocol}://${hostHeader || `localhost:${PORT}`}`);
+  const rawProto = TRUST_PROXY ? String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim() : 'http';
+  const protocol = rawProto === 'https' || rawProto === 'http' ? rawProto : 'http';
+  const safeHost = sanitizeHostHeader(hostHeader);
+
+  let fullUrl;
+  try {
+    fullUrl = new URL(req.url || '/', `${protocol}://${safeHost}`);
+  } catch (_) {
+    throw createHttpError(400, 'Malformed Request URL');
+  }
+  if (fullUrl.host !== safeHost) {
+    throw createHttpError(400, 'Invalid Request URL');
+  }
 
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
@@ -113,31 +187,42 @@ async function nodeToWebRequest(req, hostHeader) {
     }
   }
 
-  // Populate client IP into headers expected by _auth-manager.js
-  const remoteIp = req.headers['x-real-ip'] || 
-                   req.headers['x-forwarded-for']?.split(',')[0].trim() || 
-                   req.socket.remoteAddress || 
-                   '127.0.0.1';
+  // Strip untrusted client-supplied proxy headers unless TRUST_PROXY is explicitly enabled
+  const remoteIp = String(extractClientIp(req)).trim();
+  if (!TRUST_PROXY) {
+    headers.delete('x-forwarded-for');
+    headers.delete('x-forwarded-proto');
+  }
   headers.set('x-real-ip', remoteIp);
-  if (!headers.has('CF-Connecting-IP')) {
-    headers.set('CF-Connecting-IP', remoteIp);
-  }
+  headers.set('CF-Connecting-IP', remoteIp);
 
-  const isBodyAllowed = !['GET', 'HEAD'].includes(req.method.toUpperCase());
-  let body = undefined;
-  if (isBodyAllowed) {
-    const chunks = [];
-    for await (const chunk of req) {
-      chunks.push(chunk);
-    }
-    body = Buffer.concat(chunks);
-  }
+  const isBodyAllowed = !['GET', 'HEAD'].includes((req.method || 'GET').toUpperCase());
+  const body = isBodyAllowed ? await readRequestBody(req) : undefined;
 
   return new Request(fullUrl, {
     method: req.method,
     headers,
     body,
     duplex: isBodyAllowed ? 'half' : undefined
+  });
+}
+
+function waitForDrainOrClose(nodeRes) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (canContinue) => {
+      if (settled) return;
+      settled = true;
+      nodeRes.removeListener('drain', onDrain);
+      nodeRes.removeListener('close', onClose);
+      nodeRes.removeListener('error', onClose);
+      resolve(canContinue);
+    };
+    const onDrain = () => done(true);
+    const onClose = () => done(false);
+    nodeRes.once('drain', onDrain);
+    nodeRes.once('close', onClose);
+    nodeRes.once('error', onClose);
   });
 }
 
@@ -157,43 +242,149 @@ async function writeWebResponse(webRes, nodeRes) {
 
   if (webRes.body) {
     const reader = webRes.body.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      nodeRes.write(value);
+    let aborted = false;
+    const onClose = () => {
+      aborted = true;
+      reader.cancel().catch(() => {});
+    };
+    if (typeof nodeRes.once === 'function') {
+      nodeRes.once('close', onClose);
+    }
+    try {
+      while (!aborted && !nodeRes.destroyed && !nodeRes.writableEnded) {
+        const { done, value } = await reader.read();
+        if (done || aborted || nodeRes.destroyed) break;
+        const ok = nodeRes.write(value);
+        if (!ok) {
+          const canContinue = await waitForDrainOrClose(nodeRes);
+          if (!canContinue) break;
+        }
+      }
+    } finally {
+      if (typeof nodeRes.removeListener === 'function') {
+        nodeRes.removeListener('close', onClose);
+      }
+      if (aborted) {
+        await reader.cancel().catch(() => {});
+      }
     }
   }
-  nodeRes.end();
+  if (!nodeRes.destroyed && !nodeRes.writableEnded) {
+    nodeRes.end();
+  }
 }
 
-// 8. Static File Handler
+function resolvePublicStaticFile(pathname) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname || '/');
+  } catch (_) {
+    return { status: 400, filePath: null };
+  }
+
+  if (decoded.includes('\0') || decoded.includes('\\')) {
+    return { status: 403, filePath: null };
+  }
+
+  const normalized = decoded === '/' ? 'index.html' : decoded.replace(/^\/+/, '');
+  const segments = normalized.split('/');
+  if (segments.length === 0 || segments.some(seg => !seg || seg === '.' || seg === '..' || seg.startsWith('.'))) {
+    return { status: 403, filePath: null };
+  }
+
+  const isAllowedRootFile = segments.length === 1 && PUBLIC_STATIC_FILES.has(segments[0]);
+  const isAllowedPublicDir = segments.length > 1 && PUBLIC_STATIC_DIRS.has(segments[0]);
+  if (!isAllowedRootFile && !isAllowedPublicDir) {
+    return { status: 403, filePath: null };
+  }
+
+  const candidatePath = path.resolve(REAL_ROOT_DIR, ...segments);
+  const rel = path.relative(REAL_ROOT_DIR, candidatePath);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+    return { status: 403, filePath: null };
+  }
+
+  if (!fs.existsSync(candidatePath)) {
+    return { status: 404, filePath: null };
+  }
+
+  let realFilePath;
+  try {
+    realFilePath = fs.realpathSync(candidatePath);
+  } catch (_) {
+    return { status: 404, filePath: null };
+  }
+  const realRel = path.relative(REAL_ROOT_DIR, realFilePath);
+  if (!realRel || realRel.startsWith('..') || path.isAbsolute(realRel)) {
+    return { status: 403, filePath: null };
+  }
+
+  const stat = fs.statSync(realFilePath);
+  if (!stat.isFile()) {
+    return { status: 403, filePath: null };
+  }
+
+  return { status: 200, filePath: realFilePath };
+}
+
+// 8. Static File Handler (strict allowlist prevents exposing .env, SQLite DB, server code, or backend routes)
 function serveStaticFile(req, res, pathname) {
-  let safePath = pathname === '/' ? '/index.html' : pathname;
-  // Security: prevent directory traversal
-  safePath = path.normalize(safePath).replace(/^(\.\.[\/\\])+/, '');
-  const filePath = path.join(__dirname, safePath);
+  const method = (req.method || 'GET').toUpperCase();
+  if (method !== 'GET' && method !== 'HEAD') {
+    return false;
+  }
 
-  if (!filePath.startsWith(__dirname)) {
-    res.statusCode = 403;
-    res.end('Forbidden');
+  const resolved = resolvePublicStaticFile(pathname);
+  if (resolved.status === 400 || resolved.status === 403) {
+    res.statusCode = resolved.status;
+    res.end(resolved.status === 400 ? 'Bad Request' : 'Forbidden');
+    return true;
+  }
+  if (!resolved.filePath) {
+    return false;
+  }
+
+  const ext = path.extname(resolved.filePath).toLowerCase();
+  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
+  if (method === 'HEAD') {
+    res.end();
     return true;
   }
 
-  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
-    fs.createReadStream(filePath).pipe(res);
-    return true;
+  const stream = fs.createReadStream(resolved.filePath);
+  stream.on('error', () => {
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.end('Internal Server Error');
+    } else if (!res.destroyed) {
+      res.destroy();
+    }
+  });
+  if (typeof res.once === 'function') {
+    res.once('close', () => stream.destroy());
   }
-  return false;
+  stream.pipe(res);
+  return true;
 }
 
 // 9. Start HTTP Server
-const server = http.createServer(async (req, res) => {
-  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  const pathname = parsedUrl.pathname;
+async function handleHttpRequest(req, res) {
+  let pathname;
+  try {
+    const parsedUrl = new URL(req.url || '/', 'http://localhost');
+    if (parsedUrl.origin !== 'http://localhost') {
+      throw createHttpError(400, 'Invalid Request URL');
+    }
+    pathname = parsedUrl.pathname;
+  } catch (_) {
+    res.statusCode = 400;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
+    res.end(JSON.stringify({ error: 'Invalid Request URL' }));
+    return;
+  }
 
   // Global CORS Preflight
   if (req.method === 'OPTIONS') {
@@ -227,11 +418,18 @@ const server = http.createServer(async (req, res) => {
       const webRes = await handler(context);
       await writeWebResponse(webRes, res);
     } catch (err) {
-      console.error(`[Server Error] ${req.method} ${pathname}:`, err);
-      res.statusCode = 500;
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
-      res.end(JSON.stringify({ error: err.message || 'Internal Server Error' }));
+      const status = err?.statusCode || 500;
+      if (status >= 500) {
+        console.error(`[Server Error] ${req.method} ${pathname}:`, err);
+      }
+      if (!res.headersSent) {
+        res.statusCode = status;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
+      }
+      if (!res.destroyed && !res.writableEnded) {
+        res.end(JSON.stringify({ error: err.message || 'Internal Server Error' }));
+      }
     }
     return;
   }
@@ -244,14 +442,33 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
     res.end(JSON.stringify({ error: `Not Found: ${pathname}` }));
   }
-});
+}
 
-server.listen(PORT, HOST, () => {
-  console.log(`\n======================================================`);
-  console.log(`🚀 NovelAI Dedicated Backend Server is running!`);
-  console.log(`📡 Local Address:   http://localhost:${PORT}`);
-  console.log(`🌐 Network Access:  http://${HOST === '0.0.0.0' ? 'YOUR_SERVER_IP' : HOST}:${PORT}`);
-  console.log(`🗄️  SQLite Database: ${path.resolve(DB_PATH)}`);
-  console.log(`✨ CORS Allowed:    ${CORS_ORIGIN}`);
-  console.log(`======================================================\n`);
-});
+const server = http.createServer(handleHttpRequest);
+
+if (!process.env.VITEST) {
+  server.listen(PORT, HOST, () => {
+    console.log(`\n======================================================`);
+    console.log(`🚀 NovelAI Dedicated Backend Server is running!`);
+    console.log(`📡 Local Address:   http://localhost:${PORT}`);
+    console.log(`🌐 Network Access:  http://${HOST === '0.0.0.0' ? 'YOUR_SERVER_IP' : HOST}:${PORT}`);
+    console.log(`🗄️  SQLite Database: ${path.resolve(DB_PATH)}`);
+    console.log(`✨ CORS Allowed:    ${CORS_ORIGIN}`);
+    console.log(`======================================================\n`);
+  });
+}
+
+export {
+  env,
+  d1,
+  routeHandlers,
+  serveStaticFile,
+  resolvePublicStaticFile,
+  nodeToWebRequest,
+  writeWebResponse,
+  handleHttpRequest,
+  server,
+  PORT,
+  HOST,
+  MAX_BODY_BYTES
+};

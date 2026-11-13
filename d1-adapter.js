@@ -2,33 +2,83 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 
+const dbStmtCaches = new WeakMap();
+
+function getStmtCache(rawDb) {
+  let cache = dbStmtCaches.get(rawDb);
+  if (!cache) {
+    cache = new Map();
+    dbStmtCaches.set(rawDb, cache);
+  }
+  return cache;
+}
+
+function stripLeadingSqlComments(sql) {
+  let s = String(sql || '');
+  while (true) {
+    s = s.trimStart();
+    if (s.startsWith('--')) {
+      const nl = s.indexOf('\n');
+      s = nl === -1 ? '' : s.slice(nl + 1);
+    } else if (s.startsWith('/*')) {
+      const end = s.indexOf('*/');
+      s = end === -1 ? '' : s.slice(end + 2);
+    } else {
+      break;
+    }
+  }
+  return s;
+}
+
 function isQuery(sql) {
-  const s = sql.trim().toUpperCase();
-  return s.startsWith('SELECT') || s.startsWith('WITH') || s.startsWith('PRAGMA');
+  const s = stripLeadingSqlComments(sql).toUpperCase();
+  if (s.startsWith('SELECT') || s.startsWith('WITH') || s.startsWith('PRAGMA')) {
+    return true;
+  }
+  const withoutStrings = s.replace(/'(?:''|[^'])*'|"(?:""|[^"])*"/g, '');
+  return /\bRETURNING\b/.test(withoutStrings);
 }
 
 class D1PreparedStatement {
-  constructor(rawDb, sql, params = []) {
+  constructor(rawDb, sql, params = [], stmtCache = null) {
     this.rawDb = rawDb;
     this.sql = sql;
     this.params = params;
+    this._stmtCache = stmtCache || getStmtCache(rawDb);
+  }
+
+  _getPrepared() {
+    let stmt = this._stmtCache.get(this.sql);
+    if (!stmt) {
+      if (this._stmtCache.size >= 500) {
+        const oldestKey = this._stmtCache.keys().next().value;
+        this._stmtCache.delete(oldestKey);
+      }
+      stmt = this.rawDb.prepare(this.sql);
+      this._stmtCache.set(this.sql, stmt);
+    }
+    return stmt;
   }
 
   bind(...args) {
     const bindParams = (args.length === 1 && Array.isArray(args[0])) ? args[0] : args;
-    return new D1PreparedStatement(this.rawDb, this.sql, bindParams);
+    return new D1PreparedStatement(this.rawDb, this.sql, bindParams, this._stmtCache);
   }
 
-  async first(column) {
-    const stmt = this.rawDb.prepare(this.sql);
+  _firstSync(column) {
+    const stmt = this._getPrepared();
     const row = stmt.get(...this.params);
     if (!row) return null;
     if (column) return row[column];
     return row;
   }
 
-  async all() {
-    const stmt = this.rawDb.prepare(this.sql);
+  async first(column) {
+    return this._firstSync(column);
+  }
+
+  _allSync() {
+    const stmt = this._getPrepared();
     const rows = stmt.all(...this.params);
     return {
       results: rows || [],
@@ -37,8 +87,12 @@ class D1PreparedStatement {
     };
   }
 
-  async run() {
-    const stmt = this.rawDb.prepare(this.sql);
+  async all() {
+    return this._allSync();
+  }
+
+  _runSync() {
+    const stmt = this._getPrepared();
     const res = stmt.run(...this.params);
     return {
       success: true,
@@ -50,14 +104,22 @@ class D1PreparedStatement {
     };
   }
 
+  async run() {
+    return this._runSync();
+  }
+
   async raw() {
-    const stmt = this.rawDb.prepare(this.sql);
+    const stmt = this._getPrepared();
     const rows = stmt.all(...this.params);
     return (rows || []).map(r => Object.values(r));
   }
 
+  executeSync() {
+    return isQuery(this.sql) ? this._allSync() : this._runSync();
+  }
+
   async execute() {
-    return isQuery(this.sql) ? this.all() : this.run();
+    return this.executeSync();
   }
 }
 
@@ -75,11 +137,13 @@ export class D1Adapter {
     }
     this.dbPath = dbPath;
     this.rawDb = new DatabaseSync(dbPath);
+    this.stmtCache = new Map();
     
     // Performance and integrity pragmas
     this.rawDb.exec('PRAGMA journal_mode = WAL;');
     this.rawDb.exec('PRAGMA synchronous = NORMAL;');
     this.rawDb.exec('PRAGMA foreign_keys = ON;');
+    this.rawDb.exec('PRAGMA busy_timeout = 5000;');
   }
 
   /**
@@ -96,19 +160,21 @@ export class D1Adapter {
    * Prepares a SQL statement, returning a D1PreparedStatement
    */
   prepare(sql) {
-    return new D1PreparedStatement(this.rawDb, sql, []);
+    return new D1PreparedStatement(this.rawDb, sql, [], this.stmtCache);
   }
 
   /**
    * Executes a batch of statements inside a single transaction
    */
   async batch(statements) {
-    this.rawDb.exec('BEGIN TRANSACTION;');
+    this.rawDb.exec('BEGIN IMMEDIATE;');
     try {
       const results = [];
       for (const stmt of statements) {
         if (!stmt) continue;
-        if (typeof stmt.execute === 'function') {
+        if (typeof stmt.executeSync === 'function') {
+          results.push(stmt.executeSync());
+        } else if (typeof stmt.execute === 'function') {
           results.push(await stmt.execute());
         } else if (typeof stmt.run === 'function') {
           results.push(await stmt.run());
@@ -119,7 +185,9 @@ export class D1Adapter {
       this.rawDb.exec('COMMIT;');
       return results;
     } catch (err) {
-      this.rawDb.exec('ROLLBACK;');
+      try {
+        this.rawDb.exec('ROLLBACK;');
+      } catch (_) {}
       throw err;
     }
   }
@@ -132,6 +200,7 @@ export class D1Adapter {
   }
 
   close() {
+    this.stmtCache.clear();
     this.rawDb.close();
   }
 }

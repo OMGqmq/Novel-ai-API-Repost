@@ -3,6 +3,7 @@ export class OutpaintEditor {
         this.engine = dependencies.engine;
         this.store = dependencies.store;
         this.getExtraParams = dependencies.getExtraParams;
+        this.prepareBeforeGenerate = dependencies.prepareBeforeGenerate;
 
         this.els = {
             area: document.getElementById('outpaintArea'),
@@ -92,6 +93,7 @@ export class OutpaintEditor {
             } else {
                 inner.classList.remove('collapsed');
             }
+            inner.inert = this.isToolbarCollapsed;
         }
 
         if (btn) {
@@ -99,6 +101,9 @@ export class OutpaintEditor {
                 btn.classList.add('collapsed');
             } else {
                 btn.classList.remove('collapsed');
+            }
+            if (typeof btn.setAttribute === 'function') {
+                btn.setAttribute('aria-expanded', String(!this.isToolbarCollapsed));
             }
         }
 
@@ -667,6 +672,9 @@ export class OutpaintEditor {
                 ? customKeys.map(key => ({ ...authBase, customApiKey: key }))
                 : [{ ...authBase, customApiKey: "" }];
 
+            if (typeof this.prepareBeforeGenerate === 'function') {
+                await this.prepareBeforeGenerate(modelVersion, authsToTry, customKeys.length > 0);
+            }
             const extraParams = this.getExtraParams ? this.getExtraParams(modelVersion, customKeys.length > 0) : {};
 
             const params = {

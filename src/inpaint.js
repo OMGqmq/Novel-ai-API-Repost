@@ -11,6 +11,7 @@ export class InpaintEditor {
         this.store = dependencies.store;
         this.onComplete = dependencies.onComplete;
         this.getExtraParams = dependencies.getExtraParams;
+        this.prepareBeforeGenerate = dependencies.prepareBeforeGenerate;
 
         this.modal = document.getElementById('inpaintModal');
         this.canvasWrap = document.getElementById('inpaintCanvasWrap');
@@ -1274,6 +1275,9 @@ export class InpaintEditor {
                 ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
                 : [{ ...authBase, customApiKey: "" }];
 
+            if (typeof this.prepareBeforeGenerate === 'function') {
+                await this.prepareBeforeGenerate(selectedVersion, auths, customApiKeys.length > 0);
+            }
             const extraParams = this.getExtraParams ? this.getExtraParams(selectedVersion, customApiKeys.length > 0) : {};
 
             const seedEl = document.getElementById('seed');

@@ -1067,22 +1067,68 @@ export class UIController {
         this.showResultImages([{ imageUrl: url }]);
     }
 
-    initTheme() {
-        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    _syncThemeMeta(content) {
+        if (typeof document === 'undefined') return;
+        const meta = document.querySelector?.('meta[name="color-scheme"]');
+        if (meta) meta.setAttribute('content', content);
+    }
+
+    _applyColorScheme(savedTheme) {
+        const prefersDark = Boolean(typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)')?.matches);
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
             document.documentElement.classList.add('dark');
         } else {
             document.documentElement.classList.remove('dark');
         }
+        this._syncThemeMeta((savedTheme === 'dark' || savedTheme === 'light') ? savedTheme : 'light dark');
+    }
+
+    initTheme() {
+        let savedTheme = null;
+        try {
+            savedTheme = localStorage.getItem('color-theme');
+        } catch (_) {}
+        this._applyColorScheme(savedTheme);
+
+        if (!this._themeListenersBound && typeof window !== 'undefined') {
+            this._themeListenersBound = true;
+            if (typeof window.addEventListener === 'function') {
+                window.addEventListener('storage', (event) => {
+                    if (event && event.key === 'color-theme') {
+                        this._applyColorScheme(event.newValue);
+                    }
+                });
+            }
+            const mql = window.matchMedia?.('(prefers-color-scheme: dark)');
+            if (mql && typeof mql.addEventListener === 'function') {
+                mql.addEventListener('change', () => {
+                    let current = null;
+                    try {
+                        current = localStorage.getItem('color-theme');
+                    } catch (_) {}
+                    if (!current) this._applyColorScheme(null);
+                });
+            }
+        }
+    }
+
+    resetThemeToSystem() {
+        try {
+            localStorage.removeItem('color-theme');
+        } catch (_) {}
+        this._applyColorScheme(null);
     }
 
     toggleTheme() {
         const applyToggle = () => {
             if (document.documentElement.classList.contains('dark')) {
                 document.documentElement.classList.remove('dark');
-                localStorage.setItem('color-theme', 'light');
+                try { localStorage.setItem('color-theme', 'light'); } catch (_) {}
+                this._syncThemeMeta('light');
             } else {
                 document.documentElement.classList.add('dark');
-                localStorage.setItem('color-theme', 'dark');
+                try { localStorage.setItem('color-theme', 'dark'); } catch (_) {}
+                this._syncThemeMeta('dark');
             }
         };
 

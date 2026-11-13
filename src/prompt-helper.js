@@ -515,6 +515,8 @@ export class PromptHelper {
 
         this.searchInputEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
+                if (e.isComposing || e.keyCode === 229) return;
+                e.preventDefault();
                 this.searchBtnEl.click();
             }
         });

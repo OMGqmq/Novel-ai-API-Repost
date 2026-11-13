@@ -110,20 +110,44 @@ export class VibeManager {
         return `${fp}_${infoKey}`;
     }
 
+    _getImageMimeType(b64) {
+        const clean = String(b64 || '').trim();
+        if (clean.startsWith('data:')) return null;
+        if (clean.startsWith('/9j/')) return 'image/jpeg';
+        if (clean.startsWith('UklGR')) return 'image/webp';
+        if (clean.startsWith('R0lGOD')) return 'image/gif';
+        return 'image/png';
+    }
+
+    getImageDataUrl(b64) {
+        if (!b64 || typeof b64 !== 'string') return '';
+        if (b64.startsWith('data:')) return b64;
+        const mime = this._getImageMimeType(b64) || 'image/png';
+        return `data:${mime};base64,${b64}`;
+    }
+
+    _getDocEncodingsSection(doc = this.currentVibeDoc) {
+        const encodings = doc?.encodings;
+        if (!encodings) return null;
+        const v45 = encodings['v4-5full'];
+        if (v45 && Object.keys(v45).length > 0) return v45;
+        const v4 = encodings['v4full'];
+        if (v4 && Object.keys(v4).length > 0) return v4;
+        return v45 || v4 || null;
+    }
+
     getCachedEncoding(rawImg, info) {
         // 1. Check in currentVibeDoc
-        if (this.currentVibeDoc && this.currentVibeDoc.encodings) {
-            const section = this.currentVibeDoc.encodings['v4-5full'] || this.currentVibeDoc.encodings['v4full'];
-            if (section) {
-                const targetInfo = parseFloat(info);
-                for (const item of Object.values(section)) {
-                    if (item && item.encoding) {
-                        const itemInfo = item.params?.information_extracted !== undefined 
-                            ? parseFloat(item.params.information_extracted) 
-                            : parseFloat(item.information_extracted ?? 1.0);
-                        if (Math.abs(itemInfo - targetInfo) < 0.005) {
-                            return item.encoding;
-                        }
+        const section = this._getDocEncodingsSection();
+        if (section) {
+            const targetInfo = parseFloat(info);
+            for (const item of Object.values(section)) {
+                if (item && item.encoding) {
+                    const itemInfo = item.params?.information_extracted !== undefined 
+                        ? parseFloat(item.params.information_extracted) 
+                        : parseFloat(item.information_extracted ?? 1.0);
+                    if (Math.abs(itemInfo - targetInfo) < 0.005) {
+                        return item.encoding;
                     }
                 }
             }
@@ -184,24 +208,22 @@ export class VibeManager {
             this.rawImageBase64 = this.currentVibeDoc.image.replace(/^data:image\/[a-z]+;base64,/, '');
         }
 
-        if (this.currentVibeDoc.encodings) {
-            const section = this.currentVibeDoc.encodings['v4-5full'] || this.currentVibeDoc.encodings['v4full'];
-            if (section) {
-                Object.values(section).forEach(item => {
-                    if (item && item.encoding) {
-                        const info = item.params?.information_extracted !== undefined 
-                            ? parseFloat(item.params.information_extracted) 
-                            : parseFloat(item.information_extracted ?? 1.0);
-                        this.availableVibeEncodings.push({
-                            base64: item.encoding,
-                            info: info
-                        });
-                        if (this.rawImageBase64) {
-                            this.setCachedEncoding(this.rawImageBase64, info, item.encoding);
-                        }
+        const section = this._getDocEncodingsSection();
+        if (section) {
+            Object.values(section).forEach(item => {
+                if (item && item.encoding) {
+                    const info = item.params?.information_extracted !== undefined 
+                        ? parseFloat(item.params.information_extracted) 
+                        : parseFloat(item.information_extracted ?? 1.0);
+                    this.availableVibeEncodings.push({
+                        base64: item.encoding,
+                        info: info
+                    });
+                    if (this.rawImageBase64) {
+                        this.setCachedEncoding(this.rawImageBase64, info, item.encoding);
                     }
-                });
-            }
+                }
+            });
         }
 
         // Sort encodings by info ascending
@@ -212,6 +234,7 @@ export class VibeManager {
         const raw = this.rawImageBase64 || this.currentVibeImageBase64;
         if (!raw) return null;
         const docId = this.generateDocId(raw);
+        const rawFp = this.isRawImage(raw) ? this.getImageFingerprint(raw) : '';
         const vibeInfoEl = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
         const info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : 1.0;
         const vibeStrengthEl = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
@@ -236,8 +259,9 @@ export class VibeManager {
             }
         };
 
-        // Populate from cache
+        // Populate only encodings belonging to the active source image fingerprint
         for (const [k, v] of this.vibeEncodingsCache.entries()) {
+            if (rawFp && !k.startsWith(`${rawFp}_`)) continue;
             const infoStr = k.split('_').pop();
             const infoNum = parseFloat(infoStr);
             if (!isNaN(infoNum)) {
@@ -299,7 +323,7 @@ export class VibeManager {
         if (savedVibeData || this.currentVibeDoc) {
             this.currentVibeImageBase64 = savedVibeData || (this.currentVibeDoc?.image);
             this.rawImageBase64 = savedRawImage || (this.currentVibeDoc?.image) || (this.isRawImage(savedVibeData) ? savedVibeData : null);
-            this.currentVibeIsJson = savedVibeIsJson || Boolean(this.currentVibeDoc?.encodings);
+            this.currentVibeIsJson = savedVibeIsJson;
 
             if (typeof document !== 'undefined') {
                 const previewImg = document.getElementById('vibeImagePreview');
@@ -309,13 +333,13 @@ export class VibeManager {
                         if (savedVibePreview.includes('svg')) previewImg.classList.add('p-3');
                         else previewImg.classList.remove('p-4', 'p-3');
                     } else if (this.currentVibeDoc?.image) {
-                        previewImg.src = this.currentVibeDoc.image.startsWith('data:') ? this.currentVibeDoc.image : ('data:image/png;base64,' + this.currentVibeDoc.image);
+                        previewImg.src = this.getImageDataUrl(this.currentVibeDoc.image);
                         previewImg.classList.remove('p-4', 'p-3');
                     } else if (this.currentVibeDoc?.thumbnail) {
                         previewImg.src = this.currentVibeDoc.thumbnail.startsWith('data:') ? this.currentVibeDoc.thumbnail : ('data:image/webp;base64,' + this.currentVibeDoc.thumbnail);
                         previewImg.classList.remove('p-4', 'p-3');
                     } else {
-                        previewImg.src = 'data:image/jpeg;base64,' + (this.rawImageBase64 || savedVibeData);
+                        previewImg.src = this.getImageDataUrl(this.rawImageBase64 || savedVibeData);
                         previewImg.classList.remove('p-4', 'p-3');
                     }
                     previewImg.classList.remove('hidden');
@@ -351,19 +375,22 @@ export class VibeManager {
             // Asynchronously retrieve full document from IndexedDB
             if (savedDocId && (!this.currentVibeDoc || !this.currentVibeDoc.image)) {
                 this.vibeDb.getDoc(savedDocId).then(fullDoc => {
-                    if (fullDoc) {
-                        this.currentVibeDoc = fullDoc;
-                        this.syncDocToCache();
-                        if (typeof document !== 'undefined' && fullDoc.image) {
-                            const pImg = document.getElementById('vibeImagePreview');
-                            if (pImg) {
-                                pImg.src = fullDoc.image.startsWith('data:') ? fullDoc.image : ('data:image/png;base64,' + fullDoc.image);
-                                pImg.classList.remove('p-4', 'p-3');
-                            }
-                        }
-                        this.updateVibeStatus(model);
+                    if (!fullDoc) return;
+                    if (this.currentVibeDoc && this.currentVibeDoc.id && this.currentVibeDoc.id !== savedDocId) return;
+                    this.currentVibeDoc = fullDoc;
+                    this.syncDocToCache();
+                    if (!this.currentVibeImageBase64 && this.rawImageBase64) {
+                        this.currentVibeImageBase64 = this.rawImageBase64;
                     }
-                });
+                    if (typeof document !== 'undefined' && fullDoc.image) {
+                        const pImg = document.getElementById('vibeImagePreview');
+                        if (pImg) {
+                            pImg.src = this.getImageDataUrl(fullDoc.image);
+                            pImg.classList.remove('p-4', 'p-3');
+                        }
+                    }
+                    this.updateVibeStatus(model);
+                }).catch(() => {});
             }
         } else {
             this.clearVibeImage(model);
@@ -386,30 +413,41 @@ export class VibeManager {
             this.buildDocFromCurrentState(model);
         }
 
+        const safeSet = (key, val) => {
+            try {
+                this.store.setSetting(this.getVibeKey(key, model), val);
+            } catch (_) {}
+        };
+
+        const hasIndexedDbDocImage = typeof indexedDB !== 'undefined' && Boolean(this.currentVibeDoc?.image);
+
         if (this.currentVibeDoc) {
             // 1. Asynchronously persist full document (with image) to IndexedDB
             this.vibeDb.saveDoc(this.currentVibeDoc);
 
-            // 2. Persist lightweight summary (without the massive image) to localStorage
+            // 2. Persist lightweight summary (without massive image/thumbnail blobs) to localStorage
+            const rawThumb = this.currentVibeDoc.thumbnail;
+            const compactThumb = (typeof rawThumb === 'string' && rawThumb.length <= 150000) ? rawThumb : null;
             const docSummary = {
                 identifier: this.currentVibeDoc.identifier,
                 version: this.currentVibeDoc.version,
                 type: this.currentVibeDoc.type,
                 id: this.currentVibeDoc.id,
                 name: this.currentVibeDoc.name,
-                thumbnail: this.currentVibeDoc.thumbnail,
+                thumbnail: compactThumb,
                 createdAt: this.currentVibeDoc.createdAt,
                 importInfo: this.currentVibeDoc.importInfo,
                 encodings: this.currentVibeDoc.encodings
             };
-            this.store.setSetting(this.getVibeKey('nai_vibe_doc_summary', model), JSON.stringify(docSummary));
-            this.store.setSetting(this.getVibeKey('nai_vibe_doc_id', model), this.currentVibeDoc.id);
+            safeSet('nai_vibe_doc_summary', JSON.stringify(docSummary));
+            safeSet('nai_vibe_doc_id', this.currentVibeDoc.id);
         }
 
-        this.store.setSetting(this.getVibeKey('nai_vibe_image', model), this.currentVibeImageBase64 || '');
-        this.store.setSetting(this.getVibeKey('nai_vibe_raw_image', model), this.rawImageBase64 || '');
-        this.store.setSetting(this.getVibeKey('nai_vibe_is_json', model), this.currentVibeIsJson.toString());
-        this.store.setSetting(this.getVibeKey('nai_vibe_encodings', model), JSON.stringify(this.availableVibeEncodings));
+        const skipHeavyRawInStorage = hasIndexedDbDocImage && this.isRawImage(this.currentVibeImageBase64) && this.currentVibeImageBase64.length > 250000;
+        safeSet('nai_vibe_image', skipHeavyRawInStorage ? '' : (this.currentVibeImageBase64 || ''));
+        safeSet('nai_vibe_raw_image', (hasIndexedDbDocImage && this.rawImageBase64 && this.rawImageBase64.length > 150000) ? '' : (this.rawImageBase64 || ''));
+        safeSet('nai_vibe_is_json', this.currentVibeIsJson.toString());
+        safeSet('nai_vibe_encodings', JSON.stringify(this.availableVibeEncodings));
         
         if (this.vibeEncodingsCache && this.vibeEncodingsCache.size > 0) {
             const cacheObj = {};
@@ -417,12 +455,13 @@ export class VibeManager {
             for (const [k, v] of entries) {
                 cacheObj[k] = v;
             }
-            this.store.setSetting(this.getVibeKey('nai_vibe_cache', model), JSON.stringify(cacheObj));
+            safeSet('nai_vibe_cache', JSON.stringify(cacheObj));
         }
 
         const previewImg = typeof document !== 'undefined' ? document.getElementById('vibeImagePreview') : null;
         if (previewImg) {
-            this.store.setSetting(this.getVibeKey('nai_vibe_preview', model), previewImg.src);
+            const isOversizedDataUrl = hasIndexedDbDocImage && typeof previewImg.src === 'string' && previewImg.src.startsWith('data:image/') && previewImg.src.length > 150000;
+            safeSet('nai_vibe_preview', isOversizedDataUrl ? '' : previewImg.src);
         }
     }
 
@@ -462,7 +501,13 @@ export class VibeManager {
             if (exportBtn) exportBtn.classList.add('hidden');
 
             const exportMenu = document.getElementById('vibeExportMenu');
-            if (exportMenu) exportMenu.classList.add('hidden');
+            if (exportMenu) {
+                if (typeof window !== 'undefined' && typeof window.toggleVibeExportMenu === 'function') {
+                    window.toggleVibeExportMenu(false);
+                } else {
+                    exportMenu.classList.add('hidden');
+                }
+            }
 
             const vibeControls = document.getElementById('vibeControls');
             if (vibeControls) vibeControls.classList.add('hidden');
@@ -520,6 +565,8 @@ export class VibeManager {
 
             if (isJson) {
                 this.currentVibeIsJson = true;
+                this.rawImageBase64 = null;
+                this.encodedVibeData = null;
                 const text = await file.text();
                 const obj = JSON.parse(text);
 
@@ -858,7 +905,8 @@ export class VibeManager {
         const enabledCheckbox = typeof document !== 'undefined' ? document.getElementById('vibeEnabled') : null;
         const vibeEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
         if (!vibeEnabled || model !== 'v4.5') return false;
-        if (this.currentVibeIsJson) return false;
+        const hasRawBackedJsonDoc = Boolean(this.currentVibeIsJson && this.currentVibeDoc && this.rawImageBase64);
+        if (this.currentVibeIsJson && !hasRawBackedJsonDoc) return false;
         if (!this.currentVibeImageBase64 && !this.currentVibeDoc) return false;
 
         const vibeInfoEl = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
@@ -876,7 +924,7 @@ export class VibeManager {
             return false;
         }
 
-        if (!this.isRawImage(this.currentVibeImageBase64)) return false;
+        if (!this.isRawImage(this.currentVibeImageBase64) && !(hasRawBackedJsonDoc && rawImg)) return false;
 
         return true;
     }
@@ -995,7 +1043,8 @@ export class VibeManager {
         const vibeStrengthEl = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
         const currentStrength = vibeStrengthEl ? parseFloat(vibeStrengthEl.value) : 0.6;
 
-        if (!this.currentVibeDoc || !this.currentVibeDoc.encodings || Object.keys(this.currentVibeDoc.encodings['v4-5full'] || {}).length === 0) {
+        const encSection = this._getDocEncodingsSection();
+        if (!this.currentVibeDoc || !this.currentVibeDoc.encodings || !encSection || Object.keys(encSection).length === 0) {
             if (typeof alert === 'function') alert("当前尚未包含官方编码，请先点击【立即编码】后再导出 .nai4vibe 文件。");
             return;
         }

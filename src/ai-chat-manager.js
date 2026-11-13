@@ -198,8 +198,12 @@ export class AiChatManager {
         }
     }
 
+    _supportsNativeFieldSizing() {
+        return typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('field-sizing', 'content');
+    }
+
     setupAutoGrowInput() {
-        if (!this.inputEl) return;
+        if (!this.inputEl || this._supportsNativeFieldSizing()) return;
         const resize = () => {
             this.inputEl.style.height = 'auto';
             const nextHeight = Math.min(Math.max(this.inputEl.scrollHeight, 38), 120);
@@ -387,7 +391,7 @@ export class AiChatManager {
         if (!this.inputEl) return;
         this.inputEl.value = text;
         this.inputEl.focus();
-        if (this.inputEl.style) {
+        if (this.inputEl.style && !this._supportsNativeFieldSizing()) {
             this.inputEl.style.height = 'auto';
             this.inputEl.style.height = Math.min(this.inputEl.scrollHeight, 120) + 'px';
         }
