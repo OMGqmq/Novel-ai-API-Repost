@@ -514,7 +514,7 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
 
 /* Pure-SVG Toolbox Popover Bar */
 .toolbox-icon-dock {
-    display: flex;
+    display: none;
     flex-direction: row;
     align-items: center;
     gap: 4px;
@@ -529,6 +529,7 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     transform-origin: top right;
     opacity: 0;
     transform: scale(0.95);
+    pointer-events: none;
     transition-property: opacity, transform;
     transition-duration: 0.18s;
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
@@ -537,17 +538,33 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    pointer-events: none;
 }
-.toolbox-icon-dock.toolbox-open,
+.toolbox-icon-dock:not([popover]).toolbox-open,
 .toolbox-icon-dock[popover]:is(:popover-open, .\:popover-open) {
     display: flex;
     opacity: 1;
     transform: scale(1);
     pointer-events: auto;
 }
+@supports not selector(:popover-open) {
+    .toolbox-icon-dock {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+    }
+    .toolbox-icon-dock.toolbox-open {
+        display: flex;
+        opacity: 1;
+        transform: scale(1);
+        pointer-events: auto;
+    }
+}
 @supports (position-area: block-end) {
+    #toolboxTriggerBtn {
+        anchor-name: --toolbox-trigger;
+    }
     #toolboxMenu[popover] {
+        position-anchor: --toolbox-trigger;
         inset: auto;
         margin: 0;
         margin-block-start: 0.5rem;
@@ -2600,7 +2617,11 @@ body.char-stage-active #canvasFilmstripDock {
 }
 
 @supports (position-area: block-end) {
+    #exportVibeHeaderBtn {
+        anchor-name: --vibe-export-trigger;
+    }
     #vibeExportMenu[popover] {
+        position-anchor: --vibe-export-trigger;
         inset: auto;
         margin: 0;
         margin-block-start: 0.375rem;

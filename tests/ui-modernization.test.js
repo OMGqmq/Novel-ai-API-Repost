@@ -168,6 +168,15 @@ describe('Modern Web UI & Accessibility Upgrades', () => {
             expect(css).toContain('::view-transition-group(lightbox-hero)');
             expect(css).not.toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\*\s*\{/);
         });
+
+        it('keeps closed toolbox popover non-rendered and non-interactive while anchoring open popovers to triggers', () => {
+            expect(css).toMatch(/\.toolbox-icon-dock\s*\{[^}]*display:\s*none;[^}]*pointer-events:\s*none;/s);
+            expect(css).toMatch(/\.toolbox-icon-dock\[popover\]:is\(:popover-open,\s*\.\\:popover-open\)\s*\{[^}]*display:\s*flex;[^}]*pointer-events:\s*auto;/s);
+            expect(css).toContain('anchor-name: --toolbox-trigger;');
+            expect(css).toContain('position-anchor: --toolbox-trigger;');
+            expect(css).toContain('anchor-name: --vibe-export-trigger;');
+            expect(css).toContain('position-anchor: --vibe-export-trigger;');
+        });
     });
 
     describe('Native <dialog>, Light Dismiss Fallback & Safe Toast Runtime', () => {
@@ -512,6 +521,27 @@ describe('Modern Web UI & Accessibility Upgrades', () => {
             await ctrl.openLightbox({ id: 1, image: 'data:image/png;base64,abc' }, thumbImg);
             expect(vtSpy).toHaveBeenCalledTimes(1);
             expect(dialog.open).toBe(true);
+        });
+
+        it('closes any open toolbox popover when hiding image actions and clears initial translate classes when showing', () => {
+            const toggleToolbox = vi.fn();
+            globalThis.window = { toggleToolbox };
+
+            const imageActions = { classList: createFakeClassList(['opacity-0', 'pointer-events-none', '-translate-y-1']) };
+            const canvasDeleteBtn = { disabled: true, classList: createFakeClassList(['opacity-50', 'cursor-not-allowed']) };
+            const dlBtn = { disabled: true, classList: createFakeClassList(['opacity-50', 'cursor-not-allowed']) };
+
+            const ui = { els: { imageActions, canvasDeleteBtn, dlBtn } };
+            UIController.prototype.showImageActions.call(ui, true);
+            expect(imageActions.classList.contains('opacity-0')).toBe(false);
+            expect(imageActions.classList.contains('pointer-events-none')).toBe(false);
+            expect(imageActions.classList.contains('-translate-y-1')).toBe(false);
+            expect(toggleToolbox).not.toHaveBeenCalled();
+
+            UIController.prototype.showImageActions.call(ui, false);
+            expect(toggleToolbox).toHaveBeenCalledWith(false);
+            expect(imageActions.classList.contains('opacity-0')).toBe(true);
+            expect(imageActions.classList.contains('pointer-events-none')).toBe(true);
         });
     });
 });

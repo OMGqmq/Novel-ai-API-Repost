@@ -878,7 +878,7 @@ export class UIController {
     showImageActions(show) {
         if (!this.els.imageActions) return;
         if (show) {
-            this.els.imageActions.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-2');
+            this.els.imageActions.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-1', '-translate-y-2');
             if (this.els.canvasDeleteBtn) {
                 this.els.canvasDeleteBtn.disabled = false;
                 this.els.canvasDeleteBtn.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -890,6 +890,9 @@ export class UIController {
                 this.els.dlBtn.classList.add('cursor-pointer');
             }
         } else {
+            if (typeof window !== 'undefined' && typeof window.toggleToolbox === 'function') {
+                window.toggleToolbox(false);
+            }
             this.els.imageActions.classList.add('opacity-0', 'pointer-events-none', '-translate-y-2');
             if (this.els.canvasDeleteBtn) {
                 this.els.canvasDeleteBtn.disabled = true;
