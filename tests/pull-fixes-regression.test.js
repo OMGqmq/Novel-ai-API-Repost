@@ -550,6 +550,8 @@ describe('Pulled Revision & Frontend Regression Fixes', () => {
       expect(indexHtml).toContain('<meta name="referrer" content="strict-origin-when-cross-origin">');
       expect(indexHtml).toContain('<meta name="color-scheme" content="light dark">');
       expect(indexHtml).toContain('integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"');
+      expect(indexHtml).toMatch(/<script\b[^>]*src="https:\/\/cdn\.tailwindcss\.com\/3\.4\.17"[^>]*>/);
+      expect(indexHtml).not.toMatch(/<script\b[^>]*src="https:\/\/cdn\.tailwindcss\.com[^"]*"[^>]*\bcrossorigin=/);
       expect(indexHtml).toContain('popovertarget="vibeExportMenu"');
       expect(indexHtml).toContain('id="vibeExportMenu" popover="auto"');
 
