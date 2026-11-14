@@ -137,6 +137,8 @@ export function createLightboxController({
         if (mainImg?.style) mainImg.style.viewTransitionName = '';
     }
 
+    let lastLightboxTriggerImg = null;
+
     async function openLightbox(item, triggerEl = null) {
         if (typeof item === 'string') {
             const found = (galleryController.galleryItems || []).find(x => x.image === item || x.imageUrl === item);
@@ -182,6 +184,7 @@ export function createLightboxController({
         const modal = document.getElementById('imageLightboxModal');
         const mainImg = document.getElementById('lightboxMainImg');
         const sourceImg = (triggerEl?.tagName === 'IMG' ? triggerEl : triggerEl?.querySelector?.('img')) || null;
+        lastLightboxTriggerImg = sourceImg?.isConnected ? sourceImg : null;
         if (modal && typeof modal.showModal === 'function') {
             modal._onNativeCancel = (e) => {
                 if (zoomState.scale > 1.02) {
@@ -192,6 +195,7 @@ export function createLightboxController({
             modal._onNativeClose = () => {
                 resetLightboxZoom();
                 clearLightboxViewTransitionNames();
+                lastLightboxTriggerImg = null;
             };
         }
 
@@ -242,8 +246,61 @@ export function createLightboxController({
         finalizeOpen();
     }
 
+    function resolveMatchingTargetThumb(item) {
+        if (typeof document === 'undefined' || !item) return null;
+        if (item.id != null) {
+            const galleryCard = document.getElementById?.(`gallery-item-${item.id}`) || document.querySelector?.(`[data-id="${item.id}"]`);
+            const cardImg = galleryCard?.querySelector?.('img');
+            if (cardImg?.isConnected) return cardImg;
+        }
+        return lastLightboxTriggerImg?.isConnected ? lastLightboxTriggerImg : null;
+    }
+
     function closeLightbox() {
+        const modal = typeof document !== 'undefined' ? document.getElementById('imageLightboxModal') : null;
+        const mainImg = typeof document !== 'undefined' ? document.getElementById('lightboxMainImg') : null;
+        const currentItem = lightboxItems[lightboxIndex];
+        const targetThumb = resolveMatchingTargetThumb(currentItem);
+        lastLightboxTriggerImg = null;
+
+        const canReverseVT = Boolean(
+            typeof document !== 'undefined' &&
+            typeof document.startViewTransition === 'function' &&
+            !isLightboxReducedMotion() &&
+            modal?.open &&
+            mainImg?.isConnected &&
+            targetThumb?.isConnected &&
+            zoomState.scale <= 1.02
+        );
+
         resetLightboxZoom();
+
+        if (canReverseVT) {
+            clearLightboxViewTransitionNames();
+            try {
+                if (mainImg.dataset) mainImg.dataset.vtLightbox = '1';
+                mainImg.style.viewTransitionName = 'lightbox-hero';
+                const transition = document.startViewTransition(() => {
+                    mainImg.style.viewTransitionName = '';
+                    if (targetThumb.dataset) targetThumb.dataset.vtLightbox = '1';
+                    targetThumb.style.viewTransitionName = 'lightbox-hero';
+                    if (typeof modal.close === 'function') {
+                        try { modal.close(); } catch (_) { closeModal('imageLightboxModal'); }
+                    } else {
+                        closeModal('imageLightboxModal');
+                    }
+                });
+                Promise.resolve(transition?.finished)
+                    .catch(() => {})
+                    .finally(() => {
+                        clearLightboxViewTransitionNames();
+                    });
+                return;
+            } catch (_) {
+                clearLightboxViewTransitionNames();
+            }
+        }
+
         clearLightboxViewTransitionNames();
         closeModal('imageLightboxModal');
     }
@@ -256,9 +313,22 @@ export function createLightboxController({
         const mainImg = document.getElementById('lightboxMainImg');
         if (mainImg) {
             const targetSrc = item.image || item.imageUrl;
-            if (options?.immediate) {
+            const direction = options?.direction === 'next' ? 'next' : (options?.direction === 'prev' ? 'prev' : null);
+            const animateDirection = Boolean(direction && !isLightboxReducedMotion());
+            if (mainImg.classList) {
+                mainImg.classList.remove('lb-slide-next', 'lb-slide-prev');
+            }
+            if (options?.immediate || animateDirection) {
                 mainImg.src = targetSrc;
                 mainImg.style.opacity = 1;
+                if (animateDirection && mainImg.classList) {
+                    const cls = direction === 'next' ? 'lb-slide-next' : 'lb-slide-prev';
+                    if (typeof requestAnimationFrame === 'function') {
+                        requestAnimationFrame(() => mainImg.classList.add(cls));
+                    } else {
+                        mainImg.classList.add(cls);
+                    }
+                }
             } else {
                 mainImg.style.opacity = 0;
                 setTimeout(() => {
@@ -315,7 +385,7 @@ export function createLightboxController({
             if (Array.isArray(charList) && charList.length > 0) {
                 charArea.classList.remove('hidden');
                 if (charTitle) {
-                    charTitle.innerHTML = `<i data-lucide="users" class="w-3.5 h-3.5"></i> 角色提示词 (${charList.length}人)`;
+                    charTitle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> 角色提示词 (${charList.length}人)`;
                 }
                 charListEl.innerHTML = charList.map((c, i) => {
                     const p = c.prompt || c.char_caption || '';
@@ -335,9 +405,9 @@ export function createLightboxController({
                     return `
                         <div class="p-2.5 bg-white/5 border border-white/10 rounded-xl space-y-1 text-xs">
                             <div class="flex justify-between items-center">
-                                <span class="text-[10px] font-semibold text-indigo-400">角色 ${i + 1} ${posLabel ? `<span class="text-slate-500 font-mono text-[9px]">· ${posLabel}</span>` : ''}</span>
-                                <button type="button" onclick="navigator.clipboard.writeText(${JSON.stringify(p)}); window.showToast('角色提示词已复制', 'success')" class="text-slate-400 hover:text-white text-[10px] flex items-center gap-0.5">
-                                    <i data-lucide="copy" class="w-2.5 h-2.5"></i>
+                                <span class="text-[10px] font-semibold text-slate-200">角色 ${i + 1} ${posLabel ? `<span class="text-slate-400 font-mono text-[9px]">· ${escapeHtml(posLabel)}</span>` : ''}</span>
+                                <button type="button" onclick="navigator.clipboard.writeText(${JSON.stringify(p)}); window.showToast('角色提示词已复制', 'success')" class="text-slate-400 hover:text-white text-[10px] flex items-center gap-0.5 cursor-pointer" aria-label="复制角色提示词">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-2.5 h-2.5 pointer-events-none"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                                 </button>
                             </div>
                             <div class="text-slate-200 font-light break-all select-text text-[11px] leading-relaxed">${escapeHtml(p)}</div>
@@ -378,7 +448,7 @@ export function createLightboxController({
             if (deleteBtn) deleteBtn.classList.add('hidden');
             if (saveBtn) {
                 saveBtn.classList.remove('hidden');
-                saveBtn.innerHTML = `<i data-lucide="bookmark" class="w-4 h-4"></i>`;
+                saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>`;
                 saveBtn.title = "保存到历史画廊";
                 saveBtn.disabled = false;
             }
@@ -394,28 +464,26 @@ export function createLightboxController({
         if (applyBtnText) {
             applyBtnText.textContent = hasFullParams ? "套用全部参数" : "套用提示词";
         }
-
-        if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
     }
 
     function prevLightboxImage() {
         if (lightboxIndex > 0) {
             lightboxIndex--;
-            renderLightboxCurrent();
+            renderLightboxCurrent({ direction: 'prev' });
         }
     }
 
     async function nextLightboxImage() {
         if (lightboxIndex < lightboxItems.length - 1) {
             lightboxIndex++;
-            renderLightboxCurrent();
+            renderLightboxCurrent({ direction: 'next' });
         } else if (lightboxItems.length > 0 && !lightboxItems[0].isShowcase && galleryController.galleryHasMore) {
             const prevLength = lightboxItems.length;
             await galleryController.loadMoreGallery();
             lightboxItems = galleryController.galleryItems;
             if (lightboxItems.length > prevLength) {
                 lightboxIndex = prevLength;
-                renderLightboxCurrent();
+                renderLightboxCurrent({ direction: 'next' });
             }
         }
     }
@@ -736,8 +804,7 @@ export function createLightboxController({
         const saveBtn = document.getElementById('lightboxSaveBtn');
         if (saveBtn) {
             saveBtn.disabled = true;
-            saveBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>`;
-            if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
+            saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 animate-spin pointer-events-none"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
         }
 
         try {
@@ -780,8 +847,7 @@ export function createLightboxController({
             if (window.showToast) window.showToast(`保存失败: ${err.message}`, "error");
             if (saveBtn) {
                 saveBtn.disabled = false;
-                saveBtn.innerHTML = `<i data-lucide="bookmark" class="w-4 h-4"></i>`;
-                if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
+                saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>`;
             }
         }
     }

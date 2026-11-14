@@ -23,6 +23,30 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+const CHAT_SVG_PATHS = {
+    terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+    'wand-2': '<path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/>',
+    plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    bot: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+    'loader-2': '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+    'maximize-2': '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/>',
+    'chevron-left': '<path d="m15 18-6-6 6-6"/>',
+    'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    bookmark: '<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
+    'refresh-cw': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    sparkles: '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/>',
+    wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+    'alert-circle': '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>'
+};
+
+function renderChatSvg(name, className = 'w-4 h-4') {
+    const inner = CHAT_SVG_PATHS[name] || CHAT_SVG_PATHS.sparkles;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="${className} pointer-events-none" aria-hidden="true">${inner}</svg>`;
+}
+
 /**
  * Parses message markdown into semantic HTML with interactive code blocks and prompt chips
  * @param {string} text 
@@ -36,34 +60,9 @@ function renderMessageMarkdown(text, msgIdx) {
     let processed = text.replace(/```(?:([a-zA-Z0-9_-]+)\n)?([\s\S]*?)```/g, (match, lang, code) => {
         const blockIdx = codeBlocks.length;
         const cleanLang = (lang || 'prompt').toLowerCase();
-        const escapedCode = escapeHtml(code.trim());
-        
         const isPromptLike = ['prompt', 'tags', 'danbooru', 'sd', 'nai', ''].includes(cleanLang);
-        const titleLabel = isPromptLike ? '提示词 / 标签' : (cleanLang.toUpperCase());
-
-        const html = `
-            <div class="my-2.5 rounded-xl border border-purple-200/60 dark:border-purple-900/40 bg-slate-900 text-slate-100 overflow-hidden shadow-sm">
-                <div class="flex items-center justify-between px-3 py-1.5 bg-slate-950/80 border-b border-slate-800/80 text-[11px] text-gray-400">
-                    <span class="flex items-center gap-1.5 font-medium text-purple-300">
-                        <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
-                        <span>${titleLabel}</span>
-                    </span>
-                    <div class="flex items-center gap-1.5">
-                        <button type="button" onclick="event.stopPropagation(); window.applyAiPromptFromBlock(${msgIdx}, ${blockIdx}, 'replace')" title="替换画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-purple-900/50 text-purple-300 hover:text-purple-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
-                            <i data-lucide="wand-2" class="w-3 h-3"></i> 填入画板
-                        </button>
-                        <button type="button" onclick="event.stopPropagation(); window.applyAiPromptFromBlock(${msgIdx}, ${blockIdx}, 'append')" title="追加到画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-indigo-900/50 text-indigo-300 hover:text-indigo-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
-                            <i data-lucide="plus" class="w-3 h-3"></i> 追加
-                        </button>
-                        <button type="button" onclick="event.stopPropagation(); window.copyAiChatMessage(this, ${msgIdx}, ${blockIdx})" title="复制代码块内容" class="px-2 py-0.5 rounded-md hover:bg-slate-800 text-gray-400 hover:text-gray-200 transition-colors flex items-center gap-1 text-[10px] touch-manipulation">
-                            <i data-lucide="copy" class="w-3 h-3"></i> 复制
-                        </button>
-                    </div>
-                </div>
-                <pre class="p-3 font-mono text-xs overflow-x-auto select-text leading-relaxed whitespace-pre-wrap break-words">${escapedCode}</pre>
-            </div>
-        `;
-        codeBlocks.push(code.trim());
+        const titleLabel = isPromptLike ? '提示词 / 标签' : escapeHtml(cleanLang.toUpperCase());
+        codeBlocks.push({ code: code.trim(), titleLabel });
         return `__CODE_BLOCK_${blockIdx}__`;
     });
 
@@ -77,7 +76,7 @@ function renderMessageMarkdown(text, msgIdx) {
     escaped = escaped.replace(/^[\*\-]\s+(.+)$/gm, '<li class="ml-4 list-disc text-gray-700 dark:text-gray-300">$1</li>');
 
     // Inline code `...`
-    escaped = escaped.replace(/`([^`]+)`/g, '<code class="bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 px-1.5 py-0.5 rounded font-mono text-[11px] select-text">$1</code>');
+    escaped = escaped.replace(/`([^`]+)`/g, '<code class="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-1.5 py-0.5 rounded font-mono text-[11px] select-text">$1</code>');
 
     // Bold **...**
     escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-gray-900 dark:text-gray-100">$1</strong>');
@@ -86,26 +85,25 @@ function renderMessageMarkdown(text, msgIdx) {
     escaped = escaped.replace(/\n/g, '<br>');
 
     // Put code blocks back
-    codeBlocks.forEach((code, idx) => {
+    codeBlocks.forEach(({ code, titleLabel }, idx) => {
         const placeholder = `__CODE_BLOCK_${idx}__`;
-        const titleLabel = '提示词 / 标签';
         const escapedCode = escapeHtml(code);
         const blockHtml = `
-            <div class="my-2.5 rounded-xl border border-purple-200/60 dark:border-purple-900/40 bg-slate-900 text-slate-100 overflow-hidden shadow-sm">
+            <div class="my-2.5 rounded-xl border border-slate-700/60 dark:border-slate-700/80 bg-slate-900 text-slate-100 overflow-hidden shadow-sm">
                 <div class="flex items-center justify-between px-3 py-1.5 bg-slate-950/80 border-b border-slate-800/80 text-[11px] text-gray-400">
-                    <span class="flex items-center gap-1.5 font-medium text-purple-300">
-                        <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+                    <span class="flex items-center gap-1.5 font-medium text-slate-200">
+                        ${renderChatSvg('terminal', 'w-3.5 h-3.5')}
                         <span>${titleLabel}</span>
                     </span>
                     <div class="flex items-center gap-1.5">
-                        <button type="button" onclick="event.stopPropagation(); window.applyAiPromptFromBlock(${msgIdx}, ${idx}, 'replace')" title="替换画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-purple-900/50 text-purple-300 hover:text-purple-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
-                            <i data-lucide="wand-2" class="w-3 h-3"></i> 填入画板
+                        <button type="button" onclick="event.stopPropagation(); window.applyAiPromptFromBlock(${msgIdx}, ${idx}, 'replace')" title="替换画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-slate-800 text-slate-200 hover:text-white transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
+                            ${renderChatSvg('wand-2', 'w-3 h-3')} 填入画板
                         </button>
-                        <button type="button" onclick="event.stopPropagation(); window.applyAiPromptFromBlock(${msgIdx}, ${idx}, 'append')" title="追加到画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-indigo-900/50 text-indigo-300 hover:text-indigo-200 transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
-                            <i data-lucide="plus" class="w-3 h-3"></i> 追加
+                        <button type="button" onclick="event.stopPropagation(); window.applyAiPromptFromBlock(${msgIdx}, ${idx}, 'append')" title="追加到画板正向提示词" class="px-2 py-0.5 rounded-md hover:bg-slate-800 text-slate-300 hover:text-white transition-colors flex items-center gap-1 text-[10px] font-medium touch-manipulation">
+                            ${renderChatSvg('plus', 'w-3 h-3')} 追加
                         </button>
                         <button type="button" onclick="event.stopPropagation(); window.copyAiChatMessage(this, ${msgIdx}, ${idx})" title="复制代码块内容" class="px-2 py-0.5 rounded-md hover:bg-slate-800 text-gray-400 hover:text-gray-200 transition-colors flex items-center gap-1 text-[10px] touch-manipulation">
-                            <i data-lucide="copy" class="w-3 h-3"></i> 复制
+                            ${renderChatSvg('copy', 'w-3 h-3')} 复制
                         </button>
                     </div>
                 </div>
@@ -265,8 +263,6 @@ export class AiChatManager {
                 this.inputEl.focus();
             }
         });
-
-        if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
     }
 
     close() {
@@ -296,7 +292,6 @@ export class AiChatManager {
         } else {
             this.settingsDrawerEl.classList.add('hidden');
         }
-        if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
     }
 
     hydrateSettingsInputs() {
@@ -421,8 +416,8 @@ export class AiChatManager {
         if (this.messages.length === 0 && !this.isLoading) {
             this.messagesContainerEl.innerHTML = `
                 <div class="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-3 sm:p-6 space-y-4">
-                    <div class="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl sm:rounded-3xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-purple-500/25">
-                        <i data-lucide="bot" class="w-6 h-6 sm:w-7 sm:h-7"></i>
+                    <div class="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl sm:rounded-3xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center shadow-lg">
+                        ${renderChatSvg('bot', 'w-6 h-6 sm:w-7 sm:h-7')}
                         <span class="absolute -top-1 -right-1 flex h-3 w-3">
                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                             <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
@@ -441,17 +436,16 @@ export class AiChatManager {
                     <div class="w-full max-w-md pt-2 space-y-1 text-left">
                         <span class="text-[10px] text-gray-400 dark:text-slate-500 font-bold uppercase tracking-wider pl-0.5">快捷指令:</span>
                         <div class="flex flex-col sm:flex-row gap-1.5">
-                            <button type="button" onclick="event.stopPropagation(); window.setAiChatPrompt('帮我优化当前画板的提示词，增强光影与细节并写入画板')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
-                                💡 优化当前画板词并写入
+                            <button type="button" onclick="event.stopPropagation(); window.setAiChatPrompt('帮我优化当前画板的提示词，增强光影与细节并写入画板')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-slate-200/70 dark:hover:bg-slate-700/80 text-gray-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
+                                优化当前画板词并写入
                             </button>
-                            <button type="button" onclick="event.stopPropagation(); window.setAiChatPrompt('创作一个赛博朋克银发少女，搭配角色和场景直接生成出图')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
-                                🎨 创作赛博少女并直接出图
+                            <button type="button" onclick="event.stopPropagation(); window.setAiChatPrompt('创作一个赛博朋克银发少女，搭配角色和场景直接生成出图')" class="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-slate-800/80 hover:bg-slate-200/70 dark:hover:bg-slate-700/80 text-gray-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white border border-gray-200/60 dark:border-slate-700/60 transition-all text-left truncate">
+                                创作赛博少女并直接出图
                             </button>
                         </div>
                     </div>
                 </div>
             `;
-            if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
             return;
         }
 
@@ -462,7 +456,7 @@ export class AiChatManager {
             if (isUser) {
                 return `
                     <div class="flex justify-end gap-2 message-user group">
-                        <div class="max-w-[90%] sm:max-w-[82%] bg-purple-600 text-white rounded-2xl rounded-tr-sm px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-[13px] shadow-md leading-relaxed select-text break-words">
+                        <div class="max-w-[90%] sm:max-w-[82%] bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-2xl rounded-tr-sm px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-[13px] shadow-md leading-relaxed select-text break-words">
                             ${escapeHtml(m.content).replace(/\n/g, '<br>')}
                         </div>
                     </div>
@@ -475,9 +469,9 @@ export class AiChatManager {
                         const isSuccess = tc.success !== false;
                         const icon = isSuccess ? (tc.tool === 'generate_image' ? 'sparkles' : 'wrench') : 'alert-circle';
                         const colorClass = isSuccess
-                            ? (tc.tool === 'generate_image' 
-                                ? 'bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/40 dark:to-indigo-950/40 border-purple-300 dark:border-purple-700/60 text-purple-800 dark:text-purple-200' 
-                                : 'bg-purple-50/90 dark:bg-purple-950/40 border-purple-200/70 dark:border-purple-800/50 text-purple-700 dark:text-purple-300')
+                            ? (tc.tool === 'generate_image'
+                                ? 'bg-slate-100/90 dark:bg-slate-800/80 border-slate-300/80 dark:border-slate-700 text-slate-800 dark:text-slate-100'
+                                : 'bg-slate-50/90 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/70 text-slate-700 dark:text-slate-200')
                             : 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-200/70 dark:border-amber-800/50 text-amber-700 dark:text-amber-300';
                         
                         const toolLabels = {
@@ -527,53 +521,53 @@ export class AiChatManager {
                             const hasMultiple = tc.images.length > 1;
 
                             imageBlockHtml = `
-                                <div class="mt-2 rounded-xl overflow-hidden border border-purple-200 dark:border-purple-800/60 bg-black/10 dark:bg-black/40">
+                                <div class="mt-2 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black/10 dark:bg-black/40">
                                     <div class="relative group max-h-80 flex items-center justify-center bg-slate-950/20 overflow-hidden">
                                         <img src="${currentImg.imageUrl}" alt="AI Generated" class="w-full h-auto max-h-72 object-contain cursor-pointer transition-transform duration-200 hover:scale-[1.01]" onclick="window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${currentImg.imageUrl}') : window.open('${currentImg.imageUrl}', '_blank'))" />
                                         
                                         ${isRegenerating ? `
-                                            <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-2 z-10 transition-opacity">
-                                                <i data-lucide="loader-2" class="w-6 h-6 animate-spin text-purple-400"></i>
-                                                <span class="text-[11px] font-medium text-purple-200">正在生成新版本...</span>
+                                            <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm flex flex-col items-center justify-center text-white gap-2 z-10 transition-opacity">
+                                                ${renderChatSvg('loader-2', 'w-6 h-6 animate-spin text-slate-200')}
+                                                <span class="text-[11px] font-medium text-slate-200">正在生成新版本...</span>
                                             </div>
                                         ` : ''}
 
-                                        <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-xs p-1 rounded-lg shadow-md z-10">
-                                            <button type="button" onclick="event.stopPropagation(); window.downloadImageUrl ? window.downloadImageUrl('${currentImg.imageUrl}', 'nai_agent_${seedVal}.png') : window.open('${currentImg.imageUrl}', '_blank')" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="下载图片">
-                                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                        <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-sm p-1 rounded-lg shadow-md z-10">
+                                            <button type="button" onclick="event.stopPropagation(); window.downloadImageUrl ? window.downloadImageUrl('${currentImg.imageUrl}', 'nai_agent_${seedVal}.png') : window.open('${currentImg.imageUrl}', '_blank')" class="p-1 text-white hover:text-slate-200 transition-colors cursor-pointer" title="下载图片">
+                                                ${renderChatSvg('download', 'w-3.5 h-3.5')}
                                             </button>
-                                            <button type="button" onclick="event.stopPropagation(); window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${currentImg.imageUrl}') : window.open('${currentImg.imageUrl}', '_blank'))" class="p-1 text-white hover:text-purple-300 transition-colors cursor-pointer" title="查看大图与详情">
-                                                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                                            <button type="button" onclick="event.stopPropagation(); window.openChatImageLightbox ? window.openChatImageLightbox(${originalIdx}, ${tcIdx}) : (window.openLightbox ? window.openLightbox('${currentImg.imageUrl}') : window.open('${currentImg.imageUrl}', '_blank'))" class="p-1 text-white hover:text-slate-200 transition-colors cursor-pointer" title="查看大图与详情">
+                                                ${renderChatSvg('maximize-2', 'w-3.5 h-3.5')}
                                             </button>
                                         </div>
                                     </div>
-                                    <div class="px-2.5 py-1.5 flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 bg-white/80 dark:bg-slate-900/80 border-t border-purple-100 dark:border-purple-900/40 flex-wrap gap-1.5">
+                                    <div class="px-2.5 py-1.5 flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 bg-white/80 dark:bg-slate-900/80 border-t border-slate-200/80 dark:border-slate-700/80 flex-wrap gap-1.5">
                                         <div class="flex items-center gap-2 flex-wrap">
                                             ${hasMultiple ? `
-                                                <div class="inline-flex items-center bg-purple-50/90 dark:bg-purple-950/60 border border-purple-200/80 dark:border-purple-800/60 rounded-md px-1 py-0.5 text-[10px] text-purple-700 dark:text-purple-300 select-none">
-                                                    <button type="button" onclick="event.stopPropagation(); window.switchChatImageVersion ? window.switchChatImageVersion(${originalIdx}, ${tcIdx}, -1) : null" class="p-0.5 hover:text-purple-900 dark:hover:text-purple-100 cursor-pointer" title="上一个版本">
-                                                        <i data-lucide="chevron-left" class="w-3 h-3"></i>
+                                                <div class="inline-flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-md px-1 py-0.5 text-[10px] text-slate-700 dark:text-slate-200 select-none">
+                                                    <button type="button" onclick="event.stopPropagation(); window.switchChatImageVersion ? window.switchChatImageVersion(${originalIdx}, ${tcIdx}, -1) : null" class="p-0.5 hover:text-slate-900 dark:hover:text-white cursor-pointer" title="上一个版本">
+                                                        ${renderChatSvg('chevron-left', 'w-3 h-3')}
                                                     </button>
                                                     <span class="px-1 font-mono font-bold tracking-tight">${tc.currentIndex + 1}/${tc.images.length}</span>
-                                                    <button type="button" onclick="event.stopPropagation(); window.switchChatImageVersion ? window.switchChatImageVersion(${originalIdx}, ${tcIdx}, 1) : null" class="p-0.5 hover:text-purple-900 dark:hover:text-purple-100 cursor-pointer" title="下一个版本">
-                                                        <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                                                    <button type="button" onclick="event.stopPropagation(); window.switchChatImageVersion ? window.switchChatImageVersion(${originalIdx}, ${tcIdx}, 1) : null" class="p-0.5 hover:text-slate-900 dark:hover:text-white cursor-pointer" title="下一个版本">
+                                                        ${renderChatSvg('chevron-right', 'w-3 h-3')}
                                                     </button>
                                                 </div>
                                             ` : ''}
-                                            <span>Seed: <code class="font-mono font-bold text-purple-600 dark:text-purple-400">${seedVal}</code> (${w}x${h})</span>
+                                            <span>Seed: <code class="font-mono font-bold text-slate-700 dark:text-slate-200">${seedVal}</code> (${w}x${h})</span>
                                         </div>
                                         <div class="flex items-center gap-1.5">
                                             ${isSaved ? `
                                                 <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 font-semibold py-0.5 px-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-[10px]">
-                                                    <i data-lucide="check" class="w-3 h-3"></i> 已保存
+                                                    ${renderChatSvg('check', 'w-3 h-3')} 已保存
                                                 </span>
                                             ` : `
-                                                <button type="button" onclick="event.stopPropagation(); window.saveChatImageToGallery ? window.saveChatImageToGallery(${originalIdx}, ${tcIdx}, this) : null" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer touch-manipulation text-[10px]" title="保存当前版本至历史画廊">
-                                                    <i data-lucide="bookmark" class="w-3 h-3"></i> 保存
+                                                <button type="button" onclick="event.stopPropagation(); window.saveChatImageToGallery ? window.saveChatImageToGallery(${originalIdx}, ${tcIdx}, this) : null" class="text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer touch-manipulation text-[10px]" title="保存当前版本至历史画廊">
+                                                    ${renderChatSvg('bookmark', 'w-3 h-3')} 保存
                                                 </button>
                                             `}
-                                            <button type="button" onclick="event.stopPropagation(); window.regenerateChatImage ? window.regenerateChatImage(${originalIdx}, ${tcIdx}) : null" ${isRegenerating ? 'disabled' : ''} class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer touch-manipulation text-[10px] disabled:opacity-50 disabled:pointer-events-none" title="基于此提示词与参数在当前占位框重新生成">
-                                                <i data-lucide="${isRegenerating ? 'loader-2' : 'refresh-cw'}" class="w-3 h-3 ${isRegenerating ? 'animate-spin' : ''}"></i> ${isRegenerating ? '生成中...' : '重新生成'}
+                                            <button type="button" onclick="event.stopPropagation(); window.regenerateChatImage ? window.regenerateChatImage(${originalIdx}, ${tcIdx}) : null" ${isRegenerating ? 'disabled' : ''} class="text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white flex items-center gap-0.5 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer touch-manipulation text-[10px] disabled:opacity-50 disabled:pointer-events-none" title="基于此提示词与参数在当前占位框重新生成">
+                                                ${renderChatSvg(isRegenerating ? 'loader-2' : 'refresh-cw', `w-3 h-3 ${isRegenerating ? 'animate-spin' : ''}`)} ${isRegenerating ? '生成中...' : '重新生成'}
                                             </button>
                                         </div>
                                     </div>
@@ -584,7 +578,7 @@ export class AiChatManager {
                         return `
                             <div class="p-2 sm:p-2.5 rounded-xl border text-[11px] leading-snug space-y-0.5 ${colorClass}">
                                 <div class="flex items-center gap-1.5 font-bold">
-                                    <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>
+                                    ${renderChatSvg(icon, 'w-3.5 h-3.5')}
                                     <span>${toolLabel}</span>
                                 </div>
                                 <div class="text-[10px] pl-5 opacity-90 break-words">
@@ -598,8 +592,8 @@ export class AiChatManager {
 
                 return `
                     <div class="flex justify-start gap-2 sm:gap-2.5 message-assistant group">
-                        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                            <i data-lucide="bot" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                            ${renderChatSvg('bot', 'w-3.5 h-3.5 sm:w-4 sm:h-4')}
                         </div>
                         <div class="max-w-[92%] sm:max-w-[85%] space-y-1.5">
                             ${toolCardsHtml ? `<div class="space-y-1.5">${toolCardsHtml}</div>` : ''}
@@ -610,14 +604,14 @@ export class AiChatManager {
                             ` : ''}
                             <!-- Action buttons -->
                             <div class="flex items-center gap-1.5 px-0.5 text-[11px] flex-wrap">
-                                <button type="button" onclick="event.stopPropagation(); window.applyAiPromptToCanvas(${originalIdx}, 'replace')" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 touch-manipulation">
-                                    <i data-lucide="wand-2" class="w-3 h-3"></i> 填入提示词
+                                <button type="button" onclick="event.stopPropagation(); window.applyAiPromptToCanvas(${originalIdx}, 'replace')" class="text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 touch-manipulation">
+                                    ${renderChatSvg('wand-2', 'w-3 h-3')} 填入提示词
                                 </button>
-                                <button type="button" onclick="event.stopPropagation(); window.applyAiPromptToCanvas(${originalIdx}, 'append')" class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 touch-manipulation">
-                                    <i data-lucide="plus" class="w-3 h-3"></i> 追加
+                                <button type="button" onclick="event.stopPropagation(); window.applyAiPromptToCanvas(${originalIdx}, 'append')" class="text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white flex items-center gap-1 font-semibold transition-colors py-0.5 px-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 touch-manipulation">
+                                    ${renderChatSvg('plus', 'w-3 h-3')} 追加
                                 </button>
                                 <button type="button" onclick="event.stopPropagation(); window.copyAiChatMessage(this, ${originalIdx})" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 transition-colors py-0.5 px-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-slate-700/40 touch-manipulation">
-                                    <i data-lucide="copy" class="w-3 h-3"></i> 复制
+                                    ${renderChatSvg('copy', 'w-3 h-3')} 复制
                                 </button>
                             </div>
                         </div>
@@ -630,14 +624,14 @@ export class AiChatManager {
         if (this.isLoading) {
             html += `
                 <div class="flex justify-start gap-2 sm:gap-2.5 message-assistant message-thinking">
-                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                        <i data-lucide="bot" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                        ${renderChatSvg('bot', 'w-3.5 h-3.5 sm:w-4 sm:h-4')}
                     </div>
-                    <div class="bg-purple-50/80 dark:bg-slate-800/90 text-purple-700 dark:text-purple-300 rounded-2xl rounded-tl-sm px-3.5 sm:px-4 py-2.5 text-xs shadow-xs border border-purple-200/50 dark:border-purple-800/40 flex items-center gap-2.5">
+                    <div class="bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 rounded-2xl rounded-tl-sm px-3.5 sm:px-4 py-2.5 text-xs shadow-sm border border-slate-200/70 dark:border-slate-700/60 flex items-center gap-2.5">
                         <div class="flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 0ms"></span>
-                            <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 150ms"></span>
-                            <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 300ms"></span>
+                            <span class="ai-thinking-dot w-1.5 h-1.5 rounded-full bg-slate-500 dark:bg-slate-400"></span>
+                            <span class="ai-thinking-dot w-1.5 h-1.5 rounded-full bg-slate-500 dark:bg-slate-400"></span>
+                            <span class="ai-thinking-dot w-1.5 h-1.5 rounded-full bg-slate-500 dark:bg-slate-400"></span>
                         </div>
                         <span class="text-[11px] font-medium">正在思考并调用工具...</span>
                     </div>
@@ -660,8 +654,6 @@ export class AiChatManager {
                 });
             }
         }
-
-        if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
     }
 
     scrollToBottom() {
@@ -1087,11 +1079,9 @@ export class AiChatManager {
                 this.onShowToast("已复制到剪贴板", "success");
                 if (btn) {
                     const originalHtml = btn.innerHTML;
-                    btn.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-500"></i> 已复制`;
-                    if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
+                    btn.innerHTML = `${renderChatSvg('check', 'w-3 h-3 text-emerald-500')} 已复制`;
                     setTimeout(() => {
                         btn.innerHTML = originalHtml;
-                        if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
                     }, 1500);
                 }
             }).catch(err => {
@@ -1188,8 +1178,7 @@ export class AiChatManager {
 
         if (btnEl) {
             btnEl.disabled = true;
-            btnEl.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> 保存中...`;
-            if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
+            btnEl.innerHTML = `${renderChatSvg('loader-2', 'w-3 h-3 animate-spin')} 保存中...`;
         }
 
         try {
@@ -1224,8 +1213,7 @@ export class AiChatManager {
             console.error("保存图片至画廊失败:", err);
             if (btnEl) {
                 btnEl.disabled = false;
-                btnEl.innerHTML = `<i data-lucide="bookmark" class="w-3 h-3"></i> 保存`;
-                if (typeof window !== 'undefined' && window.lucide) window.lucide.createIcons();
+                btnEl.innerHTML = `${renderChatSvg('bookmark', 'w-3 h-3')} 保存`;
             }
         }
     }

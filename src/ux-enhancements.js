@@ -324,6 +324,29 @@ export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}
                 return;
             }
         }
+        if (
+            e.key === '[' &&
+            !e.ctrlKey &&
+            !e.metaKey &&
+            !e.altKey &&
+            (typeof window === 'undefined' || (window.innerWidth || 1280) >= 768)
+        ) {
+            const tag = e.target?.tagName?.toUpperCase?.() || '';
+            const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+                Boolean(e.target?.isContentEditable) || isPromptEditableTarget(e.target);
+            if (!isInput) {
+                const sideDrawer = document.getElementById('sideDrawer');
+                const hasBlockingOverlay = Boolean(
+                    document.querySelector?.('dialog[open], .modal-active') ||
+                    sideDrawer?.classList?.contains('drawer-open')
+                );
+                if (!hasBlockingOverlay && ui && typeof ui.toggleDesktopSidebar === 'function') {
+                    e.preventDefault();
+                    ui.toggleDesktopSidebar();
+                    return;
+                }
+            }
+        }
         const isMod = e.ctrlKey || e.metaKey;
         if (!isMod) return;
 

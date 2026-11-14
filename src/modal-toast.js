@@ -244,6 +244,50 @@ export function closeModal(id, returnValue = '') {
     }, 300);
 }
 
+const MODAL_SVG_PATHS = {
+    'info': ['M12 16v-4', 'M12 8h.01'],
+    'check-circle': ['M22 11.08V12a10 10 0 1 1-5.93-9.14', 'm9 11 3 3L22 4'],
+    'alert-triangle': ['m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z', 'M12 9v4', 'M12 17h.01'],
+    'alert-circle': ['M12 8v4', 'M12 16h.01'],
+    'help-circle': ['M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3', 'M12 17h.01'],
+    'trash-2': ['M3 6h18', 'M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6', 'M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2', 'M10 11v6', 'M14 11v6'],
+    'sparkles': ['M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z', 'M20 3v4', 'M22 5h-4'],
+    'alert-octagon': ['M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z', 'M12 8v4', 'M12 16h.01']
+};
+
+function createInlineSvgElement(iconName, className = 'w-4 h-4') {
+    if (typeof document === 'undefined' || typeof document.createElementNS !== 'function') {
+        return null;
+    }
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '1.9');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    if (className) svg.setAttribute('class', className);
+
+    const needsOuterCircle = iconName === 'info' || iconName === 'alert-circle' || iconName === 'help-circle';
+    if (needsOuterCircle) {
+        const circle = document.createElementNS(SVG_NS, 'circle');
+        circle.setAttribute('cx', '12');
+        circle.setAttribute('cy', '12');
+        circle.setAttribute('r', '10');
+        svg.appendChild(circle);
+    }
+
+    const paths = MODAL_SVG_PATHS[iconName] || MODAL_SVG_PATHS['info'];
+    paths.forEach((d) => {
+        const path = document.createElementNS(SVG_NS, 'path');
+        path.setAttribute('d', d);
+        svg.appendChild(path);
+    });
+    return svg;
+}
+
 export function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
@@ -271,12 +315,16 @@ export function showToast(message, type = 'info', duration = 3000) {
     toast.className += ` ${bgClass}`;
 
     const iconWrap = document.createElement('div');
-    iconWrap.className = 'flex-shrink-0';
-    const iconEl = document.createElement('i');
-    iconEl.setAttribute('data-lucide', iconName);
-    iconEl.className = 'w-4 h-4';
-    iconEl.setAttribute('aria-hidden', 'true');
-    iconWrap.appendChild(iconEl);
+    iconWrap.className = 'flex-shrink-0 flex items-center justify-center';
+    const inlineSvg = createInlineSvgElement(iconName, 'w-4 h-4 pointer-events-none');
+    if (inlineSvg) {
+        iconWrap.appendChild(inlineSvg);
+    } else {
+        const iconFallback = document.createElement('span');
+        iconFallback.className = 'w-4 h-4 inline-block';
+        iconFallback.setAttribute('aria-hidden', 'true');
+        iconWrap.appendChild(iconFallback);
+    }
 
     const textEl = document.createElement('div');
     textEl.className = 'text-xs font-semibold select-none leading-relaxed flex-1 break-words';
@@ -295,10 +343,12 @@ export function showToast(message, type = 'info', duration = 3000) {
     container.appendChild(toast);
     syncToastContainerPopover(container, true);
     announceToastMessage(safeText);
-    if (typeof window !== 'undefined' && window.safeCreateIcons) window.safeCreateIcons();
 
-    toast.offsetHeight;
-    toast.classList.remove('translate-y-2', 'opacity-0');
+    if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
+    } else {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+    }
 
     let dismissed = false;
     let timeoutId = null;
@@ -368,7 +418,10 @@ export function showAlert(message, title = '系统提示', iconType = 'alert-cir
 
         if (iconEl) {
             iconEl.setAttribute('data-lucide', iconType);
-            if (typeof window !== 'undefined' && window.safeCreateIcons) window.safeCreateIcons();
+            const svg = createInlineSvgElement(iconType, 'w-5 h-5 pointer-events-none');
+            if (svg && typeof iconEl.replaceChildren === 'function') {
+                iconEl.replaceChildren(svg);
+            }
         }
 
         if (cancelBtn) cancelBtn.classList.add('hidden');
@@ -424,7 +477,10 @@ export function showConfirm(message, title = '确认操作', iconType = 'help-ci
 
         if (iconEl) {
             iconEl.setAttribute('data-lucide', iconType);
-            if (typeof window !== 'undefined' && window.safeCreateIcons) window.safeCreateIcons();
+            const svg = createInlineSvgElement(iconType, 'w-5 h-5 pointer-events-none');
+            if (svg && typeof iconEl.replaceChildren === 'function') {
+                iconEl.replaceChildren(svg);
+            }
         }
 
         if (cancelBtn) cancelBtn.classList.remove('hidden');

@@ -79,7 +79,7 @@ export async function toggleScrambleHistoryList() {
             container.innerHTML = '';
             images.forEach(item => {
                 const imgContainer = document.createElement('div');
-                imgContainer.className = 'relative w-12 h-12 rounded-lg overflow-hidden cursor-pointer border border-transparent hover:border-indigo-500 transition-all shrink-0 bg-slate-900/10 dark:bg-slate-900/50';
+                imgContainer.className = 'relative w-12 h-12 rounded-lg overflow-hidden cursor-pointer border border-transparent hover:border-slate-500 dark:hover:border-slate-400 transition-all shrink-0 bg-slate-900/10 dark:bg-slate-900/50';
                 imgContainer.onclick = () => selectScrambleHistoryImage(item.image);
                 
                 const img = document.createElement('img');
@@ -400,7 +400,7 @@ export function loadMetadataImage(imgSrc) {
                 lbl.textContent = param.label;
                 
                 const val = document.createElement('div');
-                val.className = 'text-xs font-bold text-gray-700 dark:text-gray-250';
+                val.className = 'text-xs font-bold text-gray-700 dark:text-gray-200';
                 val.textContent = param.value;
                 
                 div.appendChild(lbl);
@@ -693,7 +693,7 @@ export async function toggleMetadataHistoryList() {
             container.innerHTML = '';
             images.forEach(item => {
                 const imgContainer = document.createElement('div');
-                imgContainer.className = 'relative w-12 h-12 rounded-lg overflow-hidden cursor-pointer border border-transparent hover:border-indigo-500 transition-all shrink-0 bg-slate-900/10 dark:bg-slate-900/50';
+                imgContainer.className = 'relative w-12 h-12 rounded-lg overflow-hidden cursor-pointer border border-transparent hover:border-slate-500 dark:hover:border-slate-400 transition-all shrink-0 bg-slate-900/10 dark:bg-slate-900/50';
                 imgContainer.onclick = () => selectMetadataHistoryImage(item.image);
                 
                 const img = document.createElement('img');

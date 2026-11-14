@@ -433,10 +433,16 @@ if (resElement) {
 }
 
 function safeCreateIcons() {
+    if (typeof document !== 'undefined' && typeof document.querySelector === 'function' && !document.querySelector('i[data-lucide]')) {
+        return;
+    }
     if (typeof lucide !== 'undefined' && lucide.createIcons) {
         // 延迟一下确保 DOM 已更新
         setTimeout(() => {
             try {
+                if (typeof document !== 'undefined' && typeof document.querySelector === 'function' && !document.querySelector('i[data-lucide]')) {
+                    return;
+                }
                 lucide.createIcons();
             } catch (e) {
                 console.warn('Lucide icons creation failed:', e);
@@ -447,8 +453,12 @@ function safeCreateIcons() {
 window.safeCreateIcons = safeCreateIcons;
 safeCreateIcons();
 
-// Theme and settings initialization are handled by SettingsManager and UIController
+// Theme, desktop sidebar collapse, and settings initialization
 ui.initTheme();
+ui.initDesktopSidebarState();
+if (typeof window !== 'undefined') {
+    window.toggleDesktopSidebar = (forceCollapsed) => ui.toggleDesktopSidebar(forceCollapsed);
+}
 
 window.togglePanel = function(panelId, chevronId) {
     const panel = document.getElementById(panelId);
@@ -458,8 +468,11 @@ window.togglePanel = function(panelId, chevronId) {
             panel.classList.remove('hidden');
             if (!document.documentElement.classList.contains('low-perf')) {
                 panel.classList.remove('panel-expand-anim');
-                try { void panel.offsetWidth; } catch (_) {}
-                panel.classList.add('panel-expand-anim');
+                if (typeof requestAnimationFrame === 'function') {
+                    requestAnimationFrame(() => panel.classList.add('panel-expand-anim'));
+                } else {
+                    panel.classList.add('panel-expand-anim');
+                }
             }
             if (chevron) chevron.style.transform = 'rotate(180deg)';
         } else {
@@ -1633,19 +1646,26 @@ function randomizeSeed() {
 function enterAdminToken() {
     openSettingsModal('advanced');
 }
+function setStatusMessage(statusEl, text, className = 'text-green-500') {
+    if (!statusEl) return;
+    const span = document.createElement('span');
+    span.className = className;
+    span.textContent = text;
+    statusEl.replaceChildren(span);
+    statusEl.classList.remove('hidden');
+}
+
 function saveAdminToken() {
     const input = document.getElementById('adminTokenInput');
     const statusEl = document.getElementById('adminTokenStatus');
     const val = input.value.trim();
     if (!val) {
-        statusEl.innerHTML = '<span class="text-red-500">✗ 请输入密码</span>';
-        statusEl.classList.remove('hidden');
+        setStatusMessage(statusEl, '✗ 请输入密码', 'text-red-500');
         return;
     }
     settingsManager.saveAdminToken(val);
-    statusEl.innerHTML = '<span class="text-green-500">✔ 管理员密码已保存，已解锁后台</span>';
-    statusEl.classList.remove('hidden');
-    
+    setStatusMessage(statusEl, '✔ 管理员密码已保存，已解锁后台', 'text-green-500');
+
     setTimeout(() => {
         switchSettingsTab('admin');
         if (statusEl) statusEl.classList.add('hidden');
@@ -1654,12 +1674,9 @@ function saveAdminToken() {
 function clearAdminToken() {
     settingsManager.clearAdminToken();
     const statusEl = document.getElementById('adminTokenStatus');
-    if (statusEl) {
-        statusEl.innerHTML = '<span class="text-green-500">✔ 已注销管理员身份</span>';
-        statusEl.classList.remove('hidden');
-    }
+    setStatusMessage(statusEl, '✔ 已注销管理员身份', 'text-green-500');
     checkAdminStatus();
-    
+
     setTimeout(() => {
         switchSettingsTab('advanced');
         if (statusEl) statusEl.classList.add('hidden');
@@ -1711,17 +1728,15 @@ function saveUserKey() {
     const statusEl = document.getElementById('userKeyStatus');
     const val = input.value.trim();
     if (!val) {
-        statusEl.innerHTML = '<span class="text-red-500">✗ 请输入卡密</span>';
-        statusEl.classList.remove('hidden');
+        setStatusMessage(statusEl, '✗ 请输入卡密', 'text-red-500');
         return;
     }
     localStorage.setItem('nai_user_key', val);
-    statusEl.innerHTML = '<span class="text-green-500">✔ VIP 卡密已保存</span>';
-    statusEl.classList.remove('hidden');
-    
+    setStatusMessage(statusEl, '✔ VIP 卡密已保存', 'text-green-500');
+
     const clearBtn = document.getElementById('userKeyClearBtn');
     if (clearBtn) clearBtn.classList.remove('hidden');
-    
+
     setTimeout(() => {
         if (statusEl) statusEl.classList.add('hidden');
     }, 1500);
@@ -1733,10 +1748,7 @@ function clearUserKey() {
     const clearBtn = document.getElementById('userKeyClearBtn');
     if (clearBtn) clearBtn.classList.add('hidden');
     const statusEl = document.getElementById('userKeyStatus');
-    if (statusEl) {
-        statusEl.innerHTML = '<span class="text-green-500">✔ 已注销卡密</span>';
-        statusEl.classList.remove('hidden');
-    }
+    setStatusMessage(statusEl, '✔ 已注销卡密', 'text-green-500');
     setTimeout(() => {
         if (statusEl) statusEl.classList.add('hidden');
     }, 1500);
@@ -1793,18 +1805,34 @@ initModalToastGlobals();
 function addApiKeyInputRow(val = '') {
     const container = document.getElementById('apiKeyList');
     if (!container) return;
-    
+
     const div = document.createElement('div');
     div.className = 'flex flex-col gap-1.5 api-key-row group w-full border border-gray-100/50 dark:border-slate-800/50 p-2.5 rounded-2xl bg-gray-50/30 dark:bg-slate-950/20 transition-all';
-    div.innerHTML = `
-        <div class="flex gap-2 items-center w-full">
-            <input type="text" value="${val}" placeholder="pst-xxxxxxxxxxxxxxxx..." class="art-input flex-1 px-4 py-3 rounded-xl text-xs outline-none font-mono tracking-tight" />
-            <button onclick="removeApiKeyInputRow(this)" class="p-3 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-xl transition-all" title="删除">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-            </button>
-        </div>
-        <div class="api-key-balance text-[10px] text-gray-400 px-3 hidden"></div>
-    `;
+
+    const row = document.createElement('div');
+    row.className = 'flex gap-2 items-center w-full';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = val || '';
+    input.placeholder = 'pst-xxxxxxxxxxxxxxxx...';
+    input.className = 'art-input flex-1 px-4 py-3 rounded-xl text-xs outline-none font-mono tracking-tight';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.setAttribute('onclick', 'removeApiKeyInputRow(this)');
+    removeBtn.className = 'p-3 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-xl transition-all';
+    removeBtn.title = '删除';
+    removeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>';
+
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+
+    const balanceEl = document.createElement('div');
+    balanceEl.className = 'api-key-balance text-[10px] text-gray-400 px-3 hidden';
+
+    div.appendChild(row);
+    div.appendChild(balanceEl);
     container.appendChild(div);
 }
 
@@ -2091,15 +2119,15 @@ function updateSettingsUserCard() {
         cardContainer.innerHTML = `
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                    <i data-lucide="user" class="w-4 h-4 text-gray-400"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-gray-400 pointer-events-none" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <div class="flex flex-col min-w-0">
                     <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium">个人中心</span>
                     <span class="text-[11px] font-bold text-gray-600 dark:text-gray-300 truncate">未登录账户</span>
                 </div>
             </div>
-            <button onclick="openUserModalFromSettings()" class="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1">
-                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 注册 / 登录账户
+            <button type="button" onclick="openUserModalFromSettings()" class="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg> 注册 / 登录账户
             </button>
         `;
     } else {
@@ -2116,17 +2144,21 @@ function updateSettingsUserCard() {
         cardContainer.innerHTML = `
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                    <i data-lucide="user" class="w-4 h-4 text-emerald-500"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-emerald-500 pointer-events-none" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <div class="flex flex-col min-w-0 flex-1">
-                    <span class="text-[11px] font-bold text-gray-800 dark:text-gray-100 truncate block w-full max-w-[120px]">${username}</span>
-                    <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">余额: ${credits} 点</span>
+                    <span class="js-settings-username text-[11px] font-bold text-gray-800 dark:text-gray-100 truncate block w-full max-w-[120px]"></span>
+                    <span class="js-settings-credits text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block"></span>
                 </div>
             </div>
-            <button onclick="logoutUser()" class="w-full py-1.5 bg-gray-150 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-gray-500 dark:text-gray-400 rounded-xl text-[10px] font-bold transition-all">
+            <button type="button" onclick="logoutUser()" class="w-full py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-gray-500 dark:text-gray-400 rounded-xl text-[10px] font-bold transition-all">
                 退出登录
             </button>
         `;
+        const userEl = cardContainer.querySelector('.js-settings-username');
+        const creditsEl = cardContainer.querySelector('.js-settings-credits');
+        if (userEl) userEl.textContent = username;
+        if (creditsEl) creditsEl.textContent = `余额: ${credits} 点`;
     }
 
     // 移动端专用迷你账户按钮状态同步
@@ -2139,12 +2171,6 @@ function updateSettingsUserCard() {
             mobileAccountText.textContent = "已登录";
             mobileAccountText.parentElement.classList.add('bg-emerald-100', 'dark:bg-emerald-500/20');
         }
-    }
-
-    if (window.safeCreateIcons) {
-        window.safeCreateIcons();
-    } else if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
     }
 }
 
@@ -2168,10 +2194,9 @@ window.fetchAndShowAllKeysBalances = async function(keys) {
         if (!row) return;
         const balanceEl = row.querySelector('.api-key-balance');
         if (!balanceEl) return;
-        
-        balanceEl.classList.remove('hidden');
-        balanceEl.innerHTML = '<span class="text-gray-400">⭮ 正在查询余额...</span>';
-        
+
+        setStatusMessage(balanceEl, '⭮ 正在查询余额...', 'text-gray-400');
+
         try {
             const res = await fetch(apiUrl('/verify-key'), {
                 method: 'POST',
@@ -2217,18 +2242,18 @@ window.fetchAndShowAllKeysBalances = async function(keys) {
                             } catch (_) {}
                         }
                     }
-                    balanceEl.innerHTML = `<span class="text-emerald-500 font-semibold">${detailText}</span>`;
+                    setStatusMessage(balanceEl, detailText, 'text-emerald-500 font-semibold');
                 } else {
-                    balanceEl.innerHTML = `<span class="text-red-500">✗ ${data.error || '验证失败'}</span>`;
+                    setStatusMessage(balanceEl, `✗ ${data.error || '验证失败'}`, 'text-red-500');
                 }
             } else {
                 const text = await res.text();
                 let errMsg = '查询失败';
                 try { errMsg = JSON.parse(text).error || errMsg; } catch(_) {}
-                balanceEl.innerHTML = `<span class="text-red-500">✗ ${errMsg}</span>`;
+                setStatusMessage(balanceEl, `✗ ${errMsg}`, 'text-red-500');
             }
         } catch (e) {
-            balanceEl.innerHTML = `<span class="text-red-500">✗ 查询异常: ${e.message}</span>`;
+            setStatusMessage(balanceEl, `✗ 查询异常: ${e.message}`, 'text-red-500');
         }
     });
 };
@@ -2243,8 +2268,7 @@ async function verifyCustomApiKey() {
     const keys = Array.from(inputs).map(i => i.value.trim()).filter(k => k);
     
     if (keys.length === 0) {
-        statusEl.innerHTML = '<span class="text-red-500">✗ 请至少输入一个 API Key</span>';
-        statusEl.classList.remove('hidden');
+        setStatusMessage(statusEl, '✗ 请至少输入一个 API Key', 'text-red-500');
         return;
     }
 
@@ -2253,8 +2277,7 @@ async function verifyCustomApiKey() {
 
     verifyBtn.disabled = true;
     verifyBtn.textContent = '验证中...';
-    statusEl.innerHTML = `<span class="text-gray-400">⭮ 正在连接 NovelAI 验证 (共 ${keys.length} 个 Key)...</span>`;
-    statusEl.classList.remove('hidden');
+    setStatusMessage(statusEl, `⭮ 正在连接 NovelAI 验证 (共 ${keys.length} 个 Key)...`, 'text-gray-400');
 
     try {
         const res = await fetch(apiUrl('/verify-key'), {
@@ -2269,11 +2292,22 @@ async function verifyCustomApiKey() {
             if (res.ok && data.valid) {
                 localStorage.setItem('nai_custom_api_key', keysRaw);
                 const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
-                let opusInfo = '';
+                const msgSpan = document.createElement('span');
+                msgSpan.className = 'text-green-500';
+                msgSpan.appendChild(document.createTextNode('✔ 验证成功! 首个 Key 订阅: '));
+                const tierBold = document.createElement('b');
+                tierBold.textContent = data.tierName || '';
+                msgSpan.appendChild(tierBold);
                 if (opusUsage && typeof opusUsage.percent === 'number') {
-                    opusInfo = ` | Opus免费生成额度: 剩余 <b>${opusUsage.percent}%</b> (约 ${opusUsage.estimatedImages} 张)`;
+                    msgSpan.appendChild(document.createTextNode(' | Opus免费生成额度: 剩余 '));
+                    const pctBold = document.createElement('b');
+                    pctBold.textContent = `${opusUsage.percent}%`;
+                    msgSpan.appendChild(pctBold);
+                    msgSpan.appendChild(document.createTextNode(` (约 ${opusUsage.estimatedImages} 张)`));
                 }
-                statusEl.innerHTML = `<span class="text-green-500">✔ 验证成功! 首个 Key 订阅: <b>${data.tierName}</b>${opusInfo}。已激活 ${keys.length} 个 Key 并发模式。</span>`;
+                msgSpan.appendChild(document.createTextNode(`。已激活 ${keys.length} 个 Key 并发模式。`));
+                statusEl.replaceChildren(msgSpan);
+                statusEl.classList.remove('hidden');
                 document.getElementById('apiKeyClearBtn').classList.remove('hidden');
                 checkAdminStatus();
                 updateAnlasUI(data);
@@ -2282,15 +2316,15 @@ async function verifyCustomApiKey() {
                 }
                 setTimeout(() => closeApiKeyModal(), 2000);
             } else if (data.error) {
-                statusEl.innerHTML = `<span class="text-red-500">✗ ${data.error}</span>`;
+                setStatusMessage(statusEl, `✗ ${data.error}`, 'text-red-500');
             } else {
-                statusEl.innerHTML = `<span class="text-red-500">✗ 验证失败，请检查 Key 是否有效</span>`;
+                setStatusMessage(statusEl, '✗ 验证失败，请检查 Key 是否有效', 'text-red-500');
             }
         } else {
-            statusEl.innerHTML = `<span class="text-red-500">✗ 验证服务无响应，请确保后端代理正在运行</span>`;
+            setStatusMessage(statusEl, '✗ 验证服务无响应，请确保后端代理正在运行', 'text-red-500');
         }
     } catch (e) {
-        statusEl.innerHTML = `<span class="text-red-500">✗ 验证异常: ${e.message}（请确保后端服务正常运行）</span>`;
+        setStatusMessage(statusEl, `✗ 验证异常: ${e.message}（请确保后端服务正常运行）`, 'text-red-500');
     } finally {
         verifyBtn.disabled = false;
         verifyBtn.textContent = '验证并保存';
@@ -2306,8 +2340,7 @@ function clearCustomApiKey() {
     }
     document.getElementById('apiKeyClearBtn').classList.add('hidden');
     const statusEl = document.getElementById('apiKeyStatus');
-    statusEl.innerHTML = '<span class="text-gray-500">✔ 已清除自定义 Key</span>';
-    statusEl.classList.remove('hidden');
+    setStatusMessage(statusEl, '✔ 已清除自定义 Key', 'text-gray-500');
     
     // 隐藏顶部自定义 Key 余额显示
     const oldDesktop = document.getElementById('creditDisplayDesktop');

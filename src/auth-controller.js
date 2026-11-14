@@ -92,7 +92,7 @@ export class AuthController {
         const authPanel = document.getElementById('userAuthPanel');
         
         const activeClass = 'flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 shadow-sm transition-all';
-        const inactiveClass = 'flex-1 text-center py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-250 transition-all';
+        const inactiveClass = 'flex-1 text-center py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-all';
         
         if (tab === 'login') {
             if (tabLogin) tabLogin.className = activeClass;

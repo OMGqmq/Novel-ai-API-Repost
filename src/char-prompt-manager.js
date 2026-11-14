@@ -219,7 +219,7 @@ export class CharPromptManager {
                 <button type="button" 
                     class="char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-all flex items-center justify-center cursor-pointer ${
                         isSelected 
-                            ? 'bg-indigo-600 border-indigo-600 text-white font-bold shadow-sm' 
+                            ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 font-bold shadow-sm' 
                             : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
                     }" 
                     data-x="${cellX}" 
@@ -274,7 +274,7 @@ export class CharPromptManager {
         });
 
         if (closestCell) {
-            closestCell.className = 'char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-all flex items-center justify-center cursor-pointer bg-indigo-600 border-indigo-600 text-white font-bold shadow-sm';
+            closestCell.className = 'char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-all flex items-center justify-center cursor-pointer bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 font-bold shadow-sm';
         }
     }
 
@@ -305,7 +305,7 @@ export class CharPromptManager {
             <div class="flex justify-between items-center select-none cursor-pointer char-row-header">
                 <div class="flex items-center gap-1.5">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 transition-transform duration-200 char-row-chevron transform rotate-90"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                    <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest character-index-label">角色</span>
+                    <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest character-index-label">角色</span>
                     <span class="text-[10px] text-gray-400 dark:text-gray-500 truncate max-w-[120px] char-row-summary font-normal"></span>
                 </div>
                 <div class="flex items-center gap-1.5 char-row-actions">
@@ -333,7 +333,7 @@ export class CharPromptManager {
                         <span class="char-pos-title">${isV5 ? '角色定位 (Position - 自由选点)' : '角色定位 (Position - 5x5网格)'}</span>
                         <label class="flex items-center gap-1 cursor-pointer select-none">
                             <input type="checkbox" role="switch" aria-checked="${autoPos ? 'true' : 'false'}" class="char-auto-pos sr-only peer" ${autoPos ? 'checked' : ''}>
-                            <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600 relative scale-90"></div>
+                            <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900 relative scale-90"></div>
                             <span>AI 自动位置</span>
                         </label>
                     </div>
@@ -347,7 +347,7 @@ export class CharPromptManager {
                                 <div class="absolute left-2/3 inset-y-0 border-l border-dashed border-gray-400 dark:border-gray-600"></div>
                                 <div class="absolute top-1/3 inset-x-0 border-t border-dashed border-gray-400 dark:border-gray-600"></div>
                                 <div class="absolute top-2/3 inset-x-0 border-t border-dashed border-gray-400 dark:border-gray-600"></div>
-                                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-indigo-500/60 bg-indigo-500/20"></div>
+                                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-slate-500/60 bg-slate-500/20"></div>
                             </div>
                             
                             <!-- 坐标实时显示浮标 -->
@@ -356,7 +356,7 @@ export class CharPromptManager {
                             </div>
                             
                             <!-- 自由定位标记 Pin -->
-                            <div class="char-pos-pin absolute w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-lg border-2 border-white dark:border-slate-800 flex items-center justify-center text-[11px] font-extrabold cursor-grab active:cursor-grabbing hover:scale-110 active:scale-95 transition-[transform,box-shadow] select-none"
+                            <div class="char-pos-pin absolute w-7 h-7 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg border-2 border-white dark:border-slate-800 flex items-center justify-center text-[11px] font-extrabold cursor-grab active:cursor-grabbing hover:scale-110 active:scale-95 transition-[transform,box-shadow] select-none"
                                  style="left: ${safeX * 100}%; top: ${safeY * 100}%; transform: translate(-50%, -50%);">
                                 <span class="char-pos-pin-index pointer-events-none">1</span>
                             </div>

@@ -249,7 +249,8 @@ describe('Outpainting & Infinite Canvas Comprehensive Test Matrix (R1, R2, R3)',
             expect(maskCanvas.classList.contains('pointer-events-none')).toBe(false);
             expect(brushCtrl.classList.contains('flex')).toBe(true);
             expect(brushCtrl.classList.contains('hidden')).toBe(false);
-            expect(modePaintBtn.classList.contains('bg-white')).toBe(true);
+            expect(modePaintBtn.classList.contains('tool-active')).toBe(true);
+            expect(modeMoveBtn.classList.contains('tool-active')).toBe(false);
 
             // Switch back to move mode
             editor.setMode('move');
@@ -258,7 +259,8 @@ describe('Outpainting & Infinite Canvas Comprehensive Test Matrix (R1, R2, R3)',
             expect(sel.classList.contains('cursor-crosshair')).toBe(false);
             expect(maskCanvas.classList.contains('pointer-events-none')).toBe(true);
             expect(brushCtrl.classList.contains('hidden')).toBe(true);
-            expect(modeMoveBtn.classList.contains('bg-white')).toBe(true);
+            expect(modeMoveBtn.classList.contains('tool-active')).toBe(true);
+            expect(modePaintBtn.classList.contains('tool-active')).toBe(false);
         });
 
         it('1.3 Brush size slider and value label synchronization', () => {
@@ -279,12 +281,12 @@ describe('Outpainting & Infinite Canvas Comprehensive Test Matrix (R1, R2, R3)',
 
             editor.toggleSnap();
             expect(editor.isSnapEnabled).toBe(true);
-            expect(snapBtn.classList.contains('bg-white')).toBe(true);
+            expect(snapBtn.classList.contains('tool-active')).toBe(true);
             expect(snapBtn.title).toBe('边缘吸附: 开');
 
             editor.toggleSnap();
             expect(editor.isSnapEnabled).toBe(false);
-            expect(snapBtn.classList.contains('text-gray-500')).toBe(true);
+            expect(snapBtn.classList.contains('tool-active')).toBe(false);
             expect(snapBtn.title).toBe('边缘吸附: 关');
         });
 

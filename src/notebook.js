@@ -143,28 +143,27 @@ export class NotebookManager {
         if (notes.length === 0) {
             this.listContainerEl.innerHTML = `
                 <div class="flex flex-col items-center justify-center h-full text-gray-300 dark:text-slate-600">
-                    <i data-lucide="notebook-pen" class="w-8 h-8 mb-2 opacity-50"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 mb-2 opacity-50 pointer-events-none"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></svg>
                     <span class="text-xs font-medium">还没有笔记</span>
                     <span class="text-[10px] text-gray-400 dark:text-slate-600 mt-1">点击上方按钮收藏当前提示词</span>
                 </div>
             `;
-            if (window.safeCreateIcons) window.safeCreateIcons();
             return;
         }
 
         this.listContainerEl.innerHTML = notes.map((note) => `
-            <div class="group bg-gray-50/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl border border-gray-100/80 dark:border-slate-700/50 p-3 hover:border-indigo-200 dark:hover:border-indigo-800/50 transition-all" data-note-id="${note.id}">
+            <div class="group bg-gray-50/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl border border-gray-100/80 dark:border-slate-700/50 p-3 hover:border-slate-300 dark:hover:border-slate-600 transition-all" data-note-id="${note.id}">
                 <div class="flex items-start justify-between gap-2 mb-1.5">
                     <span class="text-[9px] text-gray-400 dark:text-slate-500 font-mono">${formatNoteDate(note.createdAt)}</span>
-                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onclick="bindCurrentCanvasToNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all" title="绑定当前画布图片">
-                            <i data-lucide="image" class="w-3 h-3"></i>
+                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                        <button type="button" onclick="bindCurrentCanvasToNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all cursor-pointer" title="绑定当前画布图片" aria-label="绑定当前画布图片">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
                         </button>
-                        <button onclick="editNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all" title="编辑">
-                            <i data-lucide="pencil" class="w-3 h-3"></i>
+                        <button type="button" onclick="editNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all cursor-pointer" title="编辑" aria-label="编辑笔记">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
                         </button>
-                        <button onclick="deleteNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-red-100 dark:hover:bg-red-950/30 rounded-md text-gray-400 hover:text-red-500 transition-all" title="删除">
-                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                        <button type="button" onclick="deleteNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-red-100 dark:hover:bg-red-950/30 rounded-md text-gray-400 hover:text-red-500 transition-all cursor-pointer" title="删除" aria-label="删除笔记">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                         </button>
                     </div>
                 </div>
@@ -176,21 +175,19 @@ export class NotebookManager {
                     ${note.preview ? `
                     <div class="shrink-0 relative group/preview">
                         <img src="${note.preview}" class="w-14 h-20 object-cover rounded-lg shadow-sm border border-gray-200/50 dark:border-slate-700 cursor-zoom-in" onclick="event.stopPropagation(); viewNotebookNotePreview('${model}', '${note.id}')">
-                        <button onclick="event.stopPropagation(); removeNotePreview('${model}', '${note.id}')" 
-                            class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px] hover:bg-red-600 shadow-md transition-all opacity-0 group-hover/preview:opacity-100" title="移除预览图">
+                        <button type="button" onclick="event.stopPropagation(); removeNotePreview('${model}', '${note.id}')" 
+                            class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px] hover:bg-red-600 shadow-md transition-all opacity-0 group-hover/preview:opacity-100 cursor-pointer" title="移除预览图" aria-label="移除预览图">
                             ✕
                         </button>
                     </div>
                     ` : ''}
                 </div>
-                <button onclick="applyNotebookNote('${model}','${note.id}')"
-                    class="w-full py-2 bg-gray-900/90 dark:bg-white/90 text-white dark:text-gray-900 text-[10px] font-bold rounded-lg hover:shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-1.5">
-                    <i data-lucide="send" class="w-3 h-3"></i> 一键使用
+                <button type="button" onclick="applyNotebookNote('${model}','${note.id}')"
+                    class="w-full py-2 bg-gray-900/90 dark:bg-white/90 text-white dark:text-gray-900 text-[10px] font-bold rounded-lg hover:shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg> 一键使用
                 </button>
             </div>
         `).join('');
-
-        if (window.safeCreateIcons) window.safeCreateIcons();
     }
 
     applyNote(model, noteId) {

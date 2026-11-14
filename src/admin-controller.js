@@ -27,7 +27,7 @@ export class AdminController {
         const panelStats = document.getElementById('adminStatsPanel');
 
         const activeClass = 'flex-1 text-center py-2 text-[11px] md:text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 shadow-sm transition-all';
-        const inactiveClass = 'flex-1 text-center py-2 text-[11px] md:text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-250 transition-all';
+        const inactiveClass = 'flex-1 text-center py-2 text-[11px] md:text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-all';
 
         if (tabUsers) tabUsers.className = (tab === 'users' ? activeClass : inactiveClass);
         if (tabCards) tabCards.className = (tab === 'cards' ? activeClass : inactiveClass);
@@ -314,15 +314,25 @@ export class AdminController {
                 tbodyIps.innerHTML = '';
                 const ips = data.ips || [];
                 if (ips.length === 0) {
-                    tbodyIps.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-400">暂无数据</td></tr>';
+                    const emptyRow = document.createElement('tr');
+                    const emptyCell = document.createElement('td');
+                    emptyCell.colSpan = 2;
+                    emptyCell.className = 'text-center py-4 text-gray-400';
+                    emptyCell.textContent = '暂无数据';
+                    emptyRow.appendChild(emptyCell);
+                    tbodyIps.appendChild(emptyRow);
                 } else {
                     ips.forEach(item => {
                         const tr = document.createElement('tr');
                         tr.className = 'hover:bg-gray-50/50 dark:hover:bg-slate-800/20 transition-colors border-b border-gray-100 dark:border-slate-800';
-                        tr.innerHTML = `
-                            <td class="px-4 py-2 font-mono text-[11px]">${item.ip}</td>
-                            <td class="px-4 py-2 text-right font-semibold">${item.count}</td>
-                        `;
+                        const ipCell = document.createElement('td');
+                        ipCell.className = 'px-4 py-2 font-mono text-[11px]';
+                        ipCell.textContent = item.ip ?? '';
+                        const countCell = document.createElement('td');
+                        countCell.className = 'px-4 py-2 text-right font-semibold';
+                        countCell.textContent = item.count ?? 0;
+                        tr.appendChild(ipCell);
+                        tr.appendChild(countCell);
                         tbodyIps.appendChild(tr);
                     });
                 }
@@ -332,15 +342,23 @@ export class AdminController {
                 errorsList.innerHTML = '';
                 const errors = data.errors || [];
                 if (errors.length === 0) {
-                    errorsList.innerHTML = '<div class="text-gray-450 dark:text-gray-500 text-center py-4">无错误记录</div>';
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.className = 'text-gray-400 dark:text-gray-500 text-center py-4';
+                    emptyDiv.textContent = '无错误记录';
+                    errorsList.appendChild(emptyDiv);
                 } else {
                     errors.forEach(item => {
                         const div = document.createElement('div');
                         div.className = 'flex justify-between items-center bg-red-50/50 dark:bg-red-950/10 p-2.5 rounded-xl border border-red-100/50 dark:border-red-900/10';
-                        div.innerHTML = `
-                            <div class="font-mono text-[10px] text-red-600 dark:text-red-400 truncate max-w-[80%]" title="${item.error_message}">${item.error_message}</div>
-                            <div class="text-[10px] font-bold text-red-500 bg-red-100/60 dark:bg-red-900/30 px-2 py-0.5 rounded-full shrink-0">${item.count}次</div>
-                        `;
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = 'font-mono text-[10px] text-red-600 dark:text-red-400 truncate max-w-[80%]';
+                        msgDiv.title = item.error_message || '';
+                        msgDiv.textContent = item.error_message || '';
+                        const countDiv = document.createElement('div');
+                        countDiv.className = 'text-[10px] font-bold text-red-500 bg-red-100/60 dark:bg-red-900/30 px-2 py-0.5 rounded-full shrink-0';
+                        countDiv.textContent = `${item.count ?? 0}次`;
+                        div.appendChild(msgDiv);
+                        div.appendChild(countDiv);
                         errorsList.appendChild(div);
                     });
                 }

@@ -14,7 +14,7 @@
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
     background-color: #f8fafc;
     background-image: radial-gradient(at 0% 0%, rgba(229, 231, 235, 0.5) 0px, transparent 50%), linear-gradient(to bottom right, #f9fafb, #f3f4f6);
     background-size: 100% 100%;
@@ -25,6 +25,11 @@ body {
 html.dark body {
     background-color: #0f172a;
     background-image: radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.5) 0px, transparent 50%), linear-gradient(to bottom right, #0f172a, #1e293b);
+}
+
+button:disabled:active,
+.canvas-icon-btn:disabled:active {
+    transform: none !important;
 }
 
 :root {
@@ -104,7 +109,7 @@ p, .pretty-text {
     }
 }
 
-/* Visible keyboard focus ring for custom pill role="switch" toggles */
+/* Visible keyboard focus ring & tactile spring feedback for custom pill role="switch" toggles */
 input[type="checkbox"].sr-only.peer:focus-visible + div {
     outline: 2px solid #4f46e5;
     outline-offset: 2px;
@@ -112,6 +117,15 @@ input[type="checkbox"].sr-only.peer:focus-visible + div {
 
 html.dark input[type="checkbox"].sr-only.peer:focus-visible + div {
     outline-color: #818cf8;
+}
+
+input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
+    transition: transform 0.22s var(--ease-out-spring), background-color 0.18s ease, border-color 0.18s ease;
+}
+
+label:active input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
+    --tw-scale-x: 1.15;
+    --tw-scale-y: 0.94;
 }
 
 .glass-panel {
@@ -132,6 +146,7 @@ html.dark .glass-panel {
     left: 0;
     right: 0;
     height: 75dvh;
+    max-height: calc(100dvh - 56px);
     z-index: 40;
     transform: translateY(calc(100% - 64px));
     transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
@@ -140,18 +155,48 @@ html.dark .glass-panel {
     border-radius: 24px 24px 0 0;
 }
 
+@media (max-width: 767px) {
+    #mobileControls > .overflow-y-auto {
+        padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+    }
+}
+
 html.dark #mobileControls {
     border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+#desktopSidebarExpandBtn {
+    display: none;
 }
 
 @media (min-width: 768px) {
     #mobileControls {
         position: relative;
         height: 100%;
+        max-height: none;
         transform: none !important;
         z-index: 20;
         border-radius: 0;
         border-top: none;
+        transition: width 0.28s var(--ease-out-spring), min-width 0.28s var(--ease-out-spring), opacity 0.22s ease, border-color 0.2s ease;
+    }
+
+    #mobileControls.desktop-collapsed {
+        width: 0 !important;
+        min-width: 0 !important;
+        flex-basis: 0 !important;
+        opacity: 0;
+        border-right-width: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+    }
+
+    body.desktop-sidebar-collapsed #desktopSidebarExpandBtn {
+        display: inline-flex;
+    }
+
+    body:not(.desktop-sidebar-collapsed) #desktopSidebarExpandBtn {
+        display: none;
     }
 }
 
@@ -204,7 +249,7 @@ html.dark #floatingGenerateBtn {
 }
 
 .art-input {
-    transition: all 0.3s;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     background: rgba(255, 255, 255, 0.6);
     border: 1px solid #e5e7eb;
 }
@@ -229,13 +274,13 @@ html.dark .art-input:focus {
 .switch-bg {
     position: absolute;
     height: calc(100% - 8px);
-    width: calc(50% - 4px);
+    width: calc((100% - 8px) / 4);
     top: 4px;
     left: 4px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.32s cubic-bezier(0.34, 1.25, 0.64, 1), background-color 0.2s ease;
     z-index: 0;
     border: 1px solid rgba(0, 0, 0, 0.02);
 }
@@ -245,16 +290,20 @@ html.dark .switch-bg {
     border-color: transparent;
 }
 
-#model-v4:checked~.switch-bg {
+[data-model-toggle][data-model="v3"] .switch-bg {
+    transform: translateX(0);
+}
+
+[data-model-toggle][data-model="v4.5"] .switch-bg {
     transform: translateX(100%);
 }
 
-input[type="radio"]:checked+label {
-    color: #111827;
+[data-model-toggle][data-model="v5"] .switch-bg {
+    transform: translateX(200%);
 }
 
-html.dark input[type="radio"]:checked+label {
-    color: #fff;
+[data-model-toggle][data-model="zimage"] .switch-bg {
+    transform: translateX(300%);
 }
 
 .view-toggle {
@@ -305,7 +354,7 @@ html.dark .view-toggle button.active {
     background: white;
     border-radius: 99px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.32s cubic-bezier(0.34, 1.25, 0.64, 1), background-color 0.2s ease;
     z-index: 1;
 }
 
@@ -344,7 +393,7 @@ html.dark .view-toggle-bg {
 }
 
 #adminControls {
-    transition: all 0.3s;
+    transition: max-height 0.28s var(--ease-out-spring), opacity 0.22s ease, margin 0.24s ease, padding 0.24s ease;
     overflow: hidden;
 }
 
@@ -1030,6 +1079,9 @@ dialog.native-modal .custom-modal-content {
     #lightboxSidebar.expanded {
         transform: translateY(0) !important;
     }
+    #lightboxSidebar > .overflow-y-auto {
+        padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    }
 }
 
 /* --- Low Performance Mode (低性能模式) Override Rules --- */
@@ -1065,7 +1117,14 @@ html.low-perf #lightboxSidebar {
     transition: none !important;
 }
 
-/* --- 历史图库图片单张删除按钮样式 --- */
+/* --- 历史图库图片单张删除按钮与微缩略图悬停样式 --- */
+.gallery-item img {
+    transition: transform 0.28s var(--ease-out-spring);
+}
+.gallery-item:hover img {
+    transform: scale(1.03);
+}
+
 .delete-item-btn {
     position: absolute;
     top: 6px;
@@ -1081,7 +1140,7 @@ html.low-perf #lightboxSidebar {
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: #ffffff;
     border-radius: 9999px;
-    transition: all 0.2s ease;
+    transition: opacity 0.18s ease, background-color 0.18s ease, transform 0.15s ease;
     z-index: 10;
     opacity: 1;
     cursor: pointer;
@@ -1096,27 +1155,76 @@ html.low-perf #lightboxSidebar {
     transform: scale(0.95);
 }
 
-/* 桌面端默认隐藏，鼠标悬停时才显示 */
+/* 桌面端默认隐藏，鼠标悬停或键盘聚焦时才显示 */
 @media (min-width: 768px) {
     .delete-item-btn {
         opacity: 0;
         pointer-events: none;
     }
-    .gallery-item:hover .delete-item-btn {
+    .gallery-item:hover .delete-item-btn,
+    .gallery-item:focus-within .delete-item-btn {
         opacity: 1;
         pointer-events: auto;
     }
 }
 
-/* --- 自定义下拉选择器 (Custom Select) 样式 --- */
-.custom-select-container.open .custom-select-arrow {
+/* --- 自定义下拉选择器 (Custom Select) 样式与 Top-Layer Popover 适配 --- */
+.custom-select-container.open .custom-select-arrow,
+.custom-select-container[data-open="true"] .custom-select-arrow {
     transform: rotate(180deg);
 }
 
-.custom-select-container.open .custom-select-options {
+.custom-select-container.open .custom-select-options:not([popover]) {
     opacity: 1 !important;
     transform: scale(1) !important;
     pointer-events: auto !important;
+}
+
+.custom-select-options[popover="manual"] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    display: none;
+    overflow-y: auto;
+    max-height: 240px;
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+    pointer-events: none;
+    transform-origin: top center;
+    transition: opacity 0.16s var(--ease-out-spring), transform 0.18s var(--ease-out-spring);
+}
+
+@supports (transition-behavior: allow-discrete) and (overlay: auto) {
+    .custom-select-options[popover="manual"] {
+        transition: opacity 0.16s var(--ease-out-spring), transform 0.18s var(--ease-out-spring), overlay 0.18s allow-discrete, display 0.18s allow-discrete;
+    }
+}
+
+.custom-select-options[popover="manual"]:is(:popover-open, .\:popover-open) {
+    display: block;
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    @starting-style {
+        .custom-select-options[popover="manual"]:is(:popover-open, .\:popover-open) {
+            opacity: 0;
+            transform: scale(0.96) translateY(-4px);
+        }
+    }
+}
+
+.custom-option[data-focused="true"],
+.custom-option:focus-visible {
+    background: #f1f5f9 !important;
+    outline: none;
+}
+
+html.dark .custom-option[data-focused="true"],
+html.dark .custom-option:focus-visible {
+    background: rgba(30, 41, 59, 0.95) !important;
 }
 
 .custom-select-trigger:hover {
@@ -1311,7 +1419,7 @@ html.low-perf input[type="range"]::-moz-range-thumb {
 /* 移动端适配设置中心双栏 */
 @media (max-width: 768px) {
     #settingsModal.native-modal {
-        height: 90vh !important;
+        height: 90dvh !important;
         max-height: none !important;
     }
     #settingsModal .custom-modal-content {
@@ -1376,7 +1484,7 @@ html.low-perf input[type="range"]::-moz-range-thumb {
         border: none !important;
         display: flex !important;
         align-items: center !important;
-        gap: 1.5px !important;
+        gap: 6px !important;
     }
     .dark #settingsModal .settings-tab-btn {
         color: #94a3b8 !important;
@@ -1385,12 +1493,12 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     /* 选中高亮胶囊（自带卡片微阴影） */
     #settingsModal .settings-tab-btn.active {
         background: #ffffff !important;
-        color: #10b981 !important;
+        color: #0f172a !important;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
     }
     .dark #settingsModal .settings-tab-btn.active {
-        background: rgba(255, 255, 255, 0.12) !important;
-        color: #34d399 !important;
+        background: rgba(255, 255, 255, 0.14) !important;
+        color: #f8fafc !important;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
     }
     
@@ -1456,7 +1564,7 @@ html.low-perf input[type="range"]::-moz-range-thumb {
 /* 移动端适配工具箱双栏 */
 @media (max-width: 768px) {
     #toolboxModal.native-modal {
-        height: 90vh !important;
+        height: 90dvh !important;
         max-height: none !important;
     }
     #toolboxModal .custom-modal-content {
@@ -1520,7 +1628,7 @@ html.low-perf input[type="range"]::-moz-range-thumb {
         border: none !important;
         display: flex !important;
         align-items: center !important;
-        gap: 1.5px !important;
+        gap: 6px !important;
     }
     .dark #toolboxModal .toolbox-tab-btn {
         color: #94a3b8 !important;
@@ -1529,12 +1637,12 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     /* 选中高亮胶囊 */
     #toolboxModal .toolbox-tab-btn.active-tab {
         background: #ffffff !important;
-        color: #10b981 !important;
+        color: #0f172a !important;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
     }
     .dark #toolboxModal .toolbox-tab-btn.active-tab {
-        background: rgba(255, 255, 255, 0.12) !important;
-        color: #34d399 !important;
+        background: rgba(255, 255, 255, 0.14) !important;
+        color: #f8fafc !important;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
     }
     
@@ -1623,12 +1731,14 @@ html.low-perf input[type="range"]::-moz-range-thumb {
 .outpaint-dock-btn:active {
     transform: scale(0.92);
 }
-/* Active toggle compatibility with OutpaintEditor.setMode / toggleSnap (.bg-white) */
+/* Active toggle styling for OutpaintEditor.setMode / toggleSnap */
+.outpaint-dock-btn.tool-active,
 .outpaint-dock-btn.bg-white {
     background: #0f172a !important;
     color: #ffffff !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
 }
+.dark .outpaint-dock-btn.tool-active,
 .dark .outpaint-dock-btn.bg-white {
     background: #f8fafc !important;
     color: #0f172a !important;
@@ -1810,22 +1920,22 @@ html.low-perf input[type="range"]::-moz-range-thumb {
    -------------------------------------------------------------------------- */
 @media (min-width: 768px) {
     body.entrance-animating #mobileControls.anim-enter-sidebar {
-        animation: desktopSidebarEntrance 0.85s var(--ease-out-spring) 0.12s both !important;
+        animation: desktopSidebarEntrance 0.48s var(--ease-out-spring) 0.12s both !important;
         will-change: transform, opacity;
     }
 
     body.entrance-animating .anim-enter-nav {
-        animation: desktopNavEntrance 0.75s var(--ease-out-spring) 0.05s both;
+        animation: desktopNavEntrance 0.42s var(--ease-out-spring) 0.05s both;
         will-change: transform, opacity;
     }
 
     body.entrance-animating .anim-enter-canvas {
-        animation: desktopCanvasEntrance 0.85s var(--ease-out-spring) 0.20s both;
+        animation: desktopCanvasEntrance 0.48s var(--ease-out-spring) 0.20s both;
         will-change: transform, opacity;
     }
 
     body.entrance-animating .anim-enter-action {
-        animation: desktopActionEntrance 0.75s var(--ease-out-spring) 0.35s both;
+        animation: desktopActionEntrance 0.42s var(--ease-out-spring) 0.35s both;
         will-change: transform, opacity;
     }
 }
@@ -1887,22 +1997,22 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     }
 
     body.entrance-animating .anim-enter-nav {
-        animation: mobileNavEntrance 0.75s var(--ease-out-spring) 0.05s both;
+        animation: mobileNavEntrance 0.42s var(--ease-out-spring) 0.05s both;
         will-change: transform, opacity;
     }
 
     body.entrance-animating .anim-enter-canvas {
-        animation: mobileCanvasEntrance 0.85s var(--ease-out-spring) 0.10s both;
+        animation: mobileCanvasEntrance 0.48s var(--ease-out-spring) 0.10s both;
         will-change: transform, opacity;
     }
 
     body.entrance-animating #mobileControls.anim-enter-drawer {
-        animation: mobileDrawerEntrance 0.85s var(--ease-out-spring) 0.15s both;
+        animation: mobileDrawerEntrance 0.48s var(--ease-out-spring) 0.15s both;
         will-change: transform, opacity;
     }
 
     body.entrance-animating #floatingGenerateBtn.anim-enter-fab {
-        animation: mobileFabEntrance 0.65s var(--ease-out-spring) 0.35s both;
+        animation: mobileFabEntrance 0.38s var(--ease-out-spring) 0.35s both;
         will-change: transform, opacity;
     }
 }
@@ -2060,13 +2170,11 @@ html.low-perf body.entrance-animating #mobileControls {
 @keyframes canvasImgReveal {
     0% {
         opacity: 0;
-        transform: scale(0.985);
-        filter: blur(8px);
+        transform: scale3d(0.985, 0.985, 1);
     }
     100% {
         opacity: 1;
-        transform: scale(1);
-        filter: blur(0);
+        transform: scale3d(1, 1, 1);
     }
 }
 
@@ -2612,8 +2720,32 @@ body.char-stage-active #canvasFilmstripDock {
     }
 }
 
+#vibeExportMenu[popover] {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+    transform-origin: top right;
+    transition: opacity 0.16s var(--ease-out-spring), transform 0.18s var(--ease-out-spring);
+}
+
+@supports (transition-behavior: allow-discrete) and (overlay: auto) {
+    #vibeExportMenu[popover] {
+        transition: opacity 0.16s var(--ease-out-spring), transform 0.18s var(--ease-out-spring), overlay 0.18s allow-discrete, display 0.18s allow-discrete;
+    }
+}
+
 #vibeExportMenu[popover]:is(:popover-open, .\:popover-open) {
     display: block;
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    @starting-style {
+        #vibeExportMenu[popover]:is(:popover-open, .\:popover-open) {
+            opacity: 0;
+            transform: scale(0.95) translateY(-4px);
+        }
+    }
 }
 
 @supports (position-area: block-end) {
@@ -2657,6 +2789,53 @@ body.char-stage-active #canvasFilmstripDock {
     object-fit: contain;
 }
 
+/* AI Chat Thinking Dot Bounce (Compositor-Only) */
+@keyframes aiThinkingDot {
+    0%, 80%, 100% {
+        transform: translateY(0) scale(0.92);
+        opacity: 0.45;
+    }
+    40% {
+        transform: translateY(-3px) scale(1.1);
+        opacity: 1;
+    }
+}
+
+.ai-thinking-dot {
+    animation: aiThinkingDot 1.1s var(--ease-out-spring) infinite;
+}
+
+/* Lightbox Directional Navigation Micro-Slide */
+@keyframes lbSlideNext {
+    0% {
+        opacity: 0.35;
+        transform: translate3d(18px, 0, 0) scale(0.99);
+    }
+    100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+@keyframes lbSlidePrev {
+    0% {
+        opacity: 0.35;
+        transform: translate3d(-18px, 0, 0) scale(0.99);
+    }
+    100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+.lb-slide-next {
+    animation: lbSlideNext 0.24s var(--ease-out-spring) both;
+}
+
+.lb-slide-prev {
+    animation: lbSlidePrev 0.24s var(--ease-out-spring) both;
+}
+
 /* Respect prefers-reduced-motion across spatial movement/scale while retaining gentle opacity/color feedback */
 @media (prefers-reduced-motion: reduce) {
     .drawer,
@@ -2672,6 +2851,7 @@ body.char-stage-active #canvasFilmstripDock {
     #floatingGenerateBtn,
     .toolbox-icon-dock,
     #vibeExportMenu,
+    .custom-select-options,
     .custom-modal-content,
     .custom-modal-backdrop,
     dialog.native-modal,
@@ -2681,6 +2861,14 @@ body.char-stage-active #canvasFilmstripDock {
     .toast-item {
         transition-property: opacity, color, background-color, border-color;
         animation: none !important;
+    }
+
+    .ai-thinking-dot,
+    .lb-slide-next,
+    .lb-slide-prev {
+        animation: none !important;
+        transform: none !important;
+        opacity: 0.85 !important;
     }
 
     input[type="range"]::-webkit-slider-thumb {
@@ -2694,6 +2882,7 @@ body.char-stage-active #canvasFilmstripDock {
     }
 
     .gallery-item:hover,
+    .gallery-item:hover img,
     .delete-item-btn:hover,
     .toolbox-svg-btn:hover,
     .filmstrip-thumb-btn:hover,
@@ -2706,4 +2895,12 @@ body.char-stage-active #canvasFilmstripDock {
     ::view-transition-new(*) {
         animation: none !important;
     }
+}
+
+html.low-perf .gallery-item:hover img,
+html.low-perf .lb-slide-next,
+html.low-perf .lb-slide-prev,
+html.low-perf .ai-thinking-dot {
+    animation: none !important;
+    transform: none !important;
 }

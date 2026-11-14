@@ -543,5 +543,286 @@ describe('Modern Web UI & Accessibility Upgrades', () => {
             expect(imageActions.classList.contains('opacity-0')).toBe(true);
             expect(imageActions.classList.contains('pointer-events-none')).toBe(true);
         });
+
+        it('upgrades <select> to Top-Layer combobox/listbox popover with keyboard nav, Escape stopPropagation, and XSS-safe option text', () => {
+            function makeFakeElement(tag) {
+                const attrs = {};
+                const children = [];
+                const listeners = {};
+                let innerHtml = '';
+                const el = {
+                    tagName: String(tag || 'div').toUpperCase(),
+                    id: '',
+                    value: '',
+                    className: '',
+                    textContent: '',
+                    style: {},
+                    dataset: {},
+                    children,
+                    options: [],
+                    selectedIndex: 0,
+                    parentElement: null,
+                    classList: createFakeClassList(),
+                    setAttribute(k, v) { attrs[k] = String(v); },
+                    getAttribute(k) { return attrs[k] ?? null; },
+                    hasAttribute(k) { return Object.prototype.hasOwnProperty.call(attrs, k); },
+                    removeAttribute(k) { delete attrs[k]; },
+                    contains(target) {
+                        if (target === el) return true;
+                        return children.some((c) => (typeof c.contains === 'function' ? c.contains(target) : c === target));
+                    },
+                    appendChild(child) {
+                        child.parentElement = el;
+                        children.push(child);
+                        return child;
+                    },
+                    replaceChildren(...nodes) {
+                        children.length = 0;
+                        nodes.forEach((n) => el.appendChild(n));
+                    },
+                    get innerHTML() { return innerHtml; },
+                    set innerHTML(val) {
+                        innerHtml = String(val);
+                        if (innerHtml === '') children.length = 0;
+                    },
+                    getBoundingClientRect: () => ({ top: 120, bottom: 160, left: 40, right: 260, width: 220, height: 40 }),
+                    focus: vi.fn(),
+                    scrollIntoView: vi.fn(),
+                    addEventListener(type, fn) {
+                        (listeners[type] ||= []).push(fn);
+                    },
+                    dispatchEvent(evt) {
+                        if (!evt.target) {
+                            try { evt.target = el; } catch (_) {}
+                        }
+                        (listeners[evt.type] || []).forEach((fn) => fn(evt));
+                        return true;
+                    }
+                };
+                return el;
+            }
+
+            const wrapper = makeFakeElement('div');
+            const selectEl = makeFakeElement('select');
+            selectEl.id = 'testSamplerSelect';
+            selectEl.className = 'w-full px-4 py-3 rounded-xl text-xs font-medium';
+            selectEl.setAttribute('aria-label', '采样器');
+            const xssPayload = '<img src=x onerror=alert(1)>';
+            const opt1 = { value: 'k_euler', textContent: 'Euler' };
+            const opt2 = { value: 'k_euler_ancestral', textContent: 'Euler Ancestral' };
+            const opt3 = { value: 'xss', textContent: xssPayload };
+            selectEl.options = [opt1, opt2, opt3];
+            selectEl.value = 'k_euler';
+            selectEl.selectedIndex = 0;
+            wrapper.appendChild(selectEl);
+
+            let popoverOpen = false;
+            const origMutationObserver = globalThis.MutationObserver;
+            globalThis.MutationObserver = undefined;
+
+            globalThis.document = {
+                querySelectorAll: (sel) => (sel === 'select' ? [selectEl] : []),
+                createElement: (tag) => {
+                    const el = makeFakeElement(tag);
+                    if (tag === 'div') {
+                        el.showPopover = vi.fn(() => { popoverOpen = true; });
+                        el.hidePopover = vi.fn(() => { popoverOpen = false; });
+                    }
+                    return el;
+                },
+                createElementNS: (_ns, tag) => makeFakeElement(tag),
+                addEventListener: vi.fn()
+            };
+            globalThis.window = {
+                innerHeight: 900,
+                innerWidth: 1440,
+                addEventListener: vi.fn()
+            };
+
+            try {
+                const ui = { _customSelectGlobalListenersBound: false };
+                const changedEvents = [];
+                selectEl.addEventListener('change', () => changedEvents.push(selectEl.value));
+
+                UIController.prototype._initCustomSelects.call(ui);
+
+                expect(selectEl.classList.contains('hidden')).toBe(true);
+                const container = wrapper.children.find((c) => c.className.includes('custom-select-container'));
+                expect(container).toBeTruthy();
+
+                const trigger = container.children[0];
+                const panel = container.children[1];
+
+                expect(trigger.getAttribute('role')).toBe('combobox');
+                expect(trigger.getAttribute('aria-haspopup')).toBe('listbox');
+                expect(trigger.getAttribute('aria-controls')).toBe('testSamplerSelect_listbox');
+                expect(trigger.getAttribute('aria-label')).toBe('采样器');
+                expect(panel.id).toBe('testSamplerSelect_listbox');
+                expect(panel.getAttribute('role')).toBe('listbox');
+                expect(panel.getAttribute('popover')).toBe('manual');
+                expect(panel.children).toHaveLength(3);
+                expect(panel.children[0].getAttribute('role')).toBe('option');
+
+                // XSS safety: literal text via textContent, no injected child DOM nodes beyond span + check svg
+                const xssOption = panel.children[2];
+                expect(xssOption.children[0].textContent).toBe(xssPayload);
+                expect(xssOption.children[0].children).toHaveLength(0);
+
+                // Keyboard open & ArrowDown / End / Home / Enter selection
+                const down1 = { key: 'ArrowDown', preventDefault: vi.fn(), stopPropagation: vi.fn() };
+                trigger.onkeydown(down1);
+                expect(popoverOpen).toBe(true);
+                expect(panel.showPopover).toHaveBeenCalledTimes(1);
+                expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+                const endEvt = { key: 'End', preventDefault: vi.fn(), stopPropagation: vi.fn() };
+                trigger.onkeydown(endEvt);
+                expect(panel.children[2].getAttribute('data-focused')).toBe('true');
+
+                const homeEvt = { key: 'Home', preventDefault: vi.fn(), stopPropagation: vi.fn() };
+                trigger.onkeydown(homeEvt);
+                expect(panel.children[0].getAttribute('data-focused')).toBe('true');
+
+                const down2 = { key: 'ArrowDown', preventDefault: vi.fn(), stopPropagation: vi.fn() };
+                trigger.onkeydown(down2);
+                expect(panel.children[1].getAttribute('data-focused')).toBe('true');
+
+                // Escape closes dropdown & stops propagation so outer dialog does not close
+                const escEvt = { key: 'Escape', preventDefault: vi.fn(), stopPropagation: vi.fn() };
+                trigger.onkeydown(escEvt);
+                expect(escEvt.preventDefault).toHaveBeenCalledTimes(1);
+                expect(escEvt.stopPropagation).toHaveBeenCalledTimes(1);
+                expect(panel.hidePopover).toHaveBeenCalledTimes(1);
+                expect(popoverOpen).toBe(false);
+                expect(trigger.focus).toHaveBeenCalled();
+
+                // Re-open with ArrowDown, select second option with ArrowDown + Enter
+                trigger.onkeydown({ key: 'ArrowDown', preventDefault: vi.fn(), stopPropagation: vi.fn() });
+                trigger.onkeydown({ key: 'ArrowDown', preventDefault: vi.fn(), stopPropagation: vi.fn() });
+                selectEl.selectedIndex = 1;
+                trigger.onkeydown({ key: 'Enter', preventDefault: vi.fn(), stopPropagation: vi.fn() });
+                expect(selectEl.value).toBe('k_euler_ancestral');
+                expect(changedEvents).toEqual(['k_euler_ancestral']);
+                expect(trigger.children[0].textContent).toBe('Euler Ancestral');
+                expect(popoverOpen).toBe(false);
+            } finally {
+                globalThis.MutationObserver = origMutationObserver;
+            }
+        });
+
+        it('persists desktop sidebar collapsed state, syncs inert & aria-expanded on buttons, and restores state on init', () => {
+            vi.useFakeTimers();
+            try {
+                localStorage.clear();
+                const attrsMap = new Map([
+                    ['desktopSidebarCollapseBtn', {}],
+                    ['desktopSidebarExpandBtn', {}]
+                ]);
+                const makeBtn = (id) => ({
+                    id,
+                    setAttribute: (k, v) => { attrsMap.get(id)[k] = String(v); },
+                    getAttribute: (k) => attrsMap.get(id)[k] ?? null
+                });
+
+                const collapseBtn = makeBtn('desktopSidebarCollapseBtn');
+                const expandBtn = makeBtn('desktopSidebarExpandBtn');
+                const mobileControls = {
+                    inert: false,
+                    classList: createFakeClassList()
+                };
+                const body = {
+                    classList: createFakeClassList()
+                };
+
+                const dispatchedEvents = [];
+                globalThis.document = {
+                    body,
+                    getElementById: (id) => ({
+                        mobileControls,
+                        desktopSidebarCollapseBtn: collapseBtn,
+                        desktopSidebarExpandBtn: expandBtn
+                    }[id] || null)
+                };
+                globalThis.window = {
+                    innerWidth: 1280,
+                    dispatchEvent: vi.fn((evt) => dispatchedEvents.push(evt.type))
+                };
+
+                const ui = {
+                    els: { mobileControls },
+                    toggleDesktopSidebar: UIController.prototype.toggleDesktopSidebar
+                };
+                UIController.prototype.toggleDesktopSidebar.call(ui, true);
+
+                expect(body.classList.contains('desktop-sidebar-collapsed')).toBe(true);
+                expect(mobileControls.classList.contains('desktop-collapsed')).toBe(true);
+                expect(mobileControls.inert).toBe(true);
+                expect(collapseBtn.getAttribute('aria-expanded')).toBe('false');
+                expect(expandBtn.getAttribute('aria-expanded')).toBe('false');
+                expect(localStorage.getItem('nai_desktop_sidebar_collapsed')).toBe('true');
+
+                vi.advanceTimersByTime(300);
+                expect(dispatchedEvents).toEqual(['resize']);
+
+                // Reset state in DOM, then verify initDesktopSidebarState restores persisted 'true' without persisting/resizing
+                body.classList.remove('desktop-sidebar-collapsed');
+                mobileControls.classList.remove('desktop-collapsed');
+                mobileControls.inert = false;
+                dispatchedEvents.length = 0;
+
+                UIController.prototype.initDesktopSidebarState.call(ui);
+                vi.advanceTimersByTime(350);
+                expect(body.classList.contains('desktop-sidebar-collapsed')).toBe(true);
+                expect(mobileControls.classList.contains('desktop-collapsed')).toBe(true);
+                expect(mobileControls.inert).toBe(true);
+                expect(collapseBtn.getAttribute('aria-expanded')).toBe('false');
+                expect(expandBtn.getAttribute('aria-expanded')).toBe('false');
+                expect(dispatchedEvents).toEqual([]);
+
+                // Expand back
+                UIController.prototype.toggleDesktopSidebar.call(ui, false);
+                vi.advanceTimersByTime(300);
+                expect(body.classList.contains('desktop-sidebar-collapsed')).toBe(false);
+                expect(mobileControls.inert).toBe(false);
+                expect(collapseBtn.getAttribute('aria-expanded')).toBe('true');
+                expect(expandBtn.getAttribute('aria-expanded')).toBe('true');
+                expect(localStorage.getItem('nai_desktop_sidebar_collapsed')).toBe('false');
+                expect(dispatchedEvents).toEqual(['resize']);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('enforces P0/P1 static hygiene: zero <i data-lucide>, valid Tailwind v3 tokens, no vh/emojis/reflows', () => {
+            const srcDir = path.join(root, 'src');
+            const srcFiles = fs.readdirSync(srcDir)
+                .filter((f) => f.endsWith('.js'))
+                .map((f) => ({ rel: `src/${f}`, content: fs.readFileSync(path.join(srcDir, f), 'utf8') }));
+
+            const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+            const css = fs.readFileSync(path.join(root, 'src/style.css'), 'utf8');
+            const allTargets = [{ rel: 'index.html', content: html }, { rel: 'src/style.css', content: css }, ...srcFiles];
+
+            const invalidTokenRegex = /\b(?:gray-(?:150|155|205|250|450)|slate-(?:650|750)|shadow-2?xs|backdrop-blur-xs|outline-hidden|border-3|w-4\.5|h-4\.5|py-0\.2|animate-bounce)\b/;
+            const invalidOpacityRegex = /\b(?:bg|text|border|ring|divide|from|to|via|fill|stroke|shadow)-[a-z0-9-]+\/(?:6|8|12|72|88)\b/;
+            const decorativeEmojiRegex = /[🎲💡🎨]/u;
+
+            for (const file of allTargets) {
+                expect(file.content, `${file.rel} must not contain <i data-lucide>`).not.toMatch(/<i\b[^>]*data-lucide/);
+                expect(file.content, `${file.rel} contains invalid Tailwind v3 token`).not.toMatch(invalidTokenRegex);
+                expect(file.content, `${file.rel} contains unsupported Tailwind v3 opacity`).not.toMatch(invalidOpacityRegex);
+                expect(file.content, `${file.rel} must not contain decorative emojis`).not.toMatch(decorativeEmojiRegex);
+            }
+
+            // Use dvh instead of vh in layout HTML & CSS
+            expect(html, 'index.html must avoid vh length tokens').not.toMatch(/\b\d+(?:\.\d+)?vh\b/);
+            expect(css, 'src/style.css must avoid vh length tokens').not.toMatch(/\b\d+(?:\.\d+)?vh\b/);
+
+            // Prevent forced reflow offsetWidth/offsetHeight outside inpaint canvas sizing
+            for (const file of srcFiles) {
+                if (file.rel === 'src/inpaint.js') continue;
+                expect(file.content, `${file.rel} should not force reflow via offsetWidth/offsetHeight`).not.toMatch(/\.offset(?:Width|Height)\b/);
+            }
+        });
     });
 });

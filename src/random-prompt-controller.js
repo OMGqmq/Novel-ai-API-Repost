@@ -33,38 +33,39 @@ export class RandomPromptController {
 
         categories.forEach(cat => {
             const item = document.createElement('div');
-            item.className = 'border border-gray-155 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-white/50 dark:bg-slate-900/40 shadow-sm';
-            
+            item.className = 'border border-gray-200 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-white/50 dark:bg-slate-900/40 shadow-sm';
+
             // Header and body opacity + disabled state if not enabled
             const headerOpacity = cat.enabled ? '' : 'opacity-60';
             const bodyOpacity = cat.enabled ? '' : 'opacity-40 pointer-events-none';
             const textareaDisabled = cat.enabled ? '' : 'disabled';
+            const safeCatName = String(cat.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
             item.innerHTML = `
-                <div id="rp-header-${cat.name}" class="flex justify-between items-center bg-gray-50/50 dark:bg-slate-950/20 px-4 py-2.5 border-b border-gray-155 dark:border-slate-800/80 cursor-pointer select-none ${headerOpacity}" onclick="window.toggleRandomCategoryFold('${cat.name}', event)">
+                <div id="rp-header-${safeCatName}" class="flex justify-between items-center bg-gray-50/50 dark:bg-slate-950/20 px-4 py-2.5 border-b border-gray-200 dark:border-slate-800/80 cursor-pointer select-none ${headerOpacity}" onclick="window.toggleRandomCategoryFold('${safeCatName}', event)">
                     <div class="flex items-center gap-2" onclick="event.stopPropagation()">
-                        <input type="checkbox" id="rp-chk-${cat.name}" ${cat.enabled ? 'checked' : ''} onchange="window.toggleRandomCategory('${cat.name}', this.checked)" class="w-3.5 h-3.5 rounded border-gray-300 dark:border-slate-700 text-indigo-500 focus:ring-indigo-500 cursor-pointer">
-                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200 capitalize">${cat.name}</span>
+                        <input type="checkbox" id="rp-chk-${safeCatName}" ${cat.enabled ? 'checked' : ''} onchange="window.toggleRandomCategory('${safeCatName}', this.checked)" class="w-3.5 h-3.5 rounded border-gray-300 dark:border-slate-700 accent-slate-900 dark:accent-white focus:ring-slate-500 cursor-pointer">
+                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200 capitalize">${safeCatName}</span>
                     </div>
                     <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
                         ${cat.custom ? `
-                            <button onclick="window.deleteRandomCategory('${cat.name}')" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-lg transition-colors cursor-pointer">
-                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            <button type="button" onclick="window.deleteRandomCategory('${safeCatName}')" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-lg transition-colors cursor-pointer" aria-label="删除分类">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                             </button>
                         ` : ''}
-                        <button class="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 dark:text-gray-500 rounded-lg transition-transform duration-200" onclick="window.toggleRandomCategoryFold('${cat.name}', event)">
-                            <i data-lucide="chevron-down" id="rp-chevron-${cat.name}" class="w-3.5 h-3.5 transition-transform duration-200"></i>
+                        <button type="button" class="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 dark:text-gray-500 rounded-lg transition-transform duration-200 cursor-pointer" onclick="window.toggleRandomCategoryFold('${safeCatName}', event)" aria-label="展开或收起">
+                            <svg id="rp-chevron-${safeCatName}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 transition-transform duration-200 pointer-events-none"><path d="m6 9 6 6 6-6"/></svg>
                         </button>
                     </div>
                 </div>
-                <div id="rp-body-${cat.name}" class="p-3 space-y-2 transition-all ${bodyOpacity}">
-                    <textarea id="rp-txt-${cat.name}" rows="2" oninput="window.updateRandomCategoryContent('${cat.name}', this.value)" class="art-input w-full px-3 py-2 rounded-xl text-xs outline-none resize-none text-gray-700 dark:text-gray-200" placeholder="以英文分号分词组，例如: jk uniform, white shirt; maid outfit, apron; white summer dress" ${textareaDisabled}></textarea>
-                    <div id="rp-placeholder-${cat.name}" class="mt-1"></div>
+                <div id="rp-body-${safeCatName}" class="p-3 space-y-2 transition-all ${bodyOpacity}">
+                    <textarea id="rp-txt-${safeCatName}" rows="2" oninput="window.updateRandomCategoryContent('${safeCatName}', this.value)" class="art-input w-full px-3 py-2 rounded-xl text-xs outline-none resize-none text-gray-700 dark:text-gray-200" placeholder="以英文分号分词组，例如: jk uniform, white shirt; maid outfit, apron; white summer dress" ${textareaDisabled}></textarea>
+                    <div id="rp-placeholder-${safeCatName}" class="mt-1"></div>
                 </div>
             `;
-            
+
             container.appendChild(item);
-            
+
             // Populate current content
             const textarea = item.querySelector(`#rp-txt-${cat.name}`);
             if (textarea) {
@@ -76,8 +77,6 @@ export class RandomPromptController {
                 }
             }
         });
-
-        if (window.safeCreateIcons) window.safeCreateIcons();
     }
 
     toggleEnabled(checked) {

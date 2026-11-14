@@ -10,11 +10,26 @@ global.window = {
 global.document = {
     getElementById: vi.fn().mockReturnValue(null),
     createElement: vi.fn().mockImplementation((tag) => {
-        return {
+        const attrs = {};
+        const node = {
+            tagName: String(tag || 'div').toUpperCase(),
             id: '',
+            src: '',
+            alt: '',
             className: '',
             innerHTML: '',
-            appendChild: vi.fn(),
+            textContent: '',
+            children: [],
+            setAttribute: vi.fn((k, v) => { attrs[k] = String(v); }),
+            getAttribute: vi.fn((k) => attrs[k] ?? null),
+            appendChild: vi.fn((child) => {
+                node.children.push(child);
+                if (child && typeof child === 'object') {
+                    const extraSrc = child.src ? ` src="${child.src}"` : '';
+                    node.innerHTML += `<${String(child.tagName || 'div').toLowerCase()}${extraSrc}>${child.innerHTML || child.textContent || ''}</${String(child.tagName || 'div').toLowerCase()}>`;
+                }
+                return child;
+            }),
             prepend: vi.fn(),
             remove: vi.fn(),
             addEventListener: vi.fn(),
@@ -28,6 +43,7 @@ global.document = {
                 removeChild: vi.fn()
             }
         };
+        return node;
     }),
 };
 

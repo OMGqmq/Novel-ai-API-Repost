@@ -18,7 +18,7 @@ export const ERA_OPTIONS = [
 ];
 
 export const FRANCHISE_OPTIONS = [
-    { id: 'any', label: '🎲 随机热门作品', query: '' },
+    { id: 'any', label: '随机热门作品', query: '' },
     { id: 'genshin', label: '原神 (Genshin Impact)', query: 'genshin_impact' },
     { id: 'starrail', label: '崩坏:星穹铁道 (Honkai: Star Rail)', query: 'honkai:_star_rail' },
     { id: 'bluearchive', label: '碧蓝档案 (Blue Archive)', query: 'blue_archive' },
@@ -35,7 +35,7 @@ export const FRANCHISE_OPTIONS = [
 ];
 
 export const ARTIST_STYLE_OPTIONS = [
-    { id: 'any', label: '🎲 自由 / 随作品风格', query: '' },
+    { id: 'any', label: '自由 / 随作品风格', query: '' },
     { id: 'clean_anime', label: '二次元精致赛璐璐', query: 'clean_lines, official_style' },
     { id: 'painterly', label: '厚涂质感光影', query: 'painterly, volumetric_lighting' },
     { id: 'watercolor', label: '通透水彩柔光', query: 'watercolor_(medium), soft_lighting' },
@@ -43,6 +43,30 @@ export const ARTIST_STYLE_OPTIONS = [
     { id: 'cyberpunk', label: '赛博朋克霓虹', query: 'cyberpunk, neon_lights' },
     { id: 'monochrome', label: '黑白高对比漫画', query: 'monochrome, high_contrast' }
 ];
+
+const INSP_SVG_PATHS = {
+    sparkles: '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/>',
+    palette: '<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
+    user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    shirt: '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
+    activity: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
+    image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+    pin: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>'
+};
+
+function renderInspSvg(name, className = 'w-4 h-4') {
+    const inner = INSP_SVG_PATHS[name] || INSP_SVG_PATHS.sparkles;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="${className} pointer-events-none" aria-hidden="true">${inner}</svg>`;
+}
+
+function escapeInspHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 export const CATEGORY_INFO = {
     artist: { label: '画师与风格', icon: 'palette', color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-800/40' },
@@ -239,7 +263,7 @@ export class InspirationManager {
                     <button type="button" onclick="window.setInspirationEra('${opt.id}')"
                         class="px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all active:scale-95 flex-shrink-0 cursor-pointer ${
                             isActive
-                                ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm font-bold'
                                 : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700'
                         }">
                         ${opt.label}
@@ -264,7 +288,7 @@ export class InspirationManager {
                     <button type="button" onclick="window.setInspirationRating('${r.id}')"
                         class="px-2 py-1 text-[10px] font-semibold rounded-md transition-all active:scale-95 cursor-pointer ${
                             isActive
-                                ? 'bg-rose-500 text-white shadow-xs font-bold'
+                                ? 'bg-rose-500 text-white shadow-sm font-bold'
                                 : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'
                         }">
                         ${r.label}
@@ -511,8 +535,7 @@ export class InspirationManager {
             drawBtn.disabled = loading;
             drawBtn.innerHTML = loading
                 ? `<svg class="animate-spin w-4 h-4 mr-1.5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> 检索中...`
-                : `<i data-lucide="sparkles" class="w-4 h-4"></i> 🎲 抽取灵感 (Draw)`;
-            if (window.safeCreateIcons) window.safeCreateIcons();
+                : `${renderInspSvg('sparkles', 'w-4 h-4')} 抽取灵感 (Draw)`;
         }
     }
 
@@ -737,7 +760,7 @@ export class InspirationManager {
                 <div class="mb-3 bg-gray-50/80 dark:bg-slate-800/40 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800/80">
                     <div class="flex items-center justify-between mb-2 px-1">
                         <div class="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-200">
-                            <i data-lucide="${info.icon}" class="w-3.5 h-3.5 text-indigo-500"></i>
+                            ${renderInspSvg(info.icon, 'w-3.5 h-3.5 text-slate-700 dark:text-slate-300')}
                             <span>${info.label} (${tagList.length})</span>
                         </div>
                     </div>
@@ -745,15 +768,15 @@ export class InspirationManager {
                         ${tagList.map(tag => `
                             <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all select-none cursor-pointer ${
                                 tag.selected
-                                    ? `${info.color} shadow-xs font-semibold`
+                                    ? `${info.color} shadow-sm font-semibold`
                                     : 'bg-white dark:bg-slate-900 border-gray-200/60 dark:border-slate-700/60 text-gray-400 line-through opacity-60'
                             }" onclick="window.toggleInspirationTag(${tag.index})">
-                                <span>${tag.name}</span>
-                                ${tag.cn ? `<span class="text-[10px] opacity-75 font-normal">(${tag.cn})</span>` : ''}
+                                <span>${escapeInspHtml(tag.name)}</span>
+                                ${tag.cn ? `<span class="text-[10px] opacity-75 font-normal">(${escapeInspHtml(tag.cn)})</span>` : ''}
                                 <button type="button" class="ml-0.5 p-0.5 hover:text-amber-500 transition-colors"
                                     title="${tag.locked ? '已锁定 (换作品不丢失)' : '锁定此标签'}"
                                     onclick="window.toggleInspirationTagLock(${tag.index}, event)">
-                                    <i data-lucide="pin" class="w-3 h-3 ${tag.locked ? 'text-amber-500 fill-amber-500' : 'text-gray-300 dark:text-gray-600'}"></i>
+                                    ${renderInspSvg('pin', `w-3 h-3 ${tag.locked ? 'text-amber-500 fill-amber-500' : 'text-gray-300 dark:text-gray-600'}`)}
                                 </button>
                             </div>
                         `).join('')}
@@ -761,8 +784,6 @@ export class InspirationManager {
                 </div>
             `;
         }).join('');
-
-        if (window.safeCreateIcons) window.safeCreateIcons();
     }
 
     toggleTag(idx) {

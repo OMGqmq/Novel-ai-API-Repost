@@ -2,6 +2,77 @@
  * UI Controller Module
  * Handles DOM element references, class toggling, and view state management.
  */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const UI_SVG_PATHS = {
+    'chevron-down': [{ tag: 'path', d: 'M19 9l-7 7-7-7' }],
+    check: [{ tag: 'path', d: 'M5 13l4 4L19 7' }],
+    maximize: [
+        { tag: 'path', d: 'M8 3H5a2 2 0 0 0-2 2v3' },
+        { tag: 'path', d: 'M21 8V5a2 2 0 0 0-2-2h-3' },
+        { tag: 'path', d: 'M3 16v3a2 2 0 0 0 2 2h3' },
+        { tag: 'path', d: 'M16 21h3a2 2 0 0 0 2-2v-3' }
+    ],
+    unlock: [
+        { tag: 'rect', width: '18', height: '11', x: '3', y: '11', rx: '2', ry: '2' },
+        { tag: 'path', d: 'M7 11V7a5 5 0 0 1 9.9-1' }
+    ],
+    lock: [
+        { tag: 'rect', width: '18', height: '11', x: '3', y: '11', rx: '2', ry: '2' },
+        { tag: 'path', d: 'M7 11V7a5 5 0 0 1 10 0v4' }
+    ],
+    globe: [
+        { tag: 'circle', cx: '12', cy: '12', r: '10' },
+        { tag: 'path', d: 'M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20' },
+        { tag: 'path', d: 'M2 12h20' }
+    ],
+    zap: [{ tag: 'path', d: 'M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z' }],
+    'zap-off': [
+        { tag: 'path', d: 'M10.513 4.856 13.12 2.17a.5.5 0 0 1 .86.46l-1.377 4.317' },
+        { tag: 'path', d: 'M15.656 10H20a1 1 0 0 1 .78 1.63l-1.72 1.773' },
+        { tag: 'path', d: 'M16.273 16.273 10.88 21.83a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14H4a1 1 0 0 1-.78-1.63l4.507-4.643' },
+        { tag: 'path', d: 'm2 2 20 20' }
+    ]
+};
+
+let customSelectSeq = 0;
+
+function createUiSvg(name, className = 'w-4 h-4', strokeWidth = '1.9') {
+    const shapes = UI_SVG_PATHS[name];
+    if (!shapes || typeof document === 'undefined' || typeof document.createElementNS !== 'function') {
+        return null;
+    }
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('xmlns', SVG_NS);
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', strokeWidth);
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('class', `${className} pointer-events-none`.trim());
+    shapes.forEach((shape) => {
+        const node = document.createElementNS(SVG_NS, shape.tag);
+        Object.entries(shape).forEach(([k, v]) => {
+            if (k !== 'tag') node.setAttribute(k, v);
+        });
+        svg.appendChild(node);
+    });
+    return svg;
+}
+
+function setUiButtonIcon(btn, name, className = 'w-4 h-4') {
+    if (!btn) return;
+    const svg = createUiSvg(name, className);
+    if (svg && typeof btn.replaceChildren === 'function') {
+        btn.replaceChildren(svg);
+    } else if (svg && 'innerHTML' in btn) {
+        btn.innerHTML = '';
+        btn.appendChild(svg);
+    } else {
+        btn.innerHTML = `<span class="${className}" aria-hidden="true"></span>`;
+    }
+}
+
 export class UIController {
     constructor() {
         this.els = this._getElements();
@@ -178,6 +249,15 @@ export class UIController {
 
     _initCustomSelects() {
         const selects = document.querySelectorAll('select');
+        if (!selects || selects.length === 0) return;
+
+        const instances = [];
+        const closeAllExcept = (keepInstance = null) => {
+            instances.forEach((inst) => {
+                if (inst !== keepInstance) inst.close(false);
+            });
+        };
+
         selects.forEach(selectEl => {
             if (!selectEl || selectEl.dataset.customized === 'true') return;
             selectEl.dataset.customized = 'true';
@@ -194,6 +274,9 @@ export class UIController {
                 container.setAttribute('data-select-id', selectEl.id);
             }
 
+            const uid = ++customSelectSeq;
+            const listboxId = `${selectEl.id || 'customSelect_' + uid}_listbox`;
+
             // Get selected option
             const selectedOpt = selectEl.options[selectEl.selectedIndex] || selectEl.options[0];
             const selectedText = selectedOpt ? selectedOpt.textContent : '';
@@ -201,7 +284,7 @@ export class UIController {
             // Create trigger button
             const trigger = document.createElement('button');
             trigger.type = 'button';
-            
+
             // Extract spacing, styling, font size classes from original select to match layout
             const classesToCopy = [];
             originalClasses.split(' ').forEach(cls => {
@@ -215,62 +298,237 @@ export class UIController {
 
             const extraClasses = classesToCopy.length > 0 ? ` ${classesToCopy.join(' ')}` : ' px-4 py-3 rounded-xl text-xs font-medium';
             trigger.className = `custom-select-trigger art-input w-full flex items-center justify-between outline-none shadow-sm cursor-pointer${extraClasses}`;
-            trigger.innerHTML = `
-                <span class="custom-select-label truncate">${selectedText}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-gray-400 custom-select-arrow transition-transform duration-200 flex-shrink-0 ml-1.5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-            `;
+            trigger.setAttribute('role', 'combobox');
+            trigger.setAttribute('aria-haspopup', 'listbox');
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.setAttribute('aria-controls', listboxId);
+            const inheritedAriaLabel = selectEl.getAttribute?.('aria-label');
+            if (inheritedAriaLabel) trigger.setAttribute('aria-label', inheritedAriaLabel);
 
-            // Create options panel
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'custom-select-label truncate';
+            labelSpan.textContent = selectedText;
+            trigger.appendChild(labelSpan);
+
+            const arrowSvg = createUiSvg('chevron-down', 'w-3.5 h-3.5 text-gray-400 custom-select-arrow transition-transform duration-200 flex-shrink-0 ml-1.5', '2');
+            if (arrowSvg) trigger.appendChild(arrowSvg);
+
+            // Create options panel (Top-Layer popover when supported, fallback positioned panel otherwise)
             const optionsPanel = document.createElement('div');
-            optionsPanel.className = 'custom-select-options absolute left-0 right-0 mt-1.5 py-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-slate-800 rounded-xl shadow-art z-[60] opacity-0 scale-95 pointer-events-none transition-all duration-150 origin-top custom-scroll overflow-y-auto max-h-60';
+            optionsPanel.id = listboxId;
+            optionsPanel.setAttribute('role', 'listbox');
+            const supportsPopover = typeof optionsPanel.showPopover === 'function' && typeof optionsPanel.hidePopover === 'function';
+            if (supportsPopover) {
+                optionsPanel.setAttribute('popover', 'manual');
+                optionsPanel.className = 'custom-select-options py-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-slate-800 rounded-xl shadow-art z-[60] custom-scroll overflow-y-auto';
+            } else {
+                optionsPanel.className = 'custom-select-options absolute left-0 right-0 mt-1.5 py-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-slate-800 rounded-xl shadow-art z-[60] opacity-0 scale-95 pointer-events-none transition-all duration-150 origin-top custom-scroll overflow-y-auto max-h-60';
+            }
 
-            const syncOptions = () => {
-                optionsPanel.innerHTML = '';
-                Array.from(selectEl.options).forEach(opt => {
+            let isOpen = false;
+            let focusedIndex = Math.max(0, selectEl.selectedIndex || 0);
+            let optionEls = [];
+
+            const updateTriggerLabel = () => {
+                const updatedOpt = selectEl.options[selectEl.selectedIndex] || selectEl.options[0];
+                if (updatedOpt) {
+                    labelSpan.textContent = updatedOpt.textContent;
+                }
+            };
+
+            const setFocusedIndex = (idx) => {
+                if (!optionEls.length) return;
+                const clamped = Math.max(0, Math.min(optionEls.length - 1, idx));
+                focusedIndex = clamped;
+                optionEls.forEach((el, i) => {
+                    if (i === clamped) {
+                        el.setAttribute('data-focused', 'true');
+                        trigger.setAttribute('aria-activedescendant', el.id);
+                        el.scrollIntoView?.({ block: 'nearest' });
+                    } else {
+                        el.removeAttribute('data-focused');
+                    }
+                });
+            };
+
+            const positionDropdown = () => {
+                if (!supportsPopover || typeof trigger.getBoundingClientRect !== 'function') return;
+                const rect = trigger.getBoundingClientRect();
+                const vh = typeof window !== 'undefined' && window.innerHeight ? window.innerHeight : 900;
+                const vw = typeof window !== 'undefined' && window.innerWidth ? window.innerWidth : 1440;
+                const gap = 6;
+                const spaceBelow = Math.max(0, vh - rect.bottom - gap - 12);
+                const spaceAbove = Math.max(0, rect.top - gap - 12);
+                const desiredMax = 240;
+                const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+                const maxH = Math.max(100, Math.min(desiredMax, openUp ? spaceAbove : spaceBelow));
+                const width = Math.max(rect.width || 120, 120);
+                const left = Math.max(8, Math.min(rect.left, vw - width - 8));
+
+                optionsPanel.style.width = `${width}px`;
+                optionsPanel.style.left = `${left}px`;
+                optionsPanel.style.maxHeight = `${maxH}px`;
+                if (openUp) {
+                    const bottom = Math.max(8, vh - rect.top + gap);
+                    optionsPanel.style.top = 'auto';
+                    optionsPanel.style.bottom = `${bottom}px`;
+                    optionsPanel.style.transformOrigin = 'bottom center';
+                } else {
+                    optionsPanel.style.bottom = 'auto';
+                    optionsPanel.style.top = `${Math.round(rect.bottom + gap)}px`;
+                    optionsPanel.style.transformOrigin = 'top center';
+                }
+            };
+
+            const closeDropdown = (restoreFocus = false) => {
+                if (!isOpen && !container.classList.contains('open')) return;
+                isOpen = false;
+                container.classList.remove('open');
+                container.removeAttribute('data-open');
+                trigger.setAttribute('aria-expanded', 'false');
+                trigger.removeAttribute('aria-activedescendant');
+                optionEls.forEach(el => el.removeAttribute('data-focused'));
+                if (supportsPopover) {
+                    try { optionsPanel.hidePopover(); } catch (_) {}
+                }
+                if (restoreFocus) {
+                    trigger.focus?.();
+                }
+            };
+
+            let syncOptions = () => {};
+
+            const selectOptionEl = (optEl) => {
+                if (!optEl) return;
+                const nextVal = optEl.getAttribute('data-value');
+                selectEl.value = nextVal;
+                updateTriggerLabel();
+                syncOptions();
+                selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                closeDropdown(true);
+            };
+
+            const openDropdown = () => {
+                closeAllExcept(instance);
+                syncOptions();
+                positionDropdown();
+                isOpen = true;
+                container.classList.add('open');
+                container.setAttribute('data-open', 'true');
+                trigger.setAttribute('aria-expanded', 'true');
+                if (supportsPopover) {
+                    try { optionsPanel.showPopover(); } catch (_) {}
+                }
+                const selectedIdx = Math.max(0, Array.from(selectEl.options).findIndex(o => o.value === selectEl.value));
+                setFocusedIndex(selectedIdx);
+            };
+
+            syncOptions = () => {
+                if (typeof optionsPanel.replaceChildren === 'function') {
+                    optionsPanel.replaceChildren();
+                } else {
+                    optionsPanel.innerHTML = '';
+                }
+                optionEls = [];
+                Array.from(selectEl.options).forEach((opt, idx) => {
                     const optEl = document.createElement('div');
+                    optEl.id = `${listboxId}_opt_${idx}`;
                     optEl.className = 'custom-option px-4 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800/80 flex items-center justify-between cursor-pointer transition-colors duration-150';
+                    optEl.setAttribute('role', 'option');
                     optEl.setAttribute('data-value', opt.value);
-                    
+
                     const isSelected = opt.value === selectEl.value;
-                    optEl.innerHTML = `
-                        <span>${opt.textContent}</span>
-                        <svg class="w-3.5 h-3.5 text-yellow-500 custom-option-check ${isSelected ? '' : 'hidden'}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                    `;
+                    optEl.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+
+                    const optTextSpan = document.createElement('span');
+                    optTextSpan.className = 'truncate';
+                    optTextSpan.textContent = opt.textContent;
+                    optEl.appendChild(optTextSpan);
+
+                    const checkSvg = createUiSvg('check', `w-3.5 h-3.5 text-slate-900 dark:text-white custom-option-check shrink-0 ${isSelected ? '' : 'hidden'}`, '2.5');
+                    if (checkSvg) optEl.appendChild(checkSvg);
 
                     optEl.onclick = (e) => {
-                        e.stopPropagation();
-                        selectEl.value = opt.value;
-                        // Fire change event to notify other modules
-                        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-                        container.classList.remove('open');
+                        e?.stopPropagation?.();
+                        selectOptionEl(optEl);
+                    };
+                    optEl.onmouseenter = () => {
+                        if (isOpen) setFocusedIndex(idx);
                     };
 
                     optionsPanel.appendChild(optEl);
+                    optionEls.push(optEl);
                 });
             };
+
+            const instance = {
+                container,
+                optionsPanel,
+                isOpen: () => isOpen,
+                close: closeDropdown
+            };
+            instances.push(instance);
 
             // Initial options render
             syncOptions();
 
             // Handle dropdown toggle click
             trigger.onclick = (e) => {
-                e.stopPropagation();
-                document.querySelectorAll('.custom-select-container').forEach(c => {
-                    if (c !== container) c.classList.remove('open');
-                });
-                container.classList.toggle('open');
+                e?.stopPropagation?.();
+                if (isOpen) {
+                    closeDropdown(false);
+                } else {
+                    openDropdown();
+                }
+            };
+
+            // Keyboard navigation on combobox trigger
+            trigger.onkeydown = (e) => {
+                const key = e.key;
+                if (key === 'ArrowDown') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isOpen) openDropdown();
+                    else setFocusedIndex(Math.min(optionEls.length - 1, focusedIndex + 1));
+                } else if (key === 'ArrowUp') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isOpen) openDropdown();
+                    else setFocusedIndex(Math.max(0, focusedIndex - 1));
+                } else if (key === 'Home') {
+                    if (isOpen) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setFocusedIndex(0);
+                    }
+                } else if (key === 'End') {
+                    if (isOpen) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setFocusedIndex(optionEls.length - 1);
+                    }
+                } else if (key === 'Enter' || key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isOpen) {
+                        openDropdown();
+                    } else if (optionEls[focusedIndex]) {
+                        selectOptionEl(optionEls[focusedIndex]);
+                    }
+                } else if (key === 'Escape') {
+                    if (isOpen) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        closeDropdown(true);
+                    }
+                } else if (key === 'Tab') {
+                    if (isOpen) closeDropdown(false);
+                }
             };
 
             // Sync custom UI when the native select's value changes externally
             selectEl.addEventListener('change', () => {
-                const updatedOpt = selectEl.options[selectEl.selectedIndex];
-                if (updatedOpt) {
-                    trigger.querySelector('.custom-select-label').textContent = updatedOpt.textContent;
-                }
+                updateTriggerLabel();
                 syncOptions();
             });
 
@@ -278,10 +536,7 @@ export class UIController {
             if (typeof MutationObserver !== 'undefined') {
                 const observer = new MutationObserver(() => {
                     syncOptions();
-                    const updatedOpt = selectEl.options[selectEl.selectedIndex];
-                    if (updatedOpt) {
-                        trigger.querySelector('.custom-select-label').textContent = updatedOpt.textContent;
-                    }
+                    updateTriggerLabel();
                 });
                 observer.observe(selectEl, { childList: true, subtree: true });
             }
@@ -293,10 +548,11 @@ export class UIController {
             const wrapper = selectEl.parentElement;
             if (wrapper) {
                 Array.from(wrapper.children).forEach(child => {
-                    if (child !== selectEl && (
-                        child.tagName === 'I' || 
-                        child.tagName === 'SVG' || 
-                        child.classList.contains('pointer-events-none') ||
+                    if (child !== selectEl && child !== container && (
+                        child.tagName?.toUpperCase() === 'I' ||
+                        child.tagName?.toUpperCase() === 'SVG' ||
+                        child.classList?.contains('pointer-events-none') ||
+                        child.classList?.contains('custom-select-arrow-native') ||
                         (child.getAttribute && child.getAttribute('data-lucide') === 'chevron-down')
                     )) {
                         child.classList.add('hidden');
@@ -306,10 +562,72 @@ export class UIController {
             }
         });
 
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.custom-select-container').forEach(c => c.classList.remove('open'));
-        });
+        // Close dropdowns when clicking outside, scrolling ancestor, or resizing window
+        if (!this._customSelectGlobalListenersBound) {
+            this._customSelectGlobalListenersBound = true;
+            document.addEventListener('click', (e) => {
+                instances.forEach((inst) => {
+                    if (inst.isOpen() && !inst.container.contains?.(e?.target)) {
+                        inst.close(false);
+                    }
+                });
+            });
+            if (typeof document.addEventListener === 'function') {
+                document.addEventListener('scroll', (e) => {
+                    instances.forEach((inst) => {
+                        if (inst.isOpen() && e?.target !== inst.optionsPanel && !inst.optionsPanel.contains?.(e?.target)) {
+                            inst.close(false);
+                        }
+                    });
+                }, { capture: true, passive: true });
+            }
+            if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+                window.addEventListener('resize', () => closeAllExcept(null));
+            }
+        }
+    }
+
+    initDesktopSidebarState() {
+        let collapsed = false;
+        try {
+            collapsed = localStorage.getItem('nai_desktop_sidebar_collapsed') === 'true';
+        } catch (_) {}
+        return this.toggleDesktopSidebar(collapsed, { persist: false, emitResize: false });
+    }
+
+    toggleDesktopSidebar(forceCollapsed, options = {}) {
+        const { persist = true, emitResize = true } = options;
+        const body = typeof document !== 'undefined' ? document.body : null;
+        const mobileControls = this.els?.mobileControls || (typeof document !== 'undefined' ? document.getElementById('mobileControls') : null);
+        const currentlyCollapsed = Boolean(body?.classList?.contains('desktop-sidebar-collapsed'));
+        const isCollapsed = typeof forceCollapsed === 'boolean' ? forceCollapsed : !currentlyCollapsed;
+
+        if (mobileControls?.classList) {
+            mobileControls.classList.toggle('desktop-collapsed', isCollapsed);
+            if ('inert' in mobileControls && (typeof window === 'undefined' || (window.innerWidth || 1024) >= 768)) {
+                mobileControls.inert = isCollapsed;
+            }
+        }
+        if (body?.classList) {
+            body.classList.toggle('desktop-sidebar-collapsed', isCollapsed);
+        }
+        if (typeof document !== 'undefined') {
+            const collapseBtn = document.getElementById('desktopSidebarCollapseBtn');
+            const expandBtn = document.getElementById('desktopSidebarExpandBtn');
+            collapseBtn?.setAttribute?.('aria-expanded', isCollapsed ? 'false' : 'true');
+            expandBtn?.setAttribute?.('aria-expanded', isCollapsed ? 'false' : 'true');
+        }
+        if (persist) {
+            try {
+                localStorage.setItem('nai_desktop_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+            } catch (_) {}
+        }
+        if (emitResize && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof Event === 'function') {
+            setTimeout(() => {
+                try { window.dispatchEvent(new Event('resize')); } catch (_) {}
+            }, 300);
+        }
+        return isCollapsed;
     }
 
     toggleMobileControls(forceState) {
@@ -317,6 +635,9 @@ export class UIController {
         this.isControlsExpanded = typeof forceState !== 'undefined' ? forceState : !this.isControlsExpanded;
 
         const { mobileControls, mobileBackdrop } = this.els;
+        if (mobileControls && 'inert' in mobileControls) {
+            mobileControls.inert = false;
+        }
         if (this.isControlsExpanded) {
             mobileControls.classList.remove('collapsed');
             mobileControls.classList.add('expanded');
@@ -340,7 +661,21 @@ export class UIController {
         }
         const modelInput = document.getElementById('modelValue');
         if (modelInput) modelInput.value = ver;
+        document.querySelectorAll('[data-model-toggle]').forEach(container => {
+            container.setAttribute('data-model', ver);
+        });
+        document.querySelectorAll('[data-model-btn]').forEach(btn => {
+            const isMatch = btn.getAttribute('data-model-btn') === ver;
+            btn.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+            if (btn.classList) {
+                btn.classList.toggle('text-gray-900', isMatch);
+                btn.classList.toggle('dark:text-white', isMatch);
+                btn.classList.toggle('text-gray-500', !isMatch);
+                btn.classList.toggle('dark:text-gray-400', !isMatch);
+            }
+        });
         document.querySelectorAll('.switch-bg').forEach(bg => {
+            if (!bg.style) return;
             if (ver === 'v4.5') bg.style.transform = 'translateX(100%)';
             else if (ver === 'v5') bg.style.transform = 'translateX(200%)';
             else if (ver === 'zimage') bg.style.transform = 'translateX(300%)';
@@ -486,7 +821,7 @@ export class UIController {
             badge.textContent = isMed ? 'Medium (14步)' : 'High';
             badge.className = isMed
                 ? 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                : 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-indigo-500/10 text-indigo-500 dark:text-indigo-400';
+                : 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-slate-900/10 dark:bg-white/10 text-slate-700 dark:text-slate-200';
         }
 
         const modelBadge = document.getElementById('modelBadge');
@@ -530,16 +865,23 @@ export class UIController {
 
     switchRightView(view, updateGalleryTabCallback = null) {
         this.currentRightView = view;
-        const toggleBg = this.els.viewToggle.querySelector('.view-toggle-bg');
-        if (view === 'history') toggleBg.style.transform = 'translateX(100%)';
-        else toggleBg.style.transform = 'translateX(0)';
+        this.els.viewToggle?.setAttribute?.('data-state', view);
+        this.els.viewBtnPreview?.setAttribute?.('aria-pressed', view === 'preview' ? 'true' : 'false');
+        this.els.viewBtnHistory?.setAttribute?.('aria-pressed', view === 'history' ? 'true' : 'false');
+        const toggleBg = this.els.viewToggle?.querySelector?.('.view-toggle-bg');
+        if (toggleBg && toggleBg.style) {
+            toggleBg.style.transform = view === 'history' ? 'translateX(100%)' : 'translateX(0)';
+        }
 
         const triggerViewEnter = (el) => {
             if (!el || !el.classList) return;
             if (typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf')) return;
             el.classList.remove('view-fade-enter');
-            try { void el.offsetWidth; } catch (_) {}
-            el.classList.add('view-fade-enter');
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => el.classList.add('view-fade-enter'));
+            } else {
+                el.classList.add('view-fade-enter');
+            }
         };
 
         if (view === 'preview') {
@@ -954,8 +1296,11 @@ export class UIController {
         if (!imgEl || !imgEl.classList) return;
         if (typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf')) return;
         imgEl.classList.remove('img-reveal');
-        try { void imgEl.offsetWidth; } catch (_) {}
-        imgEl.classList.add('img-reveal');
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => imgEl.classList.add('img-reveal'));
+        } else {
+            imgEl.classList.add('img-reveal');
+        }
     }
 
     focusImage(item) {
@@ -974,11 +1319,12 @@ export class UIController {
             }
         }
 
-        if (singleResultImg) {
-            singleResultImg.src = item.imageUrl;
+        const targetImgUrl = typeof item === 'string' ? item : item?.imageUrl;
+        if (singleResultImg && targetImgUrl) {
+            singleResultImg.src = targetImgUrl;
             this._triggerImageReveal(singleResultImg);
         }
-        if (this._compareAfterUrl && item?.imageUrl && item.imageUrl !== this._compareAfterUrl) {
+        if (this._compareAfterUrl && targetImgUrl && targetImgUrl !== this._compareAfterUrl) {
             this.clearBeforeAfterState();
         }
         if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
@@ -1030,7 +1376,9 @@ export class UIController {
         else if (count >= 2) cols = 2;
         
         resultGrid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-        
+
+        const activeRingClasses = ['border-slate-900', 'dark:border-white', 'ring-4', 'ring-slate-900/15', 'dark:ring-white/20'];
+
         results.forEach((item, index) => {
             const imgWrapper = document.createElement('div');
             imgWrapper.className = 'relative group cursor-pointer transition-all duration-300 transform hover:scale-[1.02] active:scale-95';
@@ -1041,7 +1389,7 @@ export class UIController {
             
             // 如果是第一张图，默认高亮选中并初始化选择回调（但不进入聚焦单图模式以保留网格）
             if (index === 0) {
-                img.classList.add('border-blue-500', 'ring-4', 'ring-blue-500/20');
+                img.classList.add(...activeRingClasses);
                 if (onSelect) onSelect(item);
             }
             
@@ -1049,9 +1397,9 @@ export class UIController {
             const focusOverlay = document.createElement('div');
             focusOverlay.className = 'absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg z-10';
             focusOverlay.innerHTML = `
-                <button class="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white border border-white/30 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95 shadow-xl">
-                    <i data-lucide="maximize" class="w-4 h-4"></i>
-                    聚焦 (Focus)
+                <button type="button" class="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white border border-white/30 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95 shadow-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                    <span>聚焦 (Focus)</span>
                 </button>
             `;
             
@@ -1068,8 +1416,8 @@ export class UIController {
             const select = (e) => {
                 if (e) e.stopPropagation();
                 // 清除其他选中状态
-                resultGrid.querySelectorAll('img').forEach(i => i.classList.remove('border-blue-500', 'ring-4', 'ring-blue-500/20'));
-                img.classList.add('border-blue-500', 'ring-4', 'ring-blue-500/20');
+                resultGrid.querySelectorAll('img').forEach(i => i.classList.remove(...activeRingClasses));
+                img.classList.add(...activeRingClasses);
                 if (onSelect) onSelect(item);
                 
                 // 进入聚焦单图模式
@@ -1080,7 +1428,6 @@ export class UIController {
             resultGrid.appendChild(imgWrapper);
         });
 
-        // 重新创建图标 (Lucide) - 循环外调用一次即可
         if (window.safeCreateIcons) window.safeCreateIcons();
 
         dlBtn.disabled = false;
@@ -1181,9 +1528,9 @@ export class UIController {
 
         const updateLock = (btn) => {
             if (isAdmin) {
-                btn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4 text-green-500"></i>';
+                setUiButtonIcon(btn, 'unlock', 'w-4 h-4 text-green-500');
             } else {
-                btn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 text-gray-300 dark:text-gray-500"></i>';
+                setUiButtonIcon(btn, 'lock', 'w-4 h-4 text-gray-300 dark:text-gray-500');
             }
         };
         if (this.els.adminLockBtn) updateLock(this.els.adminLockBtn);
@@ -1209,7 +1556,8 @@ export class UIController {
                 checkbox.disabled = false;
                 if (icon) {
                     icon.setAttribute('data-lucide', 'unlock');
-                    icon.setAttribute('class', 'w-4 h-4 text-green-500');
+                    icon.setAttribute('class', 'w-3.5 h-3.5 inline-flex items-center justify-center text-green-500');
+                    setUiButtonIcon(icon, 'unlock', 'w-3.5 h-3.5');
                 }
                 if (badge) {
                     badge.textContent = '已解锁';
@@ -1226,7 +1574,8 @@ export class UIController {
                 }
                 if (icon) {
                     icon.setAttribute('data-lucide', 'lock');
-                    icon.setAttribute('class', 'w-4 h-4 text-gray-400');
+                    icon.setAttribute('class', 'w-3.5 h-3.5 inline-flex items-center justify-center text-gray-400');
+                    setUiButtonIcon(icon, 'lock', 'w-3.5 h-3.5');
                 }
                 if (badge) {
                     badge.textContent = '锁定';
@@ -1241,32 +1590,28 @@ export class UIController {
         const updateApiBtn = (btn) => {
             if (btn) {
                 if (customKey) {
-                    btn.innerHTML = '<i data-lucide="globe" class="w-4 h-4 text-green-500"></i>';
+                    setUiButtonIcon(btn, 'globe', 'w-4 h-4 text-green-500');
                 } else {
-                    btn.innerHTML = '<i data-lucide="globe" class="w-4 h-4"></i>';
+                    setUiButtonIcon(btn, 'globe', 'w-4 h-4');
                 }
             }
         };
         updateApiBtn(this.els.apiBtn);
         updateApiBtn(this.els.apiBtnMobile);
-
-        if (window.safeCreateIcons) window.safeCreateIcons();
     }
 
     updateLowPerfUI(enabled) {
-        const iconHtml = enabled 
-            ? `<i data-lucide="zap-off" class="w-4 h-4 text-gray-400"></i>` 
-            : `<i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>`;
-            
+        const iconName = enabled ? 'zap-off' : 'zap';
+        const iconClass = enabled ? 'w-4 h-4 text-gray-400' : 'w-4 h-4 text-amber-500';
+
         if (this.els.lowPerfBtn) {
-            this.els.lowPerfBtn.innerHTML = iconHtml;
+            setUiButtonIcon(this.els.lowPerfBtn, iconName, iconClass);
             this.els.lowPerfBtn.title = enabled ? "高性能模式" : "低性能模式";
         }
         if (this.els.lowPerfBtnMobile) {
-            this.els.lowPerfBtnMobile.innerHTML = iconHtml;
+            setUiButtonIcon(this.els.lowPerfBtnMobile, iconName, iconClass);
             this.els.lowPerfBtnMobile.title = enabled ? "高性能模式" : "低性能模式";
         }
-        if (window.safeCreateIcons) window.safeCreateIcons();
     }
 
     // =========================================================================

@@ -104,7 +104,7 @@ export class GalleryController {
 
     _createGalleryItemElement(item) {
         const el = document.createElement('div');
-        el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:scale-[1.01] transition-transform duration-200';
+        el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border border-gray-200/70 dark:border-slate-700 cursor-pointer shadow-sm transition-colors duration-200';
         if (item.id !== undefined && item.id !== null) {
             el.id = `gallery-item-${item.id}`;
             if (el.dataset) el.dataset.id = item.id;
@@ -116,31 +116,60 @@ export class GalleryController {
 
         const displaySrc = item.thumb || fullSrc;
 
-        el.innerHTML = `
-            <img src="${displaySrc}" class="w-full h-full object-cover" loading="lazy">
-            <button class="delete-item-btn" title="删除此图片">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-        `;
+        const img = document.createElement('img');
+        img.src = displaySrc;
+        img.className = 'w-full h-full object-cover';
+        img.loading = 'lazy';
+        img.alt = item.prompt ? String(item.prompt).slice(0, 80) : '历史作品';
 
-        const delBtn = el.querySelector('.delete-item-btn');
-        if (delBtn) {
-            delBtn.onclick = async (e) => {
-                e.stopPropagation();
-                if (!(await window.showConfirm("您确定要从历史图库中删除这张图片吗？该操作不可撤销。", "删除图库图片", "trash-2"))) return;
-                try {
-                    await this.store.deleteImage(item.id);
-                    if (this.appState.currentImageId === item.id) {
-                        this.ui.resetPreview();
-                    }
-                    this.removeImage(item.id);
-                } catch (err) {
-                    console.error("Failed to delete history image", err);
-                }
-            };
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'delete-item-btn';
+        delBtn.title = '删除此图片';
+        if (typeof delBtn.setAttribute === 'function') {
+            delBtn.setAttribute('aria-label', '删除此图片');
         }
 
-        el.onclick = () => window.openLightbox(item, el.querySelector?.('img') || null);
+        if (typeof document.createElementNS === 'function') {
+            const SVG_NS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(SVG_NS, 'svg');
+            svg.setAttribute('class', 'w-3.5 h-3.5 pointer-events-none');
+            svg.setAttribute('viewBox', '0 0 24 24');
+            svg.setAttribute('fill', 'none');
+            svg.setAttribute('stroke', 'currentColor');
+            svg.setAttribute('stroke-width', '2.5');
+            svg.setAttribute('stroke-linecap', 'round');
+            svg.setAttribute('stroke-linejoin', 'round');
+            svg.setAttribute('aria-hidden', 'true');
+            const l1 = document.createElementNS(SVG_NS, 'line');
+            l1.setAttribute('x1', '18'); l1.setAttribute('y1', '6'); l1.setAttribute('x2', '6'); l1.setAttribute('y2', '18');
+            const l2 = document.createElementNS(SVG_NS, 'line');
+            l2.setAttribute('x1', '6'); l2.setAttribute('y1', '6'); l2.setAttribute('x2', '18'); l2.setAttribute('y2', '18');
+            svg.appendChild(l1);
+            svg.appendChild(l2);
+            delBtn.appendChild(svg);
+        } else {
+            delBtn.textContent = '×';
+        }
+
+        el.appendChild(img);
+        el.appendChild(delBtn);
+
+        delBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (!(await window.showConfirm("您确定要从历史图库中删除这张图片吗？该操作不可撤销。", "删除图库图片", "trash-2"))) return;
+            try {
+                await this.store.deleteImage(item.id);
+                if (this.appState.currentImageId === item.id) {
+                    this.ui.resetPreview();
+                }
+                this.removeImage(item.id);
+            } catch (err) {
+                console.error("Failed to delete history image", err);
+            }
+        };
+
+        el.onclick = () => window.openLightbox(item, img);
         return el;
     }
 

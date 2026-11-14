@@ -12,15 +12,15 @@ function debounce(func, wait) {
 }
 
 const CATEGORY_COLORS = {
-    clothing: 'bg-green-50 text-green-700 border-green-250 dark:bg-green-950/20 dark:text-green-400 dark:border-green-900/30',
-    action: 'bg-amber-50 text-amber-700 border-amber-250 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30',
-    nsfw: 'bg-rose-50 text-rose-700 border-rose-250 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30',
-    style: 'bg-purple-50 text-purple-700 border-purple-250 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30',
-    object: 'bg-blue-50 text-blue-700 border-blue-250 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30',
-    character: 'bg-indigo-50 text-indigo-700 border-indigo-250 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30',
-    lighting: 'bg-yellow-50 text-yellow-700 border-yellow-250 dark:bg-yellow-950/20 dark:text-yellow-400 dark:border-yellow-900/30',
-    perspective: 'bg-cyan-50 text-cyan-700 border-cyan-250 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/30',
-    composition: 'bg-teal-50 text-teal-700 border-teal-250 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30'
+    clothing: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/20 dark:text-green-400 dark:border-green-900/30',
+    action: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30',
+    nsfw: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30',
+    style: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30',
+    object: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30',
+    character: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
+    lighting: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/20 dark:text-yellow-400 dark:border-yellow-900/30',
+    perspective: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/30',
+    composition: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30'
 };
 
 const CATEGORY_NAMES_CN = {
@@ -168,10 +168,10 @@ export class PromptHelper {
         this.translatePanel.innerHTML = `
             <button id="tagTranslateToggle" type="button" class="w-full px-3 py-2 flex items-center justify-between text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest hover:bg-gray-100/50 dark:hover:bg-slate-700/30 transition-colors select-none">
                 <span class="flex items-center gap-1.5">
-                    <i data-lucide="languages" class="w-3.5 h-3.5 text-gray-400 dark:text-slate-500"></i>
-                    实时翻译 (Translation) <span id="translateCount" class="ml-1 text-[9px] bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-1.5 py-0.2 rounded-full">0</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 pointer-events-none" aria-hidden="true"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+                    实时翻译 (Translation) <span id="translateCount" class="ml-1 text-[9px] bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-1.5 py-0.5 rounded-full">0</span>
                 </span>
-                <i data-lucide="chevron-down" id="translateToggleIcon" class="w-3.5 h-3.5 transition-transform duration-200 text-gray-400 ${this.isTranslationExpanded ? 'rotate-180' : ''}"></i>
+                <svg id="translateToggleIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 transition-transform duration-200 text-gray-400 pointer-events-none ${this.isTranslationExpanded ? 'rotate-180' : ''}" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </button>
             <div id="tagTranslateContent" class="${this.isTranslationExpanded ? '' : 'hidden'} p-3 border-t border-gray-100 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/20">
                 <div id="tagTranslateList" class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scroll">
@@ -188,8 +188,6 @@ export class PromptHelper {
         this.translateListEl = this.translatePanel.querySelector('#tagTranslateList');
         this.translateCountEl = this.translatePanel.querySelector('#translateCount');
         this.translateToggleIcon = this.translatePanel.querySelector('#translateToggleIcon');
-        
-        if (window.safeCreateIcons) window.safeCreateIcons();
     }
 
     calculateWeight(rawTag) {
@@ -476,11 +474,10 @@ export class PromptHelper {
                 if (topRes.length === 0) {
                     this.searchResultsEl.innerHTML = `
                         <div class="text-center mt-20 text-xs text-gray-400 font-light tracking-wide flex flex-col items-center justify-center gap-2">
-                            <i data-lucide="search-code" class="w-6 h-6 opacity-40"></i>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 opacity-40 pointer-events-none" aria-hidden="true"><path d="m13 13.5 2-2.5-2-2.5"/><path d="m21 21-4.3-4.3"/><path d="M9 8.5 7 11l2 2.5"/><circle cx="11" cy="11" r="8"/></svg>
                             <span>未找到匹配的提示词</span>
                         </div>
                     `;
-                    if (window.safeCreateIcons) window.safeCreateIcons();
                     return;
                 }
                 
@@ -491,12 +488,14 @@ export class PromptHelper {
                     const cat = this.tagCategoryMap[en.toLowerCase()] || 'object';
                     const col = CATEGORY_COLORS[cat] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
                     const cnName = CATEGORY_NAMES_CN[cat] || '物品';
+                    const safeEn = String(en).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const safeCn = String(cn).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     const badgeHtml = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold border transition-colors ${col}">${cnName}</span>`;
 
                     d.innerHTML = `
                         <div class="flex-1 min-w-0 pr-2">
-                            <div class="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono truncate group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">${en}</div>
-                            <div class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">${cn}</div>
+                            <div class="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono truncate group-hover:text-slate-900 dark:group-hover:text-white transition-colors">${safeEn}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">${safeCn}</div>
                         </div>
                         <div class="shrink-0 flex items-center gap-1.5">
                             ${badgeHtml}
@@ -571,9 +570,9 @@ export class PromptHelper {
             let btnClass = 'px-3 py-1 text-[10px] font-semibold rounded-lg border transition-all shrink-0 ';
             if (this.selectedSearchCategory === key) {
                 const col = CATEGORY_COLORS[key];
-                btnClass += `${col} border-transparent shadow-sm ring-1 ring-offset-1 ring-gray-205 dark:ring-slate-800`;
+                btnClass += `${col} border-transparent shadow-sm ring-1 ring-offset-1 ring-gray-200 dark:ring-slate-800`;
             } else {
-                btnClass += 'bg-gray-50 border-gray-100 text-gray-450 hover:text-gray-700 dark:bg-slate-800/40 dark:border-slate-700/30 dark:text-slate-400 dark:hover:text-slate-300';
+                btnClass += 'bg-gray-50 border-gray-100 text-gray-400 hover:text-gray-700 dark:bg-slate-800/40 dark:border-slate-700/30 dark:text-slate-400 dark:hover:text-slate-300';
             }
             
             btn.className = btnClass;
@@ -607,7 +606,7 @@ export class PromptHelper {
                             class="p-3.5 rounded-xl border text-left transition-all active:scale-95 hover:shadow-sm ${color} border-transparent flex flex-col justify-between h-20 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
                             <div class="font-bold text-xs flex justify-between items-center w-full">
                                 <span>${name}</span>
-                                <span class="text-[9px] opacity-70 font-mono font-normal bg-white/50 dark:bg-slate-900/30 px-1.5 py-0.2 rounded-full">${tagCount}词</span>
+                                <span class="text-[9px] opacity-70 font-mono font-normal bg-white/50 dark:bg-slate-900/30 px-1.5 py-0.5 rounded-full">${tagCount}词</span>
                             </div>
                             <div class="text-[9px] opacity-60 mt-1 select-none pointer-events-none truncate">点击展开探索列表</div>
                         </button>
@@ -697,18 +696,20 @@ export class PromptHelper {
             topMatches.forEach(({ en, cn }) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'px-3 py-1.5 text-xs bg-white dark:bg-slate-700/60 hover:bg-indigo-50/50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-650 hover:border-indigo-200 dark:hover:border-indigo-500/50 rounded-lg text-gray-700 dark:text-gray-200 flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-left min-w-[120px] max-w-[240px] truncate';
+                btn.className = 'px-3 py-1.5 text-xs bg-white dark:bg-slate-700/60 hover:bg-gray-100/80 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 rounded-lg text-gray-700 dark:text-gray-200 flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-left min-w-[120px] max-w-[240px] truncate';
                 
                 const cat = this.tagCategoryMap[en.toLowerCase()] || 'object';
                 const col = CATEGORY_COLORS[cat] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
                 const cnName = CATEGORY_NAMES_CN[cat] || '物品';
-                const badgeHtml = `<span class="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-bold border ${col} scale-90 origin-right shrink-0">${cnName}</span>`;
+                const safeEn = String(en).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const safeCn = String(cn).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const badgeHtml = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold border ${col} scale-90 origin-right shrink-0">${cnName}</span>`;
 
                 btn.innerHTML = `
                     <div class="flex items-center justify-between w-full gap-2 overflow-hidden">
-                        <span class="font-mono font-medium text-gray-900 dark:text-white truncate">${en}</span>
+                        <span class="font-mono font-medium text-gray-900 dark:text-white truncate">${safeEn}</span>
                         <div class="flex items-center gap-1 shrink-0">
-                            <span class="text-[10px] text-gray-400 dark:text-slate-400 border-l border-gray-100 dark:border-slate-600/85 pl-1.5 truncate max-w-[70px]">${cn}</span>
+                            <span class="text-[10px] text-gray-400 dark:text-slate-400 border-l border-gray-100 dark:border-slate-600/85 pl-1.5 truncate max-w-[70px]">${safeCn}</span>
                             ${badgeHtml}
                         </div>
                     </div>
@@ -803,20 +804,22 @@ export class PromptHelper {
             
             if (weight < 0) {
                 badgeClass = 'px-2.5 py-1 text-xs bg-red-50/50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-900/40 rounded-lg text-red-800 dark:text-red-300 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-red-100 dark:bg-red-950/50 px-1.5 py-0.2 rounded font-bold font-mono">${weight.toFixed(2)}</span>`;
+                weightBadgeHtml = `<span class="text-[9px] bg-red-100 dark:bg-red-950/50 px-1.5 py-0.5 rounded font-bold font-mono">${weight.toFixed(2)}</span>`;
             } else if (weight > 1.01) {
                 badgeClass = 'px-2.5 py-1 text-xs bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-lg text-amber-800 dark:text-amber-300 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.2 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
+                weightBadgeHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.5 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
             } else if (weight < 0.99) {
                 badgeClass = 'px-2.5 py-1 text-xs bg-blue-50/50 dark:bg-slate-800/60 border border-blue-200/50 dark:border-slate-700/60 rounded-lg text-blue-800 dark:text-slate-400 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-blue-100 dark:bg-blue-950/50 px-1.5 py-0.2 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
+                weightBadgeHtml = `<span class="text-[9px] bg-blue-100 dark:bg-blue-950/50 px-1.5 py-0.5 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
             }
 
+            const safeClean = String(item.clean).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const safeCn = String(item.cn).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             badge.className = badgeClass;
             badge.innerHTML = `
-                <span class="font-mono text-gray-500 dark:text-gray-400">${item.clean}</span>
+                <span class="font-mono text-gray-500 dark:text-gray-400">${safeClean}</span>
                 <span class="text-gray-400 dark:text-slate-600">➔</span>
-                <span class="font-medium">${item.cn}</span>
+                <span class="font-medium">${safeCn}</span>
                 ${weightBadgeHtml}
             `;
             this.translateListEl.appendChild(badge);

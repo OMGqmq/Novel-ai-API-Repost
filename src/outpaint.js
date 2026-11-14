@@ -153,11 +153,13 @@ export class OutpaintEditor {
         if (btn) {
             if (this.isSnapEnabled) {
                 btn.classList.remove('text-gray-500');
-                btn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm', 'text-gray-700', 'dark:text-gray-300');
+                btn.classList.add('tool-active');
+                btn.setAttribute?.('aria-pressed', 'true');
                 btn.title = '边缘吸附: 开';
             } else {
                 btn.classList.add('text-gray-500');
-                btn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm', 'text-gray-700', 'dark:text-gray-300');
+                btn.classList.remove('tool-active');
+                btn.setAttribute?.('aria-pressed', 'false');
                 btn.title = '边缘吸附: 关';
             }
         }
@@ -178,12 +180,14 @@ export class OutpaintEditor {
                 this.els.brushControl.classList.add('hidden');
             }
             if (this.els.modeMoveBtn) {
-                this.els.modeMoveBtn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+                this.els.modeMoveBtn.classList.add('tool-active');
                 this.els.modeMoveBtn.classList.remove('text-gray-500');
+                this.els.modeMoveBtn.setAttribute?.('aria-pressed', 'true');
             }
             if (this.els.modePaintBtn) {
-                this.els.modePaintBtn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+                this.els.modePaintBtn.classList.remove('tool-active');
                 this.els.modePaintBtn.classList.add('text-gray-500');
+                this.els.modePaintBtn.setAttribute?.('aria-pressed', 'false');
             }
         } else {
             if (this.els.selection) {
@@ -198,12 +202,14 @@ export class OutpaintEditor {
                 this.els.brushControl.classList.add('flex');
             }
             if (this.els.modePaintBtn) {
-                this.els.modePaintBtn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+                this.els.modePaintBtn.classList.add('tool-active');
                 this.els.modePaintBtn.classList.remove('text-gray-500');
+                this.els.modePaintBtn.setAttribute?.('aria-pressed', 'true');
             }
             if (this.els.modeMoveBtn) {
-                this.els.modeMoveBtn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+                this.els.modeMoveBtn.classList.remove('tool-active');
                 this.els.modeMoveBtn.classList.add('text-gray-500');
+                this.els.modeMoveBtn.setAttribute?.('aria-pressed', 'false');
             }
         }
     }
@@ -212,8 +218,14 @@ export class OutpaintEditor {
         this.tool = tool; // 'brush' or 'eraser'
         const bBtn = this.els.toolBrushBtn || (typeof document !== 'undefined' ? document.getElementById('outpaintToolBrush') : null);
         const eBtn = this.els.toolEraserBtn || (typeof document !== 'undefined' ? document.getElementById('outpaintToolEraser') : null);
-        if (bBtn && bBtn.classList) bBtn.classList.toggle('tool-active', tool !== 'eraser');
-        if (eBtn && eBtn.classList) eBtn.classList.toggle('tool-active', tool === 'eraser');
+        if (bBtn && bBtn.classList) {
+            bBtn.classList.toggle('tool-active', tool !== 'eraser');
+            bBtn.setAttribute?.('aria-pressed', tool !== 'eraser' ? 'true' : 'false');
+        }
+        if (eBtn && eBtn.classList) {
+            eBtn.classList.toggle('tool-active', tool === 'eraser');
+            eBtn.setAttribute?.('aria-pressed', tool === 'eraser' ? 'true' : 'false');
+        }
     }
 
     _getBrushSize() {
