@@ -28,53 +28,133 @@ export class RandomPromptController {
             if (addSection) addSection.classList.add('opacity-50', 'pointer-events-none');
         }
 
+        if (this.promptHelper && typeof this.promptHelper.detachSuggestPanel === 'function') {
+            this.promptHelper.detachSuggestPanel();
+        }
+
         container.innerHTML = '';
         const categories = this.manager.getCategories();
 
-        categories.forEach(cat => {
+        categories.forEach((cat, idx) => {
+            const catName = String(cat.name || '');
             const item = document.createElement('div');
             item.className = 'border border-gray-200 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-white/50 dark:bg-slate-900/40 shadow-sm';
 
             // Header and body opacity + disabled state if not enabled
             const headerOpacity = cat.enabled ? '' : 'opacity-60';
             const bodyOpacity = cat.enabled ? '' : 'opacity-40 pointer-events-none';
-            const textareaDisabled = cat.enabled ? '' : 'disabled';
-            const safeCatName = String(cat.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-            item.innerHTML = `
-                <div id="rp-header-${safeCatName}" class="flex justify-between items-center bg-gray-50/50 dark:bg-slate-950/20 px-4 py-2.5 border-b border-gray-200 dark:border-slate-800/80 cursor-pointer select-none ${headerOpacity}" onclick="window.toggleRandomCategoryFold('${safeCatName}', event)">
-                    <div class="flex items-center gap-2" onclick="event.stopPropagation()">
-                        <input type="checkbox" id="rp-chk-${safeCatName}" ${cat.enabled ? 'checked' : ''} onchange="window.toggleRandomCategory('${safeCatName}', this.checked)" class="w-3.5 h-3.5 rounded border-gray-300 dark:border-slate-700 accent-slate-900 dark:accent-white focus:ring-slate-500 cursor-pointer">
-                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200 capitalize">${safeCatName}</span>
-                    </div>
-                    <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
-                        ${cat.custom ? `
-                            <button type="button" onclick="window.deleteRandomCategory('${safeCatName}')" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-lg transition-colors cursor-pointer" aria-label="删除分类">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                            </button>
-                        ` : ''}
-                        <button type="button" class="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 dark:text-gray-500 rounded-lg transition-transform duration-200 cursor-pointer" onclick="window.toggleRandomCategoryFold('${safeCatName}', event)" aria-label="展开或收起">
-                            <svg id="rp-chevron-${safeCatName}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 transition-transform duration-200 pointer-events-none"><path d="m6 9 6 6 6-6"/></svg>
-                        </button>
-                    </div>
-                </div>
-                <div id="rp-body-${safeCatName}" class="p-3 space-y-2 transition-all ${bodyOpacity}">
-                    <textarea id="rp-txt-${safeCatName}" rows="2" oninput="window.updateRandomCategoryContent('${safeCatName}', this.value)" class="art-input w-full px-3 py-2 rounded-xl text-xs outline-none resize-none text-gray-700 dark:text-gray-200" placeholder="以英文分号分词组，例如: jk uniform, white shirt; maid outfit, apron; white summer dress" ${textareaDisabled}></textarea>
-                    <div id="rp-placeholder-${safeCatName}" class="mt-1"></div>
-                </div>
-            `;
+            const header = document.createElement('div');
+            header.id = `rp-header-${catName}`;
+            header.className = `flex justify-between items-center bg-gray-50/50 dark:bg-slate-950/20 px-4 py-2.5 border-b border-gray-200 dark:border-slate-800/80 cursor-pointer select-none ${headerOpacity}`.trim();
+            header.addEventListener('click', (event) => {
+                if (typeof window !== 'undefined' && typeof window.toggleRandomCategoryFold === 'function') {
+                    window.toggleRandomCategoryFold(catName, event);
+                } else {
+                    this.toggleFold(catName, event);
+                }
+            });
 
+            const leftGroup = document.createElement('div');
+            leftGroup.className = 'flex items-center gap-2 min-w-0';
+            leftGroup.addEventListener('click', (e) => e.stopPropagation());
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `rp-chk-${catName}`;
+            checkbox.name = `nai_rp_chk_${idx}`;
+            checkbox.setAttribute('autocomplete', 'off');
+            checkbox.checked = !!cat.enabled;
+            checkbox.className = 'w-3.5 h-3.5 rounded border-gray-300 dark:border-slate-700 accent-slate-900 dark:accent-white focus:ring-slate-500 cursor-pointer shrink-0';
+            checkbox.addEventListener('change', (e) => {
+                if (typeof window !== 'undefined' && typeof window.toggleRandomCategory === 'function') {
+                    window.toggleRandomCategory(catName, e.target.checked);
+                } else {
+                    this.toggleCategory(catName, e.target.checked);
+                }
+            });
+
+            const titleSpan = document.createElement('span');
+            titleSpan.className = 'text-xs font-bold text-gray-700 dark:text-gray-200 capitalize truncate';
+            titleSpan.textContent = catName;
+
+            leftGroup.appendChild(checkbox);
+            leftGroup.appendChild(titleSpan);
+
+            const rightGroup = document.createElement('div');
+            rightGroup.className = 'flex items-center gap-1.5 shrink-0';
+            rightGroup.addEventListener('click', (e) => e.stopPropagation());
+
+            if (cat.custom) {
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-lg transition-colors cursor-pointer';
+                delBtn.setAttribute('aria-label', '删除分类');
+                delBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>';
+                delBtn.addEventListener('click', () => {
+                    if (typeof window !== 'undefined' && typeof window.deleteRandomCategory === 'function') {
+                        window.deleteRandomCategory(catName);
+                    } else {
+                        this.deleteCategory(catName);
+                    }
+                });
+                rightGroup.appendChild(delBtn);
+            }
+
+            const foldBtn = document.createElement('button');
+            foldBtn.type = 'button';
+            foldBtn.className = 'p-1 hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 dark:text-gray-500 rounded-lg transition-transform duration-200 cursor-pointer';
+            foldBtn.setAttribute('aria-label', '展开或收起');
+            foldBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 transition-transform duration-200 pointer-events-none"><path d="m6 9 6 6 6-6"/></svg>`;
+            const chevronSvg = foldBtn.querySelector('svg');
+            if (chevronSvg) chevronSvg.id = `rp-chevron-${catName}`;
+            foldBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (typeof window !== 'undefined' && typeof window.toggleRandomCategoryFold === 'function') {
+                    window.toggleRandomCategoryFold(catName);
+                } else {
+                    this.toggleFold(catName);
+                }
+            });
+            rightGroup.appendChild(foldBtn);
+
+            header.appendChild(leftGroup);
+            header.appendChild(rightGroup);
+
+            const body = document.createElement('div');
+            body.id = `rp-body-${catName}`;
+            body.className = `p-3 space-y-2 transition-all ${bodyOpacity}`.trim();
+
+            const textarea = document.createElement('textarea');
+            textarea.id = `rp-txt-${catName}`;
+            textarea.name = `nai_rp_txt_${idx}`;
+            textarea.setAttribute('autocomplete', 'off');
+            textarea.rows = 2;
+            textarea.className = 'art-input w-full px-3 py-2 rounded-xl text-xs outline-none resize-none text-gray-700 dark:text-gray-200';
+            textarea.placeholder = '以英文分号分词组，例如: jk uniform, white shirt; maid outfit, apron; white summer dress';
+            if (!cat.enabled) textarea.disabled = true;
+            textarea.value = cat.content || '';
+            textarea.addEventListener('input', (e) => {
+                if (typeof window !== 'undefined' && typeof window.updateRandomCategoryContent === 'function') {
+                    window.updateRandomCategoryContent(catName, e.target.value);
+                } else {
+                    this.updateCategoryContent(catName, e.target.value);
+                }
+            });
+
+            const placeholder = document.createElement('div');
+            placeholder.id = `rp-placeholder-${catName}`;
+            placeholder.className = 'mt-1';
+
+            body.appendChild(textarea);
+            body.appendChild(placeholder);
+
+            item.appendChild(header);
+            item.appendChild(body);
             container.appendChild(item);
 
-            // Populate current content
-            const textarea = item.querySelector(`#rp-txt-${cat.name}`);
-            if (textarea) {
-                textarea.value = cat.content || '';
-                // Register with promptHelper autocomplete
-                const placeholder = item.querySelector(`#rp-placeholder-${cat.name}`);
-                if (placeholder && this.promptHelper) {
-                    this.promptHelper.registerInput(textarea, placeholder);
-                }
+            if (this.promptHelper) {
+                this.promptHelper.registerInput(textarea, placeholder);
             }
         });
     }

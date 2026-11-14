@@ -213,9 +213,9 @@ export class NotebookManager {
         container.innerHTML = `
             <div class="space-y-2">
                 <label class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">正向提示词</label>
-                <textarea id="editNotePrompt" rows="4" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-gray-700 dark:text-gray-200">${escapeHtml(note.prompt)}</textarea>
+                <textarea id="editNotePrompt" name="nai_edit_note_prompt" autocomplete="off" rows="4" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-gray-700 dark:text-gray-200">${escapeHtml(note.prompt)}</textarea>
                 <label class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">负向提示词</label>
-                <textarea id="editNoteNeg" rows="2" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-gray-600 dark:text-gray-300">${escapeHtml(note.negative || '')}</textarea>
+                <textarea id="editNoteNeg" name="nai_edit_note_neg" autocomplete="off" rows="2" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-gray-600 dark:text-gray-300">${escapeHtml(note.negative || '')}</textarea>
                 <div class="flex gap-2 pt-1">
                     <button onclick="cancelEditNote('${model}')" class="flex-1 py-2 text-[10px] font-semibold rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">取消</button>
                     <button onclick="confirmEditNote('${model}','${noteId}')" class="flex-1 py-2 text-[10px] font-bold rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md hover:shadow-lg transition-all active:scale-[0.98]">保存</button>

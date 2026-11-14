@@ -39,6 +39,7 @@ export class PromptHelper {
     constructor(config = {}) {
         this.promptEl = config.promptEl;
         this.mainPromptEl = config.promptEl;
+        this.activeSuggestEl = config.promptEl;
         this.containerEl = config.containerEl;
         this.searchInputEl = config.searchInputEl;
         this.searchBtnEl = config.searchBtnEl;
@@ -360,18 +361,35 @@ export class PromptHelper {
         return [str];
     }
 
-    getActiveTagInfo() {
-        const textarea = this.promptEl;
+    detachSuggestPanel() {
+        if (!this.suggestPanel) return;
+        this.suggestPanel.classList.add('hidden');
+        if (this.containerEl && this.suggestPanel.parentNode !== this.containerEl) {
+            this.containerEl.insertBefore(this.suggestPanel, this.translatePanel || null);
+        }
+        this.activeSuggestEl = this.mainPromptEl || this.promptEl;
+    }
+
+    getActiveTagInfo(targetEl = this.mainPromptEl || this.promptEl) {
+        const textarea = targetEl;
         if (!textarea) return { query: '', rawQuery: '', start: 0, end: 0 };
-        const text = textarea.value;
-        const pos = textarea.selectionStart;
-        
-        const lastComma = text.lastIndexOf(',', pos - 1);
-        const nextComma = text.indexOf(',', pos);
-        
-        const start = lastComma === -1 ? 0 : lastComma + 1;
-        const end = nextComma === -1 ? text.length : nextComma;
-        
+        const text = textarea.value || '';
+        const pos = typeof textarea.selectionStart === 'number' ? textarea.selectionStart : text.length;
+
+        const prevDelimiter = Math.max(
+            text.lastIndexOf(',', pos - 1),
+            text.lastIndexOf(';', pos - 1),
+            text.lastIndexOf('\n', pos - 1)
+        );
+        const nextCandidates = [
+            text.indexOf(',', pos),
+            text.indexOf(';', pos),
+            text.indexOf('\n', pos)
+        ].filter(idx => idx !== -1);
+
+        const start = prevDelimiter === -1 ? 0 : prevDelimiter + 1;
+        const end = nextCandidates.length > 0 ? Math.min(...nextCandidates) : text.length;
+
         const rawQuery = text.substring(start, end);
         const query = this.cleanTag(rawQuery).trim();
         return {
@@ -400,7 +418,7 @@ export class PromptHelper {
             });
         }
 
-        const debouncedUpdateSuggestions = debounce(() => this.updateSuggestions(), 150);
+        const debouncedUpdateSuggestions = debounce((target) => this.updateSuggestions(target), 150);
         const debouncedUpdateTranslations = debounce(() => this.updateTranslations(), 250);
 
         const handleInput = () => {
@@ -408,7 +426,9 @@ export class PromptHelper {
                 this.containerEl.insertBefore(this.suggestPanel, this.translatePanel);
             }
             this.promptEl = this.mainPromptEl;
-            debouncedUpdateSuggestions();
+            this.activeSuggestEl = this.mainPromptEl;
+            if (this.mainPromptEl) this.mainPromptEl._promptHelperBlurred = false;
+            debouncedUpdateSuggestions(this.mainPromptEl);
             debouncedUpdateTranslations();
         };
 
@@ -418,8 +438,9 @@ export class PromptHelper {
         this.promptEl.addEventListener('focus', handleInput);
 
         this.promptEl.addEventListener('blur', () => {
+            if (this.mainPromptEl) this.mainPromptEl._promptHelperBlurred = true;
             setTimeout(() => {
-                if (this.suggestPanel && this.promptEl === this.mainPromptEl) {
+                if (this.suggestPanel && this.activeSuggestEl === this.mainPromptEl && this.mainPromptEl?._promptHelperBlurred) {
                     this.suggestPanel.classList.add('hidden');
                 }
             }, 250);
@@ -503,8 +524,10 @@ export class PromptHelper {
                     `;
                     
                     d.onclick = () => {
-                        this.promptEl.value += (this.promptEl.value ? ', ' : '') + en;
-                        this.promptEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        const targetEl = this.mainPromptEl || this.promptEl;
+                        if (!targetEl) return;
+                        targetEl.value += (targetEl.value ? ', ' : '') + en;
+                        targetEl.dispatchEvent(new Event('input', { bubbles: true }));
                         this.onShowToast(`已添加标签: ${en}`, 'success');
                     };
                     this.searchResultsEl.appendChild(d);
@@ -624,16 +647,20 @@ export class PromptHelper {
     registerInput(inputEl, placeholderEl) {
         if (!inputEl || !placeholderEl) return;
 
-        const debouncedUpdateSuggestions = debounce(() => this.updateSuggestions(), 150);
-        const debouncedUpdateTranslations = debounce(() => this.updateTranslations(), 250);
+        const debouncedUpdateSuggestions = debounce(() => {
+            if (inputEl._promptHelperBlurred || inputEl.isConnected === false) {
+                return;
+            }
+            this.updateSuggestions(inputEl);
+        }, 150);
 
         const handleInput = () => {
             if (this.suggestPanel && this.suggestPanel.parentNode !== placeholderEl) {
                 placeholderEl.appendChild(this.suggestPanel);
             }
-            this.promptEl = inputEl;
+            inputEl._promptHelperBlurred = false;
+            this.activeSuggestEl = inputEl;
             debouncedUpdateSuggestions();
-            debouncedUpdateTranslations();
         };
 
         inputEl.addEventListener('input', handleInput);
@@ -642,16 +669,21 @@ export class PromptHelper {
         inputEl.addEventListener('focus', handleInput);
 
         inputEl.addEventListener('blur', () => {
+            inputEl._promptHelperBlurred = true;
             setTimeout(() => {
-                if (this.suggestPanel && this.promptEl === inputEl) {
+                if (this.suggestPanel && this.activeSuggestEl === inputEl && inputEl._promptHelperBlurred) {
                     this.suggestPanel.classList.add('hidden');
                 }
             }, 250);
         });
     }
 
-    updateSuggestions() {
-        const info = this.getActiveTagInfo();
+    updateSuggestions(targetEl = this.activeSuggestEl || this.mainPromptEl || this.promptEl) {
+        if (!targetEl || targetEl._promptHelperBlurred || targetEl.isConnected === false) {
+            if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
+            return;
+        }
+        const info = this.getActiveTagInfo(targetEl);
         const query = info.query.toLowerCase().trim();
 
         if (!query) {
@@ -718,7 +750,7 @@ export class PromptHelper {
                 btn.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    this.selectSuggestion(en);
+                    this.selectSuggestion(en, targetEl);
                 });
                 
                 this.suggestListEl.appendChild(btn);
@@ -728,10 +760,11 @@ export class PromptHelper {
         if (this.suggestPanel) this.suggestPanel.classList.remove('hidden');
     }
 
-    selectSuggestion(suggestionEn) {
-        const textarea = this.promptEl;
+    selectSuggestion(suggestionEn, targetEl = this.activeSuggestEl || this.mainPromptEl || this.promptEl) {
+        const textarea = targetEl;
+        if (!textarea) return;
         const text = textarea.value;
-        const info = this.getActiveTagInfo();
+        const info = this.getActiveTagInfo(textarea);
         
         const raw = info.rawQuery;
         const queryIndex = raw.toLowerCase().indexOf(info.query.toLowerCase());
@@ -756,12 +789,15 @@ export class PromptHelper {
         textarea.setSelectionRange(newCursorPos, newCursorPos);
         
         if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
-        this.updateTranslations();
+        if (textarea === (this.mainPromptEl || this.promptEl)) {
+            this.updateTranslations();
+        }
     }
 
     updateTranslations() {
-        if (!this.promptEl || !this.translateListEl || !this.translateCountEl) return;
-        const text = this.promptEl.value;
+        const targetEl = this.mainPromptEl || this.promptEl;
+        if (!targetEl || !this.translateListEl || !this.translateCountEl) return;
+        const text = targetEl.value;
         if (!text.trim()) {
             this.translateListEl.innerHTML = '<div class="text-xs text-gray-400 dark:text-slate-500 italic select-none">输入提示词以查看实时翻译...</div>';
             this.translateCountEl.textContent = '0';

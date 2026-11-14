@@ -76,7 +76,7 @@
         <div id="view-search" class="flex flex-col flex-1 overflow-hidden">
             <div class="p-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
                 <div class="flex gap-2 relative group">
-                    <input type="text" id="tagSearchInput" placeholder="输入关键词..."
+                    <input type="text" id="tagSearchInput" name="nai_tag_search" autocomplete="off" placeholder="输入关键词..."
                         class="art-input w-full px-4 py-2.5 rounded-xl text-sm outline-none">
                     <button type="button" id="tagSearchBtn"
                         class="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold rounded-xl active:scale-95 transition-transform shadow-lg cursor-pointer">GO</button>
@@ -123,10 +123,10 @@
         </div>
 
         <div id="view-random" class="flex flex-col flex-1 overflow-y-auto p-4 space-y-4 custom-scroll hidden">
-            <div class="flex items-center justify-between">
-                            <div>
+            <div class="flex items-center justify-between gap-3">
+                            <div class="min-w-0 flex-1">
                                 <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-slate-700 dark:text-slate-300 pointer-events-none"><rect width="12" height="12" x="2" y="10" rx="2" ry="2"/><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"/><path d="M6 18h.01"/><path d="M10 14h.01"/><path d="M15 6h.01"/><path d="M18 9h.01"/></svg> 随机提示词库 (Random Prompts)
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-slate-700 dark:text-slate-300 pointer-events-none shrink-0"><rect width="12" height="12" x="2" y="10" rx="2" ry="2"/><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"/><path d="M6 18h.01"/><path d="M10 14h.01"/><path d="M15 6h.01"/><path d="M18 9h.01"/></svg> 随机提示词库 (Random Prompts)
                                 </h4>
                                 <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-relaxed">
                                     配置服装、动作、画风等随机类别。生成时，系统会从启用的每个类别中各随机抽取一组 Tag，并拼接到主提示词后。
@@ -134,11 +134,11 @@
                             </div>
                             
                             <!-- 全局启用开关 -->
-                            <div class="flex items-center">
-                                <label class="relative inline-flex items-center cursor-pointer select-none">
-                                    <input type="checkbox" id="randomPromptEnabled" role="switch" aria-checked="false" aria-label="启用随机提示词库" class="sr-only peer" onchange="window.toggleRandomPromptEnabled(this.checked)">
-                                    <div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
-                                    <span class="ml-2 text-xs font-semibold text-gray-700 dark:text-gray-300">启用</span>
+                            <div class="flex items-center shrink-0">
+                                <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                                    <input type="checkbox" id="randomPromptEnabled" name="nai_random_prompt_enabled" autocomplete="off" role="switch" aria-checked="false" aria-label="启用随机提示词库" class="sr-only peer" onchange="window.toggleRandomPromptEnabled(this.checked)">
+                                    <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                                    <span class="ml-2 text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap shrink-0">启用</span>
                                 </label>
                             </div>
                         </div>
@@ -165,8 +165,8 @@
                             <div class="space-y-1.5">
                                 <label class="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">新建自定义词库类别</label>
                                 <div class="flex gap-2">
-                                    <input type="text" id="newRandomPromptCategoryName" placeholder="例如: 背景, 表情..." class="art-input flex-1 px-3 py-2 rounded-xl text-xs outline-none">
-                                    <button type="button" onclick="window.addRandomPromptCategory()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-slate-900 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 shadow-md cursor-pointer">
+                                    <input type="text" id="newRandomPromptCategoryName" name="nai_new_rp_category" autocomplete="off" placeholder="例如: 背景, 表情..." class="art-input flex-1 min-w-0 px-3 py-2 rounded-xl text-xs outline-none">
+                                    <button type="button" onclick="window.addRandomPromptCategory()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-slate-900 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 shadow-md cursor-pointer shrink-0 whitespace-nowrap">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M5 12h14"/><path d="M12 5v14"/></svg> 新建分类
                                     </button>
                                 </div>
@@ -727,7 +727,7 @@
                         </button>
                     </div>
                 </div>
-                <textarea id="prompt" rows="3"
+                <textarea id="prompt" name="nai_main_prompt" autocomplete="off" rows="3"
                     class="art-input w-full px-4 py-2.5 rounded-xl text-sm outline-none shadow-sm resize-none text-gray-700 dark:text-gray-200"
                     placeholder="High quality, masterpiece..."></textarea>
                 <div id="promptHelperContainer" class="mt-2 space-y-2"></div>
@@ -736,7 +736,7 @@
             <div class="space-y-2" id="negativePromptWrapper">
                 <label
                     class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">负向提示词</label>
-                <textarea id="negativePrompt" rows="2"
+                <textarea id="negativePrompt" name="nai_main_negative_prompt" autocomplete="off" rows="2"
                     class="art-input w-full px-4 py-2.5 rounded-xl text-xs outline-none shadow-sm resize-none text-gray-600 dark:text-gray-300">lowres, bad anatomy, bad hands, text, error</textarea>
             </div>
 
@@ -902,12 +902,12 @@
                     <!-- 氛围与角色参考 (Vibe & Char Ref, V3/V4.5 显示) -->
                     <div id="vibeSettingsWrapper" class="space-y-4 border-t border-gray-100 dark:border-gray-800/80 pt-3">
                         <div class="space-y-2">
-                        <div class="flex justify-between items-center px-1">
-                            <div class="flex items-center gap-2">
-                                <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">氛围传输 (Vibe Transfer)</label>
-                                <label class="relative inline-flex items-center cursor-pointer scale-75 origin-left">
-                                    <input type="checkbox" id="vibeEnabled" role="switch" aria-checked="true" aria-label="启用氛围传输" class="sr-only peer" checked onchange="toggleVibeEnabled()">
-                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                        <div class="flex justify-between items-center gap-2 px-1">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest min-w-0">氛围传输 (Vibe Transfer)</label>
+                                <label class="relative inline-flex items-center cursor-pointer scale-75 origin-left shrink-0">
+                                    <input type="checkbox" id="vibeEnabled" autocomplete="off" role="switch" aria-checked="true" aria-label="启用氛围传输" class="sr-only peer" checked onchange="toggleVibeEnabled()">
+                                    <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                                 </label>
                             </div>
                             <div class="flex items-center gap-2">
@@ -967,15 +967,15 @@
 
                     <!-- 3.5 角色参考图 (Character Reference) -->
                     <div class="space-y-2 border-t border-gray-100 dark:border-gray-800/80 pt-3">
-                        <div class="flex justify-between items-center px-1">
-                            <div class="flex items-center gap-2">
-                                <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                        <div class="flex justify-between items-center gap-2 px-1">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-1 min-w-0">
                                     角色参考 (Char Ref) 
                                     <span class="text-[9px] text-amber-500 font-normal lowercase">(消耗 Anlas)</span>
                                 </label>
-                                <label class="relative inline-flex items-center cursor-pointer scale-75 origin-left">
-                                    <input type="checkbox" id="charRefEnabled" role="switch" aria-checked="false" aria-label="启用角色参考" class="sr-only peer" onchange="toggleCharRefEnabled()">
-                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                                <label class="relative inline-flex items-center cursor-pointer scale-75 origin-left shrink-0">
+                                    <input type="checkbox" id="charRefEnabled" autocomplete="off" role="switch" aria-checked="false" aria-label="启用角色参考" class="sr-only peer" onchange="toggleCharRefEnabled()">
+                                    <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                                 </label>
                             </div>
                             <button type="button" onclick="clearCharRefImage()" id="clearCharRefImageBtn"
@@ -1038,20 +1038,20 @@
                 </button>
                 <div id="zimageSettingsPanel" class="hidden space-y-4 pt-2 pb-2">
                     <!-- 1. 透明背景 (transparent) 开关 -->
-                    <div class="flex items-center justify-between px-1">
-                        <span class="text-xs text-gray-500">透明背景 (Transparent)</span>
-                        <label class="relative inline-flex items-center cursor-pointer scale-90">
-                            <input type="checkbox" id="ziTransparent" role="switch" aria-checked="false" aria-label="透明背景" class="sr-only peer">
-                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                    <div class="flex items-center justify-between gap-2 px-1">
+                        <span class="text-xs text-gray-500 min-w-0">透明背景 (Transparent)</span>
+                        <label class="relative inline-flex items-center cursor-pointer scale-90 shrink-0">
+                            <input type="checkbox" id="ziTransparent" autocomplete="off" role="switch" aria-checked="false" aria-label="透明背景" class="sr-only peer">
+                            <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                         </label>
                     </div>
                     
                     <!-- 2. 提示词增强 (enhance) 开关 -->
-                    <div class="flex items-center justify-between px-1">
-                        <span class="text-xs text-gray-500">提示词增强 (Enhance)</span>
-                        <label class="relative inline-flex items-center cursor-pointer scale-90">
-                            <input type="checkbox" id="ziEnhance" role="switch" aria-checked="true" aria-label="提示词增强" class="sr-only peer" checked>
-                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                    <div class="flex items-center justify-between gap-2 px-1">
+                        <span class="text-xs text-gray-500 min-w-0">提示词增强 (Enhance)</span>
+                        <label class="relative inline-flex items-center cursor-pointer scale-90 shrink-0">
+                            <input type="checkbox" id="ziEnhance" autocomplete="off" role="switch" aria-checked="true" aria-label="提示词增强" class="sr-only peer" checked>
+                            <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                         </label>
                     </div>
 
@@ -1120,36 +1120,36 @@
                     </div>
                     <!-- SMEA & SMEA DYN -->
                     <div id="smeaContainer" class="grid grid-cols-2 gap-4">
-                        <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
-                            <span class="text-[11px] text-gray-500">SMEA 采样增强</span>
-                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                                <input type="checkbox" id="smEnabled" role="switch" aria-checked="true" aria-label="SMEA 采样增强" class="sr-only peer" checked>
-                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                        <div class="flex items-center justify-between gap-1.5 p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <span class="text-[11px] text-gray-500 min-w-0">SMEA 采样增强</span>
+                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right shrink-0">
+                                <input type="checkbox" id="smEnabled" autocomplete="off" role="switch" aria-checked="true" aria-label="SMEA 采样增强" class="sr-only peer" checked>
+                                <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                             </label>
                         </div>
-                        <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
-                            <span class="text-[11px] text-gray-500">SMEA 动态增强</span>
-                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                                <input type="checkbox" id="smDynEnabled" role="switch" aria-checked="true" aria-label="SMEA 动态增强" class="sr-only peer" checked>
-                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                        <div class="flex items-center justify-between gap-1.5 p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <span class="text-[11px] text-gray-500 min-w-0">SMEA 动态增强</span>
+                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right shrink-0">
+                                <input type="checkbox" id="smDynEnabled" autocomplete="off" role="switch" aria-checked="true" aria-label="SMEA 动态增强" class="sr-only peer" checked>
+                                <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                             </label>
                         </div>
                     </div>
 
                     <!-- Quality Toggle & Dynamic Thresholding -->
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
-                            <span class="text-[11px] text-gray-500" title="开启后会自动在正向词后追加高画质修饰词">添加质量词</span>
-                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                                <input type="checkbox" id="qualityToggleEnabled" role="switch" aria-checked="false" aria-label="添加质量词" class="sr-only peer">
-                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                        <div class="flex items-center justify-between gap-1.5 p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <span class="text-[11px] text-gray-500 min-w-0" title="开启后会自动在正向词后追加高画质修饰词">添加质量词</span>
+                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right shrink-0">
+                                <input type="checkbox" id="qualityToggleEnabled" autocomplete="off" role="switch" aria-checked="false" aria-label="添加质量词" class="sr-only peer">
+                                <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                             </label>
                         </div>
-                        <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
-                            <span class="text-[11px] text-gray-500" title="防止在高 CFG 下图片过饱和或线条崩坏">动态阈值化</span>
-                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                                <input type="checkbox" id="dynThresholdEnabled" role="switch" aria-checked="false" aria-label="动态阈值化" class="sr-only peer">
-                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                        <div class="flex items-center justify-between gap-1.5 p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <span class="text-[11px] text-gray-500 min-w-0" title="防止在高 CFG 下图片过饱和或线条崩坏">动态阈值化</span>
+                            <label class="relative inline-flex items-center cursor-pointer scale-75 origin-right shrink-0">
+                                <input type="checkbox" id="dynThresholdEnabled" autocomplete="off" role="switch" aria-checked="false" aria-label="动态阈值化" class="sr-only peer">
+                                <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                             </label>
                         </div>
                     </div>
@@ -1176,18 +1176,18 @@
                     <div id="v45ParamsContainer" class="space-y-4 hidden">
                         <!-- V4.5 采样噪波微调 -->
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
-                                <span class="text-[11px] text-gray-500" title="在祖先采样器(如Euler A)中强制启用官方早期的采样器Bug">祖先采样器Bug</span>
-                                <label for="v45EulerBug" class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                                    <input type="checkbox" id="v45EulerBug" role="switch" aria-checked="false" aria-label="祖先采样器Bug" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                            <div class="flex items-center justify-between gap-1.5 p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <span class="text-[11px] text-gray-500 min-w-0" title="在祖先采样器(如Euler A)中强制启用官方早期的采样器Bug">祖先采样器Bug</span>
+                                <label for="v45EulerBug" class="relative inline-flex items-center cursor-pointer scale-75 origin-right shrink-0">
+                                    <input type="checkbox" id="v45EulerBug" autocomplete="off" role="switch" aria-checked="false" aria-label="祖先采样器Bug" class="sr-only peer">
+                                    <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                                 </label>
                             </div>
-                            <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
-                                <span class="text-[11px] text-gray-500" title="在去噪过程中首选布朗运动随机噪波以平滑细节">布朗运动噪波</span>
-                                <label for="v45PreferBrownian" class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                                    <input type="checkbox" id="v45PreferBrownian" role="switch" aria-checked="true" aria-label="布朗运动噪波" class="sr-only peer" checked>
-                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                            <div class="flex items-center justify-between gap-1.5 p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <span class="text-[11px] text-gray-500 min-w-0" title="在去噪过程中首选布朗运动随机噪波以平滑细节">布朗运动噪波</span>
+                                <label for="v45PreferBrownian" class="relative inline-flex items-center cursor-pointer scale-75 origin-right shrink-0">
+                                    <input type="checkbox" id="v45PreferBrownian" autocomplete="off" role="switch" aria-checked="true" aria-label="布朗运动噪波" class="sr-only peer" checked>
+                                    <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                                 </label>
                             </div>
                         </div>
@@ -1195,27 +1195,27 @@
                         <!-- V4.5 提示词控制微调 -->
                         <div class="grid grid-cols-2 gap-4">
                             <!-- Use Coords -->
-                            <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
-                                <span class="text-[11px] text-gray-500" title="开启 V4.5 专属正向提示词坐标定位与空间感知">正向坐标定位</span>
-                                <label for="v45UseCoords" class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                                    <input type="checkbox" id="v45UseCoords" role="switch" aria-checked="true" aria-label="正向坐标定位" class="sr-only peer" checked>
-                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                            <div class="flex items-center justify-between gap-1.5 p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <span class="text-[11px] text-gray-500 min-w-0" title="开启 V4.5 专属正向提示词坐标定位与空间感知">正向坐标定位</span>
+                                <label for="v45UseCoords" class="relative inline-flex items-center cursor-pointer scale-75 origin-right shrink-0">
+                                    <input type="checkbox" id="v45UseCoords" autocomplete="off" role="switch" aria-checked="true" aria-label="正向坐标定位" class="sr-only peer" checked>
+                                    <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                                 </label>
                             </div>
                             <!-- Use Order (Positive) -->
-                            <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
-                                <span class="text-[11px] text-gray-500" title="开启 V4.5 正向提示词严格顺序限制">正向顺序限制</span>
-                                <label for="v45UseOrder" class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                                    <input type="checkbox" id="v45UseOrder" role="switch" aria-checked="true" aria-label="正向顺序限制" class="sr-only peer" checked>
-                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                            <div class="flex items-center justify-between gap-1.5 p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <span class="text-[11px] text-gray-500 min-w-0" title="开启 V4.5 正向提示词严格顺序限制">正向顺序限制</span>
+                                <label for="v45UseOrder" class="relative inline-flex items-center cursor-pointer scale-75 origin-right shrink-0">
+                                    <input type="checkbox" id="v45UseOrder" autocomplete="off" role="switch" aria-checked="true" aria-label="正向顺序限制" class="sr-only peer" checked>
+                                    <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                                 </label>
                             </div>
                             <!-- Neg Use Order (Negative) -->
-                            <div class="flex items-center justify-between p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
-                                <span class="text-[11px] text-gray-500" title="开启 V4.5 负向提示词严格顺序限制">负向顺序限制</span>
-                                <label for="v45NegUseOrder" class="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                                    <input type="checkbox" id="v45NegUseOrder" role="switch" aria-checked="false" aria-label="负向顺序限制" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                            <div class="flex items-center justify-between gap-1.5 p-2.5 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <span class="text-[11px] text-gray-500 min-w-0" title="开启 V4.5 负向提示词严格顺序限制">负向顺序限制</span>
+                                <label for="v45NegUseOrder" class="relative inline-flex items-center cursor-pointer scale-75 origin-right shrink-0">
+                                    <input type="checkbox" id="v45NegUseOrder" autocomplete="off" role="switch" aria-checked="false" aria-label="负向顺序限制" class="sr-only peer">
+                                    <div class="relative shrink-0 w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                                 </label>
                             </div>
                         </div>
@@ -1654,7 +1654,7 @@
             <!-- 底部操作与提示词导入栏 (移动端触控大按钮优化) -->
             <div class="shrink-0 p-2.5 sm:p-3.5 md:p-4 border-t border-gray-200/70 dark:border-slate-800/60 bg-gray-50/90 dark:bg-slate-950/70 flex flex-col gap-2">
                 <div class="w-full relative">
-                    <textarea id="inspPromptPreview" rows="1" class="w-full text-xs font-mono py-1.5 px-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-800 dark:text-gray-200 resize-none focus:outline-none focus:ring-1 focus:ring-slate-500" placeholder="此处将实时展示选中的提示词组合..."></textarea>
+                    <textarea id="inspPromptPreview" name="nai_insp_prompt_preview" autocomplete="off" rows="1" class="w-full text-xs font-mono py-1.5 px-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-800 dark:text-gray-200 resize-none focus:outline-none focus:ring-1 focus:ring-slate-500" placeholder="此处将实时展示选中的提示词组合..."></textarea>
                 </div>
                 <!-- 移动端：2行大按键；桌面端：单行并排 -->
                 <div class="grid grid-cols-2 sm:grid-cols-2 md:flex md:items-center gap-1.5 sm:gap-2 w-full">
@@ -1762,7 +1762,7 @@
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">自定义系统提示词 (System Prompt)</label>
-                    <textarea id="aiChatSystemPrompt" rows="2" class="art-input w-full px-3 py-1.5 rounded-xl text-xs outline-none resize-none leading-relaxed mt-0.5"></textarea>
+                    <textarea id="aiChatSystemPrompt" name="nai_ai_chat_system_prompt" autocomplete="off" rows="2" class="art-input w-full px-3 py-1.5 rounded-xl text-xs outline-none resize-none leading-relaxed mt-0.5"></textarea>
                 </div>
                 <!-- NAI5 Prompting 规则注入开关 -->
                 <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
@@ -1797,7 +1797,7 @@
                 <!-- 输入框与发送/中止按钮 -->
                 <div class="flex items-end gap-1.5 sm:gap-2">
                     <div class="flex-1 relative">
-                        <textarea id="aiChatInput" rows="1" placeholder="向 Agent 发送指令，如：'画一个银发猫娘，优化画板词并直接生成'..." class="art-input w-full px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-[13px] outline-none shadow-sm resize-none text-gray-700 dark:text-gray-200 leading-relaxed min-h-[40px] max-h-[120px]"></textarea>
+                        <textarea id="aiChatInput" name="nai_ai_chat_input" autocomplete="off" rows="1" placeholder="向 Agent 发送指令，如：'画一个银发猫娘，优化画板词并直接生成'..." class="art-input w-full px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-[13px] outline-none shadow-sm resize-none text-gray-700 dark:text-gray-200 leading-relaxed min-h-[40px] max-h-[120px]"></textarea>
                     </div>
                     <div class="flex flex-col items-center gap-1.5 shrink-0">
                         <button type="button" id="aiChatSendBtn" onclick="window.sendAiChatMessage()" title="发送指令 (Enter)" aria-label="发送指令" class="w-10 h-10 rounded-2xl bg-slate-900 dark:bg-white hover:bg-black dark:hover:bg-slate-100 text-white dark:text-slate-900 flex items-center justify-center shadow-md active:scale-95 transition-all touch-manipulation">
@@ -1957,16 +1957,16 @@
                         <div id="apiKeyStatus" class="hidden text-xs px-1"></div>
                         
                         <!-- 开关: 多 Key 生成策略 -->
-                        <div class="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-200/70 dark:border-slate-800/60 rounded-2xl">
-                            <div class="flex flex-col gap-0.5">
+                        <div class="flex items-center justify-between gap-3 p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-200/70 dark:border-slate-800/60 rounded-2xl">
+                            <div class="flex flex-col gap-0.5 min-w-0 flex-1">
                                 <span class="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-600 dark:text-slate-300 pointer-events-none"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg> 多 Key 并发生成
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-600 dark:text-slate-300 pointer-events-none shrink-0"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg> 多 Key 并发生成
                                 </span>
                                 <span class="text-[10px] text-gray-400 dark:text-gray-500">开启后，每次生成时所有 Key 会并发请求（产生多张图）；关闭则在多次生成间轮询使用（仅出 1 张图）。</span>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="settingsKeyConcurrentCheckbox" role="switch" aria-checked="false" aria-label="多 Key 并发生成" onchange="toggleKeyConcurrent(this.checked)" class="sr-only peer">
-                                <div class="w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input type="checkbox" id="settingsKeyConcurrentCheckbox" autocomplete="off" role="switch" aria-checked="false" aria-label="多 Key 并发生成" onchange="toggleKeyConcurrent(this.checked)" class="sr-only peer">
+                                <div class="relative shrink-0 w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                             </label>
                         </div>
 
@@ -2051,7 +2051,7 @@
                             </div>
                             <div class="flex flex-col gap-1.5">
                                 <label class="text-[11px] font-bold text-gray-500 dark:text-gray-400">自定义系统提示词 (System Prompt)</label>
-                                <textarea id="aiHelperSystemPrompt" rows="4" placeholder="你是一个提示词专家..." class="art-input w-full px-4 py-2.5 rounded-xl text-xs outline-none resize-none leading-relaxed"></textarea>
+                                <textarea id="aiHelperSystemPrompt" name="nai_ai_helper_system_prompt" autocomplete="off" rows="4" placeholder="你是一个提示词专家..." class="art-input w-full px-4 py-2.5 rounded-xl text-xs outline-none resize-none leading-relaxed"></textarea>
                             </div>
                         </div>
                         
@@ -2175,43 +2175,43 @@
                             <h5 class="text-xs font-bold text-gray-700 dark:text-gray-300">系统性能与实验功能</h5>
                             <!-- 解除画幅与步数限制 -->
                             <div id="bypassLimitsContainer" class="flex flex-col gap-1.5 p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-200/70 dark:border-slate-800/60 rounded-2xl">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2">
-                                        <span id="bypassLimitsIcon" data-lucide="lock" class="w-3.5 h-3.5 inline-flex items-center justify-center text-gray-400"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-                                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200">解除画幅与步数限制 (XL / 50步)</span>
-                                        <span id="bypassLimitsBadge" class="text-[9px] bg-gray-100 dark:bg-slate-800 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700">锁定</span>
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                                        <span id="bypassLimitsIcon" data-lucide="lock" class="w-3.5 h-3.5 inline-flex items-center justify-center text-gray-400 shrink-0"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+                                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200 min-w-0">解除画幅与步数限制 (XL / 50步)</span>
+                                        <span id="bypassLimitsBadge" class="text-[9px] bg-gray-100 dark:bg-slate-800 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 shrink-0 whitespace-nowrap">锁定</span>
                                     </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="bypassLimitsEnabled" role="switch" aria-checked="false" aria-label="解除画幅与步数限制" class="sr-only peer" onchange="toggleBypassLimitsEnabled()" disabled>
-                                        <div class="w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                        <input type="checkbox" id="bypassLimitsEnabled" autocomplete="off" role="switch" aria-checked="false" aria-label="解除画幅与步数限制" class="sr-only peer" onchange="toggleBypassLimitsEnabled()" disabled>
+                                        <div class="relative shrink-0 w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                                     </label>
                                 </div>
                                 <p id="bypassLimitsHint" class="text-[10px] text-gray-400 dark:text-gray-500">需配置自定义 API Key 或管理员密码以解锁超大分辨率与 50 步上限。</p>
                             </div>
                             <!-- 低性能优化模式 -->
-                            <div class="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-200/70 dark:border-slate-800/60 rounded-2xl">
-                                <div class="flex flex-col gap-0.5">
+                            <div class="flex items-center justify-between gap-3 p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-200/70 dark:border-slate-800/60 rounded-2xl">
+                                <div class="flex flex-col gap-0.5 min-w-0 flex-1">
                                     <span class="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-600 dark:text-slate-300 pointer-events-none"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg> 低性能优化模式
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-600 dark:text-slate-300 pointer-events-none shrink-0"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg> 低性能优化模式
                                     </span>
                                     <span class="text-[10px] text-gray-400 dark:text-gray-500">禁用界面粒子和高能动效，适用于低端或发热手机。</span>
                                 </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="settingsLowPerfCheckbox" role="switch" aria-checked="false" aria-label="低性能优化模式" onchange="toggleLowPerf(this.checked)" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                                <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                    <input type="checkbox" id="settingsLowPerfCheckbox" autocomplete="off" role="switch" aria-checked="false" aria-label="低性能优化模式" onchange="toggleLowPerf(this.checked)" class="sr-only peer">
+                                    <div class="relative shrink-0 w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                                 </label>
                             </div>
                             <!-- V4.5 实验性请求参数 -->
-                            <div class="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-200/70 dark:border-slate-800/60 rounded-2xl">
-                                <div class="flex flex-col gap-0.5">
+                            <div class="flex items-center justify-between gap-3 p-3.5 bg-gray-50 dark:bg-slate-800/30 border border-gray-200/70 dark:border-slate-800/60 rounded-2xl">
+                                <div class="flex flex-col gap-0.5 min-w-0 flex-1">
                                     <span class="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-600 dark:text-slate-300 pointer-events-none"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg> V4.5 实验性请求参数
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-600 dark:text-slate-300 pointer-events-none shrink-0"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg> V4.5 实验性请求参数
                                     </span>
                                     <span class="text-[10px] text-gray-400 dark:text-gray-500">启用该项目原本修改过的 V4.5 参数配置。关闭则恢复为官方默认请求体。</span>
                                 </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="settingsV45ExperimentalCheckbox" role="switch" aria-checked="false" aria-label="V4.5 实验性请求参数" onchange="toggleV45Experimental(this.checked)" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
+                                <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                    <input type="checkbox" id="settingsV45ExperimentalCheckbox" autocomplete="off" role="switch" aria-checked="false" aria-label="V4.5 实验性请求参数" onchange="toggleV45Experimental(this.checked)" class="sr-only peer">
+                                    <div class="relative shrink-0 w-9 h-5 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900"></div>
                                 </label>
                             </div>
                         </div>
@@ -2326,7 +2326,7 @@
                                     <label class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">已生成的卡密列表 (直接复制)</label>
                                     <button onclick="copyGeneratedCards()" class="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline">一键复制全部</button>
                                 </div>
-                                <textarea id="genCardsTextarea" readonly class="w-full h-32 p-3 bg-gray-50 dark:bg-slate-950 font-mono text-xs text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-slate-800 rounded-xl outline-none resize-none"></textarea>
+                                <textarea id="genCardsTextarea" name="nai_gen_cards_output" autocomplete="off" readonly class="w-full h-32 p-3 bg-gray-50 dark:bg-slate-950 font-mono text-xs text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-slate-800 rounded-xl outline-none resize-none"></textarea>
                             </div>
                         </div>
 

@@ -217,6 +217,10 @@ export class GalleryStore {
     }
 
     // --- LocalStorage Helpers ---
+    hasSetting(key) {
+        return localStorage.getItem(key) !== null;
+    }
+
     getSetting(key, defaultValue = '') {
         return localStorage.getItem(key) || defaultValue;
     }

@@ -303,16 +303,16 @@ export class CharPromptManager {
 
         div.innerHTML = `
             <div class="flex justify-between items-center select-none cursor-pointer char-row-header">
-                <div class="flex items-center gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 transition-transform duration-200 char-row-chevron transform rotate-90"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                    <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest character-index-label">角色</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 transition-transform duration-200 char-row-chevron transform rotate-90 shrink-0"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest character-index-label shrink-0 whitespace-nowrap">角色</span>
                     <span class="text-[10px] text-gray-400 dark:text-gray-500 truncate max-w-[120px] char-row-summary font-normal"></span>
                 </div>
-                <div class="flex items-center gap-1.5 char-row-actions">
-                    <label class="flex items-center gap-1 cursor-pointer select-none text-[9px] text-gray-400 dark:text-gray-500 font-bold">
-                        <input type="checkbox" role="switch" aria-checked="${enabled ? 'true' : 'false'}" class="char-enable-toggle sr-only peer" ${enabled ? 'checked' : ''}>
-                        <div class="w-6 h-3.5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-green-600 relative scale-90"></div>
-                        <span class="char-enable-text text-green-600 dark:text-green-500">已启用</span>
+                <div class="flex items-center gap-1.5 char-row-actions shrink-0">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none text-[9px] text-gray-400 dark:text-gray-500 font-bold shrink-0">
+                        <input type="checkbox" role="switch" aria-checked="${enabled ? 'true' : 'false'}" class="char-enable-toggle sr-only peer" autocomplete="off" ${enabled ? 'checked' : ''}>
+                        <div class="w-6 h-3.5 shrink-0 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-green-600 relative"></div>
+                        <span class="char-enable-text text-green-600 dark:text-green-500 whitespace-nowrap shrink-0">已启用</span>
                     </label>
                     <button type="button" onclick="window.removeCharacterPromptRow(this)" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-lg transition-all" title="删除角色">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
@@ -322,19 +322,19 @@ export class CharPromptManager {
             <div class="char-row-content space-y-2">
                 <div class="space-y-1">
                     <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">描述提示词 (Character Prompt)</label>
-                    <input type="text" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" placeholder="填入角色特征tag，例如: 1girl, blond hair, blue eyes" />
+                    <input type="text" autocomplete="off" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" placeholder="填入角色特征tag，例如: 1girl, blond hair, blue eyes" />
                 </div>
                 <div class="space-y-1">
                     <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">排除词 (Character Negative, 可选)</label>
-                    <input type="text" class="char-neg-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" placeholder="特定于该角色的排除特征，默认为空" />
+                    <input type="text" autocomplete="off" class="char-neg-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" placeholder="特定于该角色的排除特征，默认为空" />
                 </div>
                 <div class="space-y-1 mt-2">
-                    <div class="flex justify-between items-center text-[9px] text-gray-400 dark:text-gray-500">
-                        <span class="char-pos-title">${isV5 ? '角色定位 (Position - 自由选点)' : '角色定位 (Position - 5x5网格)'}</span>
-                        <label class="flex items-center gap-1 cursor-pointer select-none">
-                            <input type="checkbox" role="switch" aria-checked="${autoPos ? 'true' : 'false'}" class="char-auto-pos sr-only peer" ${autoPos ? 'checked' : ''}>
-                            <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900 relative scale-90"></div>
-                            <span>AI 自动位置</span>
+                    <div class="flex justify-between items-center gap-2 text-[9px] text-gray-400 dark:text-gray-500">
+                        <span class="char-pos-title min-w-0 truncate">${isV5 ? '角色定位 (Position - 自由选点)' : '角色定位 (Position - 5x5网格)'}</span>
+                        <label class="flex items-center gap-1.5 cursor-pointer select-none shrink-0">
+                            <input type="checkbox" role="switch" aria-checked="${autoPos ? 'true' : 'false'}" class="char-auto-pos sr-only peer" autocomplete="off" ${autoPos ? 'checked' : ''}>
+                            <div class="w-7 h-4 shrink-0 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900 relative"></div>
+                            <span class="whitespace-nowrap shrink-0">AI 自动位置</span>
                         </label>
                     </div>
 
@@ -394,14 +394,17 @@ export class CharPromptManager {
         const inputs = div.querySelectorAll('.char-prompt-input, .char-neg-input, .char-auto-pos');
         
         const applyEnabledState = (isEnabled) => {
+            if (typeof enableToggle?.setAttribute === 'function') {
+                enableToggle.setAttribute('aria-checked', isEnabled ? 'true' : 'false');
+            }
             if (isEnabled) {
                 enableText.textContent = "已启用";
-                enableText.className = "char-enable-text text-green-600 dark:text-green-500";
+                enableText.className = "char-enable-text text-green-600 dark:text-green-500 whitespace-nowrap shrink-0";
                 div.classList.remove('opacity-60');
                 inputs.forEach(input => input.disabled = false);
             } else {
                 enableText.textContent = "已禁用";
-                enableText.className = "char-enable-text text-gray-400 dark:text-gray-500";
+                enableText.className = "char-enable-text text-gray-400 dark:text-gray-500 whitespace-nowrap shrink-0";
                 div.classList.add('opacity-60');
                 inputs.forEach(input => input.disabled = true);
             }

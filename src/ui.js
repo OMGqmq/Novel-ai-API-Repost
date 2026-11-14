@@ -943,9 +943,14 @@ export class UIController {
         if (isOpen) {
             const firstFocus = drawer.querySelector?.('#tagSearchInput, button');
             firstFocus?.focus?.({ preventScroll: true });
-        } else if (this._lastDrawerTrigger && typeof this._lastDrawerTrigger.focus === 'function') {
-            this._lastDrawerTrigger.focus();
-            this._lastDrawerTrigger = null;
+        } else {
+            if (typeof window !== 'undefined') {
+                window.promptHelperInstance?.detachSuggestPanel?.();
+            }
+            if (this._lastDrawerTrigger && typeof this._lastDrawerTrigger.focus === 'function') {
+                this._lastDrawerTrigger.focus();
+                this._lastDrawerTrigger = null;
+            }
         }
     }
 
@@ -962,6 +967,10 @@ export class UIController {
         if (this.els.viewSearch) this.els.viewSearch.classList.add('hidden');
         if (this.els.viewNotebook) this.els.viewNotebook.classList.add('hidden');
         if (this.els.viewRandom) this.els.viewRandom.classList.add('hidden');
+
+        if (tab !== 'random' && typeof window !== 'undefined') {
+            window.promptHelperInstance?.detachSuggestPanel?.();
+        }
 
         if (tab === 'search') {
             if (this.els.tabSearch) this.els.tabSearch.className = activeClass;

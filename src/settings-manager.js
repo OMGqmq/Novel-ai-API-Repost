@@ -26,10 +26,20 @@ export class SettingsManager {
         const bindInput = (el, settingKey, eventType = 'input', onUpdate = null) => {
             if (!el) return;
             const saved = store.getSetting(settingKey);
+            const hasExplicit = typeof store.hasSetting === 'function'
+                ? store.hasSetting(settingKey)
+                : (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function' && localStorage.getItem(settingKey) !== null);
+
             if (saved !== '') {
                 el.value = saved;
                 el.dispatchEvent(new Event(eventType, { bubbles: true }));
+            } else if (hasExplicit && el.value !== '') {
+                el.value = '';
+                el.dispatchEvent(new Event(eventType, { bubbles: true }));
+            } else if (!hasExplicit && el.defaultValue !== undefined && el.value !== el.defaultValue) {
+                el.value = el.defaultValue;
             }
+
             el.addEventListener(eventType, (e) => {
                 const val = e.target.value;
                 store.setSetting(settingKey, val);
