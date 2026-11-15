@@ -344,6 +344,43 @@ label:active input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
     transform: scaleX(1);
 }
 
+/* Vertical Tab Sidebars: left vertical accent bar (WCAG 1.4.1 / forced-colors border) */
+.studio-tabs--vertical .studio-tab::after,
+.studio-tabs.flex-col .studio-tab::after,
+#settingsTabs .settings-tab-btn::after,
+#toolboxTabs .toolbox-tab-btn::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 8px;
+    bottom: 8px;
+    right: auto;
+    inset-inline: auto;
+    inset-block-end: 8px;
+    width: 0;
+    height: auto;
+    background: transparent;
+    border-bottom: 0;
+    border-left: 2.5px solid var(--accent-primary);
+    border-radius: 9999px;
+    opacity: 0;
+    transform: scaleY(0.4);
+    transition: opacity var(--dur-fast) var(--ease-in-out), transform var(--dur-fast) var(--ease-out-spring);
+    pointer-events: none;
+}
+
+.studio-tabs--vertical .studio-tab.active::after,
+.studio-tabs--vertical .studio-tab:is(.active-tab, [aria-selected="true"], [aria-pressed="true"])::after,
+.studio-tabs.flex-col .studio-tab.active::after,
+.studio-tabs.flex-col .studio-tab:is(.active-tab, [aria-selected="true"], [aria-pressed="true"])::after,
+#settingsTabs .settings-tab-btn.active::after,
+#settingsTabs .settings-tab-btn[aria-selected="true"]::after,
+#toolboxTabs .toolbox-tab-btn.active-tab::after,
+#toolboxTabs .toolbox-tab-btn:is(.active, [aria-selected="true"])::after {
+    opacity: 1;
+    transform: scaleY(1);
+}
+
 .studio-badge {
     display: inline-flex;
     align-items: center;
@@ -445,12 +482,14 @@ label:active input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-    .studio-list-enter {
+    .studio-list-enter,
+    #resultGrid > .studio-list-enter {
         animation: studioListEnter var(--dur-panel) var(--ease-out-spring) both;
         animation-delay: calc(min(var(--sibling-index, 0), 10) * 30ms);
     }
     @supports (animation-delay: calc(sibling-index() * 30ms)) {
-        .studio-list-enter {
+        .studio-list-enter,
+        #resultGrid > .studio-list-enter {
             animation-delay: calc(min(sibling-index(), 10) * 30ms);
         }
     }
@@ -1746,6 +1785,7 @@ html.low-perf input[type="range"]::-moz-range-thumb {
 /* --- settingsModal & toolboxModal Shared Sidebar Tab & Mobile Navigation Styles --- */
 .settings-tab-btn,
 .toolbox-tab-btn {
+    position: relative;
     text-align: left;
     color: var(--text-muted);
     background: transparent;
@@ -1836,6 +1876,25 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     .dark #toolboxModal .toolbox-tab-btn:is(.active, .active-tab, [aria-selected="true"]) {
         background: rgba(255, 255, 255, 0.14) !important;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    /* 移动端轨道变为横向滚动时恢复底部水平指示条 */
+    #settingsModal #settingsTabs .settings-tab-btn::after,
+    #toolboxModal #toolboxTabs .toolbox-tab-btn::after {
+        left: 0.625rem;
+        right: 0.625rem;
+        top: auto;
+        bottom: 2px;
+        width: auto;
+        height: 2px;
+        border-left: 0;
+        background: currentColor;
+        transform: scaleX(0.4);
+    }
+    #settingsModal #settingsTabs .settings-tab-btn:is(.active, [aria-selected="true"])::after,
+    #toolboxModal #toolboxTabs .toolbox-tab-btn:is(.active, .active-tab, [aria-selected="true"])::after {
+        opacity: 1;
+        transform: scaleX(1);
     }
 
     /* 移动端隐藏侧边栏冗余块，防止挤占纵向可视区域 */
@@ -3223,6 +3282,7 @@ html.low-perf .ai-thinking-dot,
 html.low-perf .studio-list-enter {
     animation: none !important;
     transform: none !important;
+    opacity: 1 !important;
 }
 
 @media (forced-colors: active) {
@@ -3253,6 +3313,13 @@ html.low-perf .studio-list-enter {
     }
     .studio-tab:is(.active, .active-tab, [aria-selected="true"], [aria-pressed="true"])::after {
         background: HighlightText;
+    }
+    .studio-tabs--vertical .studio-tab:is(.active, .active-tab, [aria-selected="true"], [aria-pressed="true"])::after,
+    .studio-tabs.flex-col .studio-tab:is(.active, .active-tab, [aria-selected="true"], [aria-pressed="true"])::after,
+    #settingsTabs .settings-tab-btn:is(.active, [aria-selected="true"])::after,
+    #toolboxTabs .toolbox-tab-btn:is(.active, .active-tab, [aria-selected="true"])::after {
+        background: transparent;
+        border-left-color: HighlightText;
     }
     :is(button, a[href], select, textarea, input, [role="button"], [tabindex]):focus-visible {
         outline: 2px solid Highlight !important;
