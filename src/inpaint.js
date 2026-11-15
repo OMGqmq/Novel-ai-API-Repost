@@ -4,6 +4,8 @@
  * stays persistently active across generations until closed, supports multi-touch
  * pinch-zoom/pan, mask peek/hide, and 1-click base-image revert.
  */
+import * as motionMod from './motion-controller.js';
+
 export class InpaintEditor {
     constructor(dependencies = {}) {
         this.ui = dependencies.ui;
@@ -49,6 +51,9 @@ export class InpaintEditor {
         this._spacePressed = false;
         this._strokeStartTime = 0;
         this._strokeMovedDist = 0;
+        this._modalCloseTimer = null;
+        this._stageTransitionTimer = null;
+        this._wheelWillChangeTimer = null;
 
         this._bindEvents();
     }
@@ -69,6 +74,181 @@ export class InpaintEditor {
         }
     }
 
+    _getMotionController() {
+        return (typeof window !== 'undefined' && window.motionController) || motionMod.motionController || null;
+    }
+
+    _prefersReducedMotion() {
+        const mc = this._getMotionController();
+        if (mc && typeof mc.prefersReducedMotion === 'function') {
+            return mc.prefersReducedMotion();
+        }
+        if (typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf')) {
+            return true;
+        }
+        if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+            return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        }
+        return false;
+    }
+
+    _setSubControlVisible(el, visible, { displayFlex = false, offsetY = 6 } = {}) {
+        if (!el) return;
+        const canAnimate = Boolean(
+            typeof el.getAnimations === 'function'
+            && typeof el.animate === 'function'
+            && !this._prefersReducedMotion()
+        );
+
+        if (!displayFlex) {
+            const mc = this._getMotionController();
+            if (canAnimate && mc && typeof mc.enter === 'function' && typeof mc.exit === 'function') {
+                if (visible) mc.enter(el, { hiddenClass: 'hidden' });
+                else mc.exit(el, { hiddenClass: 'hidden' });
+                return;
+            }
+        }
+
+        if (canAnimate) {
+            try {
+                el.getAnimations().forEach(a => { try { a.cancel(); } catch (_) {} });
+            } catch (_) {}
+
+            if (visible) {
+                const wasHidden = displayFlex
+                    ? el.style?.display === 'none'
+                    : Boolean(el.classList?.contains?.('hidden'));
+                el.removeAttribute?.('data-closing');
+                if (displayFlex) {
+                    if (el.style) el.style.display = 'flex';
+                } else {
+                    el.classList?.remove?.('hidden');
+                }
+                if (wasHidden) {
+                    try {
+                        el.animate(
+                            [
+                                { opacity: 0, transform: `translate3d(0, ${offsetY}px, 0) scale(0.96)` },
+                                { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' }
+                            ],
+                            { duration: 170, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                        );
+                    } catch (_) {}
+                }
+            } else {
+                const currentlyHidden = displayFlex
+                    ? el.style?.display === 'none'
+                    : Boolean(el.classList?.contains?.('hidden'));
+                if (!currentlyHidden && !el.hasAttribute?.('data-closing')) {
+                    el.setAttribute?.('data-closing', '');
+                    try {
+                        const anim = el.animate(
+                            [
+                                { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' },
+                                { opacity: 0, transform: `translate3d(0, ${offsetY}px, 0) scale(0.96)` }
+                            ],
+                            { duration: 140, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
+                        );
+                        let done = false;
+                        const finishHide = () => {
+                            if (done || !el.hasAttribute?.('data-closing')) return;
+                            done = true;
+                            el.removeAttribute?.('data-closing');
+                            if (displayFlex) {
+                                if (el.style) el.style.display = 'none';
+                            } else {
+                                el.classList?.add?.('hidden');
+                            }
+                        };
+                        anim.onfinish = finishHide;
+                        setTimeout(finishHide, 170);
+                    } catch (_) {
+                        el.removeAttribute?.('data-closing');
+                        if (displayFlex) {
+                            if (el.style) el.style.display = 'none';
+                        } else {
+                            el.classList?.add?.('hidden');
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
+        el.removeAttribute?.('data-closing');
+        if (displayFlex) {
+            if (el.style) el.style.display = visible ? 'flex' : 'none';
+        } else {
+            el.classList?.toggle?.('hidden', !visible);
+        }
+    }
+
+    _setModalVisible(visible) {
+        if (!this.modal) return;
+        if (this._modalCloseTimer) {
+            clearTimeout(this._modalCloseTimer);
+            this._modalCloseTimer = null;
+        }
+        const canAnimate = Boolean(
+            typeof this.modal.getAnimations === 'function'
+            && !this._prefersReducedMotion()
+        );
+        if (visible) {
+            this.modal.removeAttribute?.('data-closing');
+            if (this.modal.style) this.modal.style.display = 'flex';
+            this.modal.classList?.remove?.('hidden', 'modal-hidden');
+            if (canAnimate && typeof requestAnimationFrame === 'function') {
+                this.modal.classList?.add?.('modal-hidden');
+                requestAnimationFrame(() => {
+                    if (!this.isOpen) return;
+                    this.modal.classList?.remove?.('modal-hidden');
+                    this.modal.classList?.add?.('modal-visible');
+                });
+            } else {
+                this.modal.classList?.add?.('modal-visible');
+            }
+        } else {
+            const hasTransition = canAnimate && (
+                typeof getComputedStyle === 'function'
+                    ? parseFloat(getComputedStyle(this.modal).transitionDuration || '0') > 0
+                    : true
+            );
+            if (hasTransition && this.modal.style?.display !== 'none') {
+                this.modal.setAttribute?.('data-closing', '');
+                this.modal.classList?.add?.('modal-hidden');
+                this.modal.classList?.remove?.('modal-visible');
+                let done = false;
+                const finishClose = () => {
+                    if (done || this.isOpen || !this.modal.hasAttribute?.('data-closing')) return;
+                    done = true;
+                    this.modal.removeAttribute?.('data-closing');
+                    if (this.modal.style) this.modal.style.display = 'none';
+                };
+                this.modal.addEventListener?.('transitionend', finishClose, { once: true });
+                this._modalCloseTimer = setTimeout(finishClose, 260);
+            } else {
+                this.modal.removeAttribute?.('data-closing');
+                this.modal.classList?.add?.('modal-hidden');
+                this.modal.classList?.remove?.('modal-visible');
+                if (this.modal.style) this.modal.style.display = 'none';
+            }
+        }
+    }
+
+    _setStageInteracting(active) {
+        const target = this.canvasStage || (typeof document !== 'undefined' ? document.getElementById('inpaintCanvasStage') : null);
+        if (!target) return;
+        if (active && this._stageTransitionTimer) {
+            clearTimeout(this._stageTransitionTimer);
+            this._stageTransitionTimer = null;
+        }
+        if (target.style) {
+            if (active) target.style.transition = '';
+            target.style.willChange = active ? 'transform' : '';
+        }
+        target.classList?.toggle?.('is-interacting', Boolean(active));
+    }
+
     hasRestorableMask() {
         return Boolean(this.lastSession && this.lastSession.maskAlpha && this.lastSession.width > 0 && this.lastSession.height > 0);
     }
@@ -76,11 +256,7 @@ export class InpaintEditor {
     showQuickRetryBar(show) {
         const bar = typeof document !== 'undefined' ? document.getElementById('inpaintQuickRetryBar') : null;
         if (!bar) return;
-        if (show && this.hasRestorableMask()) {
-            bar.classList.remove('hidden');
-        } else {
-            bar.classList.add('hidden');
-        }
+        this._setSubControlVisible(bar, Boolean(show && this.hasRestorableMask()));
     }
 
     _syncToggleBtnState() {
@@ -92,19 +268,15 @@ export class InpaintEditor {
 
     _syncRevertOrigBtnVisibility() {
         const btn = typeof document !== 'undefined' ? document.getElementById('inpaintRevertOrigBtn') : null;
-        if (btn && btn.classList) {
-            btn.classList.toggle('hidden', !this.hasGeneratedInSession);
+        if (btn) {
+            this._setSubControlVisible(btn, Boolean(this.hasGeneratedInSession));
         }
     }
 
     _syncRestoreBtnVisibility() {
         const btn = typeof document !== 'undefined' ? document.getElementById('inpaintRestoreMaskBtn') : null;
         if (!btn) return;
-        if (this.hasRestorableMask()) {
-            btn.classList.remove('hidden');
-        } else {
-            btn.classList.add('hidden');
-        }
+        this._setSubControlVisible(btn, Boolean(this.hasRestorableMask()));
     }
 
     setMaskPeek(peek) {
@@ -136,11 +308,12 @@ export class InpaintEditor {
         const pop = typeof document !== 'undefined' ? document.getElementById('inpaintParamsPopover') : null;
         const btn = typeof document !== 'undefined' ? document.getElementById('inpaintParamsBtn') : null;
         this.paramsPopoverOpen = typeof forceState === 'boolean' ? forceState : !this.paramsPopoverOpen;
-        if (pop?.classList) {
-            pop.classList.toggle('hidden', !this.paramsPopoverOpen);
-        }
+        this._setSubControlVisible(pop, this.paramsPopoverOpen, { offsetY: 8 });
         if (btn?.classList) {
             btn.classList.toggle('tool-active', this.paramsPopoverOpen);
+        }
+        if (btn?.setAttribute) {
+            btn.setAttribute('aria-expanded', this.paramsPopoverOpen ? 'true' : 'false');
         }
     }
 
@@ -166,10 +339,39 @@ export class InpaintEditor {
         }
     }
 
-    applyViewportTransform() {
+    applyViewportTransform({ animate = false } = {}) {
         const target = this.canvasStage || (typeof document !== 'undefined' ? document.getElementById('inpaintCanvasStage') : null);
         const isIdentity = Math.abs(this.viewport.scale - 1) < 0.005 && Math.abs(this.viewport.x) < 0.5 && Math.abs(this.viewport.y) < 0.5;
         if (target && target.style) {
+            if (this._stageTransitionTimer) {
+                clearTimeout(this._stageTransitionTimer);
+                this._stageTransitionTimer = null;
+            }
+            const shouldAnimate = Boolean(
+                animate
+                && !this.isPanning
+                && !this.isPinching
+                && !this._prefersReducedMotion()
+                && typeof target.getAnimations === 'function'
+            );
+            if (shouldAnimate) {
+                target.style.willChange = 'transform';
+                target.style.transition = 'transform 180ms cubic-bezier(0.22, 1, 0.36, 1)';
+                this._stageTransitionTimer = setTimeout(() => {
+                    this._stageTransitionTimer = null;
+                    if (target.style) {
+                        target.style.transition = '';
+                        if (!this.isPanning && !this.isPinching && !this._wheelWillChangeTimer) {
+                            target.style.willChange = '';
+                        }
+                    }
+                }, 200);
+            } else {
+                target.style.transition = '';
+                if (!this.isPanning && !this.isPinching && !this._wheelWillChangeTimer) {
+                    target.style.willChange = '';
+                }
+            }
             target.style.transform = (!this.isOpen && isIdentity)
                 ? ''
                 : `translate3d(${this.viewport.x}px, ${this.viewport.y}px, 0) scale(${this.viewport.scale})`;
@@ -185,7 +387,7 @@ export class InpaintEditor {
         }
     }
 
-    setZoom(nextScale, anchorClientX = null, anchorClientY = null) {
+    setZoom(nextScale, anchorClientX = null, anchorClientY = null, options = {}) {
         const clamped = Math.max(0.5, Math.min(6.0, nextScale));
         const prevScale = this.viewport.scale || 1;
         if (Math.abs(clamped - prevScale) < 0.001) return;
@@ -210,20 +412,20 @@ export class InpaintEditor {
             this.viewport.x = 0;
             this.viewport.y = 0;
         }
-        this.applyViewportTransform();
+        this.applyViewportTransform({ animate: options.animate !== false });
     }
 
     zoomIn() {
-        this.setZoom(this.viewport.scale * 1.25);
+        this.setZoom(this.viewport.scale * 1.25, null, null, { animate: true });
     }
 
     zoomOut() {
-        this.setZoom(this.viewport.scale / 1.25);
+        this.setZoom(this.viewport.scale / 1.25, null, null, { animate: true });
     }
 
-    resetZoom() {
+    resetZoom(options = {}) {
         this.viewport = { scale: 1, x: 0, y: 0 };
-        this.applyViewportTransform();
+        this.applyViewportTransform({ animate: !options.immediate });
     }
 
     _bindEvents() {
@@ -339,8 +541,14 @@ export class InpaintEditor {
             wheelTarget.addEventListener('wheel', (e) => {
                 if (!this.isActive()) return;
                 e.preventDefault();
+                this._setStageInteracting(true);
                 const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-                this.setZoom(this.viewport.scale * factor, e.clientX, e.clientY);
+                this.setZoom(this.viewport.scale * factor, e.clientX, e.clientY, { animate: false });
+                if (this._wheelWillChangeTimer) clearTimeout(this._wheelWillChangeTimer);
+                this._wheelWillChangeTimer = setTimeout(() => {
+                    this._wheelWillChangeTimer = null;
+                    if (!this.isPanning && !this.isPinching) this._setStageInteracting(false);
+                }, 180);
             }, { passive: false });
         }
 
@@ -359,6 +567,7 @@ export class InpaintEditor {
                     this._startPinchGesture();
                 } else {
                     this.isPanning = true;
+                    this._setStageInteracting(true);
                     this.panStart = {
                         x: e.clientX - this.viewport.x,
                         y: e.clientY - this.viewport.y
@@ -386,7 +595,10 @@ export class InpaintEditor {
                 this.activePointers.delete(pid);
                 try { this.canvasWrap.releasePointerCapture?.(pid); } catch (_) {}
                 if (this.activePointers.size < 2) this.isPinching = false;
-                if (this.activePointers.size === 0) this.isPanning = false;
+                if (this.activePointers.size === 0) {
+                    this.isPanning = false;
+                    this._setStageInteracting(false);
+                }
             };
             this.canvasWrap.addEventListener('pointerup', endWrapPointer);
             this.canvasWrap.addEventListener('pointercancel', endWrapPointer);
@@ -422,6 +634,7 @@ export class InpaintEditor {
             // Single-pointer Pan Mode (Move tool, Spacebar held, or Middle mouse button)
             if (this.tool === 'move' || this._spacePressed || e.button === 1) {
                 this.isPanning = true;
+                this._setStageInteracting(true);
                 this.panStart = {
                     x: e.clientX - this.viewport.x,
                     y: e.clientY - this.viewport.y
@@ -513,6 +726,7 @@ export class InpaintEditor {
                 this.isPanning = false;
                 this.drawing = false;
                 this.lastPos = null;
+                this._setStageInteracting(false);
             }
         };
 
@@ -536,6 +750,7 @@ export class InpaintEditor {
         const midY = (pts[0].clientY + pts[1].clientY) / 2;
         this.isPinching = true;
         this.isPanning = false;
+        this._setStageInteracting(true);
         this.pinchStart = {
             dist,
             midX,
@@ -586,13 +801,19 @@ export class InpaintEditor {
         const scaleX = this.maskCanvas.width / rect.width;
         const visualBs = Math.max(4, this.getBrushSize() / scaleX);
 
+        const baseCursorPx = 32;
+        const brushScale = Math.max(0.125, visualBs / baseCursorPx);
         const rAF = typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame : (typeof window !== 'undefined' && window.requestAnimationFrame ? window.requestAnimationFrame : setTimeout);
         const cancelRAF = typeof cancelAnimationFrame !== 'undefined' ? cancelAnimationFrame : (typeof window !== 'undefined' && window.cancelAnimationFrame ? window.cancelAnimationFrame : clearTimeout);
 
         if (this._cursorRaf) cancelRAF(this._cursorRaf);
         this._cursorRaf = rAF(() => {
-            this.brushCursor.style.width = `${visualBs}px`;
-            this.brushCursor.style.height = `${visualBs}px`;
+            if (typeof this.brushCursor.style?.setProperty === 'function') {
+                this.brushCursor.style.setProperty('--brush-scale', brushScale.toFixed(4));
+            } else if (this.brushCursor.style) {
+                this.brushCursor.style.width = `${visualBs}px`;
+                this.brushCursor.style.height = `${visualBs}px`;
+            }
             this.brushCursor.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
             this.brushCursor.classList.remove('hidden');
         });
@@ -679,7 +900,7 @@ export class InpaintEditor {
             }
 
             this.syncOverlayGeometry();
-            this.resetZoom();
+            this.resetZoom({ immediate: true });
             this._syncToggleBtnState();
             this._syncRevertOrigBtnVisibility();
             this._syncRestoreBtnVisibility();
@@ -689,11 +910,7 @@ export class InpaintEditor {
                 this.restoreLastMask(false);
             }
 
-            if (this.modal) {
-                this.modal.style.display = 'flex';
-                this.modal.classList?.remove?.('hidden', 'modal-hidden');
-                this.modal.classList?.add?.('modal-visible');
-            }
+            this._setModalVisible(true);
             const deskText = document.getElementById('deskBtnText');
             if (deskText) deskText.textContent = '确认局部重绘';
             if (typeof window !== 'undefined' && window.safeCreateIcons) window.safeCreateIcons();
@@ -721,15 +938,16 @@ export class InpaintEditor {
         if (this.canvasWrap?.classList) {
             this.canvasWrap.classList.remove('inpaint-live');
         }
-        this.resetZoom();
+        if (this._wheelWillChangeTimer) {
+            clearTimeout(this._wheelWillChangeTimer);
+            this._wheelWillChangeTimer = null;
+        }
+        this._setStageInteracting(false);
+        this.resetZoom({ immediate: true });
         this._syncToggleBtnState();
         this._syncRevertOrigBtnVisibility();
 
-        if (this.modal) {
-            this.modal.classList?.add?.('modal-hidden');
-            this.modal.classList?.remove?.('modal-visible');
-            this.modal.style.display = 'none';
-        }
+        this._setModalVisible(false);
         if (this.brushCursor) this.brushCursor.classList.add('hidden');
         if (this._cursorRaf && typeof cancelAnimationFrame === 'function') {
             cancelAnimationFrame(this._cursorRaf);
@@ -750,9 +968,9 @@ export class InpaintEditor {
             this.maskCanvas.style.cursor = tool === 'move' ? 'grab' : 'none';
         }
         const blurWrap = document.getElementById('blurStrengthWrap');
-        if (blurWrap) blurWrap.style.display = tool === 'blur' ? 'flex' : 'none';
+        if (blurWrap) this._setSubControlVisible(blurWrap, tool === 'blur', { displayFlex: true });
         const fillWrap = document.getElementById('fillToleranceWrap');
-        if (fillWrap) fillWrap.style.display = tool === 'fill' ? 'flex' : 'none';
+        if (fillWrap) this._setSubControlVisible(fillWrap, tool === 'fill', { displayFlex: true });
     }
 
     getBrushSize() {

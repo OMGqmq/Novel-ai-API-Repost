@@ -1,4 +1,68 @@
-import { openModal, closeModal } from './modal-toast.js';
+import { openModal, closeModal, showToast, showAlert } from './modal-toast.js';
+
+function notifyPostProcess(message, type = 'warning', { title = '系统提示', modalFallback = false } = {}) {
+    const cleanMsg = String(message || '').replace(/^⚠️\s*/, '');
+    if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+        try {
+            if (modalFallback && typeof document.getElementById === 'function') {
+                const confirmEl = document.getElementById('confirmModal');
+                if (confirmEl && typeof confirmEl.showModal === 'function' && typeof showAlert === 'function') {
+                    showAlert(cleanMsg, title, type === 'error' ? 'alert-triangle' : 'alert-circle');
+                    return;
+                }
+            }
+            if (document.body && typeof showToast === 'function') {
+                showToast(cleanMsg, type, type === 'error' ? 4500 : 3200);
+                return;
+            }
+        } catch (_) {
+            // Fall back to alert in headless/mocked environments
+        }
+    }
+    if (typeof alert === 'function') {
+        alert(cleanMsg);
+    }
+}
+
+function syncEnhancePresetBtn(btn, isActive) {
+    if (!btn || !btn.classList) return;
+    const usesStudioTabs = btn.classList.contains('studio-tab') || Boolean(btn.closest?.('.studio-tabs'));
+    const activeClasses = ['bg-slate-900', 'dark:bg-white', 'text-white', 'dark:text-slate-900', 'shadow-md', 'border-slate-900', 'dark:border-white'];
+    const inactiveClasses = ['bg-slate-100', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-200', 'border-transparent'];
+    const legacyInactiveClasses = ['bg-gray-100', 'text-gray-700', 'dark:text-gray-200'];
+
+    btn.classList.toggle('active', isActive);
+    btn.classList.toggle('active-preset', isActive);
+    if (typeof btn.setAttribute === 'function') {
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    }
+
+    if (usesStudioTabs) {
+        btn.classList.add('studio-tab');
+        btn.classList.remove(...activeClasses, ...inactiveClasses, ...legacyInactiveClasses);
+        return;
+    }
+
+    if (isActive) {
+        btn.classList.add(...activeClasses);
+        btn.classList.remove(...inactiveClasses, ...legacyInactiveClasses);
+    } else {
+        btn.classList.remove(...activeClasses);
+        btn.classList.add(...inactiveClasses);
+        btn.classList.remove('bg-gray-100', 'text-gray-700', 'dark:text-gray-200');
+    }
+    const sub = typeof btn.querySelector === 'function' ? btn.querySelector('span') : null;
+    if (sub && sub.classList) {
+        sub.classList.remove('text-gray-400');
+        if (isActive) {
+            sub.classList.remove('text-slate-500', 'dark:text-slate-400');
+            sub.classList.add('text-slate-300', 'dark:text-slate-500');
+        } else {
+            sub.classList.remove('text-slate-300', 'dark:text-slate-500');
+            sub.classList.add('text-slate-500', 'dark:text-slate-400');
+        }
+    }
+}
 
 /**
  * Post-Process Controller Module
@@ -61,7 +125,7 @@ export function createPostProcessController({
             }
         }
         if (ui.els.resultGrid && !ui.els.resultGrid.classList.contains('hidden')) {
-            const selectedImg = ui.els.resultGrid.querySelector('img.border-blue-500');
+            const selectedImg = ui.els.resultGrid.querySelector('img[data-selected="true"], img.border-slate-900, img.border-blue-500');
             if (selectedImg && selectedImg.src) return selectedImg.src;
             const firstImg = ui.els.resultGrid.querySelector('img');
             if (firstImg && firstImg.src) return firstImg.src;
@@ -111,8 +175,8 @@ export function createPostProcessController({
             ui.setBeforeAfterImage?.(imageUrl, result.imageUrl);
         } catch (err) {
             console.error(err);
-            if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
-            else alert("处理失败: " + err.message);
+            if (err.message.includes('429')) notifyPostProcess("请求频繁，请稍候重试", 'warning');
+            else notifyPostProcess("处理失败: " + err.message, 'error', { title: '处理失败', modalFallback: true });
         } finally {
             ui.setLoading(false);
         }
@@ -121,7 +185,7 @@ export function createPostProcessController({
     function openEnhanceModal() {
         const targetSrc = getActiveCanvasImage();
         if (!targetSrc) {
-            alert("请先生成或在画廊中选择一张图片以进行增强");
+            notifyPostProcess("请先生成或在画廊中选择一张图片以进行增强", 'warning');
             return;
         }
         openModal('enhanceModal');
@@ -143,17 +207,7 @@ export function createPostProcessController({
         if (noiseVal) noiseVal.textContent = parseFloat(noise).toFixed(2);
 
         document.querySelectorAll('.enhance-preset-btn').forEach(btn => {
-            if (parseFloat(btn.dataset.strength) === parseFloat(strength)) {
-                btn.classList.add('bg-slate-900', 'dark:bg-white', 'text-white', 'dark:text-slate-900', 'shadow-md', 'border-slate-900', 'dark:border-white', 'active-preset');
-                btn.classList.remove('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
-                const sub = btn.querySelector('span');
-                if (sub) { sub.classList.remove('text-gray-400'); sub.classList.add('text-slate-300', 'dark:text-slate-500'); }
-            } else {
-                btn.classList.remove('bg-slate-900', 'dark:bg-white', 'text-white', 'dark:text-slate-900', 'shadow-md', 'border-slate-900', 'dark:border-white', 'active-preset');
-                btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
-                const sub = btn.querySelector('span');
-                if (sub) { sub.classList.add('text-gray-400'); sub.classList.remove('text-slate-300', 'dark:text-slate-500'); }
-            }
+            syncEnhancePresetBtn(btn, parseFloat(btn.dataset.strength) === parseFloat(strength));
         });
     }
 
@@ -168,12 +222,7 @@ export function createPostProcessController({
                 strengthVal.textContent = parseFloat(strengthSlider.value).toFixed(2);
                 document.querySelectorAll('.enhance-preset-btn').forEach(btn => {
                     const match = Math.abs(parseFloat(btn.dataset.strength) - parseFloat(strengthSlider.value)) < 0.01;
-                    if (!match) {
-                        btn.classList.remove('bg-slate-900', 'dark:bg-white', 'text-white', 'dark:text-slate-900', 'shadow-md', 'border-slate-900', 'dark:border-white', 'active-preset');
-                        btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-700', 'dark:text-gray-200');
-                        const sub = btn.querySelector('span');
-                        if (sub) { sub.classList.add('text-gray-400'); sub.classList.remove('text-slate-300', 'dark:text-slate-500'); }
-                    }
+                    syncEnhancePresetBtn(btn, match);
                 });
             });
         }
@@ -187,7 +236,7 @@ export function createPostProcessController({
     async function doEnhance() {
         const targetSrc = getActiveCanvasImage();
         if (!targetSrc) {
-            alert("请先生成或选择一张图片以进行增强");
+            notifyPostProcess("请先生成或选择一张图片以进行增强", 'warning');
             return;
         }
 
@@ -253,8 +302,8 @@ export function createPostProcessController({
             ui.setBeforeAfterImage?.(targetSrc, result.imageUrl);
         } catch (err) {
             console.error(err);
-            if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
-            else alert("增强失败: " + err.message);
+            if (err.message.includes('429')) notifyPostProcess("请求频繁，请稍候重试", 'warning');
+            else notifyPostProcess("增强失败: " + err.message, 'error', { title: '增强失败', modalFallback: true });
         } finally {
             ui.setLoading(false);
         }
@@ -263,7 +312,7 @@ export function createPostProcessController({
     async function doUpscale() {
         const targetSrc = getActiveCanvasImage();
         if (!targetSrc) {
-            alert("请先生成或选择一张图片以进行 4x 超分放大");
+            notifyPostProcess("请先生成或选择一张图片以进行 4x 超分放大", 'warning');
             return;
         }
 
@@ -311,8 +360,8 @@ export function createPostProcessController({
             ui.setBeforeAfterImage?.(targetSrc, result.imageUrl);
         } catch (err) {
             console.error(err);
-            if (err.message.includes('429')) alert("⚠️ 请求频繁,请稍候重试");
-            else alert("超分辨率放大失败: " + err.message);
+            if (err.message.includes('429')) notifyPostProcess("请求频繁，请稍候重试", 'warning');
+            else notifyPostProcess("超分辨率放大失败: " + err.message, 'error', { title: '放大失败', modalFallback: true });
         } finally {
             ui.setLoading(false);
         }

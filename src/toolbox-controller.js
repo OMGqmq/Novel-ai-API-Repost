@@ -5,6 +5,158 @@
 import { processImageScrambler } from './image-scrambler.js';
 import { extractMetadata } from './png-metadata.js';
 import { openModal, closeModal } from './modal-toast.js';
+import * as motionMod from './motion-controller.js';
+
+function getToolboxMotionController() {
+    return (typeof window !== 'undefined' && window.motionController) || motionMod.motionController || null;
+}
+
+function isToolboxReducedMotion() {
+    const mc = getToolboxMotionController();
+    if (mc && typeof mc.prefersReducedMotion === 'function') {
+        return mc.prefersReducedMotion();
+    }
+    if (typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf')) {
+        return true;
+    }
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    return false;
+}
+
+function syncToolboxTriggerState(triggerEl, isOpen) {
+    if (!triggerEl || typeof triggerEl.setAttribute !== 'function') return;
+    triggerEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (typeof triggerEl.querySelector === 'function') {
+        const chevron = triggerEl.querySelector('[data-chevron], svg.chevron-icon');
+        if (chevron?.classList) {
+            chevron.classList.toggle('rotate-180', Boolean(isOpen));
+        }
+    }
+}
+
+function syncToolboxSectionVisibility(el, isOpen, { triggerEl = null, immediate = false } = {}) {
+    if (!el) return;
+    syncToolboxTriggerState(triggerEl, Boolean(isOpen));
+
+    const accordionRoot = el.classList?.contains?.('studio-accordion')
+        ? el
+        : el.closest?.('.studio-accordion');
+
+    if (accordionRoot && !immediate) {
+        el.classList?.remove?.('hidden');
+        accordionRoot.classList?.toggle?.('is-open', Boolean(isOpen));
+        if ('inert' in accordionRoot) accordionRoot.inert = !isOpen;
+        return;
+    }
+
+    const mc = getToolboxMotionController();
+    if (!immediate && mc && typeof mc.enter === 'function' && typeof mc.exit === 'function' && typeof el.getAnimations === 'function') {
+        if (isOpen) mc.enter(el, { hiddenClass: 'hidden' });
+        else mc.exit(el, { hiddenClass: 'hidden' });
+        return;
+    }
+
+    if (!immediate && !isToolboxReducedMotion() && typeof el.animate === 'function' && typeof el.getAnimations === 'function') {
+        try {
+            el.getAnimations().forEach(a => { try { a.cancel(); } catch (_) {} });
+        } catch (_) {}
+
+        if (isOpen) {
+            el.removeAttribute?.('data-closing');
+            el.classList?.remove?.('hidden');
+            try {
+                el.animate(
+                    [
+                        { opacity: 0, transform: 'translate3d(0, -4px, 0)' },
+                        { opacity: 1, transform: 'translate3d(0, 0, 0)' }
+                    ],
+                    { duration: 180, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                );
+            } catch (_) {}
+        } else if (!el.classList?.contains?.('hidden')) {
+            el.setAttribute?.('data-closing', '');
+            try {
+                const anim = el.animate(
+                    [
+                        { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+                        { opacity: 0, transform: 'translate3d(0, -4px, 0)' }
+                    ],
+                    { duration: 140, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
+                );
+                let done = false;
+                const finish = () => {
+                    if (done || !el.hasAttribute?.('data-closing')) return;
+                    done = true;
+                    el.removeAttribute?.('data-closing');
+                    el.classList?.add?.('hidden');
+                };
+                anim.onfinish = finish;
+                setTimeout(finish, 170);
+            } catch (_) {
+                el.removeAttribute?.('data-closing');
+                el.classList?.add?.('hidden');
+            }
+        }
+        return;
+    }
+
+    el.removeAttribute?.('data-closing');
+    el.classList?.toggle?.('hidden', !isOpen);
+}
+
+async function renderToolboxHistoryPicker({ wrapperId, containerId, isOpen, triggerSelector, onSelect }) {
+    const wrapper = typeof document !== 'undefined' ? document.getElementById(wrapperId) : null;
+    if (!wrapper) return;
+
+    const triggerEl = typeof document !== 'undefined' && triggerSelector ? document.querySelector(triggerSelector) : null;
+    syncToolboxSectionVisibility(wrapper, isOpen, { triggerEl });
+    if (!isOpen) return;
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = '<div class="text-[10px] text-slate-500 dark:text-slate-400 text-center w-full py-4">正在载入生图历史...</div>';
+
+    try {
+        if (!store) {
+            container.innerHTML = '<div class="text-[10px] text-red-500 dark:text-red-400 text-center w-full py-4">存储未初始化</div>';
+            return;
+        }
+        const images = await store.getImagesPage(0, 50);
+        if (!images || images.length === 0) {
+            container.innerHTML = '<div class="text-[10px] text-slate-500 dark:text-slate-400 text-center w-full py-4">无历史生成图片</div>';
+            return;
+        }
+
+        container.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        images.forEach((item, idx) => {
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'studio-card studio-list-enter relative w-12 h-12 p-0 rounded-lg overflow-hidden cursor-pointer border border-transparent hover:border-slate-500 dark:hover:border-slate-400 transition-colors duration-200 shrink-0 bg-slate-900/10 dark:bg-slate-900/50';
+            if (imgContainer.style?.setProperty) {
+                imgContainer.style.setProperty('--sibling-index', String(Math.min(idx, 10)));
+            }
+            imgContainer.onclick = () => onSelect(item.image);
+
+            const img = document.createElement('img');
+            img.src = item.image;
+            img.alt = '';
+            img.className = 'w-full h-full object-cover';
+            imgContainer.appendChild(img);
+            fragment.appendChild(imgContainer);
+        });
+        container.appendChild(fragment);
+        const mc = getToolboxMotionController();
+        if (mc && typeof mc.setStaggerIndices === 'function' && typeof container.querySelectorAll === 'function') {
+            mc.setStaggerIndices(container, '.studio-list-enter', 10);
+        }
+    } catch (e) {
+        console.error('加载生图历史失败:', e);
+        container.innerHTML = '<div class="text-[10px] text-red-500 dark:text-red-400 text-center w-full py-4">加载失败</div>';
+    }
+}
 
 let store = null;
 let charRefManager = null;
@@ -27,6 +179,8 @@ export function initToolbox(storeInstance, deps = {}) {
 export function openToolboxModal() {
     openModal('toolboxModal');
     switchToolboxTab('scrambler');
+    onScrambleAlgorithmChange();
+    toggleScramblePasswordInput();
 }
 
 export function closeToolboxModal() {
@@ -35,66 +189,43 @@ export function closeToolboxModal() {
 
 export function switchToolboxTab(tabId) {
     document.querySelectorAll('.toolbox-tab-btn').forEach(btn => {
-        if (btn.id === `toolboxTab-${tabId}`) {
-            btn.classList.add('bg-gray-100', 'dark:bg-slate-800', 'text-gray-900', 'dark:text-white', 'shadow-sm', 'active-tab');
-            btn.classList.remove('text-gray-500', 'dark:text-gray-400');
+        const isActive = btn.id === `toolboxTab-${tabId}`;
+        const usesStudioTabs = btn.classList?.contains?.('studio-tab') || Boolean(btn.closest?.('.studio-tabs'));
+        btn.classList.toggle('active-tab', isActive);
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute?.('aria-pressed', isActive ? 'true' : 'false');
+        btn.classList.remove('bg-gray-100', 'text-gray-900', 'text-gray-500', 'dark:text-gray-400', 'transition-all');
+        if (usesStudioTabs) {
+            btn.classList.add('studio-tab');
+            btn.classList.remove('dark:bg-slate-800', 'dark:text-white', 'shadow-sm', 'bg-slate-100', 'text-slate-900', 'text-slate-500', 'dark:text-slate-400');
+        } else if (isActive) {
+            btn.classList.add('studio-tab', 'bg-slate-100', 'dark:bg-slate-800', 'text-slate-900', 'dark:text-white', 'shadow-sm', 'transition-colors');
+            btn.classList.remove('text-slate-500', 'dark:text-slate-400');
         } else {
-            btn.classList.remove('bg-gray-100', 'dark:bg-slate-800', 'text-gray-900', 'dark:text-white', 'shadow-sm', 'active-tab');
-            btn.classList.add('text-gray-500', 'dark:text-gray-400');
+            btn.classList.add('studio-tab', 'text-slate-500', 'dark:text-slate-400', 'transition-colors');
+            btn.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-900', 'dark:text-white', 'shadow-sm');
         }
     });
 
     document.querySelectorAll('.toolbox-panel').forEach(panel => {
-        if (panel.id === `toolboxPanel-${tabId}`) {
-            panel.classList.remove('hidden');
+        const isTarget = panel.id === `toolboxPanel-${tabId}`;
+        if (isTarget) {
+            syncToolboxSectionVisibility(panel, true);
         } else {
-            panel.classList.add('hidden');
+            syncToolboxSectionVisibility(panel, false, { immediate: true });
         }
     });
 }
 
 export async function toggleScrambleHistoryList() {
-    const wrapper = document.getElementById('scrambleHistoryListWrapper');
-    if (!wrapper) return;
-    
     isHistoryListOpen = !isHistoryListOpen;
-    if (isHistoryListOpen) {
-        wrapper.classList.remove('hidden');
-        const container = document.getElementById('scrambleHistoryThumbnails');
-        if (!container) return;
-        
-        container.innerHTML = '<div class="text-[10px] text-gray-400 text-center w-full py-4">正在载入生图历史...</div>';
-        
-        try {
-            if (!store) {
-                container.innerHTML = '<div class="text-[10px] text-rose-500 text-center w-full py-4">存储未初始化</div>';
-                return;
-            }
-            const images = await store.getImagesPage(0, 50);
-            if (!images || images.length === 0) {
-                container.innerHTML = '<div class="text-[10px] text-gray-400 text-center w-full py-4">无历史生成图片</div>';
-                return;
-            }
-            
-            container.innerHTML = '';
-            images.forEach(item => {
-                const imgContainer = document.createElement('div');
-                imgContainer.className = 'relative w-12 h-12 rounded-lg overflow-hidden cursor-pointer border border-transparent hover:border-slate-500 dark:hover:border-slate-400 transition-all shrink-0 bg-slate-900/10 dark:bg-slate-900/50';
-                imgContainer.onclick = () => selectScrambleHistoryImage(item.image);
-                
-                const img = document.createElement('img');
-                img.src = item.image;
-                img.className = 'w-full h-full object-cover';
-                imgContainer.appendChild(img);
-                container.appendChild(imgContainer);
-            });
-        } catch (e) {
-            console.error('加载生图历史失败:', e);
-            container.innerHTML = '<div class="text-[10px] text-rose-500 text-center w-full py-4">加载失败</div>';
-        }
-    } else {
-        wrapper.classList.add('hidden');
-    }
+    await renderToolboxHistoryPicker({
+        wrapperId: 'scrambleHistoryListWrapper',
+        containerId: 'scrambleHistoryThumbnails',
+        isOpen: isHistoryListOpen,
+        triggerSelector: '[onclick*="toggleScrambleHistoryList"]',
+        onSelect: (img) => selectScrambleHistoryImage(img)
+    });
 }
 
 export function selectScrambleHistoryImage(imageSrc) {
@@ -135,11 +266,11 @@ export function loadScrambleCanvas(imgSrc) {
             ctx.drawImage(img, 0, 0);
         }
         
-        canvas.classList.remove('hidden');
-        placeholder.classList.add('hidden');
+        syncToolboxSectionVisibility(placeholder, false, { immediate: true });
+        syncToolboxSectionVisibility(canvas, true);
         
         if (downloadBtn) {
-            downloadBtn.classList.add('hidden');
+            syncToolboxSectionVisibility(downloadBtn, false, { immediate: true });
         }
     };
     img.src = imgSrc;
@@ -153,40 +284,41 @@ export function setScrambleMode(isDecryptMode) {
     const actionBtn = document.getElementById('scrambleActionBtn');
     
     if (!encryptBtn || !decryptBtn || !actionBtn) return;
-    
-    if (isScrambleDecryptMode) {
-        decryptBtn.className = "flex-1 text-center py-1.5 text-xs font-bold rounded bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm transition-all";
-        encryptBtn.className = "flex-1 text-center py-1.5 text-xs font-semibold rounded text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all";
-        actionBtn.innerText = "开始解密还原";
-    } else {
-        encryptBtn.className = "flex-1 text-center py-1.5 text-xs font-bold rounded bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm transition-all";
-        decryptBtn.className = "flex-1 text-center py-1.5 text-xs font-semibold rounded text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all";
-        actionBtn.innerText = "开始混淆加密";
-    }
+
+    const usesStudioTabs = Boolean(
+        encryptBtn.classList?.contains?.('studio-tab')
+        || decryptBtn.classList?.contains?.('studio-tab')
+        || encryptBtn.closest?.('.studio-tabs')
+    );
+    const activeCls = usesStudioTabs
+        ? 'studio-tab active'
+        : 'studio-tab active flex-1 text-center py-1.5 text-xs font-bold rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-colors duration-200';
+    const inactiveCls = usesStudioTabs
+        ? 'studio-tab'
+        : 'studio-tab flex-1 text-center py-1.5 text-xs font-semibold rounded text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors duration-200';
+
+    encryptBtn.className = isScrambleDecryptMode ? inactiveCls : activeCls;
+    decryptBtn.className = isScrambleDecryptMode ? activeCls : inactiveCls;
+    encryptBtn.setAttribute?.('aria-pressed', isScrambleDecryptMode ? 'false' : 'true');
+    decryptBtn.setAttribute?.('aria-pressed', isScrambleDecryptMode ? 'true' : 'false');
+    actionBtn.innerText = isScrambleDecryptMode ? '开始解密还原' : '开始混淆加密';
 }
 
 export function onScrambleAlgorithmChange() {
     const select = document.getElementById('scrambleAlgorithmSelect');
     const wrapper = document.getElementById('scrambleTileSizeWrapper');
     if (!select || !wrapper) return;
-    
-    if (select.value === 'tile') {
-        wrapper.classList.remove('hidden');
-    } else {
-        wrapper.classList.add('hidden');
-    }
+
+    const isTile = select.value === 'tile';
+    syncToolboxSectionVisibility(wrapper, isTile, { triggerEl: select });
 }
 
 export function toggleScramblePasswordInput() {
     const usePwCheckbox = document.getElementById('scrambleUsePassword');
     const wrapper = document.getElementById('scramblePasswordWrapper');
     if (!usePwCheckbox || !wrapper) return;
-    
-    if (usePwCheckbox.checked) {
-        wrapper.classList.remove('hidden');
-    } else {
-        wrapper.classList.add('hidden');
-    }
+
+    syncToolboxSectionVisibility(wrapper, Boolean(usePwCheckbox.checked), { triggerEl: usePwCheckbox });
 }
 
 export function executeScrambleProcess() {
@@ -250,7 +382,7 @@ export function executeScrambleProcess() {
             
             const downloadBtn = document.getElementById('downloadScrambleBtn');
             if (downloadBtn) {
-                downloadBtn.classList.remove('hidden');
+                syncToolboxSectionVisibility(downloadBtn, true);
             }
         } catch (e) {
             console.error('处理图像失败:', e);
@@ -324,14 +456,14 @@ export function loadMetadataImage(imgSrc) {
         if (!metadata || Object.keys(metadata).length === 0) {
             if (window.showToast) window.showToast('该图片中没有找到任何元数据', 'warning');
             parsedMetadata = null;
-            resultSection.classList.add('hidden');
-            placeholder.classList.remove('hidden');
+            syncToolboxSectionVisibility(resultSection, false, { immediate: true });
+            syncToolboxSectionVisibility(placeholder, true);
             return;
         }
         
         parsedMetadata = metadata;
-        placeholder.classList.add('hidden');
-        resultSection.classList.remove('hidden');
+        syncToolboxSectionVisibility(placeholder, false, { immediate: true });
+        syncToolboxSectionVisibility(resultSection, true);
         
         resultContent.innerHTML = '';
         
@@ -364,14 +496,14 @@ export function loadMetadataImage(imgSrc) {
         
         const renderItem = (label, value) => {
             const div = document.createElement('div');
-            div.className = 'space-y-1 bg-white/50 dark:bg-slate-900/30 p-3 rounded-xl border border-gray-100 dark:border-slate-800/60';
+            div.className = 'studio-card studio-list-enter space-y-1 bg-white/70 dark:bg-slate-900/40 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80';
             
             const lbl = document.createElement('div');
-            lbl.className = 'text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest';
+            lbl.className = 'text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest';
             lbl.textContent = label;
             
             const val = document.createElement('pre');
-            val.className = 'text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-all';
+            val.className = 'text-xs font-mono text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-all';
             val.textContent = typeof value === 'object' ? JSON.stringify(value, null, 2) : value;
             
             div.appendChild(lbl);
@@ -393,14 +525,14 @@ export function loadMetadataImage(imgSrc) {
             gridDiv.className = 'grid grid-cols-2 gap-3';
             paramsGrid.forEach(param => {
                 const div = document.createElement('div');
-                div.className = 'bg-white/50 dark:bg-slate-900/30 p-3 rounded-xl border border-gray-100 dark:border-slate-800/60';
+                div.className = 'studio-card studio-list-enter bg-white/70 dark:bg-slate-900/40 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80';
                 
                 const lbl = document.createElement('div');
-                lbl.className = 'text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest';
+                lbl.className = 'text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest';
                 lbl.textContent = param.label;
                 
                 const val = document.createElement('div');
-                val.className = 'text-xs font-bold text-gray-700 dark:text-gray-200';
+                val.className = 'text-xs font-bold text-slate-800 dark:text-slate-200 tabular-nums';
                 val.textContent = param.value;
                 
                 div.appendChild(lbl);
@@ -415,21 +547,22 @@ export function loadMetadataImage(imgSrc) {
                 renderItem(key, metadata[key]);
             }
         });
+
+        const mc = getToolboxMotionController();
+        if (mc && typeof mc.setStaggerIndices === 'function' && typeof resultContent.querySelectorAll === 'function') {
+            mc.setStaggerIndices(resultContent, '.studio-list-enter', 10);
+        }
         
         if (applyBtn) {
-            if (hasNaiParams) {
-                applyBtn.classList.remove('hidden');
-            } else {
-                applyBtn.classList.add('hidden');
-            }
+            syncToolboxSectionVisibility(applyBtn, hasNaiParams);
         }
         
     } catch (e) {
         console.error('分析图片元数据失败:', e);
         if (window.showToast) window.showToast('元数据分析失败: ' + e.message, 'error');
         parsedMetadata = null;
-        resultSection.classList.add('hidden');
-        placeholder.classList.remove('hidden');
+        syncToolboxSectionVisibility(resultSection, false, { immediate: true });
+        syncToolboxSectionVisibility(placeholder, true);
     }
 }
 
@@ -668,47 +801,14 @@ export function applyMetadataParameters() {
 }
 
 export async function toggleMetadataHistoryList() {
-    const wrapper = document.getElementById('metadataHistoryListWrapper');
-    if (!wrapper) return;
-    
     isMetadataHistoryListOpen = !isMetadataHistoryListOpen;
-    if (isMetadataHistoryListOpen) {
-        wrapper.classList.remove('hidden');
-        const container = document.getElementById('metadataHistoryThumbnails');
-        if (!container) return;
-        
-        container.innerHTML = '<div class="text-[10px] text-gray-400 text-center w-full py-4">正在载入生图历史...</div>';
-        
-        try {
-            if (!store) {
-                container.innerHTML = '<div class="text-[10px] text-rose-500 text-center w-full py-4">存储未初始化</div>';
-                return;
-            }
-            const images = await store.getImagesPage(0, 50);
-            if (!images || images.length === 0) {
-                container.innerHTML = '<div class="text-[10px] text-gray-400 text-center w-full py-4">无历史生成图片</div>';
-                return;
-            }
-            
-            container.innerHTML = '';
-            images.forEach(item => {
-                const imgContainer = document.createElement('div');
-                imgContainer.className = 'relative w-12 h-12 rounded-lg overflow-hidden cursor-pointer border border-transparent hover:border-slate-500 dark:hover:border-slate-400 transition-all shrink-0 bg-slate-900/10 dark:bg-slate-900/50';
-                imgContainer.onclick = () => selectMetadataHistoryImage(item.image);
-                
-                const img = document.createElement('img');
-                img.src = item.image;
-                img.className = 'w-full h-full object-cover';
-                imgContainer.appendChild(img);
-                container.appendChild(imgContainer);
-            });
-        } catch (e) {
-            console.error('加载生图历史失败:', e);
-            container.innerHTML = '<div class="text-[10px] text-rose-500 text-center w-full py-4">加载失败</div>';
-        }
-    } else {
-        wrapper.classList.add('hidden');
-    }
+    await renderToolboxHistoryPicker({
+        wrapperId: 'metadataHistoryListWrapper',
+        containerId: 'metadataHistoryThumbnails',
+        isOpen: isMetadataHistoryListOpen,
+        triggerSelector: '[onclick*="toggleMetadataHistoryList"]',
+        onSelect: (img) => selectMetadataHistoryImage(img)
+    });
 }
 
 export function selectMetadataHistoryImage(imageSrc) {

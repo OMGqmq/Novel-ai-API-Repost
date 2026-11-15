@@ -2,6 +2,43 @@
  * GalleryController Module
  * Encapsulates all gallery, infinite scrolling, showcase rendering, and ZIP exporting logic.
  */
+import * as motionMod from './motion-controller.js';
+
+function getGalleryMotionController() {
+    return (typeof window !== 'undefined' && window.motionController) || motionMod.motionController || null;
+}
+
+function prefersGalleryReducedMotion() {
+    const mc = getGalleryMotionController();
+    if (mc && typeof mc.prefersReducedMotion === 'function') {
+        return mc.prefersReducedMotion();
+    }
+    if (typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf')) {
+        return true;
+    }
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    return false;
+}
+
+function applyGalleryStagger(container, selector = '.gallery-item.studio-list-enter') {
+    if (!container || typeof container.querySelectorAll !== 'function') return;
+    const mc = getGalleryMotionController();
+    if (mc && typeof mc.setStaggerIndices === 'function') {
+        mc.setStaggerIndices(container, selector, 10);
+        return;
+    }
+    const items = container.querySelectorAll(selector);
+    let idx = 0;
+    items.forEach((el) => {
+        if (el?.style?.setProperty) {
+            el.style.setProperty('--sibling-index', String(Math.min(idx, 10)));
+        }
+        idx++;
+    });
+}
+
 export class GalleryController {
     constructor({ store, ui, appState }) {
         this.store = store;
@@ -46,7 +83,7 @@ export class GalleryController {
         if (!loaderEl) {
             loaderEl = document.createElement('div');
             loaderEl.id = 'galleryLoader';
-            loaderEl.className = 'col-span-full py-4 flex justify-center text-gray-400 text-xs font-semibold';
+            loaderEl.className = 'col-span-full py-4 flex justify-center text-slate-500 dark:text-slate-400 text-xs font-semibold';
             loaderEl.innerHTML = '<span class="loader w-4 h-4 mr-2"></span> 正在加载历史图片...';
             this.ui.els.galleryGrid.appendChild(loaderEl);
         }
@@ -87,11 +124,19 @@ export class GalleryController {
 
             this.galleryItems = this.galleryItems.concat(pageData);
 
+            const isFirstPage = this.galleryPage === 0;
             const fragment = document.createDocumentFragment();
-            pageData.forEach(item => {
-                fragment.appendChild(this._createGalleryItemElement(item));
+            pageData.forEach((item, idx) => {
+                const card = this._createGalleryItemElement(item);
+                if (card?.style?.setProperty) {
+                    card.style.setProperty('--sibling-index', String(Math.min(idx, 10)));
+                }
+                fragment.appendChild(card);
             });
             this.ui.els.galleryGrid.appendChild(fragment);
+            if (isFirstPage) {
+                applyGalleryStagger(this.ui.els.galleryGrid, '.gallery-item.studio-list-enter');
+            }
             this.ui.renderFilmstrip?.(this.galleryItems, this.appState?.currentImageId);
 
             this.galleryPage++;
@@ -104,7 +149,7 @@ export class GalleryController {
 
     _createGalleryItemElement(item) {
         const el = document.createElement('div');
-        el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border border-gray-200/70 dark:border-slate-700 cursor-pointer shadow-sm transition-colors duration-200';
+        el.className = 'gallery-item studio-card studio-list-enter aspect-square p-0 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border border-slate-200/80 dark:border-slate-700 cursor-pointer shadow-sm transition-colors duration-200';
         if (item.id !== undefined && item.id !== null) {
             el.id = `gallery-item-${item.id}`;
             if (el.dataset) el.dataset.id = item.id;
@@ -205,8 +250,9 @@ export class GalleryController {
         }
         const el = document.getElementById(`gallery-item-${id}`) || (this.ui.els.galleryGrid ? this.ui.els.galleryGrid.querySelector(`[data-id="${id}"]`) : null);
         if (el && el.parentNode) {
-            const isLowPerf = Boolean(typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf'));
-            if (!isLowPerf && typeof el.animate === 'function') {
+            const reduced = prefersGalleryReducedMotion();
+            const canAnimate = !reduced && typeof el.animate === 'function' && typeof el.getAnimations === 'function';
+            if (canAnimate) {
                 try {
                     const anim = el.animate(
                         [
@@ -242,12 +288,29 @@ export class GalleryController {
         this.appState.currentGalleryTab = tab;
         const tabShowcase = document.getElementById('tabShowcase');
         const tabHistory = document.getElementById('tabHistory');
+        const tabGroup = document.getElementById('galleryTabToggle');
         const showcaseGrid = document.getElementById('showcaseGrid');
-        const activeClass = 'px-4 py-1.5 text-[11px] font-semibold rounded-full transition-all bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm';
-        const inactiveClass = 'px-4 py-1.5 text-[11px] font-semibold rounded-full transition-all text-gray-500 dark:text-gray-400';
-        if (tab === 'showcase') {
-            if (tabShowcase) tabShowcase.className = activeClass;
-            if (tabHistory) tabHistory.className = inactiveClass;
+        const usesStudioTabs = Boolean(
+            tabGroup?.classList?.contains?.('studio-tabs')
+            || tabShowcase?.classList?.contains?.('studio-tab')
+            || tabHistory?.classList?.contains?.('studio-tab')
+        );
+        const activeClass = usesStudioTabs
+            ? 'studio-tab active'
+            : 'studio-tab active px-4 py-1.5 text-[11px] font-semibold rounded-full transition-colors duration-200 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm';
+        const inactiveClass = usesStudioTabs
+            ? 'studio-tab'
+            : 'studio-tab px-4 py-1.5 text-[11px] font-semibold rounded-full transition-colors duration-200 text-slate-500 dark:text-slate-400';
+        const isShowcase = tab === 'showcase';
+        if (tabShowcase) {
+            tabShowcase.className = isShowcase ? activeClass : inactiveClass;
+            tabShowcase.setAttribute?.('aria-pressed', isShowcase ? 'true' : 'false');
+        }
+        if (tabHistory) {
+            tabHistory.className = isShowcase ? inactiveClass : activeClass;
+            tabHistory.setAttribute?.('aria-pressed', isShowcase ? 'false' : 'true');
+        }
+        if (isShowcase) {
             if (showcaseGrid) showcaseGrid.classList.remove('hidden');
             this.ui.els.galleryGrid.classList.add('hidden');
             this.ui.els.emptyGallery.classList.add('hidden');
@@ -255,8 +318,6 @@ export class GalleryController {
             this.ui.els.clearBtn.classList.add('hidden');
             if (showcaseGrid && showcaseGrid.children.length === 0) this.renderShowcase();
         } else {
-            if (tabShowcase) tabShowcase.className = inactiveClass;
-            if (tabHistory) tabHistory.className = activeClass;
             if (showcaseGrid) showcaseGrid.classList.add('hidden');
             this.ui.els.galleryGrid.classList.remove('hidden');
             this.ui.els.zipBtn.classList.remove('hidden');
@@ -275,12 +336,17 @@ export class GalleryController {
         const self = this;
 
         function renderChunk() {
+            const isFirstChunk = index === 0;
+            const chunkStart = index;
             const fragment = document.createDocumentFragment();
             const end = Math.min(index + chunkSize, self.appState.showcaseData.length);
             for (; index < end; index++) {
                 const item = self.appState.showcaseData[index];
                 const el = document.createElement('div');
-                el.className = 'gallery-item aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border dark:border-slate-700 cursor-pointer shadow-sm hover:shadow-md transition-shadow';
+                el.className = 'gallery-item studio-card studio-list-enter aspect-square p-0 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border border-slate-200/80 dark:border-slate-700 cursor-pointer shadow-sm hover:shadow-md transition-colors duration-200';
+                if (el?.style?.setProperty) {
+                    el.style.setProperty('--sibling-index', String(Math.min(index - chunkStart, 10)));
+                }
                 const img = document.createElement('img');
                 img.className = 'w-full h-full object-cover';
                 img.loading = 'lazy';
@@ -291,6 +357,9 @@ export class GalleryController {
                 fragment.appendChild(el);
             }
             grid.appendChild(fragment);
+            if (isFirstChunk) {
+                applyGalleryStagger(grid, '.gallery-item.studio-list-enter');
+            }
             if (index < self.appState.showcaseData.length) {
                 requestAnimationFrame(renderChunk);
             }
@@ -327,8 +396,9 @@ export class GalleryController {
         this.ui.els.prompt.value = this.appState.currentImageData.prompt;
         this.ui.els.prompt.dispatchEvent(new Event('input', { bubbles: true }));
         this.ui.setModel(this.appState.currentImageData.model || 'v3');
-        this.ui.els.prompt.classList.add('bg-blue-50', 'dark:bg-blue-900/30');
-        setTimeout(() => this.ui.els.prompt.classList.remove('bg-blue-50', 'dark:bg-blue-900/30'), 500);
+        const flashClasses = ['bg-slate-200/70', 'dark:bg-slate-700/60', 'ring-2', 'ring-slate-900/20', 'dark:ring-white/25'];
+        this.ui.els.prompt.classList.add(...flashClasses);
+        setTimeout(() => this.ui.els.prompt.classList.remove(...flashClasses), 500);
         this.ui.toggleMobileControls(true);
     }
     

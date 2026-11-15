@@ -1,3 +1,5 @@
+import * as motionMod from './motion-controller.js';
+
 export class OutpaintEditor {
     constructor(dependencies) {
         this.engine = dependencies.engine;
@@ -68,8 +70,103 @@ export class OutpaintEditor {
         // rAF Render Scheduler
         this._renderPending = false;
         this._rafId = null;
+        this._wheelWillChangeTimer = null;
+        this._zoomTransitionTimer = null;
 
         this._bindEvents();
+    }
+
+    _getMotionController() {
+        return (typeof window !== 'undefined' && window.motionController) || motionMod.motionController || null;
+    }
+
+    _prefersReducedMotion() {
+        const mc = this._getMotionController();
+        if (mc && typeof mc.prefersReducedMotion === 'function') {
+            return mc.prefersReducedMotion();
+        }
+        if (typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf')) {
+            return true;
+        }
+        if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+            return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        }
+        return false;
+    }
+
+    _setGestureWillChange(target, active, props = 'transform') {
+        if (!target) return;
+        if (active && target === this.els.container && this._zoomTransitionTimer) {
+            clearTimeout(this._zoomTransitionTimer);
+            this._zoomTransitionTimer = null;
+        }
+        if (target.style) {
+            if (active && target === this.els.container) target.style.transition = '';
+            target.style.willChange = active ? props : '';
+        }
+        target.classList?.toggle?.('is-interacting', Boolean(active));
+    }
+
+    _setOverlayVisible(el, visible, { scale = 0.985, duration = 180 } = {}) {
+        if (!el || !el.classList) return;
+        const canAnimate = Boolean(
+            typeof el.getAnimations === 'function'
+            && typeof el.animate === 'function'
+            && !this._prefersReducedMotion()
+        );
+        const mc = this._getMotionController();
+        if (canAnimate && mc && typeof mc.enter === 'function' && typeof mc.exit === 'function') {
+            if (visible) mc.enter(el, { hiddenClass: 'hidden' });
+            else mc.exit(el, { hiddenClass: 'hidden' });
+            return;
+        }
+        if (canAnimate) {
+            try {
+                el.getAnimations().forEach(a => { try { a.cancel(); } catch (_) {} });
+            } catch (_) {}
+            if (visible) {
+                const wasHidden = el.classList.contains('hidden');
+                el.removeAttribute?.('data-closing');
+                el.classList.remove('hidden');
+                if (wasHidden) {
+                    try {
+                        el.animate(
+                            [
+                                { opacity: 0, transform: `scale(${scale})` },
+                                { opacity: 1, transform: 'scale(1)' }
+                            ],
+                            { duration, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                        );
+                    } catch (_) {}
+                }
+            } else if (!el.classList.contains('hidden') && !el.hasAttribute?.('data-closing')) {
+                el.setAttribute?.('data-closing', '');
+                try {
+                    const anim = el.animate(
+                        [
+                            { opacity: 1, transform: 'scale(1)' },
+                            { opacity: 0, transform: `scale(${scale})` }
+                        ],
+                        { duration: Math.max(120, duration - 30), easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
+                    );
+                    let done = false;
+                    const finishHide = () => {
+                        if (done || !el.hasAttribute?.('data-closing')) return;
+                        done = true;
+                        el.removeAttribute?.('data-closing');
+                        el.classList.add('hidden');
+                    };
+                    anim.onfinish = finishHide;
+                    setTimeout(finishHide, duration + 20);
+                } catch (_) {
+                    el.removeAttribute?.('data-closing');
+                    el.classList.add('hidden');
+                }
+            }
+            return;
+        }
+        el.removeAttribute?.('data-closing');
+        el.classList.toggle('hidden', !visible);
     }
 
     get maxPixels() {
@@ -94,6 +191,17 @@ export class OutpaintEditor {
                 inner.classList.remove('collapsed');
             }
             inner.inert = this.isToolbarCollapsed;
+            if (!this._prefersReducedMotion() && typeof inner.animate === 'function' && typeof inner.getAnimations === 'function') {
+                try {
+                    inner.getAnimations().forEach(a => { try { a.cancel(); } catch (_) {} });
+                    inner.animate(
+                        this.isToolbarCollapsed
+                            ? [{ opacity: 1 }, { opacity: 0.7 }]
+                            : [{ opacity: 0.7, transform: 'scale(0.97)' }, { opacity: 1, transform: 'scale(1)' }],
+                        { duration: 160, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                    );
+                } catch (_) {}
+            }
         }
 
         if (btn) {
@@ -152,13 +260,13 @@ export class OutpaintEditor {
         const btn = this.els.snapToggleBtn || document.getElementById('outpaintSnapToggle');
         if (btn) {
             if (this.isSnapEnabled) {
-                btn.classList.remove('text-gray-500');
+                btn.classList.remove('text-gray-500', 'text-slate-500');
                 btn.classList.add('tool-active');
                 btn.setAttribute?.('aria-pressed', 'true');
                 btn.title = '边缘吸附: 开';
             } else {
-                btn.classList.add('text-gray-500');
-                btn.classList.remove('tool-active');
+                btn.classList.remove('text-gray-500', 'tool-active');
+                btn.classList.add('text-slate-500');
                 btn.setAttribute?.('aria-pressed', 'false');
                 btn.title = '边缘吸附: 关';
             }
@@ -181,12 +289,12 @@ export class OutpaintEditor {
             }
             if (this.els.modeMoveBtn) {
                 this.els.modeMoveBtn.classList.add('tool-active');
-                this.els.modeMoveBtn.classList.remove('text-gray-500');
+                this.els.modeMoveBtn.classList.remove('text-gray-500', 'text-slate-500');
                 this.els.modeMoveBtn.setAttribute?.('aria-pressed', 'true');
             }
             if (this.els.modePaintBtn) {
-                this.els.modePaintBtn.classList.remove('tool-active');
-                this.els.modePaintBtn.classList.add('text-gray-500');
+                this.els.modePaintBtn.classList.remove('tool-active', 'text-gray-500');
+                this.els.modePaintBtn.classList.add('text-slate-500');
                 this.els.modePaintBtn.setAttribute?.('aria-pressed', 'false');
             }
         } else {
@@ -203,12 +311,12 @@ export class OutpaintEditor {
             }
             if (this.els.modePaintBtn) {
                 this.els.modePaintBtn.classList.add('tool-active');
-                this.els.modePaintBtn.classList.remove('text-gray-500');
+                this.els.modePaintBtn.classList.remove('text-gray-500', 'text-slate-500');
                 this.els.modePaintBtn.setAttribute?.('aria-pressed', 'true');
             }
             if (this.els.modeMoveBtn) {
-                this.els.modeMoveBtn.classList.remove('tool-active');
-                this.els.modeMoveBtn.classList.add('text-gray-500');
+                this.els.modeMoveBtn.classList.remove('tool-active', 'text-gray-500');
+                this.els.modeMoveBtn.classList.add('text-slate-500');
                 this.els.modeMoveBtn.setAttribute?.('aria-pressed', 'false');
             }
         }
@@ -328,10 +436,10 @@ export class OutpaintEditor {
             this.selection.y = (img.naturalHeight - this.selection.h) / 2;
 
             this._updateSelectionDOM();
-            this.resetView();
+            this.resetView({ immediate: true });
             this.clampToolbarPosition();
 
-            if (this.els.area) this.els.area.classList.remove('hidden');
+            if (this.els.area) this._setOverlayVisible(this.els.area, true, { scale: 0.99, duration: 200 });
             if (typeof document !== 'undefined') document.body?.classList?.add?.('outpaint-open', 'outpaint-active');
             if (typeof window !== 'undefined') {
                 if (window.ui?.updateGenerateButtonText) window.ui.updateGenerateButtonText();
@@ -359,8 +467,19 @@ export class OutpaintEditor {
             cancelRAF(this._rafId);
             this._renderPending = false;
         }
+        if (this._wheelWillChangeTimer) {
+            clearTimeout(this._wheelWillChangeTimer);
+            this._wheelWillChangeTimer = null;
+        }
+        if (this._zoomTransitionTimer) {
+            clearTimeout(this._zoomTransitionTimer);
+            this._zoomTransitionTimer = null;
+        }
+        this._setGestureWillChange(this.els.container, false);
+        this._setGestureWillChange(this.els.selection, false);
+        this._setGestureWillChange(this.els.toolbar, false);
         if (this.els.area) {
-            this.els.area.classList.add('hidden');
+            this._setOverlayVisible(this.els.area, false, { scale: 0.99, duration: 170 });
         }
         if (typeof document !== 'undefined') document.body?.classList?.remove?.('outpaint-open', 'outpaint-active');
         if (typeof window !== 'undefined' && window.ui?.updateGenerateButtonText) {
@@ -510,12 +629,12 @@ export class OutpaintEditor {
         if (deskBtn) {
             originalDeskHtml = deskBtn.innerHTML;
             deskBtn.disabled = true;
-            deskBtn.innerHTML = '<span class="loader w-4 h-4 border-white/50 border-t-transparent rounded-full animate-spin"></span> 采样中...';
+            deskBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" class="w-4 h-4 animate-spin pointer-events-none"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 采样中...';
         }
         if (floatBtn) {
             originalFloatHtml = floatBtn.innerHTML;
             floatBtn.disabled = true;
-            floatBtn.innerHTML = '<span class="loader w-5 h-5 border-white/50 border-t-transparent rounded-full animate-spin"></span>';
+            floatBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" class="w-5 h-5 animate-spin pointer-events-none"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
         }
 
         const selEl = this.els.selection || (typeof document !== 'undefined' ? document.getElementById('outpaintSelection') : null);
@@ -526,7 +645,7 @@ export class OutpaintEditor {
             this._samplingTimer = null;
         }
         if (selEl && selEl.classList) selEl.classList.add('is-sampling');
-        if (samplingBadge && samplingBadge.classList) samplingBadge.classList.remove('hidden');
+        if (samplingBadge) this._setOverlayVisible(samplingBadge, true, { scale: 0.94, duration: 160 });
         if (elapsedEl) elapsedEl.textContent = '0.0s';
         const startedAt = Date.now();
         this._samplingTimer = setInterval(() => {
@@ -801,7 +920,7 @@ export class OutpaintEditor {
                 this._samplingTimer = null;
             }
             if (selEl && selEl.classList) selEl.classList.remove('is-sampling');
-            if (samplingBadge && samplingBadge.classList) samplingBadge.classList.add('hidden');
+            if (samplingBadge) this._setOverlayVisible(samplingBadge, false, { scale: 0.94, duration: 150 });
             if (deskBtn) {
                 deskBtn.disabled = false;
                 deskBtn.innerHTML = originalDeskHtml;
@@ -813,7 +932,7 @@ export class OutpaintEditor {
         }
     }
 
-    resetView() {
+    resetView(options = {}) {
         const areaRect = this.els.area ? this.els.area.getBoundingClientRect() : { left: 0, top: 0, width: 800, height: 600 };
         const contentW = this.els.canvas ? this.els.canvas.width : 512;
         const contentH = this.els.canvas ? this.els.canvas.height : 512;
@@ -829,19 +948,19 @@ export class OutpaintEditor {
         this.transform.x = ((areaRect.width || 800) - contentW * this.transform.scale) / 2;
         this.transform.y = ((areaRect.height || 600) - contentH * this.transform.scale) / 2;
 
-        this._applyTransform();
+        this._applyTransform({ animate: !options.immediate });
         this._scheduleRender();
     }
 
     zoomIn() {
-        this._zoom(1.2);
+        this._zoom(1.2, null, null, { animate: true });
     }
 
     zoomOut() {
-        this._zoom(1 / 1.2);
+        this._zoom(1 / 1.2, null, null, { animate: true });
     }
 
-    _zoom(factor, clientX = null, clientY = null) {
+    _zoom(factor, clientX = null, clientY = null, options = {}) {
         const areaRect = this.els.area ? this.els.area.getBoundingClientRect() : { left: 0, top: 0, width: 800, height: 600 };
         
         let originX, originY;
@@ -861,7 +980,7 @@ export class OutpaintEditor {
         this.transform.y = originY - (originY - this.transform.y) * ratio;
         this.transform.scale = newScale;
 
-        this._applyTransform();
+        this._applyTransform({ animate: Boolean(options.animate) });
         this._scheduleRender();
     }
 
@@ -881,12 +1000,27 @@ export class OutpaintEditor {
         this._updateDimOverlay();
     }
 
-    _applyTransform() {
+    _applyTransform({ animate = false } = {}) {
         if (this.els.container) {
+            const container = this.els.container;
+            if (animate && !this.isPanning && !this._pinchLast && !this._wheelWillChangeTimer && !this._prefersReducedMotion() && typeof container.getAnimations === 'function' && container.style) {
+                if (this._zoomTransitionTimer) clearTimeout(this._zoomTransitionTimer);
+                container.style.willChange = 'transform';
+                container.style.transition = 'transform 180ms cubic-bezier(0.22, 1, 0.36, 1)';
+                this._zoomTransitionTimer = setTimeout(() => {
+                    this._zoomTransitionTimer = null;
+                    if (container.style) {
+                        container.style.transition = '';
+                        if (!this.isPanning && !this._pinchLast && !this._wheelWillChangeTimer) {
+                            container.style.willChange = '';
+                        }
+                    }
+                }, 200);
+            }
             const tx = Math.round(this.transform.x * 100) / 100;
             const ty = Math.round(this.transform.y * 100) / 100;
             const scale = Math.round(this.transform.scale * 10000) / 10000;
-            this.els.container.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
+            container.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
         }
     }
 
@@ -978,6 +1112,7 @@ export class OutpaintEditor {
                 this.els.toolbar.style.left = `${tbInitialLeft}px`;
                 this.els.toolbar.style.top = `${tbInitialTop}px`;
                 this.els.toolbar.style.transition = 'none';
+                this._setGestureWillChange(this.els.toolbar, true, 'left, top');
                 this.els.toolbar.style.cursor = 'grabbing';
             }, 300); // 300ms long press to drag
         };
@@ -989,6 +1124,7 @@ export class OutpaintEditor {
                 this.isDraggingToolbar = false;
                 if (this.els.toolbar) {
                     this.els.toolbar.style.transition = '';
+                    this._setGestureWillChange(this.els.toolbar, false);
                     this.els.toolbar.style.cursor = 'move';
                 }
                 if (e && e.preventDefault && e.cancelable) e.preventDefault();
@@ -1005,9 +1141,17 @@ export class OutpaintEditor {
         if (this.els.area) {
             this.els.area.addEventListener('wheel', (e) => {
                 e.preventDefault();
+                this._setGestureWillChange(this.els.container, true);
+                if (this._wheelWillChangeTimer) clearTimeout(this._wheelWillChangeTimer);
+                this._wheelWillChangeTimer = setTimeout(() => {
+                    this._wheelWillChangeTimer = null;
+                    if (!this.isPanning && !this._pinchLast) {
+                        this._setGestureWillChange(this.els.container, false);
+                    }
+                }, 180);
                 if (e.ctrlKey) {
                     const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-                    this._zoom(factor, e.clientX, e.clientY);
+                    this._zoom(factor, e.clientX, e.clientY, { animate: false });
                 } else {
                     this.transform.x -= e.deltaX;
                     this.transform.y -= e.deltaY;
@@ -1033,6 +1177,8 @@ export class OutpaintEditor {
             this.isDraggingSelection = false;
             this.isResizing = false;
             this._pinchLast = { dist, midX, midY };
+            this._setGestureWillChange(this.els.selection, false);
+            this._setGestureWillChange(this.els.container, true);
             if (e.preventDefault && e.cancelable) e.preventDefault();
             return true;
         };
@@ -1051,6 +1197,7 @@ export class OutpaintEditor {
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             if (e.target === this.els.area || e.target === this.els.canvas) {
                 this.isPanning = true;
+                this._setGestureWillChange(this.els.container, true);
                 this.lastMouse = { x: clientX, y: clientY };
                 this.startTransform = { ...this.transform };
                 if (this.els.area) this.els.area.style.cursor = 'grabbing';
@@ -1073,8 +1220,10 @@ export class OutpaintEditor {
             if (e.target && e.target.classList && e.target.classList.contains('resize-handle')) {
                 this.isResizing = true;
                 this.resizeHandle = e.target.dataset ? e.target.dataset.handle : 'se';
+                this._setGestureWillChange(this.els.selection, true, 'transform, width, height');
             } else {
                 this.isDraggingSelection = true;
+                this._setGestureWillChange(this.els.selection, true, 'transform');
             }
             
             this.lastMouse = { x: clientX, y: clientY };
@@ -1267,6 +1416,9 @@ export class OutpaintEditor {
                 this.isPanning = false;
                 if (this.els.area) this.els.area.style.cursor = 'default';
             }
+            if (!this.isPanning && !this._pinchLast && !this._wheelWillChangeTimer) {
+                this._setGestureWillChange(this.els.container, false);
+            }
             if (this.isDraggingSelection) {
                 this.isDraggingSelection = false;
                 this.selection.x = Math.round(this.selection.x);
@@ -1301,6 +1453,9 @@ export class OutpaintEditor {
                 this.selection.y = Math.round(this.selection.y);
 
                 this._updateSelectionDOM();
+            }
+            if (!this.isDraggingSelection && !this.isResizing) {
+                this._setGestureWillChange(this.els.selection, false);
             }
         };
 

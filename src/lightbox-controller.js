@@ -1,4 +1,9 @@
 import { openModal, closeModal } from './modal-toast.js';
+import * as motionMod from './motion-controller.js';
+
+function getLightboxMotionController() {
+    return (typeof window !== 'undefined' && window.motionController) || motionMod.motionController || null;
+}
 
 /**
  * Lightbox Controller Module
@@ -63,15 +68,52 @@ export function createLightboxController({
     let lightboxItems = [];
     let lightboxIndex = 0;
     const zoomState = { scale: 1, x: 0, y: 0 };
+    let renderSeq = 0;
+    let wheelWillChangeTimer = null;
+    let zoomTransitionTimer = null;
 
-    function applyLightboxZoom() {
+    function setLightboxWillChange(active) {
+        const mainImg = typeof document !== 'undefined' ? document.getElementById('lightboxMainImg') : null;
+        if (!mainImg) return;
+        if (mainImg.style) {
+            mainImg.style.willChange = active ? 'transform' : '';
+        }
+        mainImg.classList?.toggle?.('is-interacting', Boolean(active));
+    }
+
+    function clearLightboxZoomTransition(mainImg) {
+        if (zoomTransitionTimer) {
+            clearTimeout(zoomTransitionTimer);
+            zoomTransitionTimer = null;
+        }
+        if (mainImg?.style) {
+            mainImg.style.transition = '';
+        }
+    }
+
+    function applyLightboxZoom({ animateReset = false } = {}) {
         const mainImg = typeof document !== 'undefined' ? document.getElementById('lightboxMainImg') : null;
         if (mainImg && mainImg.style) {
             const isTransformed = zoomState.scale > 1.005 || Math.abs(zoomState.x) > 0.5 || Math.abs(zoomState.y) > 0.5;
+            if (animateReset && !isLightboxReducedMotion() && typeof mainImg.getAnimations === 'function') {
+                clearLightboxZoomTransition(mainImg);
+                setLightboxWillChange(true);
+                mainImg.style.transition = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease';
+                zoomTransitionTimer = setTimeout(() => {
+                    zoomTransitionTimer = null;
+                    if (mainImg.style) mainImg.style.transition = '';
+                    if (zoomState.scale <= 1.005) setLightboxWillChange(false);
+                }, 220);
+            } else {
+                clearLightboxZoomTransition(mainImg);
+            }
             mainImg.style.transform = isTransformed
                 ? `translate3d(${zoomState.x}px, ${zoomState.y}px, 0) scale(${zoomState.scale})`
                 : '';
             mainImg.style.cursor = zoomState.scale > 1.02 ? 'grab' : 'zoom-in';
+            if (!isTransformed && !animateReset) {
+                setLightboxWillChange(false);
+            }
         }
         const resetBtn = typeof document !== 'undefined' ? document.getElementById('lightboxZoomReset') : null;
         if (resetBtn && resetBtn.classList) {
@@ -86,11 +128,16 @@ export function createLightboxController({
         }
     }
 
-    function resetLightboxZoom() {
+    function resetLightboxZoom({ immediate = false } = {}) {
+        const wasTransformed = zoomState.scale > 1.005 || Math.abs(zoomState.x) > 0.5 || Math.abs(zoomState.y) > 0.5;
+        if (wheelWillChangeTimer) {
+            clearTimeout(wheelWillChangeTimer);
+            wheelWillChangeTimer = null;
+        }
         zoomState.scale = 1;
         zoomState.x = 0;
         zoomState.y = 0;
-        applyLightboxZoom();
+        applyLightboxZoom({ animateReset: !immediate && wasTransformed });
     }
 
     function setLightboxZoom(nextScale, anchorClientX = null, anchorClientY = null) {
@@ -100,6 +147,7 @@ export function createLightboxController({
             resetLightboxZoom();
             return;
         }
+        setLightboxWillChange(true);
         const viewport = typeof document !== 'undefined' ? document.getElementById('lightboxViewport') : null;
         if (viewport && typeof viewport.getBoundingClientRect === 'function' && anchorClientX !== null && anchorClientY !== null) {
             const rect = viewport.getBoundingClientRect();
@@ -118,6 +166,10 @@ export function createLightboxController({
     }
 
     function isLightboxReducedMotion() {
+        const mc = getLightboxMotionController();
+        if (mc && typeof mc.prefersReducedMotion === 'function') {
+            return mc.prefersReducedMotion();
+        }
         if (typeof document !== 'undefined' && document.documentElement?.classList?.contains('low-perf')) {
             return true;
         }
@@ -125,6 +177,34 @@ export function createLightboxController({
             return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         }
         return false;
+    }
+
+    function syncLightboxMetaSection(el, show, { useDisplay = false } = {}) {
+        if (!el) return;
+        const mc = getLightboxMotionController();
+        const wasHidden = useDisplay
+            ? el.style?.display === 'none'
+            : Boolean(el.classList?.contains?.('hidden'));
+        if (useDisplay) {
+            if (el.style) el.style.display = show ? 'block' : 'none';
+        } else if (mc && typeof mc.enter === 'function' && typeof mc.exit === 'function' && typeof el.getAnimations === 'function') {
+            if (show) mc.enter(el, { hiddenClass: 'hidden' });
+            else mc.exit(el, { hiddenClass: 'hidden' });
+        } else {
+            el.classList?.toggle?.('hidden', !show);
+        }
+        if (show && wasHidden && !isLightboxReducedMotion() && typeof el.animate === 'function' && typeof el.getAnimations === 'function') {
+            try {
+                el.getAnimations().forEach(a => { try { a.cancel(); } catch (_) {} });
+                el.animate(
+                    [
+                        { opacity: 0, transform: 'translate3d(0, 6px, 0)' },
+                        { opacity: 1, transform: 'translate3d(0, 0, 0)' }
+                    ],
+                    { duration: 180, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                );
+            } catch (_) {}
+        }
     }
 
     function clearLightboxViewTransitionNames() {
@@ -273,7 +353,7 @@ export function createLightboxController({
             zoomState.scale <= 1.02
         );
 
-        resetLightboxZoom();
+        resetLightboxZoom({ immediate: true });
 
         if (canReverseVT) {
             clearLightboxViewTransitionNames();
@@ -308,33 +388,57 @@ export function createLightboxController({
     function renderLightboxCurrent(options = {}) {
         if (lightboxItems.length === 0 || lightboxIndex < 0 || lightboxIndex >= lightboxItems.length) return;
         const item = lightboxItems[lightboxIndex];
-        resetLightboxZoom();
+        resetLightboxZoom({ immediate: true });
 
+        const seq = ++renderSeq;
         const mainImg = document.getElementById('lightboxMainImg');
         if (mainImg) {
             const targetSrc = item.image || item.imageUrl;
             const direction = options?.direction === 'next' ? 'next' : (options?.direction === 'prev' ? 'prev' : null);
             const animateDirection = Boolean(direction && !isLightboxReducedMotion());
+            if (typeof mainImg.getAnimations === 'function') {
+                try {
+                    mainImg.getAnimations().forEach(a => { try { a.cancel(); } catch (_) {} });
+                } catch (_) {}
+            }
             if (mainImg.classList) {
                 mainImg.classList.remove('lb-slide-next', 'lb-slide-prev');
             }
-            if (options?.immediate || animateDirection) {
-                mainImg.src = targetSrc;
+            mainImg.src = targetSrc;
+            if (mainImg.style) {
                 mainImg.style.opacity = 1;
-                if (animateDirection && mainImg.classList) {
-                    const cls = direction === 'next' ? 'lb-slide-next' : 'lb-slide-prev';
-                    if (typeof requestAnimationFrame === 'function') {
-                        requestAnimationFrame(() => mainImg.classList.add(cls));
-                    } else {
+            }
+            if (animateDirection && mainImg.classList) {
+                const cls = direction === 'next' ? 'lb-slide-next' : 'lb-slide-prev';
+                if (typeof requestAnimationFrame === 'function') {
+                    requestAnimationFrame(() => {
+                        if (seq !== renderSeq) return;
                         mainImg.classList.add(cls);
-                    }
+                    });
+                } else {
+                    mainImg.classList.add(cls);
                 }
-            } else {
-                mainImg.style.opacity = 0;
-                setTimeout(() => {
-                    mainImg.src = targetSrc;
-                    mainImg.onload = () => { mainImg.style.opacity = 1; };
-                }, 100);
+            } else if (!options?.immediate && !isLightboxReducedMotion() && typeof mainImg.animate === 'function' && typeof mainImg.getAnimations === 'function') {
+                const playReveal = () => {
+                    if (seq !== renderSeq) return;
+                    try {
+                        mainImg.animate(
+                            [
+                                { opacity: 0.45, transform: 'scale(0.985)' },
+                                { opacity: 1, transform: 'scale(1)' }
+                            ],
+                            { duration: 160, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                        );
+                    } catch (_) {}
+                };
+                if (typeof mainImg.decode === 'function') {
+                    Promise.race([
+                        mainImg.decode().catch(() => {}),
+                        new Promise((resolve) => setTimeout(resolve, 60))
+                    ]).then(playReveal);
+                } else {
+                    playReveal();
+                }
             }
         }
 
@@ -373,9 +477,9 @@ export function createLightboxController({
         const negEl = document.getElementById('lightboxNeg');
         if (negPrompt && negPrompt !== 'undefined') {
             if (negEl) negEl.textContent = negPrompt;
-            if (negArea) negArea.style.display = 'block';
+            syncLightboxMetaSection(negArea, true, { useDisplay: true });
         } else {
-            if (negArea) negArea.style.display = 'none';
+            syncLightboxMetaSection(negArea, false, { useDisplay: true });
         }
 
         const charArea = document.getElementById('lightboxCharArea');
@@ -383,7 +487,7 @@ export function createLightboxController({
         const charListEl = document.getElementById('lightboxCharList');
         if (charArea && charListEl) {
             if (Array.isArray(charList) && charList.length > 0) {
-                charArea.classList.remove('hidden');
+                syncLightboxMetaSection(charArea, true);
                 if (charTitle) {
                     charTitle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> 角色提示词 (${charList.length}人)`;
                 }
@@ -403,7 +507,7 @@ export function createLightboxController({
                         posLabel = `${Math.round(c.center.x * 100)}%, ${Math.round(c.center.y * 100)}%`;
                     }
                     return `
-                        <div class="p-2.5 bg-white/5 border border-white/10 rounded-xl space-y-1 text-xs">
+                        <div class="p-2.5 bg-white/5 border border-white/10 rounded-xl space-y-1 text-xs studio-list-enter" style="--sibling-index: ${Math.min(i, 10)};">
                             <div class="flex justify-between items-center">
                                 <span class="text-[10px] font-semibold text-slate-200">角色 ${i + 1} ${posLabel ? `<span class="text-slate-400 font-mono text-[9px]">· ${escapeHtml(posLabel)}</span>` : ''}</span>
                                 <button type="button" onclick="navigator.clipboard.writeText(${JSON.stringify(p)}); window.showToast('角色提示词已复制', 'success')" class="text-slate-400 hover:text-white text-[10px] flex items-center gap-0.5 cursor-pointer" aria-label="复制角色提示词">
@@ -415,8 +519,12 @@ export function createLightboxController({
                         </div>
                     `;
                 }).join('');
+                const mc = getLightboxMotionController();
+                if (mc && typeof mc.setStaggerIndices === 'function' && typeof charListEl.querySelectorAll === 'function') {
+                    mc.setStaggerIndices(charListEl, '.studio-list-enter', 10);
+                }
             } else {
-                charArea.classList.add('hidden');
+                syncLightboxMetaSection(charArea, false);
                 charListEl.innerHTML = '';
             }
         }
@@ -432,9 +540,9 @@ export function createLightboxController({
         const strengthEl = document.getElementById('lbMetaStrength');
         if (meta && meta.strength !== undefined && meta.strength !== null) {
             if (strengthEl) strengthEl.textContent = meta.strength;
-            if (strengthContainer) strengthContainer.style.display = 'block';
+            syncLightboxMetaSection(strengthContainer, true, { useDisplay: true });
         } else {
-            if (strengthContainer) strengthContainer.style.display = 'none';
+            syncLightboxMetaSection(strengthContainer, false, { useDisplay: true });
         }
 
         const deleteBtn = document.querySelector('[onclick="lightboxDelete()"]');
@@ -931,6 +1039,11 @@ export function createLightboxController({
                 e.preventDefault();
                 const factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
                 setLightboxZoom(zoomState.scale * factor, e.clientX, e.clientY);
+                if (wheelWillChangeTimer) clearTimeout(wheelWillChangeTimer);
+                wheelWillChangeTimer = setTimeout(() => {
+                    wheelWillChangeTimer = null;
+                    setLightboxWillChange(false);
+                }, 180);
             }, { passive: false });
 
             viewport.addEventListener('dblclick', (e) => {
@@ -962,6 +1075,7 @@ export function createLightboxController({
                     hadMultiTouch = true;
                     isPinching = true;
                     isPanning = false;
+                    setLightboxWillChange(true);
                     const pts = Array.from(lbPointers.values());
                     const dist = Math.max(10, Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y));
                     pinchStart = {
@@ -993,6 +1107,7 @@ export function createLightboxController({
 
                 if (zoomState.scale > 1.02) {
                     isPanning = true;
+                    setLightboxWillChange(true);
                     panStart = {
                         x: e.clientX - zoomState.x,
                         y: e.clientY - zoomState.y
@@ -1045,6 +1160,7 @@ export function createLightboxController({
                 if (lbPointers.size < 2) {
                     isPinching = false;
                     pinchStart = null;
+                    if (!isPanning) setLightboxWillChange(false);
                 }
                 if (lbPointers.size === 0) {
                     if (!hadMultiTouch && !isPanning && zoomState.scale <= 1.02 && e?.pointerType === 'touch') {
@@ -1056,6 +1172,7 @@ export function createLightboxController({
                         }
                     }
                     isPanning = false;
+                    setLightboxWillChange(false);
                 }
             };
 
