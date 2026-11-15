@@ -121,15 +121,25 @@ export class NotebookManager {
 
     switchModel(model) {
         this.currentModel = model;
-        const active = "px-3.5 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-gray-900 text-white dark:bg-slate-100 dark:text-gray-900 border-transparent shadow-md";
-        const inactive = "px-3.5 py-1.5 rounded-full text-[10px] font-bold border transition-all bg-white text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-gray-700";
+        const active = "studio-tab active px-3.5 py-1.5 rounded-full text-[10px] font-bold border transition-[background-color,color,border-color] duration-150 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-transparent shadow-sm cursor-pointer";
+        const inactive = "studio-tab px-3.5 py-1.5 rounded-full text-[10px] font-bold border transition-[background-color,color,border-color] duration-150 bg-white text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white cursor-pointer";
         
         const btnV3 = document.getElementById('btn-nb-v3');
         const btnV4 = document.getElementById('btn-nb-v4');
         const btnV5 = document.getElementById('btn-nb-v5');
-        if (btnV3) btnV3.className = model === 'v3' ? active : inactive;
-        if (btnV4) btnV4.className = model === 'v4.5' ? active : inactive;
-        if (btnV5) btnV5.className = model === 'v5' ? active : inactive;
+        btnV3?.parentElement?.classList?.add?.('studio-tabs');
+        if (btnV3) {
+            btnV3.className = model === 'v3' ? active : inactive;
+            btnV3.setAttribute?.('aria-pressed', model === 'v3' ? 'true' : 'false');
+        }
+        if (btnV4) {
+            btnV4.className = model === 'v4.5' ? active : inactive;
+            btnV4.setAttribute?.('aria-pressed', model === 'v4.5' ? 'true' : 'false');
+        }
+        if (btnV5) {
+            btnV5.className = model === 'v5' ? active : inactive;
+            btnV5.setAttribute?.('aria-pressed', model === 'v5' ? 'true' : 'false');
+        }
 
         this.render(model);
     }
@@ -142,48 +152,48 @@ export class NotebookManager {
 
         if (notes.length === 0) {
             this.listContainerEl.innerHTML = `
-                <div class="flex flex-col items-center justify-center h-full text-gray-300 dark:text-slate-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 mb-2 opacity-50 pointer-events-none"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></svg>
+                <div class="flex flex-col items-center justify-center h-full text-slate-500 dark:text-slate-400" style="color: var(--text-muted)">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 mb-2 opacity-60 pointer-events-none"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></svg>
                     <span class="text-xs font-medium">还没有笔记</span>
-                    <span class="text-[10px] text-gray-400 dark:text-slate-600 mt-1">点击上方按钮收藏当前提示词</span>
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">点击上方按钮收藏当前提示词</span>
                 </div>
             `;
             return;
         }
 
-        this.listContainerEl.innerHTML = notes.map((note) => `
-            <div class="group bg-gray-50/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl border border-gray-100/80 dark:border-slate-700/50 p-3 hover:border-slate-300 dark:hover:border-slate-600 transition-all" data-note-id="${note.id}">
+        this.listContainerEl.innerHTML = notes.map((note, idx) => `
+            <div class="group studio-card studio-list-enter bg-slate-50/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl border border-slate-200/80 dark:border-slate-700/50 p-3 hover:border-slate-300 dark:hover:border-slate-600 transition-[border-color,background-color] duration-150" style="--sibling-index: ${Math.min(idx, 10)}" data-note-id="${note.id}">
                 <div class="flex items-start justify-between gap-2 mb-1.5">
-                    <span class="text-[9px] text-gray-400 dark:text-slate-500 font-mono">${formatNoteDate(note.createdAt)}</span>
-                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-                        <button type="button" onclick="bindCurrentCanvasToNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all cursor-pointer" title="绑定当前画布图片" aria-label="绑定当前画布图片">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    <span class="text-[9px] text-slate-500 dark:text-slate-400 font-mono tabular-nums">${formatNoteDate(note.createdAt)}</span>
+                    <div class="studio-hover-actions flex items-center gap-1">
+                        <button type="button" onclick="bindCurrentCanvasToNote('${model}','${note.id}')" class="studio-icon-btn w-7 h-7 p-1.5 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-150 cursor-pointer" title="绑定当前画布图片" aria-label="绑定当前画布图片">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
                         </button>
-                        <button type="button" onclick="editNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-gray-200/80 dark:hover:bg-slate-700 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all cursor-pointer" title="编辑" aria-label="编辑笔记">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+                        <button type="button" onclick="editNotebookNote('${model}','${note.id}')" class="studio-icon-btn w-7 h-7 p-1.5 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-150 cursor-pointer" title="编辑" aria-label="编辑笔记">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
                         </button>
-                        <button type="button" onclick="deleteNotebookNote('${model}','${note.id}')" class="p-1 hover:bg-red-100 dark:hover:bg-red-950/30 rounded-md text-gray-400 hover:text-red-500 transition-all cursor-pointer" title="删除" aria-label="删除笔记">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                        <button type="button" onclick="deleteNotebookNote('${model}','${note.id}')" class="studio-icon-btn w-7 h-7 p-1.5 hover:bg-red-100 dark:hover:bg-red-950/30 rounded-md text-slate-500 dark:text-slate-400 hover:text-red-500 transition-colors duration-150 cursor-pointer" title="删除" aria-label="删除笔记">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                         </button>
                     </div>
                 </div>
                 <div class="flex gap-2.5 mb-2">
                     <div class="flex-1 min-w-0">
-                        <div class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed line-clamp-3 break-all">${escapeHtml(note.prompt)}</div>
-                        ${note.negative ? `<div class="text-[10px] text-gray-400 dark:text-slate-500 leading-relaxed line-clamp-1 break-all mt-1"><span class="text-gray-300 dark:text-slate-600">neg:</span> ${escapeHtml(note.negative)}</div>` : ''}
+                        <div class="text-xs text-slate-700 dark:text-slate-200 leading-relaxed line-clamp-3 break-all">${escapeHtml(note.prompt)}</div>
+                        ${note.negative ? `<div class="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-1 break-all mt-1"><span class="text-slate-400 dark:text-slate-500">neg:</span> ${escapeHtml(note.negative)}</div>` : ''}
                     </div>
                     ${note.preview ? `
                     <div class="shrink-0 relative group/preview">
-                        <img src="${note.preview}" class="w-14 h-20 object-cover rounded-lg shadow-sm border border-gray-200/50 dark:border-slate-700 cursor-zoom-in" onclick="event.stopPropagation(); viewNotebookNotePreview('${model}', '${note.id}')">
+                        <img src="${note.preview}" class="w-14 h-20 object-cover rounded-lg shadow-sm border border-slate-200/70 dark:border-slate-700 cursor-zoom-in" onclick="event.stopPropagation(); viewNotebookNotePreview('${model}', '${note.id}')">
                         <button type="button" onclick="event.stopPropagation(); removeNotePreview('${model}', '${note.id}')" 
-                            class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px] hover:bg-red-600 shadow-md transition-all opacity-0 group-hover/preview:opacity-100 cursor-pointer" title="移除预览图" aria-label="移除预览图">
-                            ✕
+                            class="studio-hover-actions studio-icon-btn absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md transition-colors duration-150 cursor-pointer" title="移除预览图" aria-label="移除预览图">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none" aria-hidden="true"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
                         </button>
                     </div>
                     ` : ''}
                 </div>
                 <button type="button" onclick="applyNotebookNote('${model}','${note.id}')"
-                    class="w-full py-2 bg-gray-900/90 dark:bg-white/90 text-white dark:text-gray-900 text-[10px] font-bold rounded-lg hover:shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    class="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 text-[10px] font-bold rounded-lg shadow-sm transition-colors duration-150 flex items-center justify-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg> 一键使用
                 </button>
             </div>
@@ -212,13 +222,13 @@ export class NotebookManager {
 
         container.innerHTML = `
             <div class="space-y-2">
-                <label class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">正向提示词</label>
-                <textarea id="editNotePrompt" name="nai_edit_note_prompt" autocomplete="off" rows="4" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-gray-700 dark:text-gray-200">${escapeHtml(note.prompt)}</textarea>
-                <label class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">负向提示词</label>
-                <textarea id="editNoteNeg" name="nai_edit_note_neg" autocomplete="off" rows="2" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-gray-600 dark:text-gray-300">${escapeHtml(note.negative || '')}</textarea>
+                <label class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">正向提示词</label>
+                <textarea id="editNotePrompt" name="nai_edit_note_prompt" autocomplete="off" rows="4" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-slate-700 dark:text-slate-200">${escapeHtml(note.prompt)}</textarea>
+                <label class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">负向提示词</label>
+                <textarea id="editNoteNeg" name="nai_edit_note_neg" autocomplete="off" rows="2" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-slate-600 dark:text-slate-300">${escapeHtml(note.negative || '')}</textarea>
                 <div class="flex gap-2 pt-1">
-                    <button onclick="cancelEditNote('${model}')" class="flex-1 py-2 text-[10px] font-semibold rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">取消</button>
-                    <button onclick="confirmEditNote('${model}','${noteId}')" class="flex-1 py-2 text-[10px] font-bold rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md hover:shadow-lg transition-all active:scale-[0.98]">保存</button>
+                    <button type="button" onclick="cancelEditNote('${model}')" class="flex-1 py-2 text-[10px] font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-150 cursor-pointer">取消</button>
+                    <button type="button" onclick="confirmEditNote('${model}','${noteId}')" class="flex-1 py-2 text-[10px] font-bold rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 shadow-sm transition-colors duration-150 cursor-pointer">保存</button>
                 </div>
             </div>
         `;

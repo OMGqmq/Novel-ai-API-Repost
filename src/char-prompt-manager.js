@@ -1,3 +1,9 @@
+import * as motionMod from './motion-controller.js';
+
+function getMotionController() {
+    return motionMod.motionController || (typeof window !== 'undefined' ? window.motionController : null);
+}
+
 /**
  * Character Prompt Manager Module (V4.5 & V5 Multi-character feature)
  * Encapsulates DOM creation, interactive 2D free coordinate positioning, collapsing panels, and state persistence.
@@ -217,10 +223,10 @@ export class CharPromptManager {
             const isSelected = Math.abs(safeX - cellX) < 0.11 && Math.abs(safeY - cellY) < 0.11;
             return `
                 <button type="button" 
-                    class="char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-all flex items-center justify-center cursor-pointer ${
+                    class="char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-[background-color,border-color,color,transform] duration-150 flex items-center justify-center cursor-pointer ${
                         isSelected 
                             ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 font-bold shadow-sm' 
-                            : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
                     }" 
                     data-x="${cellX}" 
                     data-y="${cellY}" 
@@ -270,11 +276,11 @@ export class CharPromptManager {
                 minDistance = dist;
                 closestCell = cell;
             }
-            cell.className = 'char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-all flex items-center justify-center cursor-pointer bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700';
+            cell.className = 'char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-[background-color,border-color,color,transform] duration-150 flex items-center justify-center cursor-pointer bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700';
         });
 
         if (closestCell) {
-            closestCell.className = 'char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-all flex items-center justify-center cursor-pointer bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 font-bold shadow-sm';
+            closestCell.className = 'char-grid-cell aspect-square rounded-md border text-[9px] font-mono transition-[background-color,border-color,color,transform] duration-150 flex items-center justify-center cursor-pointer bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 font-bold shadow-sm';
         }
     }
 
@@ -292,7 +298,7 @@ export class CharPromptManager {
         }
 
         const div = document.createElement('div');
-        div.className = 'flex flex-col gap-2.5 character-prompt-row border border-gray-100 dark:border-slate-800 p-3 rounded-2xl bg-gray-50/50 dark:bg-slate-900/20 transition-all';
+        div.className = 'flex flex-col gap-2.5 character-prompt-row studio-card studio-list-enter border border-slate-200/80 dark:border-slate-800 p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-900/30 transition-[opacity,transform,border-color,background-color] duration-150';
 
         const safeX = typeof x === 'number' && !isNaN(x) ? Math.max(0.01, Math.min(0.99, x)) : 0.5;
         const safeY = typeof y === 'number' && !isNaN(y) ? Math.max(0.01, Math.min(0.99, y)) : 0.5;
@@ -302,51 +308,53 @@ export class CharPromptManager {
         const isV5 = activeModel === 'v5';
 
         div.innerHTML = `
-            <div class="flex justify-between items-center select-none cursor-pointer char-row-header">
+            <div class="flex justify-between items-center select-none cursor-pointer char-row-header" aria-expanded="true">
                 <div class="flex items-center gap-1.5 min-w-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 transition-transform duration-200 char-row-chevron transform rotate-90 shrink-0"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 char-row-chevron transform rotate-90 shrink-0"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest character-index-label shrink-0 whitespace-nowrap">角色</span>
-                    <span class="text-[10px] text-gray-400 dark:text-gray-500 truncate max-w-[120px] char-row-summary font-normal"></span>
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[120px] char-row-summary font-normal"></span>
                 </div>
                 <div class="flex items-center gap-1.5 char-row-actions shrink-0">
-                    <label class="flex items-center gap-1.5 cursor-pointer select-none text-[9px] text-gray-400 dark:text-gray-500 font-bold shrink-0">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none text-[9px] text-slate-500 dark:text-slate-400 font-bold shrink-0">
                         <input type="checkbox" role="switch" aria-checked="${enabled ? 'true' : 'false'}" class="char-enable-toggle sr-only peer" autocomplete="off" ${enabled ? 'checked' : ''}>
-                        <div class="w-6 h-3.5 shrink-0 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-green-600 relative"></div>
+                        <div class="w-6 h-3.5 shrink-0 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white dark:peer-checked:after:border-slate-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:peer-checked:after:bg-slate-900 after:border-slate-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-transform after:duration-200 peer-checked:bg-slate-900 dark:peer-checked:bg-white transition-colors duration-200 relative"></div>
                         <span class="char-enable-text text-green-600 dark:text-green-500 whitespace-nowrap shrink-0">已启用</span>
                     </label>
-                    <button type="button" onclick="window.removeCharacterPromptRow(this)" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-lg transition-all" title="删除角色">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                    <button type="button" onclick="window.removeCharacterPromptRow(this)" class="studio-icon-btn w-7 h-7 p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-400 hover:text-red-500 rounded-lg transition-colors duration-150 cursor-pointer shrink-0" title="删除角色" aria-label="删除角色">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                     </button>
                 </div>
             </div>
-            <div class="char-row-content space-y-2">
+            <div class="char-row-content studio-accordion is-open">
+                <div class="studio-accordion-body">
+                    <div class="studio-accordion-inner space-y-2">
                 <div class="space-y-1">
-                    <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">描述提示词 (Character Prompt)</label>
+                    <label class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">描述提示词 (Character Prompt)</label>
                     <input type="text" autocomplete="off" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" placeholder="填入角色特征tag，例如: 1girl, blond hair, blue eyes" />
                 </div>
                 <div class="space-y-1">
-                    <label class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">排除词 (Character Negative, 可选)</label>
+                    <label class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">排除词 (Character Negative, 可选)</label>
                     <input type="text" autocomplete="off" class="char-neg-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" placeholder="特定于该角色的排除特征，默认为空" />
                 </div>
                 <div class="space-y-1 mt-2">
-                    <div class="flex justify-between items-center gap-2 text-[9px] text-gray-400 dark:text-gray-500">
+                    <div class="flex justify-between items-center gap-2 text-[9px] text-slate-500 dark:text-slate-400">
                         <span class="char-pos-title min-w-0 truncate">${isV5 ? '角色定位 (Position - 自由选点)' : '角色定位 (Position - 5x5网格)'}</span>
                         <label class="flex items-center gap-1.5 cursor-pointer select-none shrink-0">
                             <input type="checkbox" role="switch" aria-checked="${autoPos ? 'true' : 'false'}" class="char-auto-pos sr-only peer" autocomplete="off" ${autoPos ? 'checked' : ''}>
-                            <div class="w-7 h-4 shrink-0 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900 relative"></div>
+                            <div class="w-7 h-4 shrink-0 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white dark:peer-checked:after:border-slate-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-transform after:duration-200 peer-checked:bg-slate-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-slate-900 transition-colors duration-200 relative"></div>
                             <span class="whitespace-nowrap shrink-0">AI 自动位置</span>
                         </label>
                     </div>
 
                     <!-- V5 专属：自由 2D 连续坐标定位画板 (自适应画幅比例) -->
                     <div class="char-v5-pos-wrapper char-pos-box-wrapper ${autoPos || !isV5 ? 'hidden' : ''} mt-2 flex flex-col gap-2">
-                        <div class="char-pos-pad relative rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-100/90 dark:bg-slate-900/80 overflow-hidden cursor-crosshair select-none touch-none shadow-inner mx-auto" style="width: 140px; height: 205px;">
+                        <div class="char-pos-pad relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100/90 dark:bg-slate-900/80 overflow-hidden cursor-crosshair select-none touch-none shadow-inner mx-auto" style="width: 140px; height: 205px;">
                             <!-- 九宫格与中心辅助线 -->
                             <div class="absolute inset-0 pointer-events-none opacity-25 dark:opacity-35">
-                                <div class="absolute left-1/3 inset-y-0 border-l border-dashed border-gray-400 dark:border-gray-600"></div>
-                                <div class="absolute left-2/3 inset-y-0 border-l border-dashed border-gray-400 dark:border-gray-600"></div>
-                                <div class="absolute top-1/3 inset-x-0 border-t border-dashed border-gray-400 dark:border-gray-600"></div>
-                                <div class="absolute top-2/3 inset-x-0 border-t border-dashed border-gray-400 dark:border-gray-600"></div>
+                                <div class="absolute left-1/3 inset-y-0 border-l border-dashed border-slate-400 dark:border-slate-600"></div>
+                                <div class="absolute left-2/3 inset-y-0 border-l border-dashed border-slate-400 dark:border-slate-600"></div>
+                                <div class="absolute top-1/3 inset-x-0 border-t border-dashed border-slate-400 dark:border-slate-600"></div>
+                                <div class="absolute top-2/3 inset-x-0 border-t border-dashed border-slate-400 dark:border-slate-600"></div>
                                 <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-slate-500/60 bg-slate-500/20"></div>
                             </div>
                             
@@ -364,20 +372,20 @@ export class CharPromptManager {
 
                         <!-- 快速对齐预设 -->
                         <div class="flex items-center justify-between px-1">
-                            <span class="text-[9px] text-gray-400 dark:text-gray-500 font-medium">快速对齐:</span>
+                            <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">快速对齐:</span>
                             <div class="flex gap-1 char-presets-container">
-                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.2" data-y="0.5">左</button>
-                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.5" data-y="0.5">居中</button>
-                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.8" data-y="0.5">右</button>
-                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.5" data-y="0.25">上方</button>
-                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-[9px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer" data-x="0.5" data-y="0.75">下方</button>
+                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[9px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-150 cursor-pointer" data-x="0.2" data-y="0.5">左</button>
+                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[9px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-150 cursor-pointer" data-x="0.5" data-y="0.5">居中</button>
+                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[9px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-150 cursor-pointer" data-x="0.8" data-y="0.5">右</button>
+                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[9px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-150 cursor-pointer" data-x="0.5" data-y="0.25">上方</button>
+                                <button type="button" class="char-preset-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[9px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-150 cursor-pointer" data-x="0.5" data-y="0.75">下方</button>
                             </div>
                         </div>
                     </div>
 
                     <!-- V4.5 专属：5x5 离散网格选点器 -->
                     <div class="char-v45-grid-wrapper ${autoPos || isV5 ? 'hidden' : ''} mt-2">
-                        <div class="char-grid-container grid grid-cols-5 gap-1.5 p-2 bg-gray-100/90 dark:bg-slate-900/80 rounded-xl border border-gray-200 dark:border-slate-700 max-w-[240px] mx-auto">
+                        <div class="char-grid-container grid grid-cols-5 gap-1.5 p-2 bg-slate-100/90 dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-700 max-w-[240px] mx-auto">
                             ${this._generateGridCellsHtml(safeX, safeY)}
                         </div>
                     </div>
@@ -385,6 +393,8 @@ export class CharPromptManager {
                     <!-- 隐藏输入框以保存坐标 -->
                     <input type="hidden" class="char-pos-x" value="${safeX}" />
                     <input type="hidden" class="char-pos-y" value="${safeY}" />
+                </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -427,13 +437,33 @@ export class CharPromptManager {
 
         if (rowHeader && rowContent && rowChevron) {
             rowHeader.addEventListener('click', () => {
+                const accordionBody = typeof rowContent.querySelector === 'function'
+                    ? rowContent.querySelector('.studio-accordion-body')
+                    : null;
+                const usesAccordion = Boolean(
+                    accordionBody &&
+                    typeof getComputedStyle === 'function' &&
+                    getComputedStyle(accordionBody)?.display === 'grid'
+                );
+                if (usesAccordion) {
+                    const isOpen = rowContent.classList.contains('is-open');
+                    rowContent.classList.remove('hidden');
+                    rowContent.classList.toggle('is-open', !isOpen);
+                    rowChevron.classList.toggle('rotate-90', !isOpen);
+                    rowHeader.setAttribute?.('aria-expanded', !isOpen ? 'true' : 'false');
+                    return;
+                }
                 const isCollapsed = rowContent.classList.contains('hidden');
                 if (isCollapsed) {
                     rowContent.classList.remove('hidden');
+                    rowContent.classList.add('is-open');
                     rowChevron.classList.add('rotate-90');
+                    rowHeader.setAttribute?.('aria-expanded', 'true');
                 } else {
                     rowContent.classList.add('hidden');
+                    rowContent.classList.remove('is-open');
                     rowChevron.classList.remove('rotate-90');
+                    rowHeader.setAttribute?.('aria-expanded', 'false');
                 }
             });
         }
@@ -589,6 +619,10 @@ export class CharPromptManager {
             }
         }
 
+        const existingCount = typeof container.querySelectorAll === 'function'
+            ? container.querySelectorAll('.character-prompt-row').length
+            : 0;
+        div.style?.setProperty?.('--sibling-index', String(Math.min(existingCount, 10)));
         container.appendChild(div);
         this.updateCharacterIndexLabels();
         this.updatePadAspectRatio();
@@ -601,7 +635,7 @@ export class CharPromptManager {
     removeCharacterPromptRow(button) {
         const row = button.closest('.character-prompt-row');
         if (row) {
-            row.classList.add('scale-95', 'opacity-0');
+            row.classList.add('scale-95', 'opacity-0', 'pointer-events-none');
             setTimeout(() => {
                 row.remove();
                 this.updateCharacterIndexLabels();
@@ -615,6 +649,7 @@ export class CharPromptManager {
         if (!container) return;
         const rows = container.querySelectorAll('.character-prompt-row');
         rows.forEach((row, idx) => {
+            row?.style?.setProperty?.('--sibling-index', String(Math.min(idx, 10)));
             const label = row.querySelector('.character-index-label');
             if (label) {
                 label.textContent = `角色 ${idx + 1}`;
@@ -770,6 +805,9 @@ export class CharPromptManager {
                 boxEl.style.height = Math.round(maxH) + 'px';
                 boxEl.style.width = Math.round(calcW) + 'px';
             }
+            if (this.isOpen) {
+                this._renderStageGridSvg();
+            }
         }
     }
 
@@ -826,7 +864,12 @@ export class CharPromptManager {
             window.toggleMobileControls(false);
         }
 
-        stageEl.classList.remove('hidden');
+        const mc = getMotionController();
+        if (mc && typeof mc.enter === 'function') {
+            mc.enter(stageEl);
+        } else {
+            stageEl.classList.remove('hidden');
+        }
         this.updatePadAspectRatio();
         this.setStageGridMode(this.stageGridMode);
         this.renderStage();
@@ -841,7 +884,14 @@ export class CharPromptManager {
     closeStage() {
         this.isOpen = false;
         const stageEl = document.getElementById('charPositionStage');
-        if (stageEl) stageEl.classList.add('hidden');
+        if (stageEl) {
+            const mc = getMotionController();
+            if (mc && typeof mc.exit === 'function' && typeof stageEl.getAnimations === 'function') {
+                mc.exit(stageEl);
+            } else {
+                stageEl.classList.add('hidden');
+            }
+        }
         if (typeof document !== 'undefined' && document.body?.classList) {
             document.body.classList.remove('char-stage-active');
         }
@@ -879,43 +929,56 @@ export class CharPromptManager {
         const mode = this.stageGridMode || 'thirds';
         if (mode === 'none') {
             svg.innerHTML = '';
+            if (svg.style) svg.style.filter = '';
             return;
+        }
+
+        const boxEl = typeof document !== 'undefined' ? document.getElementById('charStageBox') : null;
+        const isOverlay = Boolean(boxEl?.classList?.contains?.('is-image-overlay'));
+        const isDark = typeof document !== 'undefined' && Boolean(document.documentElement?.classList?.contains?.('dark'));
+        const strokeRgb = isOverlay ? '255,255,255' : (isDark ? '248,250,252' : '15,23,42');
+        const cSubtle = `rgba(${strokeRgb},${isOverlay ? '0.26' : '0.24'})`;
+        const cMid = `rgba(${strokeRgb},${isOverlay ? '0.52' : '0.48'})`;
+        const cStrong = `rgba(${strokeRgb},${isOverlay ? '0.68' : '0.62'})`;
+        const cRing = `rgba(${strokeRgb},${isOverlay ? '0.82' : '0.78'})`;
+        if (svg.style) {
+            svg.style.filter = isOverlay ? 'drop-shadow(0 0 1px rgba(15, 23, 42, 0.55))' : '';
         }
 
         let gridLines = '';
         // V4.5 模式下叠加 5×5 宫格细线与中心点提示
         if (this.currentModel === 'v4.5') {
             gridLines += `
-                <line x1="20%" y1="0" x2="20%" y2="100%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
-                <line x1="40%" y1="0" x2="40%" y2="100%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
-                <line x1="60%" y1="0" x2="60%" y2="100%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
-                <line x1="80%" y1="0" x2="80%" y2="100%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
-                <line x1="0" y1="20%" x2="100%" y2="20%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
-                <line x1="0" y1="40%" x2="100%" y2="40%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
-                <line x1="0" y1="60%" x2="100%" y2="60%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
-                <line x1="0" y1="80%" x2="100%" y2="80%" stroke="rgba(255,255,255,0.22)" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="20%" y1="0" x2="20%" y2="100%" stroke="${cSubtle}" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="40%" y1="0" x2="40%" y2="100%" stroke="${cSubtle}" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="60%" y1="0" x2="60%" y2="100%" stroke="${cSubtle}" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="80%" y1="0" x2="80%" y2="100%" stroke="${cSubtle}" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="0" y1="20%" x2="100%" y2="20%" stroke="${cSubtle}" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="0" y1="40%" x2="100%" y2="40%" stroke="${cSubtle}" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="0" y1="60%" x2="100%" y2="60%" stroke="${cSubtle}" stroke-dasharray="2 3" stroke-width="1"/>
+                <line x1="0" y1="80%" x2="100%" y2="80%" stroke="${cSubtle}" stroke-dasharray="2 3" stroke-width="1"/>
             `;
         }
 
         if (mode === 'thirds') {
             gridLines += `
-                <line x1="33.33%" y1="0" x2="33.33%" y2="100%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
-                <line x1="66.67%" y1="0" x2="66.67%" y2="100%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
-                <line x1="0" y1="33.33%" x2="100%" y2="33.33%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
-                <line x1="0" y1="66.67%" x2="100%" y2="66.67%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="33.33%" y1="0" x2="33.33%" y2="100%" stroke="${cMid}" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="66.67%" y1="0" x2="66.67%" y2="100%" stroke="${cMid}" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="0" y1="33.33%" x2="100%" y2="33.33%" stroke="${cMid}" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="0" y1="66.67%" x2="100%" y2="66.67%" stroke="${cMid}" stroke-dasharray="4 4" stroke-width="1.4"/>
             `;
         } else if (mode === 'phi') {
             gridLines += `
-                <line x1="38.2%" y1="0" x2="38.2%" y2="100%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
-                <line x1="61.8%" y1="0" x2="61.8%" y2="100%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
-                <line x1="0" y1="38.2%" x2="100%" y2="38.2%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
-                <line x1="0" y1="61.8%" x2="100%" y2="61.8%" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="38.2%" y1="0" x2="38.2%" y2="100%" stroke="${cMid}" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="61.8%" y1="0" x2="61.8%" y2="100%" stroke="${cMid}" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="0" y1="38.2%" x2="100%" y2="38.2%" stroke="${cMid}" stroke-dasharray="4 4" stroke-width="1.4"/>
+                <line x1="0" y1="61.8%" x2="100%" y2="61.8%" stroke="${cMid}" stroke-dasharray="4 4" stroke-width="1.4"/>
             `;
         } else if (mode === 'center') {
             gridLines += `
-                <line x1="50%" y1="0" x2="50%" y2="100%" stroke="rgba(255,255,255,0.6)" stroke-dasharray="5 5" stroke-width="1.5"/>
-                <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(255,255,255,0.6)" stroke-dasharray="5 5" stroke-width="1.5"/>
-                <circle cx="50%" cy="50%" r="8" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="1.5"/>
+                <line x1="50%" y1="0" x2="50%" y2="100%" stroke="${cStrong}" stroke-dasharray="5 5" stroke-width="1.5"/>
+                <line x1="0" y1="50%" x2="100%" y2="50%" stroke="${cStrong}" stroke-dasharray="5 5" stroke-width="1.5"/>
+                <circle cx="50%" cy="50%" r="8" fill="none" stroke="${cRing}" stroke-width="1.5"/>
             `;
         }
         svg.innerHTML = gridLines;
@@ -1041,7 +1104,7 @@ export class CharPromptManager {
                     (isActive
                         ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xl ring-2 ring-white dark:ring-slate-900 scale-110 z-20'
                         : 'bg-slate-900/80 text-white border border-white/70 shadow-lg z-10 hover:scale-105') +
-                    (isTooClose ? ' ring-2 !ring-amber-400 animate-pulse' : '') +
+                    (isTooClose ? ' ring-2 !ring-amber-400' : '') +
                     (!enabled ? ' opacity-40' : '');
                 pin.style.left = (x * 100) + '%';
                 pin.style.top = (y * 100) + '%';
@@ -1054,11 +1117,14 @@ export class CharPromptManager {
             }
 
             if (isActive && activeCoordsLabel) {
+                const tooCloseHint = isTooClose
+                    ? ' <span class="studio-badge studio-badge--warning inline-flex items-center gap-0.5 text-[10px]"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 shrink-0" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>过近</span>'
+                    : '';
                 if (isV45) {
                     const gridLbl = this._coordToGridLabel(x, y);
-                    activeCoordsLabel.innerHTML = '#' + (idx + 1) + ' · <b>' + gridLbl + '</b> (' + (x * 100).toFixed(0) + '%, ' + (y * 100).toFixed(0) + '%)' + (isTooClose ? ' <span class="text-amber-300">⚠</span>' : '');
+                    activeCoordsLabel.innerHTML = '#' + (idx + 1) + ' · <b>' + gridLbl + '</b> (' + (x * 100).toFixed(0) + '%, ' + (y * 100).toFixed(0) + '%)' + tooCloseHint;
                 } else {
-                    activeCoordsLabel.innerHTML = '#' + (idx + 1) + ' · <b>' + (x * 100).toFixed(0) + '%</b>, <b>' + (y * 100).toFixed(0) + '%</b>' + (isTooClose ? ' <span class="text-amber-300">⚠</span>' : '');
+                    activeCoordsLabel.innerHTML = '#' + (idx + 1) + ' · <b>' + (x * 100).toFixed(0) + '%</b>, <b>' + (y * 100).toFixed(0) + '%</b>' + tooCloseHint;
                 }
             }
         });

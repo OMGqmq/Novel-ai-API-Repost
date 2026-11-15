@@ -20,6 +20,8 @@ export class RandomPromptController {
         if (!container) return;
 
         const globalEnabled = this.manager.isEnabled();
+        container.classList.add('transition-opacity', 'duration-200');
+        if (addSection && addSection.classList) addSection.classList.add('transition-opacity', 'duration-200');
         if (globalEnabled) {
             container.classList.remove('opacity-50', 'pointer-events-none');
             if (addSection) addSection.classList.remove('opacity-50', 'pointer-events-none');
@@ -38,7 +40,8 @@ export class RandomPromptController {
         categories.forEach((cat, idx) => {
             const catName = String(cat.name || '');
             const item = document.createElement('div');
-            item.className = 'border border-gray-200 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-white/50 dark:bg-slate-900/40 shadow-sm';
+            item.className = 'studio-card studio-list-enter border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-white/70 dark:bg-slate-900/40 shadow-sm';
+            item.style?.setProperty?.('--sibling-index', String(Math.min(idx, 10)));
 
             // Header and body opacity + disabled state if not enabled
             const headerOpacity = cat.enabled ? '' : 'opacity-60';
@@ -46,7 +49,7 @@ export class RandomPromptController {
 
             const header = document.createElement('div');
             header.id = `rp-header-${catName}`;
-            header.className = `flex justify-between items-center bg-gray-50/50 dark:bg-slate-950/20 px-4 py-2.5 border-b border-gray-200 dark:border-slate-800/80 cursor-pointer select-none ${headerOpacity}`.trim();
+            header.className = `flex justify-between items-center bg-slate-50/70 dark:bg-slate-950/20 px-4 py-2.5 border-b border-slate-200/80 dark:border-slate-800/80 cursor-pointer select-none transition-opacity duration-200 ${headerOpacity}`.trim();
             header.addEventListener('click', (event) => {
                 if (typeof window !== 'undefined' && typeof window.toggleRandomCategoryFold === 'function') {
                     window.toggleRandomCategoryFold(catName, event);
@@ -65,7 +68,7 @@ export class RandomPromptController {
             checkbox.name = `nai_rp_chk_${idx}`;
             checkbox.setAttribute('autocomplete', 'off');
             checkbox.checked = !!cat.enabled;
-            checkbox.className = 'w-3.5 h-3.5 rounded border-gray-300 dark:border-slate-700 accent-slate-900 dark:accent-white focus:ring-slate-500 cursor-pointer shrink-0';
+            checkbox.className = 'w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-700 accent-slate-900 dark:accent-white focus:ring-slate-500 cursor-pointer shrink-0';
             checkbox.addEventListener('change', (e) => {
                 if (typeof window !== 'undefined' && typeof window.toggleRandomCategory === 'function') {
                     window.toggleRandomCategory(catName, e.target.checked);
@@ -75,7 +78,7 @@ export class RandomPromptController {
             });
 
             const titleSpan = document.createElement('span');
-            titleSpan.className = 'text-xs font-bold text-gray-700 dark:text-gray-200 capitalize truncate';
+            titleSpan.className = 'text-xs font-bold text-slate-700 dark:text-slate-200 capitalize truncate';
             titleSpan.textContent = catName;
 
             leftGroup.appendChild(checkbox);
@@ -88,7 +91,7 @@ export class RandomPromptController {
             if (cat.custom) {
                 const delBtn = document.createElement('button');
                 delBtn.type = 'button';
-                delBtn.className = 'p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-lg transition-colors cursor-pointer';
+                delBtn.className = 'studio-icon-btn w-7 h-7 p-1 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-400 hover:text-red-500 rounded-lg transition-colors duration-150 cursor-pointer';
                 delBtn.setAttribute('aria-label', '删除分类');
                 delBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>';
                 delBtn.addEventListener('click', () => {
@@ -103,8 +106,10 @@ export class RandomPromptController {
 
             const foldBtn = document.createElement('button');
             foldBtn.type = 'button';
-            foldBtn.className = 'p-1 hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 dark:text-gray-500 rounded-lg transition-transform duration-200 cursor-pointer';
+            foldBtn.id = `rp-fold-btn-${catName}`;
+            foldBtn.className = 'studio-icon-btn w-7 h-7 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg transition-colors duration-150 cursor-pointer';
             foldBtn.setAttribute('aria-label', '展开或收起');
+            foldBtn.setAttribute('aria-expanded', 'true');
             foldBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 transition-transform duration-200 pointer-events-none"><path d="m6 9 6 6 6-6"/></svg>`;
             const chevronSvg = foldBtn.querySelector('svg');
             if (chevronSvg) chevronSvg.id = `rp-chevron-${catName}`;
@@ -123,14 +128,19 @@ export class RandomPromptController {
 
             const body = document.createElement('div');
             body.id = `rp-body-${catName}`;
-            body.className = `p-3 space-y-2 transition-all ${bodyOpacity}`.trim();
+            body.className = `studio-accordion is-open transition-opacity duration-200 ${bodyOpacity}`.trim();
+
+            const accordionBody = document.createElement('div');
+            accordionBody.className = 'studio-accordion-body';
+            const accordionInner = document.createElement('div');
+            accordionInner.className = 'studio-accordion-inner p-3 space-y-2';
 
             const textarea = document.createElement('textarea');
             textarea.id = `rp-txt-${catName}`;
             textarea.name = `nai_rp_txt_${idx}`;
             textarea.setAttribute('autocomplete', 'off');
             textarea.rows = 2;
-            textarea.className = 'art-input w-full px-3 py-2 rounded-xl text-xs outline-none resize-none text-gray-700 dark:text-gray-200';
+            textarea.className = 'art-input w-full px-3 py-2 rounded-xl text-xs outline-none resize-none text-slate-700 dark:text-slate-200';
             textarea.placeholder = '以英文分号分词组，例如: jk uniform, white shirt; maid outfit, apron; white summer dress';
             if (!cat.enabled) textarea.disabled = true;
             textarea.value = cat.content || '';
@@ -146,8 +156,10 @@ export class RandomPromptController {
             placeholder.id = `rp-placeholder-${catName}`;
             placeholder.className = 'mt-1';
 
-            body.appendChild(textarea);
-            body.appendChild(placeholder);
+            accordionInner.appendChild(textarea);
+            accordionInner.appendChild(placeholder);
+            accordionBody.appendChild(accordionInner);
+            body.appendChild(accordionBody);
 
             item.appendChild(header);
             item.appendChild(body);
@@ -164,6 +176,8 @@ export class RandomPromptController {
         const container = document.getElementById('randomPromptCategoriesContainer');
         const addSection = document.getElementById('newRandomPromptCategoryName')?.parentNode;
         if (container) {
+            container.classList.add('transition-opacity', 'duration-200');
+            if (addSection && addSection.classList) addSection.classList.add('transition-opacity', 'duration-200');
             if (checked) {
                 container.classList.remove('opacity-50', 'pointer-events-none');
                 if (addSection) addSection.classList.remove('opacity-50', 'pointer-events-none');
@@ -205,8 +219,27 @@ export class RandomPromptController {
         }
         const body = document.getElementById(`rp-body-${name}`);
         const chevron = document.getElementById(`rp-chevron-${name}`);
+        const foldBtn = document.getElementById(`rp-fold-btn-${name}`);
         if (body && chevron) {
+            const accordionBody = typeof body.querySelector === 'function'
+                ? body.querySelector('.studio-accordion-body')
+                : null;
+            const usesAccordion = Boolean(
+                accordionBody &&
+                typeof getComputedStyle === 'function' &&
+                getComputedStyle(accordionBody)?.display === 'grid'
+            );
+            if (usesAccordion) {
+                const isOpen = body.classList.contains('is-open');
+                body.classList.remove('hidden');
+                body.classList.toggle('is-open', !isOpen);
+                chevron.classList.toggle('-rotate-90', isOpen);
+                foldBtn?.setAttribute?.('aria-expanded', !isOpen ? 'true' : 'false');
+                return;
+            }
             const isCollapsed = body.classList.toggle('hidden');
+            body.classList.toggle('is-open', !isCollapsed);
+            foldBtn?.setAttribute?.('aria-expanded', isCollapsed ? 'false' : 'true');
             if (isCollapsed) {
                 chevron.classList.add('-rotate-90');
             } else {

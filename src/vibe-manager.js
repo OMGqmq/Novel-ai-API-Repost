@@ -1,3 +1,58 @@
+import { showToast, showAlert } from './modal-toast.js';
+import { updateRangeProgress, initRangeSliderEnhancements } from './ux-enhancements.js';
+import * as motionMod from './motion-controller.js';
+
+function getMotionController() {
+    return motionMod.motionController || (typeof window !== 'undefined' ? window.motionController : null);
+}
+
+function showVibeControls(el) {
+    if (!el) return;
+    const mc = getMotionController();
+    if (mc && typeof mc.enter === 'function') {
+        mc.enter(el);
+    } else {
+        el.classList.remove('hidden');
+    }
+}
+
+function hideVibeControls(el) {
+    if (!el) return;
+    const mc = getMotionController();
+    if (mc && typeof mc.exit === 'function' && typeof el.getAnimations === 'function') {
+        mc.exit(el);
+    } else {
+        el.classList.add('hidden');
+    }
+}
+
+function syncSliderProgress(slider) {
+    if (slider && slider.style && typeof slider.style.setProperty === 'function') {
+        updateRangeProgress(slider);
+    }
+}
+
+function notifyVibeMessage(message, { type = 'warning', useAlertModal = false } = {}) {
+    const canShowAlert = typeof document !== 'undefined'
+        && typeof document.getElementById === 'function'
+        && Boolean(document.getElementById('confirmModal'));
+    const canShowToast = typeof document !== 'undefined'
+        && typeof document.getElementById === 'function'
+        && Boolean(document.getElementById('toastContainer'));
+
+    if (useAlertModal && canShowAlert) {
+        showAlert(message, type === 'error' ? '操作失败' : '提示', type === 'error' ? 'alert-circle' : 'alert-triangle');
+        return;
+    }
+    if (canShowToast) {
+        showToast(message, type);
+        return;
+    }
+    if (typeof alert === 'function') {
+        alert(message);
+    }
+}
+
 /**
  * Vibe Reference Image Manager Module
  * Handles file reading, official .nai4vibe JSON bundle structure parsing,
@@ -355,7 +410,7 @@ export class VibeManager {
                 if (exportBtn) exportBtn.classList.remove('hidden');
 
                 const vibeControls = document.getElementById('vibeControls');
-                if (vibeControls) vibeControls.classList.remove('hidden');
+                showVibeControls(vibeControls);
             }
 
             this.updateVibeInfoUI(this.currentVibeIsJson, model);
@@ -366,6 +421,7 @@ export class VibeManager {
                     const infoToSet = savedVibeInfo || this.currentVibeDoc?.importInfo?.information_extracted || (this.availableVibeEncodings[0]?.info);
                     if (infoToSet !== undefined) {
                         slider.value = infoToSet;
+                        syncSliderProgress(slider);
                         const valSpan = document.getElementById('vibeInfoValue');
                         if (valSpan) valSpan.textContent = parseFloat(infoToSet).toFixed(2);
                     }
@@ -400,6 +456,7 @@ export class VibeManager {
             const strSlider = document.getElementById('vibeStrength');
             if (strSlider) {
                 strSlider.value = savedVibeStrength;
+                syncSliderProgress(strSlider);
                 const strSpan = document.getElementById('vibeStrengthValue');
                 if (strSpan) strSpan.textContent = parseFloat(savedVibeStrength).toFixed(2);
             }
@@ -510,7 +567,7 @@ export class VibeManager {
             }
 
             const vibeControls = document.getElementById('vibeControls');
-            if (vibeControls) vibeControls.classList.add('hidden');
+            hideVibeControls(vibeControls);
         }
 
         this.updateVibeInfoUI(false, model);
@@ -520,18 +577,20 @@ export class VibeManager {
         if (typeof document === 'undefined') return;
         const enabledCheckbox = document.getElementById('vibeEnabled');
         const enabled = enabledCheckbox ? enabledCheckbox.checked : true;
+        enabledCheckbox?.setAttribute?.('aria-checked', enabled ? 'true' : 'false');
         this.store.setSetting(this.getVibeKey('nai_vibe_enabled', model), enabled.toString());
         
         const previewContainer = document.getElementById('vibeImagePreviewContainer');
         const controls = document.getElementById('vibeControls');
         
         if (previewContainer) {
+            previewContainer.classList.add('transition-[opacity,filter]', 'duration-200');
             if (enabled) {
                 previewContainer.classList.remove('opacity-40', 'grayscale-[0.5]');
-                if (this.currentVibeImageBase64 && controls) controls.classList.remove('hidden');
+                if (this.currentVibeImageBase64) showVibeControls(controls);
             } else {
                 previewContainer.classList.add('opacity-40', 'grayscale-[0.5]');
-                if (controls) controls.classList.add('hidden');
+                hideVibeControls(controls);
             }
         }
     }
@@ -630,7 +689,7 @@ export class VibeManager {
                          previewImg.src = sourceImg.startsWith('data:image') ? sourceImg : ('data:image/png;base64,' + sourceImg);
                          previewImg.classList.remove('p-4', 'p-3');
                     } else {
-                         previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
+                         previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
                          previewImg.classList.add('p-4');
                     }
                     previewImg.classList.remove('hidden');
@@ -640,20 +699,29 @@ export class VibeManager {
                 if (obj.importInfo) {
                     if (obj.importInfo.information_extracted !== undefined) {
                         const slider = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
-                        if (slider) slider.value = obj.importInfo.information_extracted;
+                        if (slider) {
+                            slider.value = obj.importInfo.information_extracted;
+                            syncSliderProgress(slider);
+                        }
                         const valSpan = typeof document !== 'undefined' ? document.getElementById('vibeInfoValue') : null;
                         if (valSpan) valSpan.textContent = parseFloat(obj.importInfo.information_extracted).toFixed(2);
                     }
                     if (obj.importInfo.strength !== undefined) {
                         const strSlider = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
-                        if (strSlider) strSlider.value = obj.importInfo.strength;
+                        if (strSlider) {
+                            strSlider.value = obj.importInfo.strength;
+                            syncSliderProgress(strSlider);
+                        }
                         const strSpan = typeof document !== 'undefined' ? document.getElementById('vibeStrengthValue') : null;
                         if (strSpan) strSpan.textContent = parseFloat(obj.importInfo.strength).toFixed(2);
                     }
                 } else if (this.availableVibeEncodings.length > 0) {
                     const firstEnc = this.availableVibeEncodings[0];
                     const slider = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
-                    if (slider) slider.value = firstEnc.info;
+                    if (slider) {
+                        slider.value = firstEnc.info;
+                        syncSliderProgress(slider);
+                    }
                     const valSpan = typeof document !== 'undefined' ? document.getElementById('vibeInfoValue') : null;
                     if (valSpan) valSpan.textContent = firstEnc.info.toFixed(2);
                 }
@@ -705,7 +773,7 @@ export class VibeManager {
 
                 const previewImg = document.getElementById('vibeImagePreview');
                 if (previewImg) {
-                    previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%233b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
+                    previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
                     previewImg.classList.add('p-3');
                     previewImg.classList.remove('hidden');
                 }
@@ -766,14 +834,12 @@ export class VibeManager {
             if (exportBtn) exportBtn.classList.remove('hidden');
 
             const vibeControls = typeof document !== 'undefined' ? document.getElementById('vibeControls') : null;
-            if (vibeControls) vibeControls.classList.remove('hidden');
+            showVibeControls(vibeControls);
 
             this.toggleVibeEnabled(model); 
         } catch (e) {
             console.error("Failed to process vibe file", e);
-            if (typeof alert === 'function') {
-                alert("文件处理失败: " + e.message);
-            }
+            notifyVibeMessage("文件处理失败: " + e.message, { type: 'error', useAlertModal: true });
         }
     }
 
@@ -781,7 +847,10 @@ export class VibeManager {
         const slider = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
         const infoVal = typeof document !== 'undefined' ? document.getElementById('vibeInfoValue') : null;
         const num = parseFloat(val);
-        if (slider) slider.value = num;
+        if (slider) {
+            slider.value = num;
+            syncSliderProgress(slider);
+        }
         if (infoVal) infoVal.textContent = num.toFixed(2);
         this.store.setSetting(this.getVibeKey('nai_vibe_info', model), num.toString());
         this.updateVibeStatus(model);
@@ -800,22 +869,27 @@ export class VibeManager {
 
         container.innerHTML = `
             <div class="space-y-2">
-                <input type="range" id="vibeInfo" min="0.01" max="1.0" value="${currentVal}" step="0.01" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer">
+                <input type="range" id="vibeInfo" min="0.01" max="1.0" value="${currentVal}" data-default="1.0" step="0.01" class="w-full cursor-pointer enhanced-range">
                 <div id="vibeStrengthsChips"></div>
                 <div id="vibeEncodeStatus"></div>
             </div>
         `;
         const slider = container.querySelector('#vibeInfo');
         if (slider) {
+            if (typeof container.querySelectorAll === 'function' && slider.dataset && slider.style) {
+                initRangeSliderEnhancements(container);
+            }
             slider.addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value);
                 if (infoVal) infoVal.textContent = val.toFixed(2);
+                syncSliderProgress(slider);
                 this.store.setSetting(this.getVibeKey('nai_vibe_info', model), e.target.value);
                 if (isV45) {
                     this.updateVibeStatus(model);
                 }
             });
             if (infoVal) infoVal.textContent = parseFloat(slider.value).toFixed(2);
+            syncSliderProgress(slider);
         }
         if (isV45) {
             this.updateVibeStatus(model);
@@ -853,17 +927,18 @@ export class VibeManager {
             if (this.availableVibeEncodings.length > 0) {
                 let chipsHtml = `
                     <div class="flex items-center gap-1.5 flex-wrap pt-0.5">
-                        <span class="text-[10px] text-gray-400 font-medium">已包含强度:</span>
+                        <span class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">已包含强度:</span>
+                        <div class="studio-tabs flex items-center flex-wrap gap-1 p-0.5 rounded-lg" role="group" aria-label="预设强度">
                 `;
                 this.availableVibeEncodings.forEach(enc => {
                     const isMatched = Math.abs(enc.info - currentInfo) < 0.005;
                     chipsHtml += `
-                        <button type="button" onclick="window.vibeManager && window.vibeManager.selectStrengthValue(${enc.info}, '${model}')" class="px-2 py-0.5 rounded text-[10px] font-mono transition-all ${isMatched ? 'bg-blue-600 text-white shadow-sm font-bold scale-105' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700'}">
+                        <button type="button" onclick="window.vibeManager && window.vibeManager.selectStrengthValue(${enc.info}, '${model}')" class="studio-tab px-2 py-0.5 rounded-md text-[10px] font-mono tabular-nums cursor-pointer transition-[background-color,color,border-color] duration-150 ${isMatched ? 'active bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}" aria-pressed="${isMatched ? 'true' : 'false'}">
                             ${enc.info.toFixed(2)}
                         </button>
                     `;
                 });
-                chipsHtml += `</div>`;
+                chipsHtml += `</div></div>`;
                 chipsContainer.innerHTML = chipsHtml;
             } else {
                 chipsContainer.innerHTML = '';
@@ -871,31 +946,32 @@ export class VibeManager {
         }
 
         let cachedToken = this.getCachedEncoding(rawImg, currentInfo);
+        const checkSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 shrink-0" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
 
         if (cachedToken) {
             this.currentVibeImageBase64 = cachedToken;
             statusContainer.innerHTML = `
-                <div class="mt-2 flex items-center justify-between text-[11px] bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-2.5 py-1.5 rounded-lg shadow-sm">
-                    <span class="flex items-center gap-1 font-medium">✓ 已官方编码 (出图免耗点)</span>
-                    <div class="flex items-center gap-1.5">
-                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportNai4Vibe('${model}')" class="bg-green-600 hover:bg-green-700 active:scale-95 text-white px-2 py-0.5 rounded text-[10px] font-medium shadow-sm transition-all" title="导出 .nai4vibe.json 官方多强度文件">导出 .nai4vibe</button>
-                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportVibeBinary('${model}')" class="border border-green-600/50 hover:bg-green-100 dark:hover:bg-green-900/50 active:scale-95 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-medium transition-all" title="导出当前强度 .vibe 二进制文件">.vibe</button>
+                <div class="mt-2 flex items-center justify-between gap-2 text-[11px] bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 px-2.5 py-1.5 rounded-xl">
+                    <span class="studio-badge studio-badge--success inline-flex items-center gap-1 font-medium text-[10px]">${checkSvg}已官方编码 (出图免耗点)</span>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportNai4Vibe('${model}')" class="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 px-2 py-0.5 rounded-md text-[10px] font-medium shadow-sm transition-colors duration-150 cursor-pointer" title="导出 .nai4vibe.json 官方多强度文件">导出 .nai4vibe</button>
+                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportVibeBinary('${model}')" class="border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors duration-150 cursor-pointer" title="导出当前强度 .vibe 二进制文件">.vibe</button>
                     </div>
                 </div>`;
         } else if (rawImg) {
             this.currentVibeImageBase64 = rawImg;
             statusContainer.innerHTML = `
-                <div class="mt-2 flex items-center justify-between text-[11px] bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 px-2.5 py-1.5 rounded-lg shadow-sm">
-                    <span class="text-[10px] font-medium">需官方编码 (消耗 2 Anlas)</span>
-                    <button type="button" onclick="window.triggerEncodeVibe && window.triggerEncodeVibe()" class="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white px-2 py-0.5 rounded text-[10px] font-medium shadow-sm transition-all">立即编码</button>
+                <div class="mt-2 flex items-center justify-between gap-2 text-[11px] bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 px-2.5 py-1.5 rounded-xl">
+                    <span class="studio-badge studio-badge--warning text-[10px] font-medium">需官方编码 (消耗 2 Anlas)</span>
+                    <button type="button" onclick="window.triggerEncodeVibe && window.triggerEncodeVibe()" class="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 px-2.5 py-0.5 rounded-md text-[10px] font-medium shadow-sm transition-colors duration-150 cursor-pointer shrink-0">立即编码</button>
                 </div>`;
         } else {
             statusContainer.innerHTML = `
-                <div class="mt-2 flex items-center justify-between text-[11px] bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-2.5 py-1.5 rounded-lg shadow-sm">
-                    <span class="flex items-center gap-1 font-medium">✓ 已载入编码 Token (出图免耗点)</span>
-                    <div class="flex items-center gap-1.5">
-                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportNai4Vibe('${model}')" class="bg-green-600 hover:bg-green-700 active:scale-95 text-white px-2 py-0.5 rounded text-[10px] font-medium shadow-sm transition-all">导出 .nai4vibe</button>
-                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportVibeBinary('${model}')" class="border border-green-600/50 hover:bg-green-100 dark:hover:bg-green-900/50 active:scale-95 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-medium transition-all">.vibe</button>
+                <div class="mt-2 flex items-center justify-between gap-2 text-[11px] bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 px-2.5 py-1.5 rounded-xl">
+                    <span class="studio-badge studio-badge--success inline-flex items-center gap-1 font-medium text-[10px]">${checkSvg}已载入编码 Token (出图免耗点)</span>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportNai4Vibe('${model}')" class="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 px-2 py-0.5 rounded-md text-[10px] font-medium shadow-sm transition-colors duration-150 cursor-pointer">导出 .nai4vibe</button>
+                        <button type="button" onclick="window.vibeManager && window.vibeManager.exportVibeBinary('${model}')" class="border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors duration-150 cursor-pointer">.vibe</button>
                     </div>
                 </div>`;
         }
@@ -1003,7 +1079,7 @@ export class VibeManager {
         }
 
         if (!token) {
-            if (typeof alert === 'function') alert("当前所选强度尚未进行官方编码，请先点击【立即编码】后再导出 .vibe 文件。");
+            notifyVibeMessage("当前所选强度尚未进行官方编码，请先点击【立即编码】后再导出 .vibe 文件。", { type: 'warning', useAlertModal: true });
             return;
         }
 
@@ -1029,7 +1105,7 @@ export class VibeManager {
             }
         } catch (e) {
             console.error("Export .vibe binary failed:", e);
-            if (typeof alert === 'function') alert("导出 .vibe 失败: " + e.message);
+            notifyVibeMessage("导出 .vibe 失败: " + e.message, { type: 'error', useAlertModal: true });
         }
     }
 
@@ -1045,7 +1121,7 @@ export class VibeManager {
 
         const encSection = this._getDocEncodingsSection();
         if (!this.currentVibeDoc || !this.currentVibeDoc.encodings || !encSection || Object.keys(encSection).length === 0) {
-            if (typeof alert === 'function') alert("当前尚未包含官方编码，请先点击【立即编码】后再导出 .nai4vibe 文件。");
+            notifyVibeMessage("当前尚未包含官方编码，请先点击【立即编码】后再导出 .nai4vibe 文件。", { type: 'warning', useAlertModal: true });
             return;
         }
 
@@ -1070,7 +1146,7 @@ export class VibeManager {
             }
         } catch (e) {
             console.error("Export .nai4vibe failed:", e);
-            if (typeof alert === 'function') alert("导出 .nai4vibe 失败: " + e.message);
+            notifyVibeMessage("导出 .nai4vibe 失败: " + e.message, { type: 'error', useAlertModal: true });
         }
     }
 

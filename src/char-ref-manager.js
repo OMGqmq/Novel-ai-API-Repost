@@ -1,3 +1,30 @@
+import { updateRangeProgress } from './ux-enhancements.js';
+import * as motionMod from './motion-controller.js';
+
+function getMotionController() {
+    return motionMod.motionController || (typeof window !== 'undefined' ? window.motionController : null);
+}
+
+function showControlBlock(el) {
+    if (!el) return;
+    const mc = getMotionController();
+    if (mc && typeof mc.enter === 'function') {
+        mc.enter(el);
+    } else {
+        el.classList.remove('hidden');
+    }
+}
+
+function hideControlBlock(el) {
+    if (!el) return;
+    const mc = getMotionController();
+    if (mc && typeof mc.exit === 'function' && typeof el.getAnimations === 'function') {
+        mc.exit(el);
+    } else {
+        el.classList.add('hidden');
+    }
+}
+
 function processImageToPng(source) {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -164,12 +191,15 @@ export class CharRefManager {
             if (clearBtn) clearBtn.classList.remove('hidden');
 
             const controls = document.getElementById('charRefControls');
-            if (controls) controls.classList.remove('hidden');
+            showControlBlock(controls);
 
             if (savedStrength) {
                 const slider = document.getElementById('charRefStrength');
                 if (slider) {
                     slider.value = savedStrength;
+                    if (slider.style && typeof slider.style.setProperty === 'function') {
+                        updateRangeProgress(slider);
+                    }
                     const valSpan = document.getElementById('charRefStrengthValue');
                     if (valSpan) valSpan.textContent = parseFloat(savedStrength).toFixed(2);
                 }
@@ -179,6 +209,9 @@ export class CharRefManager {
                 const slider = document.getElementById('charRefFidelity');
                 if (slider) {
                     slider.value = savedFidelity;
+                    if (slider.style && typeof slider.style.setProperty === 'function') {
+                        updateRangeProgress(slider);
+                    }
                     const valSpan = document.getElementById('charRefFidelityValue');
                     if (valSpan) valSpan.textContent = parseFloat(savedFidelity).toFixed(2);
                 }
@@ -218,7 +251,7 @@ export class CharRefManager {
         if (clearBtn) clearBtn.classList.add('hidden');
 
         const controls = document.getElementById('charRefControls');
-        if (controls) controls.classList.add('hidden');
+        hideControlBlock(controls);
     }
 
     async handleCharRefImage(event, model) {
@@ -233,7 +266,7 @@ export class CharRefManager {
 
             if (placeholder) placeholder.classList.add('hidden');
             if (clearBtn) clearBtn.classList.remove('hidden');
-            if (controls) controls.classList.remove('hidden');
+            showControlBlock(controls);
 
             const pngDataUrl = await processImageToPng(file);
             this.currentCharRefImageBase64 = pngDataUrl.split(',')[1];
@@ -253,10 +286,12 @@ export class CharRefManager {
     toggleCharRefEnabled(model) {
         const enabledCheckbox = document.getElementById('charRefEnabled');
         const isEnabled = enabledCheckbox ? enabledCheckbox.checked : false;
+        enabledCheckbox?.setAttribute?.('aria-checked', isEnabled ? 'true' : 'false');
         const container = document.getElementById('charRefImagePreviewContainer');
         const clearBtn = document.getElementById('clearCharRefImageBtn');
 
         if (container) {
+            container.classList.add('transition-opacity', 'duration-200');
             if (isEnabled) {
                 container.classList.remove('opacity-50', 'pointer-events-none');
                 if (clearBtn && this.currentCharRefImageBase64) clearBtn.classList.remove('hidden');
@@ -278,25 +313,41 @@ export class CharRefManager {
         const fidelitySlider = document.getElementById('charRefFidelity');
         const fidelityValSpan = document.getElementById('charRefFidelityValue');
         if (fidelitySlider) {
-            fidelitySlider.replaceWith(fidelitySlider.cloneNode(true));
-            const newFidelitySlider = document.getElementById('charRefFidelity');
-            newFidelitySlider.addEventListener('input', (e) => {
+            if (fidelitySlider._charRefInputHandler && typeof fidelitySlider.removeEventListener === 'function') {
+                fidelitySlider.removeEventListener('input', fidelitySlider._charRefInputHandler);
+            }
+            fidelitySlider._charRefInputHandler = (e) => {
                 if (fidelityValSpan) fidelityValSpan.textContent = parseFloat(e.target.value).toFixed(2);
+                if (fidelitySlider.style && typeof fidelitySlider.style.setProperty === 'function') {
+                    updateRangeProgress(fidelitySlider);
+                }
                 this.store.setSetting(this.getCharRefKey('nai_char_ref_fidelity', model), e.target.value);
-            });
-            if (fidelityValSpan) fidelityValSpan.textContent = parseFloat(newFidelitySlider.value).toFixed(2);
+            };
+            fidelitySlider.addEventListener('input', fidelitySlider._charRefInputHandler);
+            if (fidelityValSpan) fidelityValSpan.textContent = parseFloat(fidelitySlider.value).toFixed(2);
+            if (fidelitySlider.style && typeof fidelitySlider.style.setProperty === 'function') {
+                updateRangeProgress(fidelitySlider);
+            }
         }
 
         const strengthSlider = document.getElementById('charRefStrength');
         const strengthValSpan = document.getElementById('charRefStrengthValue');
         if (strengthSlider) {
-            strengthSlider.replaceWith(strengthSlider.cloneNode(true));
-            const newStrengthSlider = document.getElementById('charRefStrength');
-            newStrengthSlider.addEventListener('input', (e) => {
+            if (strengthSlider._charRefInputHandler && typeof strengthSlider.removeEventListener === 'function') {
+                strengthSlider.removeEventListener('input', strengthSlider._charRefInputHandler);
+            }
+            strengthSlider._charRefInputHandler = (e) => {
                 if (strengthValSpan) strengthValSpan.textContent = parseFloat(e.target.value).toFixed(2);
+                if (strengthSlider.style && typeof strengthSlider.style.setProperty === 'function') {
+                    updateRangeProgress(strengthSlider);
+                }
                 this.store.setSetting(this.getCharRefKey('nai_char_ref_strength', model), e.target.value);
-            });
-            if (strengthValSpan) strengthValSpan.textContent = parseFloat(newStrengthSlider.value).toFixed(2);
+            };
+            strengthSlider.addEventListener('input', strengthSlider._charRefInputHandler);
+            if (strengthValSpan) strengthValSpan.textContent = parseFloat(strengthSlider.value).toFixed(2);
+            if (strengthSlider.style && typeof strengthSlider.style.setProperty === 'function') {
+                updateRangeProgress(strengthSlider);
+            }
         }
     }
 

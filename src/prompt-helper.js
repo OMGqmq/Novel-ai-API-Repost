@@ -1,3 +1,40 @@
+import * as motionMod from './motion-controller.js';
+
+function getMotionController() {
+    return motionMod.motionController || (typeof window !== 'undefined' ? window.motionController : null);
+}
+
+function showSuggestPanel(el) {
+    if (!el) return;
+    const mc = getMotionController();
+    if (mc && typeof mc.enter === 'function') {
+        mc.enter(el);
+    } else {
+        el.classList.remove('hidden');
+    }
+}
+
+function hideSuggestPanel(el, { immediate = false } = {}) {
+    if (!el) return;
+    if (!immediate) {
+        const mc = getMotionController();
+        if (mc && typeof mc.exit === 'function' && typeof el.getAnimations === 'function') {
+            mc.exit(el);
+            return;
+        }
+    }
+    el.classList.add('hidden');
+}
+
+function isAccordionSupported(el) {
+    const body = el && typeof el.querySelector === 'function' ? el.querySelector('.studio-accordion-body') : null;
+    return Boolean(
+        body &&
+        typeof getComputedStyle === 'function' &&
+        getComputedStyle(body)?.display === 'grid'
+    );
+}
+
 /**
  * Prompt Helper Module
  * Encapsulates prompt tag analysis, weights, autocomplete suggestions, translations, and tag search.
@@ -12,15 +49,15 @@ function debounce(func, wait) {
 }
 
 const CATEGORY_COLORS = {
-    clothing: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/20 dark:text-green-400 dark:border-green-900/30',
-    action: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30',
-    nsfw: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30',
-    style: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30',
-    object: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30',
-    character: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
-    lighting: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/20 dark:text-yellow-400 dark:border-yellow-900/30',
-    perspective: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/30',
-    composition: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30'
+    clothing: 'studio-badge bg-emerald-50/75 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800/40',
+    action: 'studio-badge studio-badge--warning',
+    nsfw: 'studio-badge studio-badge--danger',
+    style: 'studio-badge studio-badge--neutral',
+    object: 'studio-badge studio-badge--neutral',
+    character: 'studio-badge studio-badge--neutral',
+    lighting: 'studio-badge bg-amber-50/75 text-amber-700 border-amber-200/80 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800/40',
+    perspective: 'studio-badge studio-badge--neutral',
+    composition: 'studio-badge studio-badge--neutral'
 };
 
 const CATEGORY_NAMES_CN = {
@@ -154,9 +191,9 @@ export class PromptHelper {
 
         this.suggestPanel = document.createElement('div');
         this.suggestPanel.id = 'tagSuggestPanel';
-        this.suggestPanel.className = 'hidden bg-gray-50/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl p-3 border border-gray-200/50 dark:border-slate-700/50 shadow-sm';
+        this.suggestPanel.className = 'hidden studio-card bg-slate-50/90 dark:bg-slate-800/85 backdrop-blur-md rounded-xl p-3 border border-slate-200/70 dark:border-slate-700/60 shadow-sm';
         this.suggestPanel.innerHTML = `
-            <div class="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-1 mb-2 flex items-center justify-between select-none">
+            <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest px-1 mb-2 flex items-center justify-between select-none">
                 <span>联想推荐 (Suggestions)</span>
                 <span class="text-[9px] lowercase font-normal">点击填入</span>
             </div>
@@ -165,18 +202,22 @@ export class PromptHelper {
 
         this.translatePanel = document.createElement('div');
         this.translatePanel.id = 'tagTranslatePanel';
-        this.translatePanel.className = 'bg-gray-50/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-sm overflow-hidden';
+        this.translatePanel.className = 'studio-card bg-slate-50/90 dark:bg-slate-800/85 backdrop-blur-md rounded-xl border border-slate-200/70 dark:border-slate-700/60 shadow-sm overflow-hidden';
         this.translatePanel.innerHTML = `
-            <button id="tagTranslateToggle" type="button" class="w-full px-3 py-2 flex items-center justify-between text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest hover:bg-gray-100/50 dark:hover:bg-slate-700/30 transition-colors select-none">
+            <button id="tagTranslateToggle" type="button" aria-expanded="${this.isTranslationExpanded ? 'true' : 'false'}" class="w-full px-3 py-2 flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hover:bg-slate-100/70 dark:hover:bg-slate-700/30 transition-colors duration-150 select-none cursor-pointer">
                 <span class="flex items-center gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 pointer-events-none" aria-hidden="true"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
-                    实时翻译 (Translation) <span id="translateCount" class="ml-1 text-[9px] bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-1.5 py-0.5 rounded-full">0</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 pointer-events-none" aria-hidden="true"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+                    实时翻译 (Translation) <span id="translateCount" class="ml-1 text-[9px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-1.5 py-0.5 rounded-full tabular-nums">0</span>
                 </span>
-                <svg id="translateToggleIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 transition-transform duration-200 text-gray-400 pointer-events-none ${this.isTranslationExpanded ? 'rotate-180' : ''}" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                <svg id="translateToggleIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 transition-transform duration-200 text-slate-400 pointer-events-none ${this.isTranslationExpanded ? 'rotate-180' : ''}" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </button>
-            <div id="tagTranslateContent" class="${this.isTranslationExpanded ? '' : 'hidden'} p-3 border-t border-gray-100 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/20">
-                <div id="tagTranslateList" class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scroll">
-                    <div class="text-xs text-gray-400 dark:text-slate-500 italic select-none">输入提示词以查看实时翻译...</div>
+            <div id="tagTranslateContent" class="${this.isTranslationExpanded ? 'is-open' : 'hidden'} studio-accordion">
+                <div class="studio-accordion-body">
+                    <div class="studio-accordion-inner p-3 border-t border-slate-200/70 dark:border-slate-700/50 bg-white/50 dark:bg-slate-900/20">
+                        <div id="tagTranslateList" class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scroll">
+                            <div class="text-xs text-slate-500 dark:text-slate-400 italic select-none">输入提示词以查看实时翻译...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -186,6 +227,9 @@ export class PromptHelper {
 
         this.suggestListEl = this.suggestPanel.querySelector('#tagSuggestList');
         this.translateContentEl = this.translatePanel.querySelector('#tagTranslateContent');
+        if (this.translateContentEl && isAccordionSupported(this.translateContentEl)) {
+            this.translateContentEl.classList.remove('hidden');
+        }
         this.translateListEl = this.translatePanel.querySelector('#tagTranslateList');
         this.translateCountEl = this.translatePanel.querySelector('#translateCount');
         this.translateToggleIcon = this.translatePanel.querySelector('#translateToggleIcon');
@@ -363,7 +407,7 @@ export class PromptHelper {
 
     detachSuggestPanel() {
         if (!this.suggestPanel) return;
-        this.suggestPanel.classList.add('hidden');
+        hideSuggestPanel(this.suggestPanel, { immediate: true });
         if (this.containerEl && this.suggestPanel.parentNode !== this.containerEl) {
             this.containerEl.insertBefore(this.suggestPanel, this.translatePanel || null);
         }
@@ -407,13 +451,22 @@ export class PromptHelper {
             toggleBtn.addEventListener('click', () => {
                 this.isTranslationExpanded = !this.isTranslationExpanded;
                 localStorage.setItem('nai_translation_expanded', this.isTranslationExpanded.toString());
-                
-                if (this.isTranslationExpanded) {
-                    this.translateContentEl.classList.remove('hidden');
-                    this.translateToggleIcon.classList.add('rotate-180');
-                } else {
-                    this.translateContentEl.classList.add('hidden');
-                    this.translateToggleIcon.classList.remove('rotate-180');
+                toggleBtn.setAttribute?.('aria-expanded', this.isTranslationExpanded ? 'true' : 'false');
+
+                if (this.translateContentEl) {
+                    if (isAccordionSupported(this.translateContentEl)) {
+                        this.translateContentEl.classList.remove('hidden');
+                        this.translateContentEl.classList.toggle('is-open', this.isTranslationExpanded);
+                    } else if (this.isTranslationExpanded) {
+                        this.translateContentEl.classList.remove('hidden');
+                        this.translateContentEl.classList.add('is-open');
+                    } else {
+                        this.translateContentEl.classList.add('hidden');
+                        this.translateContentEl.classList.remove('is-open');
+                    }
+                }
+                if (this.translateToggleIcon) {
+                    this.translateToggleIcon.classList.toggle('rotate-180', this.isTranslationExpanded);
                 }
             });
         }
@@ -441,7 +494,7 @@ export class PromptHelper {
             if (this.mainPromptEl) this.mainPromptEl._promptHelperBlurred = true;
             setTimeout(() => {
                 if (this.suggestPanel && this.activeSuggestEl === this.mainPromptEl && this.mainPromptEl?._promptHelperBlurred) {
-                    this.suggestPanel.classList.add('hidden');
+                    hideSuggestPanel(this.suggestPanel);
                 }
             }, 250);
         });
@@ -494,29 +547,30 @@ export class PromptHelper {
                 this.searchResultsEl.innerHTML = '';
                 if (topRes.length === 0) {
                     this.searchResultsEl.innerHTML = `
-                        <div class="text-center mt-20 text-xs text-gray-400 font-light tracking-wide flex flex-col items-center justify-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 opacity-40 pointer-events-none" aria-hidden="true"><path d="m13 13.5 2-2.5-2-2.5"/><path d="m21 21-4.3-4.3"/><path d="M9 8.5 7 11l2 2.5"/><circle cx="11" cy="11" r="8"/></svg>
+                        <div class="text-center mt-20 text-xs text-slate-500 dark:text-slate-400 font-light tracking-wide flex flex-col items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 opacity-50 pointer-events-none" aria-hidden="true"><path d="m13 13.5 2-2.5-2-2.5"/><path d="m21 21-4.3-4.3"/><path d="M9 8.5 7 11l2 2.5"/><circle cx="11" cy="11" r="8"/></svg>
                             <span>未找到匹配的提示词</span>
                         </div>
                     `;
                     return;
                 }
                 
-                topRes.forEach(([en, cn]) => {
+                topRes.forEach(([en, cn], idx) => {
                     const d = document.createElement('div');
-                    d.className = "p-3 hover:bg-gray-50 dark:hover:bg-slate-800/40 border-b border-gray-100 dark:border-gray-800/60 cursor-pointer transition-all flex items-center justify-between group";
+                    d.className = "studio-list-enter p-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 border-b border-slate-200/70 dark:border-slate-800/60 cursor-pointer transition-colors duration-150 flex items-center justify-between group";
+                    d.style?.setProperty?.('--sibling-index', String(Math.min(idx, 10)));
                     
                     const cat = this.tagCategoryMap[en.toLowerCase()] || 'object';
-                    const col = CATEGORY_COLORS[cat] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+                    const col = CATEGORY_COLORS[cat] || 'studio-badge studio-badge--neutral';
                     const cnName = CATEGORY_NAMES_CN[cat] || '物品';
                     const safeEn = String(en).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     const safeCn = String(cn).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    const badgeHtml = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold border transition-colors ${col}">${cnName}</span>`;
+                    const badgeHtml = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold border transition-colors duration-150 ${col}">${cnName}</span>`;
 
                     d.innerHTML = `
                         <div class="flex-1 min-w-0 pr-2">
-                            <div class="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono truncate group-hover:text-slate-900 dark:group-hover:text-white transition-colors">${safeEn}</div>
-                            <div class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">${safeCn}</div>
+                            <div class="text-sm font-medium text-slate-800 dark:text-slate-200 font-mono truncate group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-150">${safeEn}</div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">${safeCn}</div>
                         </div>
                         <div class="shrink-0 flex items-center gap-1.5">
                             ${badgeHtml}
@@ -574,14 +628,17 @@ export class PromptHelper {
     renderCategoryTabs(tabsEl) {
         if (!tabsEl) return;
         tabsEl.innerHTML = '';
+        tabsEl.classList?.add('studio-tabs');
         
         const allBtn = document.createElement('button');
         allBtn.type = 'button';
-        allBtn.className = `px-3 py-1 text-[10px] font-bold rounded-lg border transition-all shrink-0 ${
-            this.selectedSearchCategory === 'all' 
-            ? 'bg-gray-900 text-white border-transparent dark:bg-white dark:text-gray-900 shadow-sm' 
-            : 'bg-gray-50 border-gray-100 text-gray-500 hover:text-gray-900 dark:bg-slate-800 dark:border-slate-700/50 dark:text-slate-400 dark:hover:text-white'
+        const isAllSelected = this.selectedSearchCategory === 'all';
+        allBtn.className = `studio-tab px-3 py-1 text-[10px] font-bold rounded-lg border transition-[background-color,color,border-color] duration-150 cursor-pointer shrink-0 ${
+            isAllSelected
+            ? 'active bg-slate-900 text-white border-transparent dark:bg-white dark:text-slate-900 shadow-sm'
+            : 'bg-slate-50 border-slate-200/80 text-slate-500 hover:text-slate-900 dark:bg-slate-800/60 dark:border-slate-700/60 dark:text-slate-400 dark:hover:text-white'
         }`;
+        allBtn.setAttribute?.('aria-pressed', isAllSelected ? 'true' : 'false');
         allBtn.textContent = '全部';
         allBtn.onclick = () => this.setSearchCategory('all');
         tabsEl.appendChild(allBtn);
@@ -589,16 +646,14 @@ export class PromptHelper {
         Object.entries(CATEGORY_NAMES_CN).forEach(([key, cnName]) => {
             const btn = document.createElement('button');
             btn.type = 'button';
+            const isSelected = this.selectedSearchCategory === key;
             
-            let btnClass = 'px-3 py-1 text-[10px] font-semibold rounded-lg border transition-all shrink-0 ';
-            if (this.selectedSearchCategory === key) {
-                const col = CATEGORY_COLORS[key];
-                btnClass += `${col} border-transparent shadow-sm ring-1 ring-offset-1 ring-gray-200 dark:ring-slate-800`;
-            } else {
-                btnClass += 'bg-gray-50 border-gray-100 text-gray-400 hover:text-gray-700 dark:bg-slate-800/40 dark:border-slate-700/30 dark:text-slate-400 dark:hover:text-slate-300';
-            }
-            
-            btn.className = btnClass;
+            btn.className = `studio-tab px-3 py-1 text-[10px] font-semibold rounded-lg border transition-[background-color,color,border-color] duration-150 cursor-pointer shrink-0 ${
+                isSelected
+                ? 'active bg-slate-900 text-white border-transparent dark:bg-white dark:text-slate-900 shadow-sm'
+                : 'bg-slate-50 border-slate-200/80 text-slate-500 hover:text-slate-900 dark:bg-slate-800/60 dark:border-slate-700/60 dark:text-slate-400 dark:hover:text-white'
+            }`;
+            btn.setAttribute?.('aria-pressed', isSelected ? 'true' : 'false');
             btn.textContent = cnName;
             btn.onclick = () => this.setSearchCategory(key);
             tabsEl.appendChild(btn);
@@ -619,19 +674,19 @@ export class PromptHelper {
     renderCategoryGrid() {
         if (!this.searchResultsEl) return;
         this.searchResultsEl.innerHTML = `
-            <div class="px-3 py-2 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest select-none">按大类浏览常用词</div>
+            <div class="px-3 py-2 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest select-none">按大类浏览常用词</div>
             <div class="grid grid-cols-2 gap-2 p-2">
-                ${Object.entries(CATEGORY_NAMES_CN).map(([key, name]) => {
-                    const color = CATEGORY_COLORS[key];
+                ${Object.entries(CATEGORY_NAMES_CN).map(([key, name], idx) => {
+                    const color = CATEGORY_COLORS[key] || 'studio-badge studio-badge--neutral';
                     const tagCount = Object.keys(this.classifiedData[key] || {}).length;
                     return `
-                        <button type="button" onclick="window.selectSearchCategoryTab('${key}')"
-                            class="p-3.5 rounded-xl border text-left transition-all active:scale-95 hover:shadow-sm ${color} border-transparent flex flex-col justify-between h-20 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-                            <div class="font-bold text-xs flex justify-between items-center w-full">
+                        <button type="button" onclick="window.selectSearchCategoryTab('${key}')" style="--sibling-index: ${Math.min(idx, 10)}"
+                            class="studio-card studio-list-enter p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-700 text-slate-800 dark:text-slate-100 text-left transition-[transform,border-color,background-color] duration-150 cursor-pointer flex flex-col justify-between h-20">
+                            <div class="font-bold text-xs flex justify-between items-center w-full gap-1.5">
                                 <span>${name}</span>
-                                <span class="text-[9px] opacity-70 font-mono font-normal bg-white/50 dark:bg-slate-900/30 px-1.5 py-0.5 rounded-full">${tagCount}词</span>
+                                <span class="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded-full border ${color} tabular-nums shrink-0">${tagCount}词</span>
                             </div>
-                            <div class="text-[9px] opacity-60 mt-1 select-none pointer-events-none truncate">点击展开探索列表</div>
+                            <div class="text-[9px] text-slate-500 dark:text-slate-400 mt-1 select-none pointer-events-none truncate">点击展开探索列表</div>
                         </button>
                     `;
                 }).join('')}
@@ -672,7 +727,7 @@ export class PromptHelper {
             inputEl._promptHelperBlurred = true;
             setTimeout(() => {
                 if (this.suggestPanel && this.activeSuggestEl === inputEl && inputEl._promptHelperBlurred) {
-                    this.suggestPanel.classList.add('hidden');
+                    hideSuggestPanel(this.suggestPanel);
                 }
             }, 250);
         });
@@ -680,14 +735,14 @@ export class PromptHelper {
 
     updateSuggestions(targetEl = this.activeSuggestEl || this.mainPromptEl || this.promptEl) {
         if (!targetEl || targetEl._promptHelperBlurred || targetEl.isConnected === false) {
-            if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
+            hideSuggestPanel(this.suggestPanel);
             return;
         }
         const info = this.getActiveTagInfo(targetEl);
         const query = info.query.toLowerCase().trim();
 
         if (!query) {
-            if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
+            hideSuggestPanel(this.suggestPanel);
             return;
         }
 
@@ -701,7 +756,7 @@ export class PromptHelper {
         }
 
         if (matches.length === 0) {
-            if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
+            hideSuggestPanel(this.suggestPanel);
             return;
         }
 
@@ -728,20 +783,20 @@ export class PromptHelper {
             topMatches.forEach(({ en, cn }) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'px-3 py-1.5 text-xs bg-white dark:bg-slate-700/60 hover:bg-gray-100/80 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 rounded-lg text-gray-700 dark:text-gray-200 flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-left min-w-[120px] max-w-[240px] truncate';
+                btn.className = 'studio-card px-3 py-1.5 text-xs bg-white dark:bg-slate-800/80 hover:bg-slate-100/80 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 rounded-lg text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition-[background-color,border-color,color] duration-150 cursor-pointer shadow-sm text-left min-w-[120px] max-w-[240px] truncate';
                 
                 const cat = this.tagCategoryMap[en.toLowerCase()] || 'object';
-                const col = CATEGORY_COLORS[cat] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+                const col = CATEGORY_COLORS[cat] || 'studio-badge studio-badge--neutral';
                 const cnName = CATEGORY_NAMES_CN[cat] || '物品';
                 const safeEn = String(en).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 const safeCn = String(cn).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                const badgeHtml = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold border ${col} scale-90 origin-right shrink-0">${cnName}</span>`;
+                const badgeHtml = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold border ${col} shrink-0">${cnName}</span>`;
 
                 btn.innerHTML = `
                     <div class="flex items-center justify-between w-full gap-2 overflow-hidden">
-                        <span class="font-mono font-medium text-gray-900 dark:text-white truncate">${safeEn}</span>
+                        <span class="font-mono font-medium text-slate-900 dark:text-white truncate">${safeEn}</span>
                         <div class="flex items-center gap-1 shrink-0">
-                            <span class="text-[10px] text-gray-400 dark:text-slate-400 border-l border-gray-100 dark:border-slate-600/85 pl-1.5 truncate max-w-[70px]">${safeCn}</span>
+                            <span class="text-[10px] text-slate-500 dark:text-slate-400 border-l border-slate-200 dark:border-slate-600/85 pl-1.5 truncate max-w-[70px]">${safeCn}</span>
                             ${badgeHtml}
                         </div>
                     </div>
@@ -757,7 +812,7 @@ export class PromptHelper {
             });
         }
 
-        if (this.suggestPanel) this.suggestPanel.classList.remove('hidden');
+        showSuggestPanel(this.suggestPanel);
     }
 
     selectSuggestion(suggestionEn, targetEl = this.activeSuggestEl || this.mainPromptEl || this.promptEl) {
@@ -788,7 +843,7 @@ export class PromptHelper {
         textarea.focus();
         textarea.setSelectionRange(newCursorPos, newCursorPos);
         
-        if (this.suggestPanel) this.suggestPanel.classList.add('hidden');
+        hideSuggestPanel(this.suggestPanel, { immediate: true });
         if (textarea === (this.mainPromptEl || this.promptEl)) {
             this.updateTranslations();
         }
@@ -799,7 +854,7 @@ export class PromptHelper {
         if (!targetEl || !this.translateListEl || !this.translateCountEl) return;
         const text = targetEl.value;
         if (!text.trim()) {
-            this.translateListEl.innerHTML = '<div class="text-xs text-gray-400 dark:text-slate-500 italic select-none">输入提示词以查看实时翻译...</div>';
+            this.translateListEl.innerHTML = '<div class="text-xs text-slate-500 dark:text-slate-400 italic select-none">输入提示词以查看实时翻译...</div>';
             this.translateCountEl.textContent = '0';
             return;
         }
@@ -826,7 +881,7 @@ export class PromptHelper {
         this.translateCountEl.textContent = translatedItems.length.toString();
 
         if (translatedItems.length === 0) {
-            this.translateListEl.innerHTML = '<div class="text-xs text-gray-400 dark:text-slate-500 italic select-none">未找到匹配的词汇翻译。</div>';
+            this.translateListEl.innerHTML = '<div class="text-xs text-slate-500 dark:text-slate-400 italic select-none">未找到匹配的词汇翻译。</div>';
             return;
         }
 
@@ -836,25 +891,22 @@ export class PromptHelper {
             
             const weight = this.calculateWeight(item.raw);
             let weightBadgeHtml = '';
-            let badgeClass = 'px-2.5 py-1 text-xs bg-white dark:bg-slate-800/40 border border-gray-100 dark:border-slate-700/60 rounded-lg text-gray-700 dark:text-gray-300 flex items-center gap-1.5 shadow-sm select-none';
+            const badgeClass = 'px-2.5 py-1 text-xs bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 rounded-lg text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shadow-sm select-none';
             
             if (weight < 0) {
-                badgeClass = 'px-2.5 py-1 text-xs bg-red-50/50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-900/40 rounded-lg text-red-800 dark:text-red-300 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-red-100 dark:bg-red-950/50 px-1.5 py-0.5 rounded font-bold font-mono">${weight.toFixed(2)}</span>`;
+                weightBadgeHtml = `<span class="studio-badge studio-badge--danger text-[9px] px-1.5 py-0.5 rounded font-bold font-mono tabular-nums">${weight.toFixed(2)}</span>`;
             } else if (weight > 1.01) {
-                badgeClass = 'px-2.5 py-1 text-xs bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-lg text-amber-800 dark:text-amber-300 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.5 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
+                weightBadgeHtml = `<span class="studio-badge studio-badge--warning text-[9px] px-1.5 py-0.5 rounded font-bold font-mono tabular-nums">x${weight.toFixed(2)}</span>`;
             } else if (weight < 0.99) {
-                badgeClass = 'px-2.5 py-1 text-xs bg-blue-50/50 dark:bg-slate-800/60 border border-blue-200/50 dark:border-slate-700/60 rounded-lg text-blue-800 dark:text-slate-400 flex items-center gap-1.5 shadow-sm select-none';
-                weightBadgeHtml = `<span class="text-[9px] bg-blue-100 dark:bg-blue-950/50 px-1.5 py-0.5 rounded font-bold font-mono">x${weight.toFixed(2)}</span>`;
+                weightBadgeHtml = `<span class="studio-badge studio-badge--neutral text-[9px] px-1.5 py-0.5 rounded font-bold font-mono tabular-nums">x${weight.toFixed(2)}</span>`;
             }
 
             const safeClean = String(item.clean).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             const safeCn = String(item.cn).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             badge.className = badgeClass;
             badge.innerHTML = `
-                <span class="font-mono text-gray-500 dark:text-gray-400">${safeClean}</span>
-                <span class="text-gray-400 dark:text-slate-600">➔</span>
+                <span class="font-mono text-slate-600 dark:text-slate-300">${safeClean}</span>
+                <span class="text-slate-400 dark:text-slate-500">➔</span>
                 <span class="font-medium">${safeCn}</span>
                 ${weightBadgeHtml}
             `;
