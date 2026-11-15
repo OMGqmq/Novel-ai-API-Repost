@@ -1,8 +1,12 @@
 /**
  * Motion Controller Module
  * Manages compositor-accelerated entrance animations, responsive desktop/mobile branching,
- * and 2-tier absolute state cleanup (animationend aggregation + 1300ms fallback safety timer).
+ * 2-tier absolute state cleanup (animationend aggregation + 1300ms fallback safety timer),
+ * and shared Node-safe reduced-motion / top-layer enter-exit / stagger / view-transition helpers.
  */
+
+const _motionTokens = new WeakMap();
+const _activeExits = new WeakMap();
 
 function safeQuerySelector(selector, context = typeof document !== 'undefined' ? document : null) {
     try {
@@ -26,6 +30,37 @@ function safeGetElementById(id) {
     return null;
 }
 
+function splitClasses(cls) {
+    if (!cls) return [];
+    if (Array.isArray(cls)) return cls.flatMap(splitClasses);
+    return String(cls).trim().split(/\s+/).filter(Boolean);
+}
+
+function applyClasses(el, cls, method) {
+    if (!el || !el.classList || typeof el.classList[method] !== 'function') return;
+    for (const token of splitClasses(cls)) {
+        try {
+            el.classList[method](token);
+        } catch (_) {}
+    }
+}
+
+function focusTargetElement(focusTarget) {
+    if (!focusTarget) return;
+    try {
+        const target = typeof focusTarget === 'string'
+            ? safeQuerySelector(focusTarget)
+            : focusTarget;
+        if (target && typeof target.focus === 'function') {
+            try {
+                target.focus({ preventScroll: true });
+            } catch (_) {
+                target.focus();
+            }
+        }
+    } catch (_) {}
+}
+
 export class MotionController {
     /**
      * @param {Object} [options]
@@ -37,6 +72,304 @@ export class MotionController {
         this.timeoutId = null;
         this.trackedElements = [];
         this.onAnimEndHandler = null;
+        this._canTransitionDisplay = null;
+    }
+
+    /**
+     * Returns true when reduced motion is active via system preference or low-perf mode.
+     * Safe in Node/SSR and sandboxed contexts where localStorage or matchMedia may throw.
+     * @returns {boolean}
+     */
+    prefersReducedMotion() {
+        let isReducedMotion = false;
+        try {
+            if (typeof window !== 'undefined' && window.matchMedia) {
+                isReducedMotion = !!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            }
+        } catch (_) {
+            isReducedMotion = false;
+        }
+
+        let isLowPerf = false;
+        try {
+            const hasLowPerfClass = typeof document !== 'undefined' &&
+                !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('low-perf'));
+            const hasLowPerfStorage = typeof localStorage !== 'undefined' &&
+                (localStorage.getItem('settings_low_perf') === 'true' || localStorage.getItem('nai_low_perf') === 'true');
+            isLowPerf = !!(hasLowPerfClass || hasLowPerfStorage);
+        } catch (_) {
+            isLowPerf = false;
+        }
+
+        return isReducedMotion || isLowPerf;
+    }
+
+    /**
+     * Cached runtime probe for discrete display / overlay transition support
+     * (avoids relying on display animation when Firefox bug 1882408 / missing overlay applies).
+     * Never reads layout geometry properties.
+     * @returns {boolean}
+     */
+    canTransitionDisplay() {
+        if (this._canTransitionDisplay !== null) {
+            return this._canTransitionDisplay;
+        }
+        if (typeof document === 'undefined' || typeof window === 'undefined' || !document.body) {
+            return false;
+        }
+
+        let supported = false;
+        let probe = null;
+        try {
+            const hasCssSupports = typeof CSS !== 'undefined' && typeof CSS.supports === 'function';
+            const supportsAllowDiscrete = hasCssSupports && CSS.supports('transition-behavior', 'allow-discrete');
+            const supportsOverlay = hasCssSupports && CSS.supports('overlay', 'auto');
+
+            if (supportsAllowDiscrete && supportsOverlay && typeof document.createElement === 'function') {
+                probe = document.createElement('div');
+                probe.setAttribute('aria-hidden', 'true');
+                probe.style.position = 'fixed';
+                probe.style.pointerEvents = 'none';
+                probe.style.opacity = '0';
+                probe.style.display = 'none';
+                probe.style.transitionProperty = 'opacity, display, overlay';
+                probe.style.transitionDuration = '10ms';
+                probe.style.transitionBehavior = 'allow-discrete';
+                document.body.appendChild(probe);
+
+                const computed = typeof window.getComputedStyle === 'function'
+                    ? window.getComputedStyle(probe)
+                    : null;
+                supported = !computed || computed.transitionBehavior === 'allow-discrete';
+            }
+        } catch (_) {
+            supported = false;
+        } finally {
+            if (probe && probe.parentNode) {
+                try { probe.parentNode.removeChild(probe); } catch (_) {}
+            }
+        }
+
+        this._canTransitionDisplay = supported;
+        return supported;
+    }
+
+    _nextToken(el) {
+        if (!el || (typeof el !== 'object' && typeof el !== 'function')) return 0;
+        const next = (_motionTokens.get(el) || 0) + 1;
+        _motionTokens.set(el, next);
+        return next;
+    }
+
+    _cancelPendingExit(el) {
+        if (!el || (typeof el !== 'object' && typeof el !== 'function')) return;
+        const active = _activeExits.get(el);
+        if (active && active.timerId) {
+            try { clearTimeout(active.timerId); } catch (_) {}
+        }
+        _activeExits.delete(el);
+    }
+
+    /**
+     * Reveal an element cleanly, clearing any pending exit state and awaiting active animations.
+     * @param {Element|null} el
+     * @param {Object} [opts]
+     * @returns {Promise<Element|null>}
+     */
+    enter(el, { hiddenClass = 'hidden', openClass, activeClass, display, closingAttr = 'data-closing' } = {}) {
+        if (!el) return Promise.resolve(null);
+
+        this._nextToken(el);
+        this._cancelPendingExit(el);
+
+        try { el.removeAttribute?.(closingAttr); } catch (_) {}
+        if (display !== undefined && el.style) {
+            el.style.display = display;
+        }
+        if (hiddenClass) {
+            applyClasses(el, hiddenClass, 'remove');
+        }
+        if (openClass) {
+            applyClasses(el, openClass, 'add');
+        }
+        if (activeClass) {
+            applyClasses(el, activeClass, 'add');
+        }
+
+        if (this.prefersReducedMotion() || typeof el.getAnimations !== 'function') {
+            return Promise.resolve(el);
+        }
+
+        let animations = [];
+        try {
+            animations = el.getAnimations() || [];
+        } catch (_) {
+            animations = [];
+        }
+
+        if (!animations.length) {
+            return Promise.resolve(el);
+        }
+
+        return Promise.allSettled(animations.map(anim => anim?.finished).filter(Boolean)).then(() => el);
+    }
+
+    /**
+     * Hide an element with closing-state transitions, reduced-motion immediate completion,
+     * and race-safe cancellation when re-opened mid-exit.
+     * @param {Element|null} el
+     * @param {Object} [opts]
+     * @returns {Promise<Element|null>}
+     */
+    exit(el, {
+        closingAttr = 'data-closing',
+        hiddenClass = 'hidden',
+        openClass,
+        activeClass,
+        display,
+        timeoutMs = 320,
+        onFinish
+    } = {}) {
+        if (!el) return Promise.resolve(null);
+
+        const token = this._nextToken(el);
+        this._cancelPendingExit(el);
+
+        if (openClass) {
+            applyClasses(el, openClass, 'remove');
+        }
+        if (activeClass) {
+            applyClasses(el, activeClass, 'remove');
+        }
+
+        try { el.setAttribute?.(closingAttr, 'true'); } catch (_) {}
+
+        let finalized = false;
+        const finalize = () => {
+            if (finalized) return;
+            finalized = true;
+            const currentToken = (typeof el === 'object' || typeof el === 'function') ? _motionTokens.get(el) : token;
+            const active = (typeof el === 'object' || typeof el === 'function') ? _activeExits.get(el) : null;
+            if (active && active.timerId) {
+                try { clearTimeout(active.timerId); } catch (_) {}
+                _activeExits.delete(el);
+            }
+            if (currentToken !== token) return;
+
+            try { el.removeAttribute?.(closingAttr); } catch (_) {}
+            if (hiddenClass) {
+                applyClasses(el, hiddenClass, 'add');
+            }
+            if (display !== undefined && el.style) {
+                el.style.display = display;
+            }
+            if (typeof onFinish === 'function') {
+                onFinish(el);
+            }
+        };
+
+        let animations = [];
+        if (!this.prefersReducedMotion() && typeof el.getAnimations === 'function') {
+            try {
+                animations = el.getAnimations() || [];
+            } catch (_) {
+                animations = [];
+            }
+        }
+
+        if (this.prefersReducedMotion() || typeof el.getAnimations !== 'function' || animations.length === 0) {
+            finalize();
+            return Promise.resolve(el);
+        }
+
+        return new Promise((resolve) => {
+            const finishAndResolve = () => {
+                finalize();
+                resolve(el);
+            };
+            const timerId = setTimeout(finishAndResolve, timeoutMs);
+            if (typeof el === 'object' || typeof el === 'function') {
+                _activeExits.set(el, { timerId, token });
+            }
+            Promise.allSettled(animations.map(anim => anim?.finished).filter(Boolean))
+                .then(finishAndResolve, finishAndResolve);
+        });
+    }
+
+    /**
+     * Populates `--sibling-index` fallback custom properties when CSS `sibling-index()` is unsupported.
+     * @param {Element|null} container
+     * @param {string} [itemSelector=':scope > *']
+     * @param {number} [max=10]
+     */
+    setStaggerIndices(container, itemSelector = ':scope > *', max = 10) {
+        if (!container) return;
+
+        const supportsNativeSiblingIndex = typeof CSS !== 'undefined' &&
+            typeof CSS.supports === 'function' &&
+            CSS.supports('animation-delay', 'calc(sibling-index() * 0.1s)');
+        if (supportsNativeSiblingIndex) return;
+
+        let items = [];
+        try {
+            if (typeof container.querySelectorAll === 'function') {
+                items = Array.from(container.querySelectorAll(itemSelector));
+            } else if (container.children) {
+                items = Array.from(container.children);
+            }
+        } catch (_) {
+            if (itemSelector === ':scope > *' && container.children) {
+                items = Array.from(container.children);
+            }
+        }
+
+        items.forEach((item, index) => {
+            const clamped = Math.min(index, max);
+            try {
+                item?.style?.setProperty?.('--sibling-index', String(clamped));
+            } catch (_) {}
+        });
+    }
+
+    /**
+     * Executes a DOM update inside `document.startViewTransition` when permitted,
+     * restoring focus after completion.
+     * @param {Function} updateDom
+     * @param {Object} [opts]
+     * @returns {Promise<any>}
+     */
+    async withViewTransition(updateDom, { focusTarget } = {}) {
+        if (typeof updateDom !== 'function') {
+            focusTargetElement(focusTarget);
+            return undefined;
+        }
+
+        const canUseVT = !this.prefersReducedMotion() &&
+            typeof document !== 'undefined' &&
+            typeof document.startViewTransition === 'function';
+
+        if (!canUseVT) {
+            const result = await updateDom();
+            focusTargetElement(focusTarget);
+            return result;
+        }
+
+        try {
+            const vt = document.startViewTransition(() => updateDom());
+            if (vt && vt.finished && typeof vt.finished.then === 'function') {
+                try {
+                    await vt.finished;
+                } catch (_) {
+                    // Ignore aborted transitions (e.g., rapid successive updates)
+                }
+            }
+            focusTargetElement(focusTarget);
+            return vt;
+        } catch (_) {
+            const result = await updateDom();
+            focusTargetElement(focusTarget);
+            return result;
+        }
     }
 
     /**
@@ -54,22 +387,7 @@ export class MotionController {
 
         try {
             // 1. Accessibility & Low Performance checks
-            let isReducedMotion = false;
-            try {
-                isReducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-            } catch (e) {
-                isReducedMotion = false;
-            }
-
-            let isLowPerf = false;
-            try {
-                isLowPerf = !!((document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('low-perf')) ||
-                    (typeof localStorage !== 'undefined' && (localStorage.getItem('settings_low_perf') === 'true' || localStorage.getItem('nai_low_perf') === 'true')));
-            } catch (e) {
-                isLowPerf = false;
-            }
-
-            if (isReducedMotion || isLowPerf) {
+            if (this.prefersReducedMotion()) {
                 this.cleanup();
                 return;
             }
@@ -268,3 +586,5 @@ export class MotionController {
         }
     }
 }
+
+export const motionController = new MotionController();

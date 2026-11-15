@@ -3,6 +3,112 @@
     --anim-duration-base: 0.95s;
     color-scheme: light dark;
     interpolate-size: allow-keywords;
+
+    /* Motion Timing & Easing Contract */
+    --dur-micro: 140ms;
+    --dur-fast: 180ms;
+    --dur-panel: 240ms;
+    --dur-modal: 280ms;
+    --dur-exit-fast: 140ms;
+    --dur-exit: 200ms;
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+    /* Monochrome Studio Light Palette */
+    --surface-canvas: #f8fafc;
+    --surface-panel: rgba(255, 255, 255, 0.94);
+    --surface-elevated: rgba(255, 255, 255, 0.98);
+    --surface-subtle: #f1f5f9;
+    --surface-hover: rgba(15, 23, 42, 0.06);
+    --surface-scrim: rgba(2, 6, 23, 0.45);
+
+    --border-subtle: rgba(15, 23, 42, 0.14);
+    --border-strong: rgba(15, 23, 42, 0.3);
+    --border-focus: #0f172a;
+
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #475569;
+
+    --accent-primary: #0f172a;
+    --accent-primary-fg: #f8fafc;
+    --accent-soft: rgba(15, 23, 42, 0.08);
+
+    --status-success: #047857;
+    --status-success-bg: rgba(16, 185, 129, 0.12);
+    --status-warning: #b45309;
+    --status-warning-bg: rgba(245, 158, 11, 0.14);
+    --status-danger: #dc2626;
+    --status-danger-bg: rgba(239, 68, 68, 0.12);
+
+    --radius-control: 0.75rem;
+    --radius-card: 1rem;
+    --radius-panel: 1.5rem;
+    --radius-modal: 1.75rem;
+
+    --shadow-pill: 0 4px 16px -4px rgba(15, 23, 42, 0.1), 0 1px 4px rgba(15, 23, 42, 0.04);
+    --shadow-popover: 0 16px 36px -8px rgba(15, 23, 42, 0.16), 0 4px 12px -4px rgba(15, 23, 42, 0.06);
+    --shadow-modal: 0 24px 56px -12px rgba(15, 23, 42, 0.24), 0 8px 20px -4px rgba(15, 23, 42, 0.08);
+
+    --scrollbar-thumb: #64748b;
+    --scrollbar-track: transparent;
+}
+
+html {
+    color-scheme: light;
+}
+
+html:root:not(.dark) {
+    color-scheme: light;
+}
+
+html.dark {
+    color-scheme: dark;
+    --surface-canvas: #0f172a;
+    --surface-panel: rgba(15, 23, 42, 0.94);
+    --surface-elevated: rgba(30, 41, 59, 0.96);
+    --surface-subtle: #1e293b;
+    --surface-hover: rgba(248, 250, 252, 0.08);
+    --surface-scrim: rgba(2, 6, 23, 0.68);
+
+    --border-subtle: rgba(148, 163, 184, 0.24);
+    --border-strong: rgba(148, 163, 184, 0.48);
+    --border-focus: #f8fafc;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+
+    --accent-primary: #f8fafc;
+    --accent-primary-fg: #0f172a;
+    --accent-soft: rgba(248, 250, 252, 0.12);
+
+    --status-success: #34d399;
+    --status-success-bg: rgba(52, 211, 153, 0.16);
+    --status-warning: #fbbf24;
+    --status-warning-bg: rgba(251, 191, 36, 0.16);
+    --status-danger: #f87171;
+    --status-danger-bg: rgba(248, 113, 113, 0.18);
+
+    --shadow-pill: 0 6px 20px -4px rgba(0, 0, 0, 0.42);
+    --shadow-popover: 0 18px 40px -8px rgba(0, 0, 0, 0.58);
+    --shadow-modal: 0 28px 64px -12px rgba(0, 0, 0, 0.72);
+
+    --scrollbar-thumb: #94a3b8;
+    --scrollbar-track: transparent;
+}
+
+@supports (color: light-dark(white, black)) {
+    :root {
+        --surface-canvas: light-dark(#f8fafc, #0f172a);
+        --surface-subtle: light-dark(#f1f5f9, #1e293b);
+        --text-primary: light-dark(#0f172a, #f8fafc);
+        --text-secondary: light-dark(#334155, #cbd5e1);
+        --text-muted: light-dark(#475569, #94a3b8);
+        --border-focus: light-dark(#0f172a, #f8fafc);
+        --accent-primary: light-dark(#0f172a, #f8fafc);
+        --accent-primary-fg: light-dark(#f8fafc, #0f172a);
+    }
 }
 
 :root:has(> head > meta[name="color-scheme"][content="dark"]) {
@@ -13,17 +119,38 @@
     color-scheme: light;
 }
 
+@media (prefers-contrast: more) {
+    :root {
+        --surface-panel: #ffffff;
+        --surface-elevated: #ffffff;
+        --surface-subtle: #e2e8f0;
+        --border-subtle: #334155;
+        --border-strong: #0f172a;
+        --text-muted: #1e293b;
+    }
+    html.dark {
+        --surface-panel: #020617;
+        --surface-elevated: #0f172a;
+        --surface-subtle: #1e293b;
+        --border-subtle: #cbd5e1;
+        --border-strong: #f8fafc;
+        --text-muted: #e2e8f0;
+    }
+}
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-    background-color: #f8fafc;
-    background-image: radial-gradient(at 0% 0%, rgba(229, 231, 235, 0.5) 0px, transparent 50%), linear-gradient(to bottom right, #f9fafb, #f3f4f6);
+    background-color: var(--surface-canvas);
+    color: var(--text-primary);
+    background-image: radial-gradient(at 0% 0%, rgba(226, 232, 240, 0.48) 0px, transparent 50%), linear-gradient(to bottom right, #f8fafc, #f1f5f9);
     background-size: 100% 100%;
     background-attachment: fixed;
     overscroll-behavior: none;
 }
 
 html.dark body {
-    background-color: #0f172a;
+    background-color: var(--surface-canvas);
+    color: var(--text-primary);
     background-image: radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.5) 0px, transparent 50%), linear-gradient(to bottom right, #0f172a, #1e293b);
 }
 
@@ -32,14 +159,9 @@ button:disabled:active,
     transform: none !important;
 }
 
-:root {
-    --scrollbar-thumb: #64748b;
-    --scrollbar-track: transparent;
-}
-
-html.dark {
-    --scrollbar-thumb: #94a3b8;
-    --scrollbar-track: transparent;
+:is(button, a[href], select, textarea, input:not([type="checkbox"].sr-only.peer), [role="button"], [tabindex]):focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
 }
 
 h1, h2, h3, h4 {
@@ -111,16 +233,12 @@ p, .pretty-text {
 
 /* Visible keyboard focus ring & tactile spring feedback for custom pill role="switch" toggles */
 input[type="checkbox"].sr-only.peer:focus-visible + div {
-    outline: 2px solid #4f46e5;
+    outline: 2px solid var(--border-focus);
     outline-offset: 2px;
 }
 
-html.dark input[type="checkbox"].sr-only.peer:focus-visible + div {
-    outline-color: #818cf8;
-}
-
 input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
-    transition: transform 0.22s var(--ease-out-spring), background-color 0.18s ease, border-color 0.18s ease;
+    transition: transform var(--dur-fast) var(--ease-out-spring), background-color var(--dur-fast) var(--ease-in-out), border-color var(--dur-fast) var(--ease-in-out);
 }
 
 label:active input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
@@ -128,16 +246,261 @@ label:active input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
     --tw-scale-y: 0.94;
 }
 
+/* ==========================================================================
+   Monochrome Studio Shared UI & Motion Primitives
+   ========================================================================== */
+.studio-glass,
 .glass-panel {
-    background: rgba(255, 255, 255, 0.94);
+    background: var(--surface-panel);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    border: 1px solid var(--border-subtle);
 }
 
-html.dark .glass-panel {
-    background: rgba(30, 41, 59, 0.94);
-    border-color: rgba(255, 255, 255, 0.08);
+.studio-dialog-panel {
+    background: var(--surface-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-modal);
+    box-shadow: var(--shadow-modal);
+}
+
+.studio-card {
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-card);
+    transition: transform var(--dur-fast) var(--ease-out-spring), border-color var(--dur-fast) var(--ease-in-out), background-color var(--dur-fast) var(--ease-in-out);
+}
+
+.studio-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: var(--radius-control);
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+}
+
+.studio-tabs--vertical,
+.studio-tabs.flex-col {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.studio-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-block-size: 2rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: calc(var(--radius-control) - 0.125rem);
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-in-out), background-color var(--dur-fast) var(--ease-in-out), border-color var(--dur-fast) var(--ease-in-out);
+}
+
+.studio-tabs--vertical .studio-tab,
+.studio-tabs.flex-col .studio-tab {
+    justify-content: flex-start;
+    min-block-size: 2.375rem;
+}
+
+.studio-tab:hover {
+    color: var(--text-primary);
+    background: var(--surface-hover);
+}
+
+.studio-tab::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0.625rem;
+    inset-block-end: 2px;
+    height: 2px;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0;
+    transform: scaleX(0.4);
+    transition: opacity var(--dur-fast) var(--ease-in-out), transform var(--dur-fast) var(--ease-out-spring);
+    pointer-events: none;
+}
+
+.studio-tab:is(.active, .active-tab, [aria-selected="true"], [aria-pressed="true"]) {
+    background: var(--surface-elevated);
+    color: var(--text-primary);
+    border-color: var(--border-subtle);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.studio-tab:is(.active, .active-tab, [aria-selected="true"], [aria-pressed="true"])::after {
+    opacity: 1;
+    transform: scaleX(1);
+}
+
+.studio-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-block-size: 1.375rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+}
+
+.studio-badge--neutral {
+    background: var(--accent-soft);
+    color: var(--text-secondary);
+    border-color: var(--border-subtle);
+}
+
+.studio-badge--success {
+    background: var(--status-success-bg);
+    color: var(--status-success);
+    border-color: color-mix(in srgb, var(--status-success) 32%, transparent);
+}
+
+.studio-badge--warning {
+    background: var(--status-warning-bg);
+    color: var(--status-warning);
+    border-color: color-mix(in srgb, var(--status-warning) 35%, transparent);
+}
+
+.studio-badge--danger {
+    background: var(--status-danger-bg);
+    color: var(--status-danger);
+    border-color: color-mix(in srgb, var(--status-danger) 35%, transparent);
+}
+
+.studio-accordion[hidden],
+.studio-accordion.hidden {
+    display: none;
+}
+
+.studio-accordion-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows var(--dur-panel) var(--ease-out-spring), opacity var(--dur-fast) var(--ease-in-out);
+}
+
+.studio-accordion.is-open > .studio-accordion-body,
+.studio-accordion[data-open="true"] > .studio-accordion-body,
+.studio-accordion-body.is-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.studio-accordion[data-closing="true"] > .studio-accordion-body,
+.studio-accordion-body[data-closing="true"] {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.studio-accordion:has(> .studio-accordion-inner) {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows var(--dur-panel) var(--ease-out-spring), opacity var(--dur-fast) var(--ease-in-out);
+}
+
+.studio-accordion:has(> .studio-accordion-inner).is-open,
+.studio-accordion:has(> .studio-accordion-inner)[data-open="true"] {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.studio-accordion:has(> .studio-accordion-inner)[data-closing="true"] {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.studio-accordion-inner {
+    min-height: 0;
+    overflow: hidden;
+}
+
+@keyframes studioListEnter {
+    0% {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .studio-list-enter {
+        animation: studioListEnter var(--dur-panel) var(--ease-out-spring) both;
+        animation-delay: calc(min(var(--sibling-index, 0), 10) * 30ms);
+    }
+    @supports (animation-delay: calc(sibling-index() * 30ms)) {
+        .studio-list-enter {
+            animation-delay: calc(min(sibling-index(), 10) * 30ms);
+        }
+    }
+}
+
+.studio-hover-actions {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-fast) var(--ease-in-out), transform var(--dur-fast) var(--ease-out-spring);
+}
+
+:is(.studio-card, .group, .gallery-item):is(:hover, :focus-within) .studio-hover-actions,
+.studio-hover-actions:is(:hover, :focus-within) {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (hover: none) {
+    .studio-hover-actions {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+.studio-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 28px;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color var(--dur-micro) var(--ease-in-out), background-color var(--dur-micro) var(--ease-in-out), border-color var(--dur-micro) var(--ease-in-out), transform var(--dur-micro) var(--ease-out-spring);
+}
+
+.studio-icon-btn:hover {
+    color: var(--text-primary);
+    background: var(--surface-hover);
+}
+
+.studio-icon-btn:active:not(:disabled) {
+    transform: scale(0.94);
+}
+
+.studio-icon-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 #mobileControls {
@@ -149,20 +512,19 @@ html.dark .glass-panel {
     max-height: calc(100dvh - 56px);
     z-index: 40;
     transform: translateY(calc(100% - 64px));
-    transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+    transition: transform var(--dur-modal) var(--ease-out-spring);
+    border-top: 1px solid var(--border-subtle);
+    border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+}
+
+#mobileControls.is-interacting {
     will-change: transform;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-    border-radius: 24px 24px 0 0;
 }
 
 @media (max-width: 767px) {
     #mobileControls > .overflow-y-auto {
         padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
     }
-}
-
-html.dark #mobileControls {
-    border-top-color: rgba(255, 255, 255, 0.1);
 }
 
 #desktopSidebarExpandBtn {
@@ -174,11 +536,11 @@ html.dark #mobileControls {
         position: relative;
         height: 100%;
         max-height: none;
-        transform: none !important;
+        transform: translateX(0);
         z-index: 20;
         border-radius: 0;
         border-top: none;
-        transition: width 0.28s var(--ease-out-spring), min-width 0.28s var(--ease-out-spring), opacity 0.22s ease, border-color 0.2s ease;
+        transition: opacity var(--dur-fast) var(--ease-in-out), transform var(--dur-panel) var(--ease-out-spring), border-color var(--dur-fast) var(--ease-in-out);
     }
 
     #mobileControls.desktop-collapsed {
@@ -186,6 +548,7 @@ html.dark #mobileControls {
         min-width: 0 !important;
         flex-basis: 0 !important;
         opacity: 0;
+        transform: translateX(-12px);
         border-right-width: 0 !important;
         overflow: hidden !important;
         pointer-events: none !important;
@@ -205,7 +568,7 @@ html.dark #mobileControls {
 }
 
 #mobileBackdrop {
-    transition: opacity 0.4s ease;
+    transition: opacity var(--dur-modal) var(--ease-in-out);
 }
 
 #mobileBackdrop.hidden-backdrop {
@@ -215,28 +578,31 @@ html.dark #mobileControls {
 
 #floatingGenerateBtn {
     bottom: calc(4.45rem + env(safe-area-inset-bottom, 0px));
-    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, box-shadow 0.2s ease;
-    background: #0f172a;
+    transition: transform var(--dur-fast) var(--ease-out-spring), background-color var(--dur-fast) var(--ease-in-out), box-shadow var(--dur-fast) var(--ease-in-out);
+    background: var(--accent-primary);
+    color: var(--accent-primary-fg);
     box-shadow: 0 12px 26px -6px rgba(15, 23, 42, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
     z-index: 50;
 }
 
 html.dark #floatingGenerateBtn {
-    background: #f8fafc;
     box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(15, 23, 42, 0.08) inset;
 }
 
 #floatingGenerateBtn.is-generating {
-    background: #ef4444 !important;
+    background: var(--status-danger) !important;
     color: #ffffff !important;
 }
 
 #floatingGenerateBtn:active {
-    transform: scale(0.9);
+    transform: scale(0.92);
 }
 
 .drawer {
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform var(--dur-modal) var(--ease-out-spring);
+}
+
+.drawer.is-interacting {
     will-change: transform;
 }
 
@@ -249,26 +615,21 @@ html.dark #floatingGenerateBtn {
 }
 
 .art-input {
-    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid #e5e7eb;
+    transition: background-color var(--dur-fast) var(--ease-in-out), border-color var(--dur-fast) var(--ease-in-out), box-shadow var(--dur-fast) var(--ease-in-out);
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
 }
 
 .art-input:focus {
-    background: #fff;
-    border-color: #9ca3af;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    background: var(--surface-elevated);
+    border-color: var(--border-strong);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
 
-html.dark .art-input {
-    background: rgba(30, 41, 59, 0.6);
-    border-color: #334155;
-    color: #e2e8f0;
-}
-
-html.dark .art-input:focus {
-    background: #1e293b;
-    border-color: #64748b;
+.art-input:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
 }
 
 .switch-bg {
@@ -277,17 +638,12 @@ html.dark .art-input:focus {
     width: calc((100% - 8px) / 4);
     top: 4px;
     left: 4px;
-    background: white;
+    background: var(--surface-elevated);
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-    transition: transform 0.32s cubic-bezier(0.34, 1.25, 0.64, 1), background-color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+    transition: transform var(--dur-panel) var(--ease-out-spring), background-color var(--dur-fast) var(--ease-in-out);
     z-index: 0;
-    border: 1px solid rgba(0, 0, 0, 0.02);
-}
-
-html.dark .switch-bg {
-    background: #334155;
-    border-color: transparent;
+    border: 1px solid var(--border-subtle);
 }
 
 [data-model-toggle][data-model="v3"] .switch-bg {
@@ -307,18 +663,13 @@ html.dark .switch-bg {
 }
 
 .view-toggle {
-    background: rgba(243, 244, 246, 0.8);
-    border: 1px solid rgba(229, 231, 235, 0.8);
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
     border-radius: 99px;
     padding: 3px;
     display: flex;
     position: relative;
     width: 140px;
-}
-
-html.dark .view-toggle {
-    background: rgba(30, 41, 59, 0.8);
-    border-color: rgba(51, 65, 85, 0.8);
 }
 
 .view-toggle button {
@@ -328,21 +679,13 @@ html.dark .view-toggle {
     text-align: center;
     font-size: 11px;
     font-weight: 600;
-    color: #6b7280;
-    transition: color 0.2s;
+    color: var(--text-muted);
+    transition: color var(--dur-fast) var(--ease-in-out);
     padding: 4px 0;
 }
 
 .view-toggle button.active {
-    color: #111827;
-}
-
-html.dark .view-toggle button {
-    color: #94a3b8;
-}
-
-html.dark .view-toggle button.active {
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .view-toggle-bg {
@@ -351,29 +694,33 @@ html.dark .view-toggle button.active {
     bottom: 3px;
     left: 3px;
     width: calc(50% - 3px);
-    background: white;
+    background: var(--surface-elevated);
     border-radius: 99px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    transition: transform 0.32s cubic-bezier(0.34, 1.25, 0.64, 1), background-color 0.2s ease;
+    transition: transform var(--dur-panel) var(--ease-out-spring), background-color var(--dur-fast) var(--ease-in-out);
     z-index: 1;
-}
-
-html.dark .view-toggle-bg {
-    background: #475569;
 }
 
 .view-toggle[data-state="history"] .view-toggle-bg {
     transform: translateX(100%);
 }
 
-.loader {
+.loader,
+.studio-spinner {
     width: 20px;
     height: 20px;
-    border: 2px solid currentColor;
-    border-bottom-color: transparent;
-    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, currentColor 22%, transparent);
+    border-top-color: currentColor;
+    border-radius: 9999px;
     display: inline-block;
-    animation: rotation 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .loader,
+    .studio-spinner {
+        animation: rotation 0.8s linear infinite;
+    }
 }
 
 @keyframes rotation {
@@ -388,25 +735,39 @@ html.dark .view-toggle-bg {
 
 .img-transition {
     transition-property: opacity, transform;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-timing-function: var(--ease-in-out);
     transition-duration: 500ms;
 }
 
 #adminControls {
-    transition: max-height 0.28s var(--ease-out-spring), opacity 0.22s ease, margin 0.24s ease, padding 0.24s ease;
-    overflow: hidden;
+    transition: opacity var(--dur-panel) var(--ease-out-spring), transform var(--dur-panel) var(--ease-out-spring);
 }
 
-#adminControls.hidden {
-    max-height: 0;
+@supports (transition-behavior: allow-discrete) {
+    #adminControls {
+        transition-property: opacity, transform, display;
+        transition-behavior: allow-discrete;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    @starting-style {
+        #adminControls:not(.hidden) {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+    }
+}
+
+#adminControls[data-closing="true"] {
     opacity: 0;
-    margin: 0;
-    padding: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
 }
 
 #adminControls:not(.hidden) {
-    max-height: 200px;
     opacity: 1;
+    transform: translateY(0);
 }
 
 /* --- Main-Canvas Fused Inpaint & Monochrome Frosted-Glass SVG Controls --- */
@@ -431,8 +792,10 @@ html.dark .view-toggle-bg {
     align-items: center;
     justify-content: center;
     transform-origin: center center;
-    will-change: transform;
     touch-action: none;
+}
+.inpaint-canvas-stage.is-interacting {
+    will-change: transform;
 }
 #inpaintMaskCanvas {
     position: absolute;
@@ -446,7 +809,7 @@ html.dark .view-toggle-bg {
     z-index: 4;
     opacity: 0.56;
     filter: sepia(1) saturate(6.5) hue-rotate(188deg);
-    transition: opacity 0.2s ease;
+    transition: opacity var(--dur-fast) var(--ease-in-out);
     touch-action: none;
 }
 #inpaintMaskCanvas.mask-peek {
@@ -473,21 +836,16 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     gap: 2px;
     padding: 3px;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.88);
+    background: var(--surface-panel);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-    border: 1px solid rgba(226, 232, 240, 0.9);
-    box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.08);
-}
-.dark .canvas-tool-pill {
-    background: rgba(30, 41, 59, 0.88);
-    border-color: rgba(51, 65, 85, 0.85);
-    box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-pill);
 }
 .canvas-tool-sep {
     width: 1px;
     height: 14px;
-    background: rgba(148, 163, 184, 0.3);
+    background: var(--border-subtle);
     margin: 0 2px;
 }
 .canvas-icon-btn {
@@ -498,19 +856,13 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.88);
+    background: var(--surface-panel);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-    border: 1px solid rgba(226, 232, 240, 0.9);
-    color: #475569;
-    box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.08);
-    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
-}
-.dark .canvas-icon-btn {
-    background: rgba(30, 41, 59, 0.88);
-    border-color: rgba(51, 65, 85, 0.85);
-    color: #cbd5e1;
-    box-shadow: 0 6px 18px -4px rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    box-shadow: var(--shadow-pill);
+    transition: background-color var(--dur-fast) var(--ease-in-out), color var(--dur-fast) var(--ease-in-out), border-color var(--dur-fast) var(--ease-in-out), transform var(--dur-micro) var(--ease-out-spring);
 }
 .canvas-pill-btn {
     position: relative;
@@ -520,45 +872,26 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #475569;
+    color: var(--text-muted);
     background: transparent;
-    transition: background-color 0.18s ease, color 0.18s ease, transform 0.15s ease;
+    transition: background-color var(--dur-fast) var(--ease-in-out), color var(--dur-fast) var(--ease-in-out), transform var(--dur-micro) var(--ease-out-spring);
     cursor: pointer;
-}
-.dark .canvas-pill-btn {
-    color: #cbd5e1;
 }
 .canvas-icon-btn:not(:disabled):hover,
 .canvas-pill-btn:hover {
-    color: #0f172a;
-    background: rgba(241, 245, 249, 0.96);
-}
-.dark .canvas-icon-btn:not(:disabled):hover,
-.dark .canvas-pill-btn:hover {
-    color: #ffffff;
-    background: rgba(51, 65, 85, 0.85);
+    color: var(--text-primary);
+    background: var(--surface-hover);
 }
 .canvas-icon-btn.danger-hover:not(:disabled):hover {
-    color: #ef4444;
-    background: rgba(254, 242, 242, 0.95);
-    border-color: rgba(252, 165, 165, 0.6);
-}
-.dark .canvas-icon-btn.danger-hover:not(:disabled):hover {
-    color: #f87171;
-    background: rgba(127, 29, 29, 0.32);
-    border-color: rgba(248, 113, 113, 0.35);
+    color: var(--status-danger);
+    background: var(--status-danger-bg);
+    border-color: color-mix(in srgb, var(--status-danger) 40%, transparent);
 }
 .canvas-pill-btn.inpaint-toggle-active,
 .canvas-pill-btn.toolbox-open {
-    background: #0f172a !important;
-    color: #ffffff !important;
+    background: var(--accent-primary) !important;
+    color: var(--accent-primary-fg) !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
-}
-.dark .canvas-pill-btn.inpaint-toggle-active,
-.dark .canvas-pill-btn.toolbox-open {
-    background: #f8fafc !important;
-    color: #0f172a !important;
-    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.18);
 }
 
 /* Pure-SVG Toolbox Popover Bar */
@@ -568,20 +901,20 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     align-items: center;
     gap: 4px;
     padding: 5px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.94);
+    border-radius: var(--radius-card);
+    background: var(--surface-panel);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    box-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.16), 0 4px 12px -4px rgba(15, 23, 42, 0.06);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-popover);
     z-index: 60;
     transform-origin: top right;
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.95) translateY(-4px);
     pointer-events: none;
     transition-property: opacity, transform;
-    transition-duration: 0.18s;
-    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    transition-duration: var(--dur-fast);
+    transition-timing-function: var(--ease-out-spring);
 }
 .toolbox-icon-dock:not([popover]) {
     position: absolute;
@@ -592,8 +925,14 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
 .toolbox-icon-dock[popover]:is(:popover-open, .\:popover-open) {
     display: flex;
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
     pointer-events: auto;
+}
+.toolbox-icon-dock[data-closing="true"],
+.toolbox-icon-dock[data-closing] {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+    pointer-events: none;
 }
 @supports not selector(:popover-open) {
     .toolbox-icon-dock {
@@ -604,7 +943,7 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     .toolbox-icon-dock.toolbox-open {
         display: flex;
         opacity: 1;
-        transform: scale(1);
+        transform: scale(1) translateY(0);
         pointer-events: auto;
     }
 }
@@ -621,26 +960,21 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
         position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
     }
 }
+@supports (transition-behavior: allow-discrete) and (overlay: auto) {
+    .toolbox-icon-dock[popover] {
+        transition-property: opacity, transform, display, overlay;
+        transition-behavior: allow-discrete;
+    }
+}
 @media (prefers-reduced-motion: no-preference) {
     @supports (transition-behavior: allow-discrete) {
-        .toolbox-icon-dock[popover],
-        #vibeExportMenu[popover] {
-            transition-property: opacity, transform, display, overlay;
-            transition-behavior: allow-discrete;
-        }
         @starting-style {
-            .toolbox-icon-dock[popover]:is(:popover-open, .\:popover-open),
-            #vibeExportMenu[popover]:is(:popover-open, .\:popover-open) {
+            .toolbox-icon-dock[popover]:is(:popover-open, .\:popover-open) {
                 opacity: 0;
                 transform: scale(0.95) translateY(-4px);
             }
         }
     }
-}
-.dark .toolbox-icon-dock {
-    background: rgba(15, 23, 42, 0.94);
-    border-color: rgba(51, 65, 85, 0.9);
-    box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.55);
 }
 .toolbox-svg-btn {
     position: relative;
@@ -650,22 +984,15 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #475569;
+    color: var(--text-muted);
     background: transparent;
-    transition: background-color 0.16s ease, color 0.16s ease, transform 0.14s ease;
+    transition: background-color var(--dur-fast) var(--ease-in-out), color var(--dur-fast) var(--ease-in-out), transform var(--dur-micro) var(--ease-out-spring);
     cursor: pointer;
 }
-.dark .toolbox-svg-btn {
-    color: #cbd5e1;
-}
 .toolbox-svg-btn:hover {
-    background: #0f172a;
-    color: #ffffff;
+    background: var(--accent-primary);
+    color: var(--accent-primary-fg);
     transform: translateY(-1px);
-}
-.dark .toolbox-svg-btn:hover {
-    background: #f8fafc;
-    color: #0f172a;
 }
 .toolbox-svg-btn:active {
     transform: scale(0.93);
@@ -680,21 +1007,14 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
+    color: var(--text-muted);
     background: transparent;
-    transition: background-color 0.16s ease, color 0.16s ease, transform 0.14s ease;
+    transition: background-color var(--dur-fast) var(--ease-in-out), color var(--dur-fast) var(--ease-in-out), transform var(--dur-micro) var(--ease-out-spring);
     cursor: pointer;
 }
-.dark .prompt-mini-svg-btn {
-    color: #94a3b8;
-}
 .prompt-mini-svg-btn:hover {
-    background: rgba(15, 23, 42, 0.06);
-    color: #0f172a;
-}
-.dark .prompt-mini-svg-btn:hover {
-    background: rgba(255, 255, 255, 0.09);
-    color: #f8fafc;
+    background: var(--surface-hover);
+    color: var(--text-primary);
 }
 .prompt-mini-svg-btn:active {
     transform: scale(0.92);
@@ -732,7 +1052,13 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     background: transparent;
     pointer-events: none;
     max-width: calc(100% - 24px);
-    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s ease;
+    transition: opacity var(--dur-exit) var(--ease-out-spring), transform var(--dur-panel) var(--ease-out-spring), visibility var(--dur-exit) var(--ease-in-out);
+}
+@supports (transition-behavior: allow-discrete) {
+    #inpaintModal.inpaint-dock-host {
+        transition-property: opacity, transform, visibility, display;
+        transition-behavior: allow-discrete;
+    }
 }
 #inpaintModal.modal-visible {
     opacity: 1;
@@ -744,6 +1070,21 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     pointer-events: none;
     visibility: hidden;
     transform: translateX(-50%) translateY(8px);
+}
+#inpaintModal[data-closing="true"],
+#inpaintModal[data-closing] {
+    opacity: 0;
+    visibility: visible;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(8px);
+}
+@media (prefers-reduced-motion: no-preference) {
+    @starting-style {
+        #inpaintModal.modal-visible {
+            opacity: 0;
+            transform: translateX(-50%) translateY(8px);
+        }
+    }
 }
 @media (max-width: 767px) {
     #inpaintModal.inpaint-dock-host {
@@ -757,8 +1098,18 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     #inpaintModal.modal-visible {
         transform: translateY(0);
     }
-    #inpaintModal.modal-hidden {
+    #inpaintModal.modal-hidden,
+    #inpaintModal[data-closing="true"],
+    #inpaintModal[data-closing] {
         transform: translateY(8px);
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        @starting-style {
+            #inpaintModal.modal-visible {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+        }
     }
 }
 .inpaint-dock-capsule {
@@ -772,12 +1123,12 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     scrollbar-width: none;
     -ms-overflow-style: none;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--surface-panel);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    color: #475569;
-    box-shadow: 0 18px 38px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    box-shadow: var(--shadow-popover);
 }
 .inpaint-dock-capsule::-webkit-scrollbar {
     display: none;
@@ -792,12 +1143,6 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
         height: 32px;
     }
 }
-.dark .inpaint-dock-capsule {
-    background: rgba(15, 23, 42, 0.92);
-    border-color: rgba(51, 65, 85, 0.9);
-    color: #cbd5e1;
-    box-shadow: 0 20px 44px -8px rgba(0, 0, 0, 0.6);
-}
 .inpaint-dock-btn {
     position: relative;
     width: 34px;
@@ -808,43 +1153,30 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     justify-content: center;
     color: inherit;
     background: transparent;
-    transition: background-color 0.16s ease, color 0.16s ease, transform 0.14s ease;
+    transition: background-color var(--dur-fast) var(--ease-in-out), color var(--dur-fast) var(--ease-in-out), transform var(--dur-micro) var(--ease-out-spring);
     cursor: pointer;
     flex-shrink: 0;
 }
 .inpaint-dock-btn:hover {
-    background: rgba(15, 23, 42, 0.07);
-    color: #0f172a;
-}
-.dark .inpaint-dock-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
+    background: var(--surface-hover);
+    color: var(--text-primary);
 }
 .inpaint-dock-btn:active {
     transform: scale(0.92);
 }
 .inpaint-dock-btn.tool-active {
-    background: #0f172a !important;
-    color: #ffffff !important;
+    background: var(--accent-primary) !important;
+    color: var(--accent-primary-fg) !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
 }
-.dark .inpaint-dock-btn.tool-active {
-    background: #f8fafc !important;
-    color: #0f172a !important;
-    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
-}
 .inpaint-dock-btn.inpaint-dock-close:hover {
-    background: rgba(239, 68, 68, 0.12);
-    color: #ef4444;
-}
-.dark .inpaint-dock-btn.inpaint-dock-close:hover {
-    background: rgba(248, 113, 113, 0.18);
-    color: #f87171;
+    background: var(--status-danger-bg);
+    color: var(--status-danger);
 }
 .inpaint-dock-sep {
     width: 1px;
     height: 16px;
-    background: rgba(148, 163, 184, 0.32);
+    background: var(--border-subtle);
     margin: 0 2px;
     flex-shrink: 0;
 }
@@ -858,18 +1190,51 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.94);
+    background: var(--surface-panel);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    color: #334155;
-    box-shadow: 0 14px 32px -6px rgba(15, 23, 42, 0.16);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-popover);
+    transform-origin: bottom center;
+    transition: opacity var(--dur-fast) var(--ease-out-spring), transform var(--dur-fast) var(--ease-out-spring);
 }
-.dark .inpaint-params-popover {
-    background: rgba(15, 23, 42, 0.94);
-    border-color: rgba(51, 65, 85, 0.9);
-    color: #e2e8f0;
-    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.55);
+@supports (transition-behavior: allow-discrete) {
+    .inpaint-params-popover {
+        transition-property: opacity, transform, display;
+        transition-behavior: allow-discrete;
+    }
+}
+.inpaint-params-popover[data-closing="true"],
+.inpaint-params-popover[data-closing] {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+    pointer-events: none;
+}
+#inpaintQuickRetryBar,
+#inpaintRevertOrigBtn,
+#inpaintRestoreMaskBtn,
+#blurStrengthWrap,
+#fillToleranceWrap {
+    transition: opacity var(--dur-fast) var(--ease-in-out), transform var(--dur-fast) var(--ease-out-spring);
+}
+#inpaintQuickRetryBar[data-closing="true"],
+#inpaintRevertOrigBtn[data-closing="true"],
+#inpaintRestoreMaskBtn[data-closing="true"],
+#blurStrengthWrap[data-closing="true"],
+#fillToleranceWrap[data-closing="true"] {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+    pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+    @starting-style {
+        .inpaint-params-popover:not(.hidden),
+        #inpaintQuickRetryBar:not(.hidden) {
+            opacity: 0;
+            transform: scale(0.96) translateY(6px);
+        }
+    }
 }
 
 /* Crisp Minimalist Micro-Tooltips (Hover Devices Only) */
@@ -894,7 +1259,7 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
         white-space: nowrap;
         pointer-events: none;
         opacity: 0;
-        transition: opacity 0.14s ease, transform 0.14s ease;
+        transition: opacity var(--dur-micro) var(--ease-in-out), transform var(--dur-micro) var(--ease-out-spring);
         z-index: 120;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
     }
@@ -917,13 +1282,25 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     position: fixed;
     top: 0;
     left: 0;
-    border: 1.75px solid #0f172a;
-    box-shadow: 0 0 0 1.5px rgba(255,255,255,0.92), 0 2px 8px rgba(0,0,0,0.35);
-    border-radius: 50%;
+    width: 32px;
+    height: 32px;
     pointer-events: none;
     z-index: 10000;
     display: block;
     transform: translate3d(-1000px, -1000px, 0);
+}
+.brush-cursor::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 1.75px solid #0f172a;
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.92), 0 2px 8px rgba(0, 0, 0, 0.35);
+    border-radius: 50%;
+    transform: scale(var(--brush-scale, 1));
+    transform-origin: center;
+}
+.brush-cursor.is-interacting,
+.brush-cursor.is-interacting::after {
     will-change: transform;
 }
 
@@ -935,9 +1312,13 @@ dialog.native-modal {
     color: inherit;
     opacity: 0;
     transform: scale(0.96);
+    transition-property: opacity, transform;
+    transition-duration: var(--dur-modal);
+    transition-timing-function: var(--ease-out-spring);
 }
 dialog.native-modal.native-modal-fullscreen {
     transform: none;
+    transition-property: opacity;
 }
 dialog.native-modal:not([open]) {
     display: none;
@@ -956,53 +1337,55 @@ dialog.native-modal:modal {
 dialog.native-modal::backdrop {
     overflow: hidden;
     overscroll-behavior: contain;
-    background: rgba(2, 6, 23, 0.45);
+    background: var(--surface-scrim);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     opacity: 0;
+    transition-property: opacity;
+    transition-duration: var(--dur-modal);
+    transition-timing-function: var(--ease-out-spring);
 }
 dialog.native-modal.native-modal-fullscreen::backdrop {
     background: rgba(2, 6, 23, 0.9);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+    transition-property: opacity;
 }
 dialog.native-modal[open]::backdrop {
     opacity: 1;
 }
-dialog.native-modal[data-closing="true"] {
+dialog.native-modal[data-closing="true"],
+dialog.native-modal[data-closing] {
     opacity: 0;
     transform: scale(0.96);
     pointer-events: none;
+    transition-duration: var(--dur-exit);
+    transition-timing-function: var(--ease-exit);
 }
-dialog.native-modal.native-modal-fullscreen[data-closing="true"] {
+dialog.native-modal.native-modal-fullscreen[data-closing="true"],
+dialog.native-modal.native-modal-fullscreen[data-closing] {
     transform: none;
 }
-dialog.native-modal[data-closing="true"]::backdrop {
+dialog.native-modal[data-closing="true"]::backdrop,
+dialog.native-modal[data-closing]::backdrop {
     opacity: 0;
+    transition-duration: var(--dur-exit);
+    transition-timing-function: var(--ease-exit);
+}
+
+@supports (transition-behavior: allow-discrete) and (overlay: auto) {
+    dialog.native-modal {
+        transition-property: opacity, transform, display, overlay;
+        transition-behavior: allow-discrete;
+    }
+    dialog.native-modal.native-modal-fullscreen,
+    dialog.native-modal::backdrop {
+        transition-property: opacity, display, overlay;
+        transition-behavior: allow-discrete;
+    }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-    dialog.native-modal,
-    dialog.native-modal::backdrop {
-        transition-property: opacity, transform;
-        transition-duration: 0.28s;
-        transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    dialog.native-modal.native-modal-fullscreen,
-    dialog.native-modal.native-modal-fullscreen::backdrop {
-        transition-property: opacity;
-    }
-    @supports (transition-behavior: allow-discrete) and (overlay: auto) {
-        dialog.native-modal {
-            transition-property: opacity, transform, display, overlay;
-            transition-behavior: allow-discrete;
-        }
-        dialog.native-modal.native-modal-fullscreen,
-        dialog.native-modal::backdrop {
-            transition-property: opacity, display, overlay;
-            transition-behavior: allow-discrete;
-        }
-    }
     @starting-style {
         dialog.native-modal[open] {
             opacity: 0;
@@ -1018,10 +1401,10 @@ dialog.native-modal[data-closing="true"]::backdrop {
 }
 
 .custom-modal-backdrop {
-    transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity var(--dur-modal) var(--ease-in-out);
 }
 .custom-modal-content {
-    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform var(--dur-modal) var(--ease-out-spring), opacity var(--dur-fast) var(--ease-in-out);
 }
 dialog.native-modal .custom-modal-content {
     opacity: 1;
@@ -1062,9 +1445,18 @@ dialog.native-modal .custom-modal-content {
 #toastContainer[popover]:is(:popover-open, .\:popover-open) {
     display: flex;
 }
+.toast-item {
+    transition: opacity var(--dur-panel) var(--ease-in-out), transform var(--dur-panel) var(--ease-out-spring);
+}
+.toast-item[data-closing="true"],
+.toast-item[data-closing] {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+    pointer-events: none;
+}
 
-/* Lightbox Sidebar Mobile bottom drawer behavior */
-@media (max-width: 768px) {
+/* Lightbox Sidebar Mobile bottom drawer behavior (< 768px to prevent md: collision) */
+@media (max-width: 767px) {
     #lightboxSidebar {
         position: absolute !important;
         bottom: 0 !important;
@@ -1074,7 +1466,7 @@ dialog.native-modal .custom-modal-content {
         z-index: 50 !important;
         border-radius: 2rem 2rem 0 0 !important;
         transform: translateY(calc(100% - 50px)) !important;
-        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        transition: transform var(--dur-modal) var(--ease-out-spring) !important;
     }
     #lightboxSidebar.expanded {
         transform: translateY(0) !important;
@@ -1087,11 +1479,7 @@ dialog.native-modal .custom-modal-content {
 /* --- Low Performance Mode (低性能模式) Override Rules --- */
 html.low-perf body {
     background-image: none !important;
-    background-color: #f8fafc !important;
-}
-html.low-perf.dark body {
-    background-image: none !important;
-    background-color: #0f172a !important;
+    background-color: var(--surface-canvas) !important;
 }
 html.low-perf * {
     backdrop-filter: none !important;
@@ -1103,14 +1491,11 @@ html.low-perf * {
     will-change: auto !important;
 }
 html.low-perf .glass-panel,
+html.low-perf .studio-glass,
+html.low-perf .studio-dialog-panel,
 html.low-perf .custom-modal-content {
-    background: rgba(255, 255, 255, 0.98) !important;
-    border-color: rgba(0, 0, 0, 0.1) !important;
-}
-html.low-perf.dark .glass-panel,
-html.low-perf.dark .custom-modal-content {
-    background: rgba(30, 41, 59, 0.98) !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: var(--surface-elevated) !important;
+    border-color: var(--border-subtle) !important;
 }
 html.low-perf #mobileControls,
 html.low-perf #lightboxSidebar {
@@ -1119,7 +1504,7 @@ html.low-perf #lightboxSidebar {
 
 /* --- 历史图库图片单张删除按钮与微缩略图悬停样式 --- */
 .gallery-item img {
-    transition: transform 0.28s var(--ease-out-spring);
+    transition: transform var(--dur-modal) var(--ease-out-spring);
 }
 .gallery-item:hover img {
     transform: scale(1.03);
@@ -1134,20 +1519,20 @@ html.low-perf #lightboxSidebar {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(15, 23, 42, 0.68);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.16);
     color: #ffffff;
     border-radius: 9999px;
-    transition: opacity 0.18s ease, background-color 0.18s ease, transform 0.15s ease;
+    transition: opacity var(--dur-fast) var(--ease-in-out), background-color var(--dur-fast) var(--ease-in-out), transform var(--dur-micro) var(--ease-out-spring);
     z-index: 10;
     opacity: 1;
     cursor: pointer;
 }
 
 .delete-item-btn:hover {
-    background-color: #ef4444 !important;
+    background-color: var(--status-danger) !important;
     transform: scale(1.08);
 }
 
@@ -1155,7 +1540,7 @@ html.low-perf #lightboxSidebar {
     transform: scale(0.95);
 }
 
-/* 桌面端默认隐藏，鼠标悬停或键盘聚焦时才显示 */
+/* 桌面端默认隐藏，鼠标悬停或键盘聚焦时显示；无悬停能力设备保持可见 */
 @media (min-width: 768px) {
     .delete-item-btn {
         opacity: 0;
@@ -1163,6 +1548,12 @@ html.low-perf #lightboxSidebar {
     }
     .gallery-item:hover .delete-item-btn,
     .gallery-item:focus-within .delete-item-btn {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+@media (hover: none) {
+    .delete-item-btn {
         opacity: 1;
         pointer-events: auto;
     }
@@ -1182,8 +1573,9 @@ html.low-perf #lightboxSidebar {
 
 .custom-select-options[popover="manual"] {
     position: fixed;
-    inset: auto;
-    margin: 0;
+    right: auto;
+    margin-block: 0;
+    margin-inline: 0;
     display: none;
     overflow-y: auto;
     max-height: 240px;
@@ -1191,12 +1583,15 @@ html.low-perf #lightboxSidebar {
     transform: scale(0.96) translateY(-4px);
     pointer-events: none;
     transform-origin: top center;
-    transition: opacity 0.16s var(--ease-out-spring), transform 0.18s var(--ease-out-spring);
+    transition-property: opacity, transform;
+    transition-duration: var(--dur-fast);
+    transition-timing-function: var(--ease-out-spring);
 }
 
 @supports (transition-behavior: allow-discrete) and (overlay: auto) {
     .custom-select-options[popover="manual"] {
-        transition: opacity 0.16s var(--ease-out-spring), transform 0.18s var(--ease-out-spring), overlay 0.18s allow-discrete, display 0.18s allow-discrete;
+        transition-property: opacity, transform, display, overlay;
+        transition-behavior: allow-discrete;
     }
 }
 
@@ -1205,6 +1600,13 @@ html.low-perf #lightboxSidebar {
     opacity: 1;
     transform: scale(1) translateY(0);
     pointer-events: auto;
+}
+
+.custom-select-options[data-closing="true"],
+.custom-select-options[data-closing] {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+    pointer-events: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1218,84 +1620,51 @@ html.low-perf #lightboxSidebar {
 
 .custom-option[data-focused="true"],
 .custom-option:focus-visible {
-    background: #f1f5f9 !important;
+    background: var(--surface-hover) !important;
     outline: none;
 }
 
-html.dark .custom-option[data-focused="true"],
-html.dark .custom-option:focus-visible {
-    background: rgba(30, 41, 59, 0.95) !important;
-}
-
 .custom-select-trigger:hover {
-    background: #ffffff !important;
-    border-color: #9ca3af !important;
-}
-
-html.dark .custom-select-trigger:hover {
-    background: #1e293b !important;
-    border-color: #64748b !important;
+    background: var(--surface-elevated) !important;
+    border-color: var(--border-strong) !important;
 }
 
 /* 低性能模式兼容性重写 */
 html.low-perf .custom-select-options {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    background: #ffffff !important;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1) !important;
-}
-
-html.low-perf.dark .custom-select-options {
-    background: #1e293b !important;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+    background: var(--surface-elevated) !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.14) !important;
 }
 
 /* --- 统一控制台滑动条 (Range Slider) 美化与无障碍增强 --- */
 input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
-    background: #e2e8f0;
+    background: var(--border-subtle);
     border-radius: 9999px;
     height: 6px;
-    transition: background-color 0.2s ease;
+    transition: background-color var(--dur-fast) var(--ease-in-out);
 }
 
 input[type="range"]:focus-visible {
-    outline: 2px solid #4f46e5;
+    outline: 2px solid var(--border-focus);
     outline-offset: 4px;
     border-radius: 9999px;
-}
-
-html.dark input[type="range"] {
-    background: #334155;
-}
-
-html.dark input[type="range"]:focus-visible {
-    outline-color: #818cf8;
 }
 
 input[type="range"].enhanced-range:not(.brush-size-slider) {
     height: 24px;
     background: transparent;
-    accent-color: #0f172a;
-}
-
-html.dark input[type="range"].enhanced-range:not(.brush-size-slider) {
-    background: transparent;
-    accent-color: #f8fafc;
+    accent-color: var(--accent-primary);
 }
 
 /* Chrome/Safari/Webkit 轨道与滑块 (与 Firefox 规则严格分离) */
 input[type="range"].enhanced-range:not(.brush-size-slider)::-webkit-slider-runnable-track {
     height: 6px;
     border-radius: 9999px;
-    background-color: #e2e8f0;
-    background-image: linear-gradient(to right, #0f172a 0%, #0f172a var(--range-pct, 0%), transparent var(--range-pct, 0%), transparent 100%);
-}
-
-html.dark input[type="range"].enhanced-range:not(.brush-size-slider)::-webkit-slider-runnable-track {
-    background-color: #334155;
-    background-image: linear-gradient(to right, #e2e8f0 0%, #e2e8f0 var(--range-pct, 0%), transparent var(--range-pct, 0%), transparent 100%);
+    background-color: var(--border-subtle);
+    background-image: linear-gradient(to right, var(--accent-primary) 0%, var(--accent-primary) var(--range-pct, 0%), transparent var(--range-pct, 0%), transparent 100%);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -1304,89 +1673,64 @@ input[type="range"]::-webkit-slider-thumb {
     width: 16px;
     height: 16px;
     border-radius: 9999px;
-    background: #0f172a;
+    background: var(--accent-primary);
     cursor: pointer;
-    border: 2px solid #ffffff;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-    transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.15s ease;
+    border: 2px solid var(--surface-elevated);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: transform var(--dur-micro) var(--ease-out-spring), background-color var(--dur-micro) var(--ease-in-out);
 }
 
 input[type="range"].enhanced-range:not(.brush-size-slider)::-webkit-slider-thumb {
     margin-block-start: -5px;
 }
 
-html.dark input[type="range"]::-webkit-slider-thumb {
-    background: #f8fafc;
-    border: 2px solid #1e293b;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-}
-
 input[type="range"]::-webkit-slider-thumb:hover {
-    transform: scale(1.22);
-    background-color: #3b82f6 !important;
-}
-
-html.dark input[type="range"]::-webkit-slider-thumb:hover {
-    background-color: #fbbf24 !important;
+    transform: scale(1.16);
 }
 
 input[type="range"]:active::-webkit-slider-thumb {
-    transform: scale(1.1);
+    transform: scale(1.06);
 }
 
 input[type="range"]:focus-visible::-webkit-slider-thumb {
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.35), 0 2px 5px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 0 3px var(--accent-soft), 0 2px 6px rgba(0, 0, 0, 0.22);
 }
 
 /* Firefox 轨道、进度填充与滑块 */
 input[type="range"]::-moz-range-track {
     height: 6px;
     border-radius: 9999px;
-    background: #e2e8f0;
-}
-
-html.dark input[type="range"]::-moz-range-track {
-    background: #334155;
+    background: var(--border-subtle);
 }
 
 input[type="range"]::-moz-range-progress {
     height: 6px;
     border-radius: 9999px;
-    background: #0f172a;
-}
-
-html.dark input[type="range"]::-moz-range-progress {
-    background: #e2e8f0;
+    background: var(--accent-primary);
 }
 
 input[type="range"]::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
+    box-sizing: border-box;
     border-radius: 9999px;
-    background: #0f172a;
+    background: var(--accent-primary);
     cursor: pointer;
-    border: 2px solid #ffffff;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-    transition: transform 0.15s ease, background-color 0.15s ease;
-}
-
-html.dark input[type="range"]::-moz-range-thumb {
-    background: #f8fafc;
-    border: 2px solid #1e293b;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    border: 2px solid var(--surface-elevated);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: transform var(--dur-micro) var(--ease-out-spring), background-color var(--dur-micro) var(--ease-in-out);
 }
 
 input[type="range"]::-moz-range-thumb:hover {
-    transform: scale(1.22);
-    background-color: #3b82f6 !important;
+    transform: scale(1.16);
 }
 
-html.dark input[type="range"]::-moz-range-thumb:hover {
-    background-color: #fbbf24 !important;
+input[type="range"]:active::-moz-range-thumb {
+    transform: scale(1.06);
 }
 
 input[type="range"]:focus-visible::-moz-range-thumb {
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.35), 0 2px 5px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 0 3px var(--accent-soft), 0 2px 6px rgba(0, 0, 0, 0.22);
 }
 
 /* 兼容低性能模式下的滑块特效 */
@@ -1399,77 +1743,72 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     transform: none !important;
 }
 
-/* --- settingsModal Styles (设置中心双栏样式) --- */
-.settings-tab-btn {
+/* --- settingsModal & toolboxModal Shared Sidebar Tab & Mobile Navigation Styles --- */
+.settings-tab-btn,
+.toolbox-tab-btn {
     text-align: left;
-    color: #64748b; /* text-gray-500 */
+    color: var(--text-muted);
     background: transparent;
     border: none;
     cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-in-out), background-color var(--dur-fast) var(--ease-in-out);
 }
-.settings-tab-btn:hover {
-    color: #0f172a; /* dark text */
-    background: rgba(15, 23, 42, 0.04);
-}
-.dark .settings-tab-btn:hover {
-    color: #f8fafc;
-    background: rgba(248, 250, 252, 0.05);
+.settings-tab-btn:hover,
+.toolbox-tab-btn:hover {
+    color: var(--text-primary);
+    background: var(--surface-hover);
 }
 
-/* 移动端适配设置中心双栏 */
-@media (max-width: 768px) {
-    #settingsModal.native-modal {
+/* 移动端适配双栏设置/工具箱抽屉 (< 768px 避免与 Tailwind md: 冲突) */
+@media (max-width: 767px) {
+    #settingsModal.native-modal,
+    #toolboxModal.native-modal {
         height: 90dvh !important;
         max-height: none !important;
     }
-    #settingsModal .custom-modal-content {
+    #settingsModal .custom-modal-content,
+    #toolboxModal .custom-modal-content {
         flex-direction: column !important;
         height: 100% !important;
         max-height: none !important;
     }
-    #settingsSidebar {
+    #settingsSidebar,
+    #toolboxSidebar {
         width: 100% !important;
         max-width: none !important;
         border-right: none !important;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-        padding: 1rem 1.25rem !important; /* 增加呼吸间距 */
+        border-bottom: 1px solid var(--border-subtle);
+        padding: 1rem 1.25rem !important;
     }
-    .dark #settingsSidebar {
-        border-bottom-color: rgba(255, 255, 255, 0.06);
-    }
-    #settingsSidebar .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    #settingsSidebar .space-y-6 > :not([hidden]) ~ :not([hidden]),
+    #toolboxSidebar .space-y-6 > :not([hidden]) ~ :not([hidden]) {
         margin-top: 0.75rem !important;
     }
-    
-    /* 导航选项卡：高端 iOS/macOS 风格的胶囊分段滑动轨道 */
-    #settingsModal #settingsTabs {
+
+    /* 导航选项卡：胶囊分段滑动轨道 */
+    #settingsModal #settingsTabs,
+    #toolboxModal #toolboxTabs {
         display: flex !important;
+        flex-direction: row !important;
         flex-wrap: nowrap !important;
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
         gap: 4px !important;
-        background: rgba(15, 23, 42, 0.05) !important;
+        background: var(--surface-subtle) !important;
         padding: 4px !important;
         border-radius: 14px !important;
-        border: 1px solid rgba(0, 0, 0, 0.04) !important;
+        border: 1px solid var(--border-subtle) !important;
         width: 100% !important;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
     }
-    .dark #settingsModal #settingsTabs {
-        background: rgba(255, 255, 255, 0.04) !important;
-        border-color: rgba(255, 255, 255, 0.02) !important;
-    }
-    
-    /* 隐藏横向滚动条，让轨道看起来是一体的 */
-    #settingsModal #settingsTabs::-webkit-scrollbar {
+    #settingsModal #settingsTabs::-webkit-scrollbar,
+    #toolboxModal #toolboxTabs::-webkit-scrollbar {
         display: none !important;
     }
-    #settingsModal #settingsTabs {
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE/Edge */
-    }
-    
-    /* 胶囊按钮样式 */
-    #settingsModal .settings-tab-btn {
+
+    #settingsModal .settings-tab-btn,
+    #toolboxModal .toolbox-tab-btn {
         width: auto !important;
         flex: 1 0 auto !important;
         white-space: nowrap !important;
@@ -1478,7 +1817,7 @@ html.low-perf input[type="range"]::-moz-range-thumb {
         border-radius: 10px !important;
         text-align: center !important;
         justify-content: center !important;
-        color: #64748b !important;
+        color: var(--text-muted) !important;
         background: transparent !important;
         box-shadow: none !important;
         border: none !important;
@@ -1486,32 +1825,37 @@ html.low-perf input[type="range"]::-moz-range-thumb {
         align-items: center !important;
         gap: 6px !important;
     }
-    .dark #settingsModal .settings-tab-btn {
-        color: #94a3b8 !important;
+
+    #settingsModal .settings-tab-btn:is(.active, [aria-selected="true"]),
+    #toolboxModal .toolbox-tab-btn:is(.active, .active-tab, [aria-selected="true"]) {
+        background: var(--surface-elevated) !important;
+        color: var(--text-primary) !important;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08) !important;
     }
-    
-    /* 选中高亮胶囊（自带卡片微阴影） */
-    #settingsModal .settings-tab-btn.active {
-        background: #ffffff !important;
-        color: #0f172a !important;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
-    }
-    .dark #settingsModal .settings-tab-btn.active {
+    .dark #settingsModal .settings-tab-btn:is(.active, [aria-selected="true"]),
+    .dark #toolboxModal .toolbox-tab-btn:is(.active, .active-tab, [aria-selected="true"]) {
         background: rgba(255, 255, 255, 0.14) !important;
-        color: #f8fafc !important;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
     }
-    
-    /* 移动端彻底隐藏 UserCard，以免挤占第二层界面的纵向可视区域 */
-    #settingsModal #settingsUserCard {
+
+    /* 移动端隐藏侧边栏冗余块，防止挤占纵向可视区域 */
+    #settingsModal #settingsUserCard,
+    #toolboxSidebar > button {
         display: none !important;
+    }
+
+    /* 防止移动端纵向布局时弹性高度坍塌或溢出，确保内部 overflow 滚动正常 */
+    #toolboxMainPanel {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        height: auto !important;
     }
 }
 
 /* --- Desktop Performance & Hardware Acceleration Optimizations --- */
-#outpaintContainer,
-#inpaintBaseCanvas,
-#inpaintMaskCanvas {
+#outpaintContainer.is-interacting,
+#inpaintBaseCanvas.is-interacting,
+#inpaintMaskCanvas.is-interacting {
     will-change: transform;
 }
 
@@ -1534,128 +1878,11 @@ html.low-perf input[type="range"]::-moz-range-thumb {
         backdrop-filter: blur(6px) !important;
         -webkit-backdrop-filter: blur(6px) !important;
     }
+    .studio-glass,
     .glass-panel {
         backdrop-filter: blur(8px) !important;
         -webkit-backdrop-filter: blur(8px) !important;
-        background: rgba(255, 255, 255, 0.96) !important;
-    }
-    html.dark .glass-panel {
-        background: rgba(15, 23, 42, 0.96) !important;
-    }
-}
-
-/* --- toolboxModal Styles (工具箱移动端适配) --- */
-.toolbox-tab-btn {
-    text-align: left;
-    color: #64748b; /* text-gray-500 */
-    background: transparent;
-    border: none;
-    cursor: pointer;
-}
-.toolbox-tab-btn:hover {
-    color: #0f172a;
-    background: rgba(15, 23, 42, 0.04);
-}
-.dark .toolbox-tab-btn:hover {
-    color: #f8fafc;
-    background: rgba(248, 250, 252, 0.05);
-}
-
-/* 移动端适配工具箱双栏 */
-@media (max-width: 768px) {
-    #toolboxModal.native-modal {
-        height: 90dvh !important;
-        max-height: none !important;
-    }
-    #toolboxModal .custom-modal-content {
-        flex-direction: column !important;
-        height: 100% !important;
-        max-height: none !important;
-    }
-    #toolboxSidebar {
-        width: 100% !important;
-        max-width: none !important;
-        border-right: none !important;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-        padding: 1rem 1.25rem !important;
-    }
-    .dark #toolboxSidebar {
-        border-bottom-color: rgba(255, 255, 255, 0.06);
-    }
-    #toolboxSidebar .space-y-6 > :not([hidden]) ~ :not([hidden]) {
-        margin-top: 0.75rem !important;
-    }
-    
-    /* 导航选项卡：胶囊分段滑动轨道 */
-    #toolboxModal #toolboxTabs {
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch;
-        gap: 4px !important;
-        background: rgba(15, 23, 42, 0.05) !important;
-        padding: 4px !important;
-        border-radius: 14px !important;
-        border: 1px solid rgba(0, 0, 0, 0.04) !important;
-        width: 100% !important;
-    }
-    .dark #toolboxModal #toolboxTabs {
-        background: rgba(255, 255, 255, 0.04) !important;
-        border-color: rgba(255, 255, 255, 0.02) !important;
-    }
-    
-    #toolboxModal #toolboxTabs::-webkit-scrollbar {
-        display: none !important;
-    }
-    #toolboxModal #toolboxTabs {
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE/Edge */
-    }
-    
-    /* 胶囊按钮样式 */
-    #toolboxModal .toolbox-tab-btn {
-        width: auto !important;
-        flex: 1 0 auto !important;
-        white-space: nowrap !important;
-        padding: 8px 14px !important;
-        font-size: 11px !important;
-        border-radius: 10px !important;
-        text-align: center !important;
-        justify-content: center !important;
-        color: #64748b !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        border: none !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 6px !important;
-    }
-    .dark #toolboxModal .toolbox-tab-btn {
-        color: #94a3b8 !important;
-    }
-    
-    /* 选中高亮胶囊 */
-    #toolboxModal .toolbox-tab-btn.active-tab {
-        background: #ffffff !important;
-        color: #0f172a !important;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
-    }
-    .dark #toolboxModal .toolbox-tab-btn.active-tab {
-        background: rgba(255, 255, 255, 0.14) !important;
-        color: #f8fafc !important;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
-    }
-    
-    /* 移动端隐藏侧边栏底部的“关闭工具箱”按钮，防止挤占纵向空间 */
-    #toolboxSidebar > button {
-        display: none !important;
-    }
-
-    /* 防止移动端纵向布局时弹性高度坍塌或溢出，确保内部 overflow 完美滚动 */
-    #toolboxMainPanel {
-        flex: 1 1 0% !important;
-        min-height: 0 !important;
-        height: auto !important;
+        background: var(--surface-panel) !important;
     }
 }
 
@@ -1690,18 +1917,12 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     gap: 3px;
     padding: 5px;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--surface-panel);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    color: #475569;
-    box-shadow: 0 18px 38px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
-}
-.dark .outpaint-dock-scroll {
-    background: rgba(15, 23, 42, 0.92);
-    border-color: rgba(51, 65, 85, 0.9);
-    color: #cbd5e1;
-    box-shadow: 0 20px 44px -8px rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    box-shadow: var(--shadow-popover);
 }
 
 .outpaint-dock-btn {
@@ -1711,22 +1932,15 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #475569;
+    color: var(--text-muted);
     background: transparent;
-    transition: background-color 0.16s ease, color 0.16s ease, transform 0.14s ease;
+    transition: background-color var(--dur-fast) var(--ease-in-out), color var(--dur-fast) var(--ease-in-out), transform var(--dur-micro) var(--ease-out-spring);
     cursor: pointer;
     flex-shrink: 0;
 }
-.dark .outpaint-dock-btn {
-    color: #cbd5e1;
-}
 .outpaint-dock-btn:hover {
-    background: rgba(15, 23, 42, 0.07);
-    color: #0f172a;
-}
-.dark .outpaint-dock-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
+    background: var(--surface-hover);
+    color: var(--text-primary);
 }
 .outpaint-dock-btn:active {
     transform: scale(0.92);
@@ -1734,37 +1948,23 @@ html.low-perf input[type="range"]::-moz-range-thumb {
 /* Active toggle styling for OutpaintEditor.setMode / toggleSnap */
 .outpaint-dock-btn.tool-active,
 .outpaint-dock-btn.bg-white {
-    background: #0f172a !important;
-    color: #ffffff !important;
+    background: var(--accent-primary) !important;
+    color: var(--accent-primary-fg) !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
 }
-.dark .outpaint-dock-btn.tool-active,
-.dark .outpaint-dock-btn.bg-white {
-    background: #f8fafc !important;
-    color: #0f172a !important;
-    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
-}
 .outpaint-dock-btn.outpaint-save-btn:hover {
-    background: rgba(16, 185, 129, 0.14);
-    color: #059669;
-}
-.dark .outpaint-dock-btn.outpaint-save-btn:hover {
-    background: rgba(52, 211, 153, 0.18);
-    color: #34d399;
+    background: var(--status-success-bg);
+    color: var(--status-success);
 }
 .outpaint-dock-btn.outpaint-close-btn:hover {
-    background: rgba(239, 68, 68, 0.12);
-    color: #ef4444;
-}
-.dark .outpaint-dock-btn.outpaint-close-btn:hover {
-    background: rgba(248, 113, 113, 0.18);
-    color: #f87171;
+    background: var(--status-danger-bg);
+    color: var(--status-danger);
 }
 
 .outpaint-dock-sep {
     width: 16px;
     height: 1px;
-    background: rgba(148, 163, 184, 0.3);
+    background: var(--border-subtle);
     margin: 2px 0;
     flex-shrink: 0;
 }
@@ -1774,30 +1974,35 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     flex-direction: column;
     align-items: center;
     gap: 3px;
-    max-height: 520px;
     opacity: 1;
     transform: scaleY(1);
+    clip-path: inset(0);
     transform-origin: top center;
-    transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-                max-width 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-                opacity 0.2s ease,
-                transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity var(--dur-fast) var(--ease-in-out),
+                transform var(--dur-panel) var(--ease-out-spring),
+                clip-path var(--dur-panel) var(--ease-out-spring);
     overflow: hidden;
 }
 
 #outpaintToolbarInner.collapsed {
-    max-height: 0 !important;
-    max-width: 0 !important;
     opacity: 0 !important;
     transform: scale(0.92) !important;
+    clip-path: inset(0 0 100% 0);
     pointer-events: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    gap: 0 !important;
+}
+
+@supports not (interpolate-size: allow-keywords) {
+    #outpaintToolbarInner.collapsed {
+        max-height: 0 !important;
+        max-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+    }
 }
 
 #outpaintToolbarToggleBtn .toggle-icon {
-    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform var(--dur-modal) var(--ease-out-spring);
 }
 
 #outpaintToolbarToggleBtn.collapsed .toggle-icon {
@@ -1813,19 +2018,20 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     gap: 6px;
     padding: 5px 8px;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.94);
+    background: var(--surface-panel);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    color: #334155;
-    box-shadow: 0 14px 32px -6px rgba(15, 23, 42, 0.18);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-popover);
     white-space: nowrap;
+    transition: opacity var(--dur-fast) var(--ease-in-out), transform var(--dur-fast) var(--ease-out-spring);
 }
-.dark .outpaint-brush-popover {
-    background: rgba(15, 23, 42, 0.94);
-    border-color: rgba(51, 65, 85, 0.9);
-    color: #e2e8f0;
-    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.55);
+.outpaint-brush-popover[data-closing="true"],
+.outpaint-brush-popover[data-closing] {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.95);
+    pointer-events: none;
 }
 
 #outpaintBrushControl input[type="range"] {
@@ -1864,9 +2070,11 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     }
     #outpaintToolbarInner {
         flex-direction: row;
-        max-height: none;
-        max-width: 520px;
         gap: 2px;
+        transform-origin: left center;
+    }
+    #outpaintToolbarInner.collapsed {
+        clip-path: inset(0 100% 0 0);
     }
     #outpaintToolbarToggleBtn .toggle-icon {
         transform: rotate(-90deg);
@@ -1881,30 +2089,40 @@ html.low-perf input[type="range"]::-moz-range-thumb {
         bottom: calc(100% + 8px);
         transform: none;
     }
+    .outpaint-brush-popover[data-closing="true"],
+    .outpaint-brush-popover[data-closing] {
+        transform: scale(0.95);
+    }
 }
 
 /* Outpaint Active Selection Sampling Shimmer */
-#outpaintSelection.is-sampling::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.22) 50%, transparent 70%);
-    animation: canvasShimmerSweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    pointer-events: none;
+@media (prefers-reduced-motion: no-preference) {
+    #outpaintSelection.is-sampling::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.22) 50%, transparent 70%);
+        animation: canvasShimmerSweep 1.8s var(--ease-in-out) infinite;
+        pointer-events: none;
+    }
 }
 
 /* --- Outpainting Container & Zero-Flicker Selection Styling --- */
 #outpaintContainer {
-    will-change: transform;
     transform-origin: 0 0;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+}
+#outpaintContainer.is-interacting {
+    will-change: transform;
 }
 
 #outpaintSelection {
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6), 0 0 15px rgba(0, 0, 0, 0.3);
     box-sizing: border-box;
-    will-change: transform, width, height;
+}
+#outpaintSelection.is-interacting {
+    will-change: transform;
 }
 
 #outpaintDimOverlay {
@@ -2090,6 +2308,30 @@ html.low-perf body.entrance-animating #mobileControls {
    UX & Motion Polish: Shimmer Skeleton, Reveal, Range Fill & Micro-Transitions
    ========================================================================== */
 
+#generationSkeleton {
+    transition: opacity var(--dur-panel) var(--ease-out-spring), transform var(--dur-panel) var(--ease-out-spring);
+}
+@supports (transition-behavior: allow-discrete) {
+    #generationSkeleton {
+        transition-property: opacity, transform, display;
+        transition-behavior: allow-discrete;
+    }
+}
+#generationSkeleton[data-closing="true"],
+#generationSkeleton[data-closing] {
+    opacity: 0;
+    transform: scale(0.98);
+    pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+    @starting-style {
+        #generationSkeleton:not(.hidden) {
+            opacity: 0;
+            transform: scale(0.98);
+        }
+    }
+}
+
 .canvas-shimmer-card {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 245, 249, 0.58) 100%);
     backdrop-filter: blur(18px);
@@ -2108,8 +2350,12 @@ html.low-perf body.entrance-animating #mobileControls {
         rgba(148, 163, 184, 0.18) 50%,
         transparent 64%
     );
-    animation: canvasShimmerSweep 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
     pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .canvas-shimmer-card::before {
+        animation: canvasShimmerSweep 2.1s var(--ease-in-out) infinite;
+    }
 }
 
 /* Compact Top-Center HUD Pill when Canvas Already Has an Image (Inpaint / Re-roll / Enhance / Upscale) */
@@ -2123,6 +2369,10 @@ html.low-perf body.entrance-animating #mobileControls {
     height: auto !important;
     z-index: 56 !important;
 }
+#generationSkeleton.is-compact-hud[data-closing="true"],
+#generationSkeleton.is-compact-hud[data-closing] {
+    transform: translateX(-50%) translateY(-6px) scale(0.97) !important;
+}
 #generationSkeleton.is-compact-hud #generationSkeletonFrame {
     aspect-ratio: auto !important;
     width: auto !important;
@@ -2133,14 +2383,9 @@ html.low-perf body.entrance-animating #mobileControls {
     align-items: center !important;
     gap: 7px !important;
     padding: 0 11px 0 9px !important;
-    background: rgba(255, 255, 255, 0.92) !important;
-    border: 1px solid rgba(226, 232, 240, 0.95) !important;
-    box-shadow: 0 12px 28px -6px rgba(15, 23, 42, 0.16) !important;
-}
-.dark #generationSkeleton.is-compact-hud #generationSkeletonFrame {
-    background: rgba(15, 23, 42, 0.92) !important;
-    border-color: rgba(51, 65, 85, 0.9) !important;
-    box-shadow: 0 14px 32px -6px rgba(0, 0, 0, 0.55) !important;
+    background: var(--surface-panel) !important;
+    border: 1px solid var(--border-subtle) !important;
+    box-shadow: var(--shadow-popover) !important;
 }
 #generationSkeleton.is-compact-hud .canvas-shimmer-card::before {
     display: none !important;
@@ -2157,16 +2402,13 @@ html.low-perf body.entrance-animating #mobileControls {
 
 #resultGrid.is-sampling {
     opacity: 0.72;
-    transition: opacity 0.25s ease;
+    transition: opacity var(--dur-panel) var(--ease-in-out);
 }
 @keyframes canvasShimmerSweep {
     0% { transform: translate3d(-45%, -15%, 0); }
     100% { transform: translate3d(45%, 15%, 0); }
 }
 
-.img-reveal {
-    animation: canvasImgReveal 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
 @keyframes canvasImgReveal {
     0% {
         opacity: 0;
@@ -2178,10 +2420,6 @@ html.low-perf body.entrance-animating #mobileControls {
     }
 }
 
-.panel-expand-anim {
-    animation: panelAccordionEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-    transform-origin: top center;
-}
 @keyframes panelAccordionEnter {
     0% {
         opacity: 0;
@@ -2193,9 +2431,6 @@ html.low-perf body.entrance-animating #mobileControls {
     }
 }
 
-.view-fade-enter {
-    animation: viewMicroFadeEnter 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
 @keyframes viewMicroFadeEnter {
     0% {
         opacity: 0.4;
@@ -2207,24 +2442,25 @@ html.low-perf body.entrance-animating #mobileControls {
     }
 }
 
-/* Track active progress is rendered via :-webkit-slider-runnable-track and ::-moz-range-progress */
-
-/* View Transitions API Smooth Theme Crossfade */
-::view-transition-old(root),
-::view-transition-new(root) {
-    animation-duration: 0.24s;
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .canvas-shimmer-card::before,
-    .img-reveal,
-    .panel-expand-anim,
+@media (prefers-reduced-motion: no-preference) {
+    .img-reveal {
+        animation: canvasImgReveal var(--dur-modal) var(--ease-out-spring) both;
+    }
+    .panel-expand-anim {
+        animation: panelAccordionEnter var(--dur-panel) var(--ease-out-spring) both;
+        transform-origin: top center;
+    }
     .view-fade-enter {
-        animation: none !important;
-        filter: none !important;
+        animation: viewMicroFadeEnter var(--dur-fast) var(--ease-out-spring) both;
+    }
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation-duration: var(--dur-panel);
+        animation-timing-function: var(--ease-in-out);
     }
 }
+
+/* Track active progress is rendered via :-webkit-slider-runnable-track and ::-moz-range-progress */
 
 html.low-perf .canvas-shimmer-card::before,
 html.low-perf .img-reveal,
@@ -2310,23 +2546,16 @@ html.low-perf .view-fade-enter {
     width: 28px;
     height: 28px;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.94);
+    background: var(--surface-panel);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    color: #0f172a;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-pill);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.14s ease, background-color 0.15s ease;
-}
-
-.dark .canvas-compare-handle {
-    background: rgba(15, 23, 42, 0.94);
-    border-color: rgba(71, 85, 105, 0.9);
-    color: #f8fafc;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+    transition: transform var(--dur-micro) var(--ease-out-spring), background-color var(--dur-micro) var(--ease-in-out);
 }
 
 .canvas-compare-divider:hover .canvas-compare-handle,
@@ -2335,13 +2564,8 @@ html.low-perf .view-fade-enter {
 }
 
 .canvas-icon-btn.compare-active {
-    background: #0f172a !important;
-    color: #ffffff !important;
-}
-
-.dark .canvas-icon-btn.compare-active {
-    background: #f8fafc !important;
-    color: #0f172a !important;
+    background: var(--accent-primary) !important;
+    color: var(--accent-primary-fg) !important;
 }
 
 /* ==========================================================================
@@ -2356,7 +2580,27 @@ html.low-perf .view-fade-enter {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity var(--dur-fast) var(--ease-out-spring), transform var(--dur-fast) var(--ease-out-spring);
+}
+@supports (transition-behavior: allow-discrete) {
+    .canvas-filmstrip-dock {
+        transition-property: opacity, transform, display;
+        transition-behavior: allow-discrete;
+    }
+}
+.canvas-filmstrip-dock[data-closing="true"],
+.canvas-filmstrip-dock[data-closing] {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateX(-50%) translateY(10px) scale(0.96) !important;
+}
+@media (prefers-reduced-motion: no-preference) {
+    @starting-style {
+        .canvas-filmstrip-dock:not(.hidden) {
+            opacity: 0;
+            transform: translateX(-50%) translateY(10px) scale(0.96);
+        }
+    }
 }
 
 /* Automatically yield space when Inpaint, Outpaint, or Character Stage is active */
@@ -2374,39 +2618,43 @@ body.char-stage-active #canvasFilmstripDock {
     gap: 4px;
     padding: 4px 5px;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--surface-panel);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    box-shadow: 0 14px 32px -8px rgba(15, 23, 42, 0.16), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
-}
-
-.dark .canvas-filmstrip-capsule {
-    background: rgba(15, 23, 42, 0.9);
-    border-color: rgba(51, 65, 85, 0.88);
-    box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.58);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-popover);
 }
 
 .canvas-filmstrip-inner {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    max-width: 360px;
     overflow: hidden;
-    transition: max-width 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
+    clip-path: inset(0);
+    transform-origin: left center;
+    transition: opacity var(--dur-fast) var(--ease-in-out),
+                transform var(--dur-panel) var(--ease-out-spring),
+                clip-path var(--dur-panel) var(--ease-out-spring);
 }
 
 .canvas-filmstrip-inner.collapsed {
-    max-width: 0 !important;
     opacity: 0 !important;
+    transform: scaleX(0.94) !important;
+    clip-path: inset(0 100% 0 0);
     pointer-events: none !important;
-    gap: 0 !important;
+}
+@supports not (interpolate-size: allow-keywords) {
+    .canvas-filmstrip-inner.collapsed {
+        max-width: 0 !important;
+        gap: 0 !important;
+    }
 }
 
 .canvas-filmstrip-track {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    max-width: 360px;
     overflow-x: auto;
     scrollbar-width: none;
     padding: 1px 2px;
@@ -2423,11 +2671,11 @@ body.char-stage-active #canvasFilmstripDock {
     border-radius: 9999px;
     overflow: hidden;
     flex-shrink: 0;
-    border: 1.5px solid rgba(148, 163, 184, 0.35);
+    border: 1.5px solid var(--border-subtle);
     opacity: 0.72;
-    transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: transform var(--dur-micro) var(--ease-out-spring), opacity var(--dur-micro) var(--ease-in-out), border-color var(--dur-micro) var(--ease-in-out), box-shadow var(--dur-micro) var(--ease-in-out);
     cursor: pointer;
-    background: rgba(15, 23, 42, 0.08);
+    background: var(--surface-subtle);
 }
 
 .filmstrip-thumb-btn:hover {
@@ -2437,14 +2685,9 @@ body.char-stage-active #canvasFilmstripDock {
 
 .filmstrip-thumb-btn.active {
     opacity: 1;
-    border-color: #0f172a;
-    box-shadow: 0 0 0 1.5px rgba(15, 23, 42, 0.25);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 1.5px var(--accent-soft);
     transform: scale(1.06);
-}
-
-.dark .filmstrip-thumb-btn.active {
-    border-color: #f8fafc;
-    box-shadow: 0 0 0 1.5px rgba(248, 250, 252, 0.3);
 }
 
 .filmstrip-thumb-btn img {
@@ -2462,25 +2705,16 @@ body.char-stage-active #canvasFilmstripDock {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #475569;
+    color: var(--text-muted);
     background: transparent;
-    transition: background-color 0.15s ease, color 0.15s ease, transform 0.14s ease;
+    transition: background-color var(--dur-micro) var(--ease-in-out), color var(--dur-micro) var(--ease-in-out), transform var(--dur-micro) var(--ease-out-spring);
     cursor: pointer;
     flex-shrink: 0;
 }
 
-.dark .canvas-filmstrip-icon-btn {
-    color: #cbd5e1;
-}
-
 .canvas-filmstrip-icon-btn:hover {
-    background: rgba(15, 23, 42, 0.07);
-    color: #0f172a;
-}
-
-.dark .canvas-filmstrip-icon-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
+    background: var(--surface-hover);
+    color: var(--text-primary);
 }
 
 .canvas-filmstrip-icon-btn:active {
@@ -2528,24 +2762,37 @@ body.char-stage-active #canvasFilmstripDock {
 .char-stage-prompt-card {
     width: min(460px, calc(100vw - 1.5rem));
     padding: 8px 10px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.94);
+    border-radius: var(--radius-card);
+    background: var(--surface-panel);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    color: #0f172a;
-    box-shadow: 0 18px 40px -10px rgba(15, 23, 42, 0.2), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-modal);
     display: flex;
     flex-direction: column;
     gap: 7px;
-    transition: opacity 0.16s ease, transform 0.16s ease;
+    transition: opacity var(--dur-fast) var(--ease-out-spring), transform var(--dur-fast) var(--ease-out-spring);
 }
-
-.dark .char-stage-prompt-card {
-    background: rgba(15, 23, 42, 0.94);
-    border-color: rgba(51, 65, 85, 0.92);
-    color: #f8fafc;
-    box-shadow: 0 20px 44px -10px rgba(0, 0, 0, 0.65);
+@supports (transition-behavior: allow-discrete) {
+    .char-stage-prompt-card {
+        transition-property: opacity, transform, display;
+        transition-behavior: allow-discrete;
+    }
+}
+.char-stage-prompt-card[data-closing="true"],
+.char-stage-prompt-card[data-closing] {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+    pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+    @starting-style {
+        .char-stage-prompt-card:not(.hidden) {
+            opacity: 0;
+            transform: translateY(6px) scale(0.98);
+        }
+    }
 }
 
 .char-stage-chips-bar {
@@ -2558,12 +2805,8 @@ body.char-stage-active #canvasFilmstripDock {
     -webkit-overflow-scrolling: touch;
     touch-action: pan-x;
     padding: 1px 1px 6px 1px;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.78);
+    border-bottom: 1px solid var(--border-subtle);
     scrollbar-width: thin;
-}
-
-.dark .char-stage-chips-bar {
-    border-bottom-color: rgba(51, 65, 85, 0.78);
 }
 
 .char-stage-chips-bar::-webkit-scrollbar {
@@ -2571,7 +2814,7 @@ body.char-stage-active #canvasFilmstripDock {
 }
 
 .char-stage-chips-bar::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.45);
+    background: var(--scrollbar-thumb);
     border-radius: 9999px;
 }
 
@@ -2581,19 +2824,12 @@ body.char-stage-active #canvasFilmstripDock {
     gap: 3px;
     padding: 5px 6px;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--surface-panel);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    color: #334155;
-    box-shadow: 0 18px 38px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
-}
-
-.dark .char-stage-dock-capsule {
-    background: rgba(15, 23, 42, 0.92);
-    border-color: rgba(51, 65, 85, 0.9);
-    color: #cbd5e1;
-    box-shadow: 0 20px 44px -8px rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-popover);
 }
 
 .char-stage-chip-btn {
@@ -2608,30 +2844,18 @@ body.char-stage-active #canvasFilmstripDock {
     justify-content: center;
     gap: 5px;
     cursor: pointer;
-    transition: transform 0.14s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-    border: 1px solid rgba(226, 232, 240, 0.9);
-    background: rgba(241, 245, 249, 0.8);
-    color: #334155;
+    transition: transform var(--dur-micro) var(--ease-out-spring), background-color var(--dur-micro) var(--ease-in-out), color var(--dur-micro) var(--ease-in-out), border-color var(--dur-micro) var(--ease-in-out);
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
     flex-shrink: 0;
     touch-action: pan-x;
 }
 
-.dark .char-stage-chip-btn {
-    border-color: rgba(51, 65, 85, 0.88);
-    background: rgba(30, 41, 59, 0.8);
-    color: #cbd5e1;
-}
-
 .char-stage-chip-btn.active {
-    background: #0f172a;
-    border-color: #0f172a;
-    color: #ffffff;
-}
-
-.dark .char-stage-chip-btn.active {
-    background: #f8fafc;
-    border-color: #f8fafc;
-    color: #0f172a;
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary-fg);
 }
 
 @media (max-width: 767px) {
@@ -2642,6 +2866,8 @@ body.char-stage-active #canvasFilmstripDock {
         transform: none;
         justify-content: flex-start;
     }
+    .canvas-filmstrip-dock[data-closing="true"],
+    .canvas-filmstrip-dock[data-closing],
     body.inpaint-active #canvasFilmstripDock,
     body.outpaint-active #canvasFilmstripDock,
     body.char-stage-active #canvasFilmstripDock {
@@ -2651,7 +2877,7 @@ body.char-stage-active #canvasFilmstripDock {
         opacity: 0 !important;
         pointer-events: none !important;
     }
-    .canvas-filmstrip-inner {
+    .canvas-filmstrip-track {
         max-width: calc(100vw - 8.2rem);
     }
     .char-stage-dock-host {
@@ -2678,21 +2904,28 @@ body.char-stage-active #canvasFilmstripDock {
 /* Modern Web Guidance Enhancements */
 @supports (interpolate-size: allow-keywords) {
     #outpaintToolbarInner {
-        max-height: none;
         block-size: auto;
-        transition: block-size 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-                    inline-size 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-                    opacity 0.2s ease,
-                    transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+        transition: block-size var(--dur-panel) var(--ease-out-spring),
+                    inline-size var(--dur-panel) var(--ease-out-spring),
+                    opacity var(--dur-fast) var(--ease-in-out),
+                    transform var(--dur-panel) var(--ease-out-spring),
+                    clip-path var(--dur-panel) var(--ease-out-spring);
     }
     #outpaintToolbarInner.collapsed {
-        max-height: none !important;
-        max-width: none !important;
         block-size: 0 !important;
+    }
+    .canvas-filmstrip-inner {
+        inline-size: auto;
+        transition: inline-size var(--dur-panel) var(--ease-out-spring),
+                    opacity var(--dur-fast) var(--ease-in-out),
+                    transform var(--dur-panel) var(--ease-out-spring),
+                    clip-path var(--dur-panel) var(--ease-out-spring);
+    }
+    .canvas-filmstrip-inner.collapsed {
+        inline-size: 0 !important;
     }
     @media (max-width: 767px) {
         #outpaintToolbarInner {
-            max-width: none;
             inline-size: auto;
             block-size: auto;
         }
@@ -2700,13 +2933,6 @@ body.char-stage-active #canvasFilmstripDock {
             block-size: auto !important;
             inline-size: 0 !important;
         }
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    #outpaintToolbarInner,
-    #outpaintToolbarToggleBtn .toggle-icon {
-        transition: none !important;
     }
 }
 
@@ -2720,16 +2946,20 @@ body.char-stage-active #canvasFilmstripDock {
     }
 }
 
+/* Canonical Vibe Export Popover (Single Source of Truth) */
 #vibeExportMenu[popover] {
     opacity: 0;
     transform: scale(0.95) translateY(-4px);
     transform-origin: top right;
-    transition: opacity 0.16s var(--ease-out-spring), transform 0.18s var(--ease-out-spring);
+    transition-property: opacity, transform;
+    transition-duration: var(--dur-fast);
+    transition-timing-function: var(--ease-out-spring);
 }
 
 @supports (transition-behavior: allow-discrete) and (overlay: auto) {
     #vibeExportMenu[popover] {
-        transition: opacity 0.16s var(--ease-out-spring), transform 0.18s var(--ease-out-spring), overlay 0.18s allow-discrete, display 0.18s allow-discrete;
+        transition-property: opacity, transform, display, overlay;
+        transition-behavior: allow-discrete;
     }
 }
 
@@ -2739,11 +2969,20 @@ body.char-stage-active #canvasFilmstripDock {
     transform: scale(1) translateY(0);
 }
 
+#vibeExportMenu[data-closing="true"],
+#vibeExportMenu[data-closing] {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+    pointer-events: none;
+}
+
 @media (prefers-reduced-motion: no-preference) {
-    @starting-style {
-        #vibeExportMenu[popover]:is(:popover-open, .\:popover-open) {
-            opacity: 0;
-            transform: scale(0.95) translateY(-4px);
+    @supports (transition-behavior: allow-discrete) {
+        @starting-style {
+            #vibeExportMenu[popover]:is(:popover-open, .\:popover-open) {
+                opacity: 0;
+                transform: scale(0.95) translateY(-4px);
+            }
         }
     }
 }
@@ -2776,20 +3015,7 @@ body.char-stage-active #canvasFilmstripDock {
     contain-intrinsic-size: auto 220px;
 }
 
-/* Lightbox Shared-Element View Transition */
-::view-transition-group(lightbox-hero) {
-    animation-duration: 0.34s;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-::view-transition-old(lightbox-hero),
-::view-transition-new(lightbox-hero) {
-    height: 100%;
-    width: 100%;
-    object-fit: contain;
-}
-
-/* AI Chat Thinking Dot Bounce (Compositor-Only) */
+/* AI Chat Thinking Dot Bounce & Lightbox Directional Navigation (Motion Opt-In) */
 @keyframes aiThinkingDot {
     0%, 80%, 100% {
         transform: translateY(0) scale(0.92);
@@ -2801,11 +3027,6 @@ body.char-stage-active #canvasFilmstripDock {
     }
 }
 
-.ai-thinking-dot {
-    animation: aiThinkingDot 1.1s var(--ease-out-spring) infinite;
-}
-
-/* Lightbox Directional Navigation Micro-Slide */
 @keyframes lbSlideNext {
     0% {
         opacity: 0.35;
@@ -2828,65 +3049,163 @@ body.char-stage-active #canvasFilmstripDock {
     }
 }
 
-.lb-slide-next {
-    animation: lbSlideNext 0.24s var(--ease-out-spring) both;
+@media (prefers-reduced-motion: no-preference) {
+    ::view-transition-group(lightbox-hero) {
+        animation-duration: 0.34s;
+        animation-timing-function: var(--ease-out-spring);
+    }
+    ::view-transition-old(lightbox-hero),
+    ::view-transition-new(lightbox-hero) {
+        height: 100%;
+        width: 100%;
+        object-fit: contain;
+    }
+    .ai-thinking-dot {
+        animation: aiThinkingDot 1.1s var(--ease-out-spring) infinite;
+    }
+    .lb-slide-next {
+        animation: lbSlideNext var(--dur-panel) var(--ease-out-spring) both;
+    }
+    .lb-slide-prev {
+        animation: lbSlidePrev var(--dur-panel) var(--ease-out-spring) both;
+    }
 }
 
-.lb-slide-prev {
-    animation: lbSlidePrev 0.24s var(--ease-out-spring) both;
-}
-
-/* Respect prefers-reduced-motion across spatial movement/scale while retaining gentle opacity/color feedback */
+/* Consolidated Reduced Motion (Preserves calm 120ms opacity/display/overlay/color fades; avoids global * override) */
 @media (prefers-reduced-motion: reduce) {
     .drawer,
     #mobileControls,
+    #mobileBackdrop,
     #lightboxSidebar,
     .view-toggle-bg,
+    .switch-bg,
     .char-row-chevron,
-    .canvas-filmstrip-inner {
-        transition-property: opacity;
-        animation: none !important;
-    }
-
+    .canvas-filmstrip-inner,
+    #outpaintToolbarInner,
+    #outpaintToolbarToggleBtn .toggle-icon,
+    .studio-accordion-body,
+    .studio-accordion:has(> .studio-accordion-inner),
+    .studio-card,
+    .studio-tab,
+    .studio-tab::after,
+    .studio-icon-btn,
+    .studio-hover-actions,
     #floatingGenerateBtn,
-    .toolbox-icon-dock,
-    #vibeExportMenu,
-    .custom-select-options,
     .custom-modal-content,
     .custom-modal-backdrop,
-    dialog.native-modal,
-    dialog.native-modal::backdrop,
-    .canvas-filmstrip-dock,
-    .inpaint-dock-host,
-    .toast-item {
+    .toast-item,
+    .outpaint-brush-popover,
+    .inpaint-dock-btn,
+    .toolbox-svg-btn,
+    .prompt-mini-svg-btn,
+    .canvas-icon-btn,
+    .canvas-pill-btn,
+    .filmstrip-thumb-btn,
+    .canvas-filmstrip-icon-btn,
+    .char-stage-chip-btn,
+    .canvas-compare-handle {
         transition-property: opacity, color, background-color, border-color;
+        transition-duration: 120ms;
         animation: none !important;
     }
 
+    #inpaintModal.inpaint-dock-host,
+    .inpaint-params-popover,
+    #adminControls,
+    #generationSkeleton,
+    .canvas-filmstrip-dock,
+    .char-stage-prompt-card,
+    #inpaintQuickRetryBar,
+    #inpaintRevertOrigBtn,
+    #inpaintRestoreMaskBtn,
+    #blurStrengthWrap,
+    #fillToleranceWrap {
+        transition-property: opacity, display;
+        transition-duration: 120ms;
+        animation: none !important;
+    }
+
+    dialog.native-modal,
+    dialog.native-modal::backdrop,
+    .toolbox-icon-dock,
+    #vibeExportMenu,
+    .custom-select-options {
+        transition-property: opacity, color, background-color, border-color;
+        transition-duration: 120ms;
+        animation: none !important;
+    }
+
+    @supports (transition-behavior: allow-discrete) and (overlay: auto) {
+        dialog.native-modal,
+        dialog.native-modal::backdrop,
+        .toolbox-icon-dock[popover],
+        #vibeExportMenu[popover],
+        .custom-select-options[popover="manual"] {
+            transition-property: opacity, display, overlay;
+            transition-duration: 120ms;
+            transition-behavior: allow-discrete;
+        }
+    }
+
+    .canvas-shimmer-card::before,
+    #outpaintSelection.is-sampling::before,
+    .img-reveal,
+    .panel-expand-anim,
+    .view-fade-enter,
+    .studio-list-enter,
+    .loader,
+    .studio-spinner,
     .ai-thinking-dot,
     .lb-slide-next,
     .lb-slide-prev {
         animation: none !important;
-        transform: none !important;
+        filter: none !important;
+    }
+
+    .ai-thinking-dot {
         opacity: 0.85 !important;
-    }
-
-    input[type="range"]::-webkit-slider-thumb {
-        transition-property: background-color;
         transform: none !important;
     }
 
-    input[type="range"]::-moz-range-thumb {
-        transition-property: background-color;
-        transform: none !important;
-    }
-
+    .lb-slide-next,
+    .lb-slide-prev,
+    .studio-list-enter,
+    .img-reveal,
+    .panel-expand-anim,
+    .view-fade-enter,
+    dialog.native-modal,
+    dialog.native-modal[data-closing="true"],
+    dialog.native-modal[data-closing],
+    .custom-select-options[popover="manual"],
+    .custom-select-options[data-closing="true"],
+    .toolbox-icon-dock,
+    .toolbox-icon-dock[data-closing="true"],
+    #vibeExportMenu[popover],
+    #vibeExportMenu[data-closing="true"],
+    .inpaint-params-popover[data-closing="true"],
+    .toast-item[data-closing="true"],
+    #adminControls[data-closing="true"],
+    #generationSkeleton[data-closing="true"],
+    .char-stage-prompt-card[data-closing="true"],
     .gallery-item:hover,
     .gallery-item:hover img,
     .delete-item-btn:hover,
     .toolbox-svg-btn:hover,
     .filmstrip-thumb-btn:hover,
-    .canvas-compare-divider:hover .canvas-compare-handle {
+    .canvas-compare-divider:hover .canvas-compare-handle,
+    .studio-icon-btn:active {
+        transform: none !important;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        transition-property: background-color;
+        transition-duration: 120ms;
+        transform: none !important;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+        transition-property: background-color;
+        transition-duration: 120ms;
         transform: none !important;
     }
 
@@ -2900,7 +3219,54 @@ body.char-stage-active #canvasFilmstripDock {
 html.low-perf .gallery-item:hover img,
 html.low-perf .lb-slide-next,
 html.low-perf .lb-slide-prev,
-html.low-perf .ai-thinking-dot {
+html.low-perf .ai-thinking-dot,
+html.low-perf .studio-list-enter {
     animation: none !important;
     transform: none !important;
+}
+
+@media (forced-colors: active) {
+    .studio-glass,
+    .studio-dialog-panel,
+    .studio-card,
+    .studio-tabs,
+    .studio-badge,
+    .glass-panel,
+    .canvas-tool-pill,
+    .canvas-icon-btn,
+    .toolbox-icon-dock,
+    .inpaint-dock-capsule,
+    .inpaint-params-popover,
+    .outpaint-dock-scroll,
+    .canvas-filmstrip-capsule,
+    .char-stage-prompt-card,
+    .char-stage-dock-capsule {
+        background: Canvas !important;
+        color: CanvasText !important;
+        border: 1px solid ButtonBorder !important;
+        box-shadow: none !important;
+        forced-color-adjust: auto;
+    }
+    .studio-tab:is(.active, .active-tab, [aria-selected="true"], [aria-pressed="true"]) {
+        background: Highlight !important;
+        color: HighlightText !important;
+    }
+    .studio-tab:is(.active, .active-tab, [aria-selected="true"], [aria-pressed="true"])::after {
+        background: HighlightText;
+    }
+    :is(button, a[href], select, textarea, input, [role="button"], [tabindex]):focus-visible {
+        outline: 2px solid Highlight !important;
+        outline-offset: 2px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+        background: Highlight;
+        border: 2px solid Canvas;
+    }
+    input[type="range"]::-moz-range-thumb {
+        background: Highlight;
+        border: 2px solid Canvas;
+    }
+    input[type="range"]::-moz-range-progress {
+        background: Highlight;
+    }
 }
