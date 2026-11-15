@@ -26,7 +26,6 @@ function notifyPostProcess(message, type = 'warning', { title = '系统提示', 
 
 function syncEnhancePresetBtn(btn, isActive) {
     if (!btn || !btn.classList) return;
-    const usesStudioTabs = btn.classList.contains('studio-tab') || Boolean(btn.closest?.('.studio-tabs'));
     const activeClasses = ['bg-slate-900', 'dark:bg-white', 'text-white', 'dark:text-slate-900', 'shadow-md', 'border-slate-900', 'dark:border-white'];
     const inactiveClasses = ['bg-slate-100', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-200', 'border-transparent'];
     const legacyInactiveClasses = ['bg-gray-100', 'text-gray-700', 'dark:text-gray-200'];
@@ -35,12 +34,6 @@ function syncEnhancePresetBtn(btn, isActive) {
     btn.classList.toggle('active-preset', isActive);
     if (typeof btn.setAttribute === 'function') {
         btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-    }
-
-    if (usesStudioTabs) {
-        btn.classList.add('studio-tab');
-        btn.classList.remove(...activeClasses, ...inactiveClasses, ...legacyInactiveClasses);
-        return;
     }
 
     if (isActive) {

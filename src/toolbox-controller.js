@@ -285,17 +285,8 @@ export function setScrambleMode(isDecryptMode) {
     
     if (!encryptBtn || !decryptBtn || !actionBtn) return;
 
-    const usesStudioTabs = Boolean(
-        encryptBtn.classList?.contains?.('studio-tab')
-        || decryptBtn.classList?.contains?.('studio-tab')
-        || encryptBtn.closest?.('.studio-tabs')
-    );
-    const activeCls = usesStudioTabs
-        ? 'studio-tab active'
-        : 'studio-tab active flex-1 text-center py-1.5 text-xs font-bold rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-colors duration-200';
-    const inactiveCls = usesStudioTabs
-        ? 'studio-tab'
-        : 'studio-tab flex-1 text-center py-1.5 text-xs font-semibold rounded text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors duration-200';
+    const activeCls = 'studio-tab active flex-1 text-center py-1.5 text-xs font-bold rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-colors duration-200';
+    const inactiveCls = 'studio-tab flex-1 text-center py-1.5 text-xs font-semibold rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors duration-200';
 
     encryptBtn.className = isScrambleDecryptMode ? inactiveCls : activeCls;
     decryptBtn.className = isScrambleDecryptMode ? activeCls : inactiveCls;

@@ -296,8 +296,10 @@ label:active input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
     align-items: center;
     justify-content: center;
     gap: 0.375rem;
-    min-block-size: 2rem;
+    min-block-size: 1.75rem;
     padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
     border-radius: calc(var(--radius-control) - 0.125rem);
     color: var(--text-muted);
     background: transparent;
@@ -342,6 +344,30 @@ label:active input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
 .studio-tab:is(.active, .active-tab, [aria-selected="true"], [aria-pressed="true"])::after {
     opacity: 1;
     transform: scaleX(1);
+}
+
+.studio-tabs--pill,
+.studio-tabs.rounded-full,
+#galleryTabToggle {
+    border-radius: 9999px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.studio-tabs--pill > .studio-tab,
+.studio-tabs.rounded-full > .studio-tab,
+#galleryTabToggle > .studio-tab {
+    border-radius: 9999px;
+    min-block-size: 1.5rem;
+    padding: 0.25rem 0.875rem;
+    font-size: 11px;
+    line-height: 1rem;
+}
+
+.studio-tabs--pill > .studio-tab::after,
+.studio-tabs.rounded-full > .studio-tab::after,
+#galleryTabToggle > .studio-tab::after {
+    display: none;
 }
 
 /* Vertical Tab Sidebars: left vertical accent bar (WCAG 1.4.1 / forced-colors border) */
@@ -509,6 +535,10 @@ label:active input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
     .studio-hover-actions {
         opacity: 1;
         pointer-events: auto;
+    }
+
+    .note-preview-del-btn {
+        opacity: 1;
     }
 }
 

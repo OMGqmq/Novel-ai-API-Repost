@@ -127,7 +127,6 @@ export class NotebookManager {
         const btnV3 = document.getElementById('btn-nb-v3');
         const btnV4 = document.getElementById('btn-nb-v4');
         const btnV5 = document.getElementById('btn-nb-v5');
-        btnV3?.parentElement?.classList?.add?.('studio-tabs');
         if (btnV3) {
             btnV3.className = model === 'v3' ? active : inactive;
             btnV3.setAttribute?.('aria-pressed', model === 'v3' ? 'true' : 'false');
@@ -185,10 +184,7 @@ export class NotebookManager {
                     ${note.preview ? `
                     <div class="shrink-0 relative group/preview">
                         <img src="${note.preview}" class="w-14 h-20 object-cover rounded-lg shadow-sm border border-slate-200/70 dark:border-slate-700 cursor-zoom-in" onclick="event.stopPropagation(); viewNotebookNotePreview('${model}', '${note.id}')">
-                        <button type="button" onclick="event.stopPropagation(); removeNotePreview('${model}', '${note.id}')" 
-                            class="studio-hover-actions studio-icon-btn absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md transition-colors duration-150 cursor-pointer" title="移除预览图" aria-label="移除预览图">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none" aria-hidden="true"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
-                        </button>
+                        <button type="button" onclick="event.stopPropagation(); removeNotePreview('${model}', '${note.id}')" class="note-preview-del-btn absolute top-1 right-1 w-[18px] h-[18px] bg-slate-900/65 hover:bg-slate-900/90 dark:bg-slate-950/75 dark:hover:bg-slate-900 text-white/90 hover:text-white backdrop-blur-sm border border-white/15 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover/preview:opacity-100 focus-visible:opacity-100 transition-[opacity,background-color,transform] duration-150 active:scale-90 cursor-pointer" title="移除预览图" aria-label="移除预览图"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-2.5 h-2.5 pointer-events-none" aria-hidden="true"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg></button>
                     </div>
                     ` : ''}
                 </div>

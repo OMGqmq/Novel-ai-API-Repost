@@ -556,12 +556,12 @@
         <div id="historyArea"
             class="relative flex-1 hidden w-full h-full overflow-y-auto p-4 pt-20 pb-32 md:pb-10 custom-scroll">
             <div class="flex items-center justify-center mb-4">
-                <div class="studio-tabs inline-flex bg-slate-100/80 dark:bg-slate-800/80 rounded-full p-1 border border-slate-200/80 dark:border-slate-700/70"
+                <div class="studio-tabs studio-tabs--pill inline-flex items-center bg-slate-100/90 dark:bg-slate-800/90 rounded-full p-[3px] border border-slate-200/80 dark:border-slate-700/70 shadow-sm"
                     id="galleryTabToggle">
                     <button type="button" onclick="switchGalleryTab('showcase')" id="tabShowcase" aria-pressed="true"
-                        class="studio-tab active px-4 py-1.5 text-[11px] font-semibold rounded-full transition-colors bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm">展示</button>
+                        class="studio-tab active px-3.5 py-1 text-[11px] leading-4 font-semibold rounded-full transition-colors duration-150 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm cursor-pointer">展示</button>
                     <button type="button" onclick="switchGalleryTab('history')" id="tabHistory" aria-pressed="false"
-                        class="studio-tab px-4 py-1.5 text-[11px] font-semibold rounded-full transition-colors text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">历史</button>
+                        class="studio-tab px-3.5 py-1 text-[11px] leading-4 font-semibold rounded-full transition-colors duration-150 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">历史</button>
                 </div>
             </div>
             <div id="showcaseGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 content-start"></div>

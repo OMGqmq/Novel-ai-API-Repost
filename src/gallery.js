@@ -290,17 +290,8 @@ export class GalleryController {
         const tabHistory = document.getElementById('tabHistory');
         const tabGroup = document.getElementById('galleryTabToggle');
         const showcaseGrid = document.getElementById('showcaseGrid');
-        const usesStudioTabs = Boolean(
-            tabGroup?.classList?.contains?.('studio-tabs')
-            || tabShowcase?.classList?.contains?.('studio-tab')
-            || tabHistory?.classList?.contains?.('studio-tab')
-        );
-        const activeClass = usesStudioTabs
-            ? 'studio-tab active'
-            : 'studio-tab active px-4 py-1.5 text-[11px] font-semibold rounded-full transition-colors duration-200 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm';
-        const inactiveClass = usesStudioTabs
-            ? 'studio-tab'
-            : 'studio-tab px-4 py-1.5 text-[11px] font-semibold rounded-full transition-colors duration-200 text-slate-500 dark:text-slate-400';
+        const activeClass = 'studio-tab active px-3.5 py-1 text-[11px] leading-4 font-semibold rounded-full transition-colors duration-150 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm cursor-pointer';
+        const inactiveClass = 'studio-tab px-3.5 py-1 text-[11px] leading-4 font-semibold rounded-full transition-colors duration-150 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer';
         const isShowcase = tab === 'showcase';
         if (tabShowcase) {
             tabShowcase.className = isShowcase ? activeClass : inactiveClass;
