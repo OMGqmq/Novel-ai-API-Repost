@@ -810,13 +810,6 @@ html.dark #floatingGenerateBtn {
     transition: opacity var(--dur-panel) var(--ease-out-spring), transform var(--dur-panel) var(--ease-out-spring);
 }
 
-@supports (transition-behavior: allow-discrete) {
-    #adminControls {
-        transition-property: opacity, transform, display;
-        transition-behavior: allow-discrete;
-    }
-}
-
 @media (prefers-reduced-motion: no-preference) {
     @starting-style {
         #adminControls:not(.hidden) {
@@ -824,6 +817,11 @@ html.dark #floatingGenerateBtn {
             transform: translateY(-4px);
         }
     }
+}
+
+#adminControls.hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 
 #adminControls[data-closing="true"] {
@@ -1266,11 +1264,9 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     transform-origin: bottom center;
     transition: opacity var(--dur-fast) var(--ease-out-spring), transform var(--dur-fast) var(--ease-out-spring);
 }
-@supports (transition-behavior: allow-discrete) {
-    .inpaint-params-popover {
-        transition-property: opacity, transform, display;
-        transition-behavior: allow-discrete;
-    }
+.inpaint-params-popover.hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 .inpaint-params-popover[data-closing="true"],
 .inpaint-params-popover[data-closing] {
@@ -2397,11 +2393,9 @@ html.low-perf body.entrance-animating #mobileControls {
 #generationSkeleton {
     transition: opacity var(--dur-panel) var(--ease-out-spring), transform var(--dur-panel) var(--ease-out-spring);
 }
-@supports (transition-behavior: allow-discrete) {
-    #generationSkeleton {
-        transition-property: opacity, transform, display;
-        transition-behavior: allow-discrete;
-    }
+#generationSkeleton.hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 #generationSkeleton[data-closing="true"],
 #generationSkeleton[data-closing] {
@@ -3206,7 +3200,7 @@ body.char-stage-active #canvasFilmstripDock {
     #inpaintRestoreMaskBtn,
     #blurStrengthWrap,
     #fillToleranceWrap {
-        transition-property: opacity, display;
+        transition-property: opacity;
         transition-duration: 120ms;
         animation: none !important;
     }

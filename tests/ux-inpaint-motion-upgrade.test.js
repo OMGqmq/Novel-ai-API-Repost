@@ -807,6 +807,11 @@ describe('In-Canvas Inpaint Fusion, Multi-Touch Viewport & UX Motion Upgrades', 
             // Bug 1: Secondary generation shimmer sweep on existing canvas image is removed
             expect(css).not.toContain('#singleResultArea.is-sampling .inpaint-canvas-stage::after');
             expect(css).toContain('#generationSkeleton.is-compact-hud .canvas-shimmer-card::before');
+            // Bug 1b: #generationSkeleton uses mc.exit(data-closing -> .hidden) so it must NOT transition display via allow-discrete
+            expect(css).toContain('#generationSkeleton.hidden');
+            expect(css).not.toMatch(/#generationSkeleton\s*\{[^}]*transition-behavior:\s*allow-discrete/s);
+            expect(css).not.toMatch(/#adminControls\s*\{[^}]*transition-behavior:\s*allow-discrete/s);
+            expect(css).not.toMatch(/\.inpaint-params-popover\s*\{[^}]*transition-behavior:\s*allow-discrete/s);
 
             // Verify #charPositionStage is inside #previewArea (before #historyArea) and NOT a full-screen fixed z-[250] modal
             const previewIdx = html.indexOf('id="previewArea"');
