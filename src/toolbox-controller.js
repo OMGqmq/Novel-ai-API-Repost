@@ -194,7 +194,7 @@ export function switchToolboxTab(tabId) {
         btn.classList.toggle('active-tab', isActive);
         btn.classList.toggle('active', isActive);
         btn.setAttribute?.('aria-pressed', isActive ? 'true' : 'false');
-        btn.classList.remove('bg-gray-100', 'text-gray-900', 'text-gray-500', 'dark:text-gray-400', 'transition-all');
+        btn.classList.remove('bg-gray-100', 'text-gray-900', 'text-gray-500', 'dark:text-gray-400');
         if (usesStudioTabs) {
             btn.classList.add('studio-tab');
             btn.classList.remove('dark:bg-slate-800', 'dark:text-white', 'shadow-sm', 'bg-slate-100', 'text-slate-900', 'text-slate-500', 'dark:text-slate-400');
