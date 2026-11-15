@@ -1437,12 +1437,11 @@ export class UIController {
         resultGrid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
 
         const activeRingClasses = ['border-slate-900', 'dark:border-white', 'ring-4', 'ring-slate-900/15', 'dark:ring-white/20'];
-        resultGrid.classList?.add?.('studio-list-enter');
 
         results.forEach((item, index) => {
             const imgWrapper = document.createElement('div');
-            imgWrapper.className = 'relative group cursor-pointer transition-transform duration-200 transform hover:scale-[1.02] active:scale-95';
-            imgWrapper.style?.setProperty?.('--stagger-i', String(Math.min(index, 10)));
+            imgWrapper.className = 'studio-list-enter relative group cursor-pointer transition-transform duration-200 transform hover:scale-[1.02] active:scale-95';
+            imgWrapper.style?.setProperty?.('--sibling-index', String(Math.min(index, 10)));
             
             const img = document.createElement('img');
             img.src = item.imageUrl;
