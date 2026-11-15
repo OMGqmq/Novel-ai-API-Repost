@@ -351,12 +351,10 @@ label:active input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
 #toolboxTabs .toolbox-tab-btn::after {
     content: "";
     position: absolute;
-    left: 4px;
+    inset-inline-start: 4px;
+    inset-inline-end: auto;
     top: 8px;
     bottom: 8px;
-    right: auto;
-    inset-inline: auto;
-    inset-block-end: 8px;
     width: 0;
     height: auto;
     background: transparent;
@@ -1881,9 +1879,8 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     /* 移动端轨道变为横向滚动时恢复底部水平指示条 */
     #settingsModal #settingsTabs .settings-tab-btn::after,
     #toolboxModal #toolboxTabs .toolbox-tab-btn::after {
-        left: 0.625rem;
-        right: 0.625rem;
-        top: auto;
+        inset-inline: 10px;
+        inset-block-start: auto;
         bottom: 2px;
         width: auto;
         height: 2px;
