@@ -253,7 +253,10 @@ export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose
         const dy = e.clientY - startY;
         if (!dragging && Math.abs(dy) > 8) {
             dragging = true;
-            if (startedExpanded) drawerEl.style.transition = 'none';
+            if (startedExpanded) {
+                drawerEl.style.transition = 'none';
+                drawerEl.style.willChange = 'transform';
+            }
         }
         if (dragging) {
             currentDeltaY = dy;
@@ -281,6 +284,7 @@ export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose
 
         drawerEl.style.transition = '';
         drawerEl.style.transform = '';
+        drawerEl.style.willChange = '';
 
         if (startedExpanded) {
             if (currentDeltaY > 72 || (currentDeltaY > 28 && velocity > 0.45)) {
@@ -300,15 +304,32 @@ export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose
 export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}) {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
-    // 1. Range Slider Progress, Switch Roles & Double-Click Reset
+    // 1. Range Slider Progress, Switch Roles, Micro-Tooltips & Double-Click Reset
     initRangeSliderEnhancements(document);
     initSwitchAccessibility(document);
+
+    const syncMicroTooltips = () => {
+        try {
+            document.querySelectorAll?.('[data-tip]')?.forEach((el) => {
+                const tip = el.getAttribute?.('data-tip');
+                if (!tip) return;
+                if (!el.getAttribute?.('aria-label')) {
+                    el.setAttribute?.('aria-label', tip);
+                }
+                if (el.hasAttribute?.('title')) {
+                    el.removeAttribute?.('title');
+                }
+            });
+        } catch (_) {}
+    };
+    syncMicroTooltips();
 
     // Refresh range progress & switch states whenever external scripts mutate values
     const refreshAllRanges = () => {
         try {
             document.querySelectorAll?.('input[type="range"]')?.forEach(updateRangeProgress);
             initSwitchAccessibility(document);
+            syncMicroTooltips();
         } catch (_) {}
     };
     setTimeout(refreshAllRanges, 120);
@@ -397,6 +418,7 @@ export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}
     const dropOverlay = document.getElementById('pngDropOverlay');
     if (dropOverlay && typeof window.addEventListener === 'function') {
         let dragDepth = 0;
+        let hideOverlayTimer = null;
 
         const hasFilePayload = (e) => {
             const types = e?.dataTransfer?.types;
@@ -405,15 +427,38 @@ export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}
         };
 
         const showDropOverlay = () => {
-            dropOverlay.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
-            dropOverlay.classList.add('opacity-100');
+            if (hideOverlayTimer) {
+                clearTimeout(hideOverlayTimer);
+                hideOverlayTimer = null;
+            }
+            const wasHidden = dropOverlay.classList.contains('hidden');
+            dropOverlay.classList.remove('hidden', 'pointer-events-none');
+            const reveal = () => {
+                if (dragDepth === 0) return;
+                dropOverlay.classList.remove('opacity-0');
+                dropOverlay.classList.add('opacity-100');
+            };
+            if (wasHidden && typeof requestAnimationFrame === 'function' && !isLowPerfOrReducedMotion()) {
+                requestAnimationFrame(reveal);
+            } else {
+                reveal();
+            }
         };
 
         const hideDropOverlay = () => {
             dragDepth = 0;
+            if (hideOverlayTimer) {
+                clearTimeout(hideOverlayTimer);
+                hideOverlayTimer = null;
+            }
             dropOverlay.classList.add('opacity-0', 'pointer-events-none');
             dropOverlay.classList.remove('opacity-100');
-            setTimeout(() => {
+            if (isLowPerfOrReducedMotion()) {
+                dropOverlay.classList.add('hidden');
+                return;
+            }
+            hideOverlayTimer = setTimeout(() => {
+                hideOverlayTimer = null;
                 if (dragDepth === 0) dropOverlay.classList.add('hidden');
             }, 180);
         };

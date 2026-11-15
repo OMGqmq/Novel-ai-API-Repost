@@ -26,11 +26,48 @@ const isReducedMotion = () => {
     return false;
 };
 
+let cachedCanTransitionDisplay = null;
+
 const supportsTopLayerExit = () =>
     typeof CSS !== 'undefined' &&
     typeof CSS.supports === 'function' &&
     CSS.supports('transition-behavior', 'allow-discrete') &&
     CSS.supports('overlay', 'auto');
+
+/**
+ * Runtime probe verifying whether discrete `display` transitions actually retain
+ * the open layout box at exit start (defends against engines where CSS.supports
+ * reports true without real allow-discrete interpolation).
+ */
+const canTransitionDisplay = () => {
+    if (typeof window !== 'undefined' && typeof window.motionController?.canTransitionDisplay === 'function') {
+        return Boolean(window.motionController.canTransitionDisplay());
+    }
+    if (!supportsTopLayerExit()) return false;
+    if (
+        typeof document === 'undefined' ||
+        typeof document.createElement !== 'function' ||
+        !document.body ||
+        typeof getComputedStyle !== 'function'
+    ) {
+        return true;
+    }
+    if (cachedCanTransitionDisplay !== null) return cachedCanTransitionDisplay;
+
+    try {
+        const probe = document.createElement('div');
+        probe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;visibility:hidden;pointer-events:none;display:block;opacity:1;transition:display 0.1s allow-discrete, opacity 0.1s linear;';
+        document.body.appendChild(probe);
+        void getComputedStyle(probe).display;
+        probe.style.display = 'none';
+        probe.style.opacity = '0';
+        cachedCanTransitionDisplay = getComputedStyle(probe).display !== 'none';
+        probe.remove();
+    } catch (_) {
+        cachedCanTransitionDisplay = false;
+    }
+    return cachedCanTransitionDisplay;
+};
 
 function pointInDialogRect(e, dialog) {
     if (typeof dialog.getBoundingClientRect !== 'function') return true;
@@ -74,7 +111,7 @@ function bindDialogLifecycle(el) {
             el._onNativeCancel(e);
             if (e.defaultPrevented) return;
         }
-        if (!isReducedMotion() && !supportsTopLayerExit() && !el.dataset?.closing) {
+        if (!isReducedMotion() && !canTransitionDisplay() && !el.dataset?.closing) {
             e.preventDefault();
             closeModal(el.id, 'cancel');
         }
@@ -84,6 +121,10 @@ function bindDialogLifecycle(el) {
         if (el._openTimeout) {
             clearTimeout(el._openTimeout);
             el._openTimeout = null;
+        }
+        if (el._openRaf && typeof cancelAnimationFrame === 'function') {
+            cancelAnimationFrame(el._openRaf);
+            el._openRaf = null;
         }
         el.classList.remove('modal-active');
         if (el.dataset) delete el.dataset.closing;
@@ -149,9 +190,7 @@ function announceToastMessage(message) {
     }
 }
 
-export function openModal(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
+const cancelPendingModalTimers = (el) => {
     if (el._closeTimeout) {
         clearTimeout(el._closeTimeout);
         el._closeTimeout = null;
@@ -160,6 +199,28 @@ export function openModal(id) {
         clearTimeout(el._openTimeout);
         el._openTimeout = null;
     }
+    if (el._openRaf && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(el._openRaf);
+        el._openRaf = null;
+    }
+};
+
+const activateModalNextFrame = (el) => {
+    const activate = () => {
+        el._openRaf = null;
+        el.classList.add('modal-active');
+    };
+    if (typeof requestAnimationFrame === 'function') {
+        el._openRaf = requestAnimationFrame(activate);
+    } else {
+        activate();
+    }
+};
+
+export function openModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    cancelPendingModalTimers(el);
     if (el.dataset) delete el.dataset.closing;
 
     if (isNativeDialog(el)) {
@@ -177,31 +238,18 @@ export function openModal(id) {
         if (toastContainer?.querySelector?.('.toast-item')) {
             syncToastContainerPopover(toastContainer, true);
         }
-        el._openTimeout = setTimeout(() => {
-            el._openTimeout = null;
-            el.classList.add('modal-active');
-        }, 10);
+        activateModalNextFrame(el);
         return;
     }
 
     el.style.display = 'flex';
-    el._openTimeout = setTimeout(() => {
-        el._openTimeout = null;
-        el.classList.add('modal-active');
-    }, 10);
+    activateModalNextFrame(el);
 }
 
 export function closeModal(id, returnValue = '') {
     const el = document.getElementById(id);
     if (!el) return;
-    if (el._openTimeout) {
-        clearTimeout(el._openTimeout);
-        el._openTimeout = null;
-    }
-    if (el._closeTimeout) {
-        clearTimeout(el._closeTimeout);
-        el._closeTimeout = null;
-    }
+    cancelPendingModalTimers(el);
     el.classList.remove('modal-active');
 
     if (isNativeDialog(el)) {
@@ -210,7 +258,7 @@ export function closeModal(id, returnValue = '') {
             el.returnValue = '';
             return;
         }
-        if (isReducedMotion() || supportsTopLayerExit()) {
+        if (isReducedMotion() || canTransitionDisplay()) {
             try {
                 el.close(returnValue);
             } catch (_) {}
@@ -231,17 +279,22 @@ export function closeModal(id, returnValue = '') {
         const anims = typeof el.getAnimations === 'function'
             ? el.getAnimations({ subtree: true }).filter((a) => a.effect?.getComputedTiming?.().iterations !== Infinity)
             : [];
-        el._closeTimeout = setTimeout(finalizeClose, 320);
+        el._closeTimeout = setTimeout(finalizeClose, 300);
         if (anims.length > 0) {
             Promise.allSettled(anims.map((a) => a.finished)).then(finalizeClose);
         }
         return;
     }
 
+    if (isReducedMotion()) {
+        el.style.display = 'none';
+        return;
+    }
+
     el._closeTimeout = setTimeout(() => {
         el.style.display = 'none';
         el._closeTimeout = null;
-    }, 300);
+    }, 280);
 }
 
 const MODAL_SVG_PATHS = {
@@ -297,19 +350,19 @@ export function showToast(message, type = 'info', duration = 3000) {
 
     const safeText = String(message ?? '');
     const toast = document.createElement('div');
-    toast.className = 'toast-item flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-lg border backdrop-blur-md transition-all duration-300 translate-y-2 opacity-0 max-w-sm pointer-events-auto w-[90%] md:w-auto';
+    toast.className = 'toast-item flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-lg border backdrop-blur-md transition-[opacity,transform] duration-200 ease-out translate-y-2 opacity-0 max-w-sm pointer-events-auto w-[90%] md:w-auto';
 
     let iconName = 'info';
-    let bgClass = 'bg-white/90 dark:bg-slate-900/90 border-gray-200/50 dark:border-slate-800/80 text-gray-700 dark:text-gray-200';
+    let bgClass = 'bg-[var(--surface-elevated,rgba(255,255,255,0.95))] dark:bg-[var(--surface-elevated,rgba(15,23,42,0.95))] border-[var(--border-subtle,rgba(226,232,240,0.85))] dark:border-[var(--border-subtle,rgba(51,65,85,0.85))] text-[var(--text-primary,#1e293b)] dark:text-slate-100';
     if (type === 'success') {
         iconName = 'check-circle';
-        bgClass = 'bg-emerald-50/90 dark:bg-emerald-950/90 border-emerald-200/50 dark:border-emerald-800/30 text-emerald-800 dark:text-emerald-200';
+        bgClass = 'bg-emerald-50/95 dark:bg-emerald-950/95 border-emerald-200/80 dark:border-emerald-800/50 text-emerald-900 dark:text-emerald-100';
     } else if (type === 'error') {
         iconName = 'alert-triangle';
-        bgClass = 'bg-rose-50/90 dark:bg-rose-950/90 border-rose-200/50 dark:border-rose-800/30 text-rose-800 dark:text-rose-200';
+        bgClass = 'bg-red-50/95 dark:bg-red-950/95 border-red-200/80 dark:border-red-800/50 text-red-900 dark:text-red-100';
     } else if (type === 'warning') {
         iconName = 'alert-circle';
-        bgClass = 'bg-amber-50/90 dark:bg-amber-950/90 border-amber-200/50 dark:border-amber-800/30 text-amber-800 dark:text-amber-200';
+        bgClass = 'bg-amber-50/95 dark:bg-amber-950/95 border-amber-200/80 dark:border-amber-800/50 text-amber-900 dark:text-amber-100';
     }
 
     toast.className += ` ${bgClass}`;
@@ -362,11 +415,16 @@ export function showToast(message, type = 'info', duration = 3000) {
             clearTimeout(timeoutId);
             timeoutId = null;
         }
-        toast.classList.add('opacity-0', 'translate-y-[-8px]');
+        toast.classList.add('opacity-0', '-translate-y-2');
+        if (isReducedMotion()) {
+            toast.remove();
+            syncToastContainerPopover(container, false);
+            return;
+        }
         setTimeout(() => {
             toast.remove();
             syncToastContainerPopover(container, false);
-        }, 300);
+        }, 200);
     };
 
     const startTimer = (delay) => {

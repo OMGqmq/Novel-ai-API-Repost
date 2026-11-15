@@ -310,7 +310,7 @@ export class UIController {
             labelSpan.textContent = selectedText;
             trigger.appendChild(labelSpan);
 
-            const arrowSvg = createUiSvg('chevron-down', 'w-3.5 h-3.5 text-gray-400 custom-select-arrow transition-transform duration-200 flex-shrink-0 ml-1.5', '2');
+            const arrowSvg = createUiSvg('chevron-down', 'w-3.5 h-3.5 text-slate-500 dark:text-slate-400 custom-select-arrow transition-transform duration-200 flex-shrink-0 ml-1.5', '2');
             if (arrowSvg) trigger.appendChild(arrowSvg);
 
             // Create options panel (Top-Layer popover when supported, fallback positioned panel otherwise)
@@ -320,9 +320,9 @@ export class UIController {
             const supportsPopover = typeof optionsPanel.showPopover === 'function' && typeof optionsPanel.hidePopover === 'function';
             if (supportsPopover) {
                 optionsPanel.setAttribute('popover', 'manual');
-                optionsPanel.className = 'custom-select-options py-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-slate-800 rounded-xl shadow-art z-[60] custom-scroll overflow-y-auto';
+                optionsPanel.className = 'custom-select-options py-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-700/80 rounded-xl shadow-art z-[60] custom-scroll overflow-y-auto';
             } else {
-                optionsPanel.className = 'custom-select-options absolute left-0 right-0 mt-1.5 py-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-slate-800 rounded-xl shadow-art z-[60] opacity-0 scale-95 pointer-events-none transition-all duration-150 origin-top custom-scroll overflow-y-auto max-h-60';
+                optionsPanel.className = 'custom-select-options absolute left-0 right-0 mt-1.5 py-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-700/80 rounded-xl shadow-art z-[60] opacity-0 scale-95 pointer-events-none transition-[opacity,transform] duration-150 origin-top custom-scroll overflow-y-auto max-h-60';
             }
 
             let isOpen = false;
@@ -433,7 +433,7 @@ export class UIController {
                 Array.from(selectEl.options).forEach((opt, idx) => {
                     const optEl = document.createElement('div');
                     optEl.id = `${listboxId}_opt_${idx}`;
-                    optEl.className = 'custom-option px-4 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800/80 flex items-center justify-between cursor-pointer transition-colors duration-150';
+                    optEl.className = 'custom-option px-4 py-2.5 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 flex items-center justify-between cursor-pointer transition-colors duration-150';
                     optEl.setAttribute('role', 'option');
                     optEl.setAttribute('data-value', opt.value);
 
@@ -625,7 +625,7 @@ export class UIController {
         if (emitResize && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof Event === 'function') {
             setTimeout(() => {
                 try { window.dispatchEvent(new Event('resize')); } catch (_) {}
-            }, 300);
+            }, 280);
         }
         return isCollapsed;
     }
@@ -638,6 +638,10 @@ export class UIController {
         if (mobileControls && 'inert' in mobileControls) {
             mobileControls.inert = false;
         }
+        if (this._mobileBackdropTimer) {
+            clearTimeout(this._mobileBackdropTimer);
+            this._mobileBackdropTimer = null;
+        }
         if (this.isControlsExpanded) {
             mobileControls.classList.remove('collapsed');
             mobileControls.classList.add('expanded');
@@ -646,7 +650,15 @@ export class UIController {
             mobileControls.classList.remove('expanded');
             mobileControls.classList.add('collapsed');
             mobileBackdrop.classList.add('opacity-0', 'pointer-events-none');
-            setTimeout(() => mobileBackdrop.classList.add('hidden-backdrop'), 300);
+            const reduced = typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf');
+            if (reduced) {
+                mobileBackdrop.classList.add('hidden-backdrop');
+            } else {
+                this._mobileBackdropTimer = setTimeout(() => {
+                    this._mobileBackdropTimer = null;
+                    if (!this.isControlsExpanded) mobileBackdrop.classList.add('hidden-backdrop');
+                }, 280);
+            }
         }
     }
 
@@ -668,10 +680,10 @@ export class UIController {
             const isMatch = btn.getAttribute('data-model-btn') === ver;
             btn.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
             if (btn.classList) {
-                btn.classList.toggle('text-gray-900', isMatch);
+                btn.classList.toggle('text-slate-900', isMatch);
                 btn.classList.toggle('dark:text-white', isMatch);
-                btn.classList.toggle('text-gray-500', !isMatch);
-                btn.classList.toggle('dark:text-gray-400', !isMatch);
+                btn.classList.toggle('text-slate-600', !isMatch);
+                btn.classList.toggle('dark:text-slate-300', !isMatch);
             }
         });
         document.querySelectorAll('.switch-bg').forEach(bg => {
@@ -955,13 +967,15 @@ export class UIController {
     }
 
     switchDrawerTab(tab, renderCallback = null, isOpening = false) {
-        const activeClass = "active flex-1 py-2 text-xs font-medium rounded-lg transition-all border shadow-sm text-gray-900 bg-white border-gray-200 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-200";
-        const inactiveClass = "flex-1 py-2 text-xs font-medium rounded-lg transition-all border border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white";
+        const activeClass = "studio-tab active flex-1 py-2 text-xs font-semibold rounded-lg transition-colors border shadow-sm text-slate-900 bg-white border-slate-200/80 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100";
+        const inactiveClass = "studio-tab flex-1 py-2 text-xs font-medium rounded-lg transition-colors border border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white";
 
         // Reset all tabs to inactive
-        if (this.els.tabSearch) this.els.tabSearch.className = inactiveClass;
-        if (this.els.tabNotebook) this.els.tabNotebook.className = inactiveClass;
-        if (this.els.tabRandom) this.els.tabRandom.className = inactiveClass;
+        [this.els.tabSearch, this.els.tabNotebook, this.els.tabRandom].forEach(el => {
+            if (!el) return;
+            el.className = inactiveClass;
+            el.setAttribute?.('aria-pressed', 'false');
+        });
 
         // Hide all views
         if (this.els.viewSearch) this.els.viewSearch.classList.add('hidden');
@@ -972,22 +986,41 @@ export class UIController {
             window.promptHelperInstance?.detachSuggestPanel?.();
         }
 
+        const revealView = (viewEl) => {
+            if (!viewEl) return;
+            viewEl.classList.remove('hidden');
+            const isLowPerf = typeof document !== 'undefined' && document.documentElement?.classList?.contains?.('low-perf');
+            if (!isLowPerf && typeof requestAnimationFrame === 'function') {
+                viewEl.classList.remove('view-fade-enter');
+                requestAnimationFrame(() => viewEl.classList.add('view-fade-enter'));
+            }
+        };
+
         if (tab === 'search') {
-            if (this.els.tabSearch) this.els.tabSearch.className = activeClass;
-            if (this.els.viewSearch) this.els.viewSearch.classList.remove('hidden');
+            if (this.els.tabSearch) {
+                this.els.tabSearch.className = activeClass;
+                this.els.tabSearch.setAttribute?.('aria-pressed', 'true');
+            }
+            revealView(this.els.viewSearch);
         } else if (tab === 'notebook') {
-            if (this.els.tabNotebook) this.els.tabNotebook.className = activeClass;
-            if (this.els.viewNotebook) this.els.viewNotebook.classList.remove('hidden');
+            if (this.els.tabNotebook) {
+                this.els.tabNotebook.className = activeClass;
+                this.els.tabNotebook.setAttribute?.('aria-pressed', 'true');
+            }
+            revealView(this.els.viewNotebook);
             if (renderCallback) {
-                if (isOpening) setTimeout(renderCallback, 300);
+                if (isOpening) setTimeout(renderCallback, 240);
                 else renderCallback();
             }
         } else if (tab === 'random') {
-            if (this.els.tabRandom) this.els.tabRandom.className = activeClass;
-            if (this.els.viewRandom) this.els.viewRandom.classList.remove('hidden');
+            if (this.els.tabRandom) {
+                this.els.tabRandom.className = activeClass;
+                this.els.tabRandom.setAttribute?.('aria-pressed', 'true');
+            }
+            revealView(this.els.viewRandom);
             const fn = renderCallback || (typeof window !== 'undefined' ? window.renderRandomPromptsList : null);
             if (fn) {
-                if (isOpening) setTimeout(fn, 300);
+                if (isOpening) setTimeout(fn, 240);
                 else fn();
             }
         }
@@ -1063,6 +1096,8 @@ export class UIController {
         const hasGridNow = Boolean(resultGrid && !resultGrid.classList.contains('hidden'));
         const useCompactHud = hasSingleNow || hasGridNow;
 
+        const mc = typeof window !== 'undefined' ? window.motionController : null;
+
         if (loading) {
             if (skeleton && !outpaintVisible) {
                 const resVal = (this.els?.resolution || (typeof document !== 'undefined' ? document.getElementById('resolution') : null))?.value || '832,1216';
@@ -1090,7 +1125,12 @@ export class UIController {
                 if (hasSingleNow) {
                     this.els.singleResultArea.classList.add('is-sampling');
                 }
-                skeleton.classList.remove('hidden');
+                if (typeof mc?.enter === 'function' && typeof skeleton.getAnimations === 'function') {
+                    mc.enter(skeleton);
+                } else {
+                    if (skeleton.dataset) delete skeleton.dataset.closing;
+                    skeleton.classList.remove('hidden');
+                }
                 const startedAt = Date.now();
                 this._loadingTimerId = setInterval(() => {
                     if (skeletonElapsed) {
@@ -1100,14 +1140,24 @@ export class UIController {
             }
         } else {
             if (skeleton) {
-                skeleton.classList.add('hidden');
-                skeleton.classList?.remove?.('is-compact-hud');
+                if (typeof mc?.exit === 'function' && typeof skeleton.getAnimations === 'function') {
+                    mc.exit(skeleton, {
+                        onFinish: () => skeleton.classList?.remove?.('is-compact-hud')
+                    });
+                } else {
+                    skeleton.classList.add('hidden');
+                    skeleton.classList?.remove?.('is-compact-hud');
+                }
             }
             if (this.els?.singleResultArea) {
                 this.els.singleResultArea.classList.remove('opacity-25', 'blur-[2px]', 'is-sampling');
             }
             if (!hasSingleNow && !hasGridNow && this.els?.placeholder) {
-                this.els.placeholder.classList.remove('hidden');
+                if (typeof mc?.enter === 'function' && typeof this.els.placeholder.getAnimations === 'function') {
+                    mc.enter(this.els.placeholder);
+                } else {
+                    this.els.placeholder.classList.remove('hidden');
+                }
             }
         }
     }
@@ -1387,18 +1437,21 @@ export class UIController {
         resultGrid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
 
         const activeRingClasses = ['border-slate-900', 'dark:border-white', 'ring-4', 'ring-slate-900/15', 'dark:ring-white/20'];
+        resultGrid.classList?.add?.('studio-list-enter');
 
         results.forEach((item, index) => {
             const imgWrapper = document.createElement('div');
-            imgWrapper.className = 'relative group cursor-pointer transition-all duration-300 transform hover:scale-[1.02] active:scale-95';
+            imgWrapper.className = 'relative group cursor-pointer transition-transform duration-200 transform hover:scale-[1.02] active:scale-95';
+            imgWrapper.style?.setProperty?.('--stagger-i', String(Math.min(index, 10)));
             
             const img = document.createElement('img');
             img.src = item.imageUrl;
-            img.className = 'max-w-full max-h-full object-contain shadow-2xl rounded-lg border-2 border-transparent transition-all';
+            img.className = 'max-w-full max-h-full object-contain shadow-2xl rounded-lg border-2 border-transparent transition-colors duration-150';
             
             // 如果是第一张图，默认高亮选中并初始化选择回调（但不进入聚焦单图模式以保留网格）
             if (index === 0) {
                 img.classList.add(...activeRingClasses);
+                img.setAttribute?.('data-selected', 'true');
                 if (onSelect) onSelect(item);
             }
             
@@ -1406,7 +1459,7 @@ export class UIController {
             const focusOverlay = document.createElement('div');
             focusOverlay.className = 'absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg z-10';
             focusOverlay.innerHTML = `
-                <button type="button" class="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white border border-white/30 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95 shadow-xl">
+                <button type="button" class="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white border border-white/30 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-[transform,background-color] duration-150 transform hover:scale-105 active:scale-95 shadow-xl">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
                     <span>聚焦 (Focus)</span>
                 </button>
@@ -1425,8 +1478,12 @@ export class UIController {
             const select = (e) => {
                 if (e) e.stopPropagation();
                 // 清除其他选中状态
-                resultGrid.querySelectorAll('img').forEach(i => i.classList.remove(...activeRingClasses));
+                resultGrid.querySelectorAll('img').forEach(i => {
+                    i.classList.remove(...activeRingClasses);
+                    i.removeAttribute?.('data-selected');
+                });
                 img.classList.add(...activeRingClasses);
+                img.setAttribute?.('data-selected', 'true');
                 if (onSelect) onSelect(item);
                 
                 // 进入聚焦单图模式
@@ -1436,6 +1493,10 @@ export class UIController {
             imgWrapper.onclick = select;
             resultGrid.appendChild(imgWrapper);
         });
+
+        if (typeof window !== 'undefined' && typeof window.motionController?.setStaggerIndices === 'function') {
+            window.motionController.setStaggerIndices(resultGrid, ':scope > *', 10);
+        }
 
         if (window.safeCreateIcons) window.safeCreateIcons();
 
@@ -1527,19 +1588,28 @@ export class UIController {
     }
 
     updateAdminUI(isAdmin, hasAdminToken, customKey, toggleBypassLimitsEnabledCallback) {
+        const mc = typeof window !== 'undefined' ? window.motionController : null;
         if (this.els.adminControls) {
             if (isAdmin) {
-                this.els.adminControls.classList.remove('hidden');
+                if (typeof mc?.enter === 'function' && typeof this.els.adminControls.getAnimations === 'function') {
+                    mc.enter(this.els.adminControls);
+                } else {
+                    this.els.adminControls.classList.remove('hidden');
+                }
             } else {
-                this.els.adminControls.classList.add('hidden');
+                if (typeof mc?.exit === 'function' && typeof this.els.adminControls.getAnimations === 'function') {
+                    mc.exit(this.els.adminControls);
+                } else {
+                    this.els.adminControls.classList.add('hidden');
+                }
             }
         }
 
         const updateLock = (btn) => {
             if (isAdmin) {
-                setUiButtonIcon(btn, 'unlock', 'w-4 h-4 text-green-500');
+                setUiButtonIcon(btn, 'unlock', 'w-4 h-4 text-emerald-600 dark:text-emerald-400');
             } else {
-                setUiButtonIcon(btn, 'lock', 'w-4 h-4 text-gray-300 dark:text-gray-500');
+                setUiButtonIcon(btn, 'lock', 'w-4 h-4 text-slate-500 dark:text-slate-400');
             }
         };
         if (this.els.adminLockBtn) updateLock(this.els.adminLockBtn);
@@ -1565,12 +1635,12 @@ export class UIController {
                 checkbox.disabled = false;
                 if (icon) {
                     icon.setAttribute('data-lucide', 'unlock');
-                    icon.setAttribute('class', 'w-3.5 h-3.5 inline-flex items-center justify-center text-green-500');
+                    icon.setAttribute('class', 'w-3.5 h-3.5 inline-flex items-center justify-center text-emerald-600 dark:text-emerald-400');
                     setUiButtonIcon(icon, 'unlock', 'w-3.5 h-3.5');
                 }
                 if (badge) {
                     badge.textContent = '已解锁';
-                    badge.className = 'text-[9px] bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded border border-green-200/50 dark:border-green-900/30';
+                    badge.className = 'studio-badge studio-badge--success text-[9px] bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-200/70 dark:border-emerald-800/50';
                 }
                 if (hint) {
                     hint.textContent = '开启后，可选用 1.5M 像素超大画幅与最高 50 步生成（将消耗您的 Anlas）。';
@@ -1583,12 +1653,12 @@ export class UIController {
                 }
                 if (icon) {
                     icon.setAttribute('data-lucide', 'lock');
-                    icon.setAttribute('class', 'w-3.5 h-3.5 inline-flex items-center justify-center text-gray-400');
+                    icon.setAttribute('class', 'w-3.5 h-3.5 inline-flex items-center justify-center text-slate-500 dark:text-slate-400');
                     setUiButtonIcon(icon, 'lock', 'w-3.5 h-3.5');
                 }
                 if (badge) {
                     badge.textContent = '锁定';
-                    badge.className = 'text-[9px] bg-gray-100 dark:bg-slate-800 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700';
+                    badge.className = 'studio-badge studio-badge--neutral text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700';
                 }
                 if (hint) {
                     hint.textContent = '需在顶部工具栏配置您的自定义 API Key 或管理员密码以解锁此选项。';
@@ -1599,7 +1669,7 @@ export class UIController {
         const updateApiBtn = (btn) => {
             if (btn) {
                 if (customKey) {
-                    setUiButtonIcon(btn, 'globe', 'w-4 h-4 text-green-500');
+                    setUiButtonIcon(btn, 'globe', 'w-4 h-4 text-emerald-600 dark:text-emerald-400');
                 } else {
                     setUiButtonIcon(btn, 'globe', 'w-4 h-4');
                 }
@@ -1611,16 +1681,22 @@ export class UIController {
 
     updateLowPerfUI(enabled) {
         const iconName = enabled ? 'zap-off' : 'zap';
-        const iconClass = enabled ? 'w-4 h-4 text-gray-400' : 'w-4 h-4 text-amber-500';
+        const iconClass = enabled ? 'w-4 h-4 text-slate-500 dark:text-slate-400' : 'w-4 h-4 text-amber-500';
+        const label = enabled ? '切换至高性能模式' : '切换至低性能模式';
 
-        if (this.els.lowPerfBtn) {
-            setUiButtonIcon(this.els.lowPerfBtn, iconName, iconClass);
-            this.els.lowPerfBtn.title = enabled ? "高性能模式" : "低性能模式";
-        }
-        if (this.els.lowPerfBtnMobile) {
-            setUiButtonIcon(this.els.lowPerfBtnMobile, iconName, iconClass);
-            this.els.lowPerfBtnMobile.title = enabled ? "高性能模式" : "低性能模式";
-        }
+        const applyLowPerfBtn = (btn) => {
+            if (!btn) return;
+            setUiButtonIcon(btn, iconName, iconClass);
+            if (btn.hasAttribute?.('data-tip')) {
+                btn.setAttribute('data-tip', label);
+                btn.setAttribute('aria-label', label);
+                btn.removeAttribute?.('title');
+            } else {
+                btn.title = enabled ? '高性能模式' : '低性能模式';
+            }
+        };
+        applyLowPerfBtn(this.els.lowPerfBtn);
+        applyLowPerfBtn(this.els.lowPerfBtnMobile);
     }
 
     // =========================================================================
