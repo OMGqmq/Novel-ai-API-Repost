@@ -85,26 +85,54 @@ export class AuthController {
         }
     }
 
+    _escapeHtml(text) {
+        return String(text ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    _setStatus(statusEl, variant, message) {
+        if (!statusEl) return;
+        const safeMsg = this._escapeHtml(message);
+        if (variant === 'loading') {
+            statusEl.innerHTML = `<span class="text-slate-500 dark:text-slate-400 inline-flex items-center gap-1.5"><span class="studio-spinner inline-block w-3 h-3 shrink-0" aria-hidden="true"></span>${safeMsg}</span>`;
+        } else if (variant === 'success') {
+            statusEl.innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-medium" style="color: var(--status-success)">✔ ${safeMsg}</span>`;
+        } else {
+            statusEl.innerHTML = `<span class="text-red-500 dark:text-red-400 font-medium" style="color: var(--status-danger)">✗ ${safeMsg}</span>`;
+        }
+        statusEl.classList.remove('hidden');
+    }
+
     switchAuthTab(tab) {
         const tabLogin = document.getElementById('authTabLogin');
         const tabRegister = document.getElementById('authTabRegister');
         const submitBtn = document.getElementById('authSubmitBtn');
         const authPanel = document.getElementById('userAuthPanel');
         
-        const activeClass = 'flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 shadow-sm transition-all';
-        const inactiveClass = 'flex-1 text-center py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-all';
+        const activeClass = 'studio-tab active flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm cursor-pointer';
+        const inactiveClass = 'studio-tab flex-1 text-center py-2 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer';
+
+        const tabBar = tabLogin?.parentElement || tabRegister?.parentElement;
+        tabBar?.classList?.add?.('studio-tabs');
+        tabBar?.setAttribute?.('role', 'tablist');
         
-        if (tab === 'login') {
-            if (tabLogin) tabLogin.className = activeClass;
-            if (tabRegister) tabRegister.className = inactiveClass;
-            if (submitBtn) submitBtn.textContent = '登录';
-            if (authPanel) authPanel.dataset.tab = 'login';
-        } else {
-            if (tabLogin) tabLogin.className = inactiveClass;
-            if (tabRegister) tabRegister.className = activeClass;
-            if (submitBtn) submitBtn.textContent = '注册 (赠送10点)';
-            if (authPanel) authPanel.dataset.tab = 'register';
+        const isLogin = tab === 'login';
+        if (tabLogin) {
+            tabLogin.className = isLogin ? activeClass : inactiveClass;
+            tabLogin.setAttribute?.('role', 'tab');
+            tabLogin.setAttribute?.('aria-selected', isLogin ? 'true' : 'false');
         }
+        if (tabRegister) {
+            tabRegister.className = isLogin ? inactiveClass : activeClass;
+            tabRegister.setAttribute?.('role', 'tab');
+            tabRegister.setAttribute?.('aria-selected', isLogin ? 'false' : 'true');
+        }
+        if (submitBtn) submitBtn.textContent = isLogin ? '登录' : '注册 (赠送10点)';
+        if (authPanel) authPanel.dataset.tab = isLogin ? 'login' : 'register';
     }
 
     async submitAuth() {
@@ -119,16 +147,14 @@ export class AuthController {
         const password = passwordEl.value.trim();
         
         if (!username || !password) {
-            statusEl.innerHTML = '<span class="text-red-500">✗ 用户名和密码不能为空</span>';
-            statusEl.classList.remove('hidden');
+            this._setStatus(statusEl, 'danger', '用户名和密码不能为空');
             return;
         }
         
         const isLogin = authPanel.dataset.tab !== 'register';
         const endpoint = isLogin ? apiUrl('/api/auth/login') : apiUrl('/api/auth/register');
         
-        statusEl.innerHTML = '<span class="text-gray-500"><span class="loader inline-block w-3 h-3 border-gray-500 border-t-transparent rounded-full animate-spin"></span> 处理中...</span>';
-        statusEl.classList.remove('hidden');
+        this._setStatus(statusEl, 'loading', '处理中...');
         submitBtn.disabled = true;
         
         try {
@@ -158,7 +184,7 @@ export class AuthController {
             
             if (isLogin) {
                 localStorage.setItem('nai_user_token', data.token);
-                statusEl.innerHTML = '<span class="text-green-500">✔ 登录成功！</span>';
+                this._setStatus(statusEl, 'success', '登录成功！');
                 this.updateUserCreditsUI(data.user);
                 setTimeout(() => {
                     statusEl.classList.add('hidden');
@@ -166,7 +192,7 @@ export class AuthController {
                     passwordEl.value = '';
                 }, 800);
             } else {
-                statusEl.innerHTML = '<span class="text-green-500">✔ 注册成功，正在切换到登录...</span>';
+                this._setStatus(statusEl, 'success', '注册成功，正在切换到登录...');
                 setTimeout(() => {
                     passwordEl.value = '';
                     this.switchAuthTab('login');
@@ -174,7 +200,7 @@ export class AuthController {
                 }, 1200);
             }
         } catch (err) {
-            statusEl.innerHTML = `<span class="text-red-500">✗ ${err.message}</span>`;
+            this._setStatus(statusEl, 'danger', err?.message || '请求失败');
         } finally {
             submitBtn.disabled = false;
         }
@@ -187,20 +213,17 @@ export class AuthController {
         const token = localStorage.getItem('nai_user_token');
         
         if (!token) {
-            statusEl.innerHTML = '<span class="text-red-500">✗ 登录已失效，请重新登录</span>';
-            statusEl.classList.remove('hidden');
+            this._setStatus(statusEl, 'danger', '登录已失效，请重新登录');
             return;
         }
         
         const cardKey = cardKeyEl.value.trim();
         if (!cardKey) {
-            statusEl.innerHTML = '<span class="text-red-500">✗ 请输入卡密</span>';
-            statusEl.classList.remove('hidden');
+            this._setStatus(statusEl, 'danger', '请输入卡密');
             return;
         }
         
-        statusEl.innerHTML = '<span class="text-gray-500"><span class="loader inline-block w-3 h-3 border-gray-500 border-t-transparent rounded-full animate-spin"></span> 充值中...</span>';
-        statusEl.classList.remove('hidden');
+        this._setStatus(statusEl, 'loading', '充值中...');
         submitBtn.disabled = true;
         
         try {
@@ -219,11 +242,11 @@ export class AuthController {
                 throw new Error(data.error || '充值失败');
             }
             
-            statusEl.innerHTML = `<span class="text-green-500">✔ ${data.message}</span>`;
+            this._setStatus(statusEl, 'success', data.message || '充值成功');
             cardKeyEl.value = '';
             this.fetchUserProfile();
         } catch (err) {
-            statusEl.innerHTML = `<span class="text-red-500">✗ ${err.message}</span>`;
+            this._setStatus(statusEl, 'danger', err?.message || '充值失败');
         } finally {
             submitBtn.disabled = false;
         }

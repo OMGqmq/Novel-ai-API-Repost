@@ -1,5 +1,8 @@
 import { apiUrl } from './api-config.js';
 import { openModal, closeModal } from './modal-toast.js';
+import * as motionModule from './motion-controller.js';
+
+const getMotionController = () => motionModule.motionController || (typeof window !== 'undefined' ? window.motionController : null);
 
 /**
  * Inspiration Manager Module (Danbooru Online Live Integration)
@@ -51,7 +54,10 @@ const INSP_SVG_PATHS = {
     shirt: '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
     activity: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
     image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
-    pin: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>'
+    pin: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
+    star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+    heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+    calendar: '<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>'
 };
 
 function renderInspSvg(name, className = 'w-4 h-4') {
@@ -69,12 +75,12 @@ function escapeInspHtml(str) {
 }
 
 export const CATEGORY_INFO = {
-    artist: { label: '画师与风格', icon: 'palette', color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-800/40' },
-    character: { label: '角色与外貌', icon: 'user', color: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-800/40' },
-    clothing: { label: '服装与穿搭', icon: 'shirt', color: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800/40' },
-    action: { label: '动作与表情', icon: 'activity', color: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800/40' },
-    background: { label: '背景与光影', icon: 'image', color: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-800/40' },
-    general: { label: '特征与细节', icon: 'sparkles', color: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-700/50' }
+    artist: { label: '画师与风格', icon: 'palette', color: 'studio-badge bg-slate-900/5 text-slate-800 border-slate-300/80 dark:bg-white/10 dark:text-slate-100 dark:border-slate-600/70' },
+    character: { label: '角色与外貌', icon: 'user', color: 'studio-badge bg-slate-100/90 text-slate-700 border-slate-200 dark:bg-slate-800/80 dark:text-slate-200 dark:border-slate-700' },
+    clothing: { label: '服装与穿搭', icon: 'shirt', color: 'studio-badge bg-stone-100/90 text-stone-700 border-stone-200 dark:bg-slate-800/60 dark:text-slate-200 dark:border-slate-700/80' },
+    action: { label: '动作与表情', icon: 'activity', color: 'studio-badge bg-zinc-100/90 text-zinc-700 border-zinc-200 dark:bg-slate-800/70 dark:text-slate-200 dark:border-slate-700/80' },
+    background: { label: '背景与光影', icon: 'image', color: 'studio-badge bg-neutral-100/90 text-neutral-700 border-neutral-200 dark:bg-slate-800/70 dark:text-slate-200 dark:border-slate-700/80' },
+    general: { label: '特征与细节', icon: 'sparkles', color: 'studio-badge bg-slate-50 text-slate-700 border-slate-200/80 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700/60' }
 };
 
 const CLOTHING_KEYWORDS = [
@@ -155,10 +161,39 @@ export class InspirationManager {
 
     toggleApiSettings() {
         const drawer = document.getElementById('inspApiSettingsDrawer');
-        if (drawer) {
-            drawer.classList.toggle('hidden');
-            drawer.classList.toggle('flex');
+        if (!drawer) return;
+
+        const mc = getMotionController();
+        const isHidden = drawer.classList.contains('hidden');
+        const toggleBtn = typeof document !== 'undefined' && typeof document.querySelector === 'function'
+            ? document.querySelector('[onclick*="toggleInspirationApiSettings"]')
+            : null;
+
+        if (isHidden) {
             this.syncApiConfigUI();
+            if (typeof mc?.enter === 'function') {
+                mc.enter(drawer, { openClass: 'flex' });
+            } else {
+                drawer.classList.remove('hidden');
+                drawer.classList.add('flex');
+            }
+            drawer.classList.add('panel-expand-anim');
+            toggleBtn?.setAttribute?.('aria-expanded', 'true');
+        } else {
+            drawer.classList.remove('panel-expand-anim');
+            if (typeof mc?.exit === 'function') {
+                mc.exit(drawer, {
+                    openClass: 'flex',
+                    onFinish: () => {
+                        drawer.classList.add('hidden');
+                        drawer.classList.remove('flex');
+                    }
+                });
+            } else {
+                drawer.classList.add('hidden');
+                drawer.classList.remove('flex');
+            }
+            toggleBtn?.setAttribute?.('aria-expanded', 'false');
         }
     }
 
@@ -254,17 +289,20 @@ export class InspirationManager {
     }
 
     renderFilters() {
-        // 年代胶囊
+        // 年代胶囊 (.studio-tabs / .studio-tab)
         const eraContainer = document.getElementById('inspEraContainer');
         if (eraContainer) {
+            eraContainer.classList?.add?.('studio-tabs');
+            eraContainer.setAttribute?.('role', 'group');
             eraContainer.innerHTML = ERA_OPTIONS.map(opt => {
                 const isActive = this.currentEra === opt.id;
                 return `
                     <button type="button" onclick="window.setInspirationEra('${opt.id}')"
-                        class="px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all active:scale-95 flex-shrink-0 cursor-pointer ${
+                        aria-pressed="${isActive ? 'true' : 'false'}"
+                        class="studio-tab ${isActive ? 'active' : ''} px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors flex-shrink-0 cursor-pointer ${
                             isActive
                                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm font-bold'
-                                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+                                : 'bg-slate-100/90 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700'
                         }">
                         ${opt.label}
                     </button>
@@ -272,9 +310,11 @@ export class InspirationManager {
             }).join('');
         }
 
-        // 分级胶囊
+        // 分级胶囊 (.studio-tabs / .studio-tab 单色工作室统一风格)
         const ratingContainer = document.getElementById('inspRatingContainer');
         if (ratingContainer) {
+            ratingContainer.classList?.add?.('studio-tabs');
+            ratingContainer.setAttribute?.('role', 'group');
             const ratings = [
                 { id: 'g', label: '全年龄 (G)' },
                 { id: 's', label: '敏感 (S)' },
@@ -286,10 +326,11 @@ export class InspirationManager {
                 const isActive = this.currentRating === r.id;
                 return `
                     <button type="button" onclick="window.setInspirationRating('${r.id}')"
-                        class="px-2 py-1 text-[10px] font-semibold rounded-md transition-all active:scale-95 cursor-pointer ${
+                        aria-pressed="${isActive ? 'true' : 'false'}"
+                        class="studio-tab ${isActive ? 'active' : ''} px-2.5 py-1 text-[10px] font-semibold rounded-lg transition-colors shrink-0 cursor-pointer ${
                             isActive
-                                ? 'bg-rose-500 text-white shadow-sm font-bold'
-                                : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'
+                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm font-bold'
+                                : 'bg-slate-100/90 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 hover:bg-slate-200/80 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200'
                         }">
                         ${r.label}
                     </button>
@@ -534,7 +575,7 @@ export class InspirationManager {
         if (drawBtn) {
             drawBtn.disabled = loading;
             drawBtn.innerHTML = loading
-                ? `<svg class="animate-spin w-4 h-4 mr-1.5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> 检索中...`
+                ? `<span class="inline-flex items-center justify-center gap-1.5"><span class="studio-spinner inline-block w-3.5 h-3.5 shrink-0" aria-hidden="true"></span><span>检索中...</span></span>`
                 : `${renderInspSvg('sparkles', 'w-4 h-4')} 抽取灵感 (Draw)`;
         }
     }
@@ -602,15 +643,24 @@ export class InspirationManager {
         if (this.posts.length === 0) {
             const emptyEl = document.getElementById('inspEmptyState');
             const mainContent = document.getElementById('inspMainContent');
-            if (emptyEl) emptyEl.classList.remove('hidden');
+            if (emptyEl) {
+                emptyEl.classList.remove('hidden');
+                emptyEl.classList.add('view-fade-enter');
+            }
             if (mainContent) mainContent.classList.add('hidden');
             return;
         }
 
         const emptyEl = document.getElementById('inspEmptyState');
         const mainContent = document.getElementById('inspMainContent');
-        if (emptyEl) emptyEl.classList.add('hidden');
-        if (mainContent) mainContent.classList.remove('hidden');
+        if (emptyEl) {
+            emptyEl.classList.add('hidden');
+            emptyEl.classList.remove('view-fade-enter');
+        }
+        if (mainContent) {
+            mainContent.classList.remove('hidden');
+            mainContent.classList.add('view-fade-enter');
+        }
 
         const post = this.posts[this.currentPostIndex];
 
@@ -626,11 +676,20 @@ export class InspirationManager {
             imgEl.src = post.preview_url || '';
             imgEl.alt = `Danbooru Post #${post.id}`;
         }
-        if (scoreBadge) scoreBadge.textContent = `⭐ Score: ${post.score}`;
-        if (favBadge) favBadge.textContent = `❤️ Favs: ${post.fav_count}`;
+        const safeScore = Number(post.score) || 0;
+        const safeFavs = Number(post.fav_count) || 0;
+        if (scoreBadge) {
+            scoreBadge.classList?.add?.('studio-badge', 'inline-flex', 'items-center', 'gap-1', 'tabular-nums');
+            scoreBadge.innerHTML = `${renderInspSvg('star', 'w-3 h-3 shrink-0')}<span>Score: ${safeScore}</span>`;
+        }
+        if (favBadge) {
+            favBadge.classList?.add?.('studio-badge', 'inline-flex', 'items-center', 'gap-1', 'tabular-nums');
+            favBadge.innerHTML = `${renderInspSvg('heart', 'w-3 h-3 shrink-0')}<span>Favs: ${safeFavs}</span>`;
+        }
         if (dateBadge) {
             const dateStr = post.created_at ? post.created_at.substring(0, 10) : '';
-            dateBadge.textContent = `📅 ${dateStr}`;
+            dateBadge.classList?.add?.('studio-badge', 'inline-flex', 'items-center', 'gap-1', 'tabular-nums');
+            dateBadge.innerHTML = `${renderInspSvg('calendar', 'w-3 h-3 shrink-0')}<span>${escapeInspHtml(dateStr)}</span>`;
         }
         if (linkBtn) linkBtn.href = post.source_url || `https://danbooru.donmai.us/posts/${post.id}`;
         if (counterEl) counterEl.textContent = `${this.currentPostIndex + 1} / ${this.posts.length}`;
@@ -639,8 +698,14 @@ export class InspirationManager {
         const scoreBadgeMobile = document.getElementById('inspScoreBadgeMobile');
         const favBadgeMobile = document.getElementById('inspFavBadgeMobile');
         const counterElMobile = document.getElementById('inspCandidateCounterMobile');
-        if (scoreBadgeMobile) scoreBadgeMobile.textContent = `⭐ ${post.score}`;
-        if (favBadgeMobile) favBadgeMobile.textContent = `❤️ ${post.fav_count}`;
+        if (scoreBadgeMobile) {
+            scoreBadgeMobile.classList?.add?.('studio-badge', 'inline-flex', 'items-center', 'gap-1', 'tabular-nums');
+            scoreBadgeMobile.innerHTML = `${renderInspSvg('star', 'w-2.5 h-2.5 shrink-0')}<span>${safeScore}</span>`;
+        }
+        if (favBadgeMobile) {
+            favBadgeMobile.classList?.add?.('studio-badge', 'inline-flex', 'items-center', 'gap-1', 'tabular-nums');
+            favBadgeMobile.innerHTML = `${renderInspSvg('heart', 'w-2.5 h-2.5 shrink-0')}<span>${safeFavs}</span>`;
+        }
         if (counterElMobile) counterElMobile.textContent = `${this.currentPostIndex + 1} / ${this.posts.length}`;
 
         // 2. 解析与归类 Tags
@@ -757,26 +822,34 @@ export class InspirationManager {
             const info = CATEGORY_INFO[catKey] || CATEGORY_INFO.general;
 
             return `
-                <div class="mb-3 bg-gray-50/80 dark:bg-slate-800/40 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800/80">
+                <div class="studio-card studio-list-enter mb-3 bg-slate-50/80 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-800/80">
                     <div class="flex items-center justify-between mb-2 px-1">
-                        <div class="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-200">
+                        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
                             ${renderInspSvg(info.icon, 'w-3.5 h-3.5 text-slate-700 dark:text-slate-300')}
                             <span>${info.label} (${tagList.length})</span>
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-1.5">
                         ${tagList.map(tag => `
-                            <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all select-none cursor-pointer ${
+                            <div class="inline-flex items-stretch rounded-lg border text-xs font-medium overflow-hidden transition-colors ${
                                 tag.selected
                                     ? `${info.color} shadow-sm font-semibold`
-                                    : 'bg-white dark:bg-slate-900 border-gray-200/60 dark:border-slate-700/60 text-gray-400 line-through opacity-60'
-                            }" onclick="window.toggleInspirationTag(${tag.index})">
-                                <span>${escapeInspHtml(tag.name)}</span>
-                                ${tag.cn ? `<span class="text-[10px] opacity-75 font-normal">(${escapeInspHtml(tag.cn)})</span>` : ''}
-                                <button type="button" class="ml-0.5 p-0.5 hover:text-amber-500 transition-colors"
+                                    : 'bg-white dark:bg-slate-900 border-slate-200/70 dark:border-slate-700/60 text-slate-400 opacity-65'
+                            }">
+                                <button type="button"
+                                    onclick="window.toggleInspirationTag(${tag.index})"
+                                    aria-pressed="${tag.selected ? 'true' : 'false'}"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 text-left select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${tag.selected ? '' : 'line-through'}">
+                                    <span>${escapeInspHtml(tag.name)}</span>
+                                    ${tag.cn ? `<span class="text-[10px] opacity-75 font-normal">(${escapeInspHtml(tag.cn)})</span>` : ''}
+                                </button>
+                                <button type="button"
+                                    onclick="window.toggleInspirationTagLock(${tag.index}, event)"
+                                    aria-pressed="${tag.locked ? 'true' : 'false'}"
+                                    aria-label="${tag.locked ? '取消锁定标签 ' : '锁定标签 '}${escapeInspHtml(tag.name)}"
                                     title="${tag.locked ? '已锁定 (换作品不丢失)' : '锁定此标签'}"
-                                    onclick="window.toggleInspirationTagLock(${tag.index}, event)">
-                                    ${renderInspSvg('pin', `w-3 h-3 ${tag.locked ? 'text-amber-500 fill-amber-500' : 'text-gray-300 dark:text-gray-600'}`)}
+                                    class="studio-icon-btn inline-flex items-center justify-center px-1.5 border-l border-slate-200/60 dark:border-slate-700/60 hover:text-amber-500 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
+                                    ${renderInspSvg('pin', `w-3 h-3 ${tag.locked ? 'text-amber-500 fill-amber-500' : 'text-slate-400 dark:text-slate-500'}`)}
                                 </button>
                             </div>
                         `).join('')}
@@ -876,7 +949,7 @@ export class InspirationManager {
                 }
             }
 
-            this.onShowToast("✨ 智能分流完成：画师与光影已入全局，角色与服装已入V5卡片！", "success");
+            this.onShowToast("智能分流完成：画师与光影已入全局，角色与服装已入V5卡片！", "success");
         }
 
         // 触发 input 事件同步 UI 计数和本地存储

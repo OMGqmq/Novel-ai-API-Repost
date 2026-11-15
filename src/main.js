@@ -43,6 +43,71 @@ export { getMimeFromFilename, dataUrlToBlob, triggerDownload, doGenerate, doAugm
 const engine = new ImageEngine();
 const store = new GalleryStore();
 window.triggerDownload = triggerDownload;
+
+let apiKeyRowSeq = 0;
+
+function notifyUserAlert(message, { modal = true, type = 'warning', title = '操作提示' } = {}) {
+    const text = String(message ?? '');
+    if (modal && typeof showAlert === 'function' && typeof document !== 'undefined' && document.getElementById('confirmModal')) {
+        const iconType = type === 'error' ? 'alert-triangle' : 'alert-circle';
+        return showAlert(text, title, iconType);
+    }
+    if (typeof showToast === 'function' && typeof document !== 'undefined') {
+        showToast(text, type);
+        return;
+    }
+    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+        window.showToast(text, type);
+    }
+}
+
+function setPanelExpanded(panel, chevron, shouldOpen) {
+    if (!panel) return;
+    const isAccordion = Boolean(panel.classList?.contains?.('studio-accordion'));
+    if (chevron?.style) {
+        chevron.style.transform = '';
+    }
+    chevron?.classList?.toggle?.('rotate-180', Boolean(shouldOpen));
+
+    const triggerBtn = panel.previousElementSibling;
+    if (triggerBtn?.tagName === 'BUTTON') {
+        triggerBtn.setAttribute?.('aria-expanded', shouldOpen ? 'true' : 'false');
+    }
+
+    if (shouldOpen) {
+        if (typeof motionController?.enter === 'function') {
+            motionController.enter(panel);
+        } else {
+            panel.classList.remove('hidden');
+        }
+        if (isAccordion) {
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => panel.classList.add('is-open'));
+            } else {
+                panel.classList.add('is-open');
+            }
+        }
+        const reduced = Boolean(motionController?.prefersReducedMotion?.()) || document.documentElement?.classList?.contains('low-perf');
+        if (!reduced && !isAccordion) {
+            panel.classList.remove('panel-expand-anim');
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => panel.classList.add('panel-expand-anim'));
+            } else {
+                panel.classList.add('panel-expand-anim');
+            }
+        }
+    } else {
+        if (isAccordion) {
+            panel.classList.remove('is-open');
+        }
+        panel.classList.remove('panel-expand-anim');
+        if (typeof motionController?.exit === 'function') {
+            motionController.exit(panel);
+        } else {
+            panel.classList.add('hidden');
+        }
+    }
+}
 initToolbox(store);
 const ui = new UIController();
 if (typeof window !== 'undefined') {
@@ -252,8 +317,7 @@ window.applyImageAsCanvasInit = async (imageUrl) => {
             const panel = document.getElementById('img2imgSettingsPanel');
             const chevron = document.getElementById('img2imgChevron');
             if (panel && panel.classList.contains('hidden')) {
-                panel.classList.remove('hidden');
-                if (chevron) chevron.classList.add('rotate-180');
+                setPanelExpanded(panel, chevron, true);
             }
             if (window.showToast) window.showToast("已将生成图片设为画板底图", "success");
         };
@@ -463,24 +527,12 @@ if (typeof window !== 'undefined') {
 window.togglePanel = function(panelId, chevronId) {
     const panel = document.getElementById(panelId);
     const chevron = document.getElementById(chevronId);
-    if (panel) {
-        if (panel.classList.contains('hidden')) {
-            panel.classList.remove('hidden');
-            if (!document.documentElement.classList.contains('low-perf')) {
-                panel.classList.remove('panel-expand-anim');
-                if (typeof requestAnimationFrame === 'function') {
-                    requestAnimationFrame(() => panel.classList.add('panel-expand-anim'));
-                } else {
-                    panel.classList.add('panel-expand-anim');
-                }
-            }
-            if (chevron) chevron.style.transform = 'rotate(180deg)';
-        } else {
-            panel.classList.add('hidden');
-            panel.classList.remove('panel-expand-anim');
-            if (chevron) chevron.style.transform = 'rotate(0deg)';
-        }
-    }
+    if (!panel) return;
+    const isAccordion = Boolean(panel.classList?.contains?.('studio-accordion'));
+    const isClosed = isAccordion
+        ? (!panel.classList.contains('is-open') || panel.classList.contains('hidden'))
+        : panel.classList.contains('hidden');
+    setPanelExpanded(panel, chevron, isClosed);
 };
 
 window.toggleAdvancedSettings = function() {
@@ -529,7 +581,7 @@ async function handleInitImage(event) {
             document.getElementById('img2imgControls').classList.remove('hidden');
         } catch (e) {
             console.error("Failed to compress image", e);
-            alert("图片处理失败，请重试。");
+            notifyUserAlert("图片处理失败，请重试。", { modal: false, type: 'error' });
         }
     }
 }
@@ -606,7 +658,7 @@ window.triggerEncodeVibe = async () => {
     const hasCustomKey = customApiKeys.length > 0;
 
     if (!hasCustomKey && !adminToken) {
-        alert("氛围编码功能需要向官方接口编码并消耗 2 Anlas 算力，请先在右上角配置您的【自定义 API Key】后再执行编码。");
+        notifyUserAlert("氛围编码功能需要向官方接口编码并消耗 2 Anlas 算力，请先在右上角配置您的【自定义 API Key】后再执行编码。", { modal: true, type: 'warning', title: '需要 API Key' });
         return;
     }
 
@@ -615,7 +667,7 @@ window.triggerEncodeVibe = async () => {
         await ensureV45VibeWithKeyFailover(model, auths);
         if (typeof showToast === 'function') showToast("Vibe 官方编码成功！已缓存，后续出图无需重复耗点。");
     } catch (err) {
-        alert("官方 Vibe 编码失败: " + err.message);
+        notifyUserAlert("官方 Vibe 编码失败: " + err.message, { modal: true, type: 'error', title: '编码失败' });
     } finally {
         ui.setLoading(false);
     }
@@ -799,7 +851,7 @@ async function doGenerateZImage(rawOptions = {}) {
     } catch (err) {
         console.error("ZImage Generate Error:", err);
         ui.toggleMobileControls(true);
-        alert(err.message || err);
+        notifyUserAlert(err.message || err, { modal: true, type: 'error', title: '生成失败' });
         return { success: false, error: err.message || String(err) };
     } finally {
         ui.setLoading(false);
@@ -900,7 +952,7 @@ async function doGenerate(rawOptions = {}) {
 
         const vibeVal = vibeManager.isValidForModel(selectedVersion, hasCustomKey);
         if (!vibeVal.isValid) {
-            alert(vibeVal.error);
+            notifyUserAlert(vibeVal.error, { modal: true, type: 'warning', title: 'Vibe 参数校验' });
             ui.setLoading(false);
             ui.toggleMobileControls(true);
             return;
@@ -908,7 +960,7 @@ async function doGenerate(rawOptions = {}) {
 
         const charRefVal = charRefManager.isValidForModel(selectedVersion, hasCustomKey);
         if (!charRefVal.isValid) {
-            alert(charRefVal.error);
+            notifyUserAlert(charRefVal.error, { modal: true, type: 'warning', title: '角色参考校验' });
             ui.setLoading(false);
             ui.toggleMobileControls(true);
             return;
@@ -922,7 +974,7 @@ async function doGenerate(rawOptions = {}) {
                     : [{ ...authBase, customApiKey: "" }];
                 await ensureV45VibeWithKeyFailover(selectedVersion, encodeAuths);
             } catch (encodeErr) {
-                alert("官方 Vibe 编码失败: " + encodeErr.message);
+                notifyUserAlert("官方 Vibe 编码失败: " + encodeErr.message, { modal: true, type: 'error', title: '编码失败' });
                 ui.setLoading(false);
                 ui.toggleMobileControls(true);
                 return;
@@ -1147,9 +1199,9 @@ async function doGenerate(rawOptions = {}) {
                 console.error(err);
                 ui.setLoading(false);
                 ui.toggleMobileControls(true);
-                if (err.message.includes('429')) alert("⚠️ 并发生成,请稍候重试");
-                else if (err.message.includes('403')) alert("后端账号已封禁");
-                else alert("生成失败: " + err.message);
+                if (err.message.includes('429')) notifyUserAlert("并发生成，请稍候重试", { modal: false, type: 'warning' });
+                else if (err.message.includes('403')) notifyUserAlert("后端账号已封禁", { modal: true, type: 'error', title: '账号受限' });
+                else notifyUserAlert("生成失败: " + err.message, { modal: true, type: 'error', title: '生成失败' });
                 break;
             }
         }
@@ -1200,7 +1252,7 @@ async function doGenerate(rawOptions = {}) {
             return { success: false, error: "已取消生成" };
         }
         console.error("Global doGenerate Error:", globalErr);
-        alert("发生意外错误: " + globalErr.message);
+        notifyUserAlert("发生意外错误: " + globalErr.message, { modal: true, type: 'error', title: '系统异常' });
         return { success: false, error: globalErr.message };
     } finally {
         appState.isGenerating = false;
@@ -1601,13 +1653,15 @@ async function testAiHelperConnection() {
         const res = await tempService.generatePrompt("Say 'ok'");
         
         if (statusEl) {
-            statusEl.className = "text-xs px-1 text-emerald-500 font-semibold mt-2 block";
+            statusEl.className = "text-xs px-1 text-emerald-600 dark:text-emerald-400 font-semibold mt-2 block";
+            statusEl.style.color = 'var(--status-success)';
             statusEl.textContent = `连接成功! 响应: ${res}`;
         }
         window.showToast("连接测试成功!", "success");
     } catch (err) {
         if (statusEl) {
-            statusEl.className = "text-xs px-1 text-red-500 font-semibold mt-2 block";
+            statusEl.className = "text-xs px-1 text-red-500 dark:text-red-400 font-semibold mt-2 block";
+            statusEl.style.color = 'var(--status-danger)';
             statusEl.textContent = `连接失败: ${err.message}`;
         }
         window.showToast("连接测试失败", "error");
@@ -1646,10 +1700,18 @@ function randomizeSeed() {
 function enterAdminToken() {
     openSettingsModal('advanced');
 }
-function setStatusMessage(statusEl, text, className = 'text-green-500') {
+const STATUS_SUCCESS_CLASS = 'text-emerald-600 dark:text-emerald-400 font-semibold';
+const STATUS_DANGER_CLASS = 'text-red-500 dark:text-red-400 font-semibold';
+
+function setStatusMessage(statusEl, text, className = STATUS_SUCCESS_CLASS) {
     if (!statusEl) return;
     const span = document.createElement('span');
     span.className = className;
+    if (className.includes('emerald') || className.includes('green')) {
+        span.style.color = 'var(--status-success)';
+    } else if (className.includes('red')) {
+        span.style.color = 'var(--status-danger)';
+    }
     span.textContent = text;
     statusEl.replaceChildren(span);
     statusEl.classList.remove('hidden');
@@ -1660,11 +1722,11 @@ function saveAdminToken() {
     const statusEl = document.getElementById('adminTokenStatus');
     const val = input.value.trim();
     if (!val) {
-        setStatusMessage(statusEl, '✗ 请输入密码', 'text-red-500');
+        setStatusMessage(statusEl, '✗ 请输入密码', STATUS_DANGER_CLASS);
         return;
     }
     settingsManager.saveAdminToken(val);
-    setStatusMessage(statusEl, '✔ 管理员密码已保存，已解锁后台', 'text-green-500');
+    setStatusMessage(statusEl, '✔ 管理员密码已保存，已解锁后台', STATUS_SUCCESS_CLASS);
 
     setTimeout(() => {
         switchSettingsTab('admin');
@@ -1674,7 +1736,7 @@ function saveAdminToken() {
 function clearAdminToken() {
     settingsManager.clearAdminToken();
     const statusEl = document.getElementById('adminTokenStatus');
-    setStatusMessage(statusEl, '✔ 已注销管理员身份', 'text-green-500');
+    setStatusMessage(statusEl, '✔ 已注销管理员身份', STATUS_SUCCESS_CLASS);
     checkAdminStatus();
 
     setTimeout(() => {
@@ -1694,7 +1756,8 @@ function saveBackendServerUrl() {
         if (statusEl) {
             statusEl.classList.remove('hidden');
             const errSpan = document.createElement('span');
-            errSpan.className = 'text-red-500 font-semibold';
+            errSpan.className = STATUS_DANGER_CLASS;
+            errSpan.style.color = 'var(--status-danger)';
             errSpan.textContent = `✗ ${err?.message || '后端地址无效'}`;
             statusEl.replaceChildren(errSpan);
         }
@@ -1707,10 +1770,11 @@ function saveBackendServerUrl() {
         statusEl.classList.remove('hidden');
         const msgSpan = document.createElement('span');
         if (val) {
-            msgSpan.className = 'text-emerald-500 font-semibold';
+            msgSpan.className = STATUS_SUCCESS_CLASS;
+            msgSpan.style.color = 'var(--status-success)';
             msgSpan.textContent = `✔ 后端服务器地址已保存: ${val}`;
         } else {
-            msgSpan.className = 'text-gray-400';
+            msgSpan.className = 'text-slate-400 dark:text-slate-500';
             msgSpan.textContent = '✔ 已恢复为默认同源相对路径';
         }
         statusEl.replaceChildren(msgSpan);
@@ -1728,11 +1792,11 @@ function saveUserKey() {
     const statusEl = document.getElementById('userKeyStatus');
     const val = input.value.trim();
     if (!val) {
-        setStatusMessage(statusEl, '✗ 请输入卡密', 'text-red-500');
+        setStatusMessage(statusEl, '✗ 请输入卡密', STATUS_DANGER_CLASS);
         return;
     }
     localStorage.setItem('nai_user_key', val);
-    setStatusMessage(statusEl, '✔ VIP 卡密已保存', 'text-green-500');
+    setStatusMessage(statusEl, '✔ VIP 卡密已保存', STATUS_SUCCESS_CLASS);
 
     const clearBtn = document.getElementById('userKeyClearBtn');
     if (clearBtn) clearBtn.classList.remove('hidden');
@@ -1748,7 +1812,7 @@ function clearUserKey() {
     const clearBtn = document.getElementById('userKeyClearBtn');
     if (clearBtn) clearBtn.classList.add('hidden');
     const statusEl = document.getElementById('userKeyStatus');
-    setStatusMessage(statusEl, '✔ 已注销卡密', 'text-green-500');
+    setStatusMessage(statusEl, '✔ 已注销卡密', STATUS_SUCCESS_CLASS);
     setTimeout(() => {
         if (statusEl) statusEl.classList.add('hidden');
     }, 1500);
@@ -1807,13 +1871,18 @@ function addApiKeyInputRow(val = '') {
     if (!container) return;
 
     const div = document.createElement('div');
-    div.className = 'flex flex-col gap-1.5 api-key-row group w-full border border-gray-100/50 dark:border-slate-800/50 p-2.5 rounded-2xl bg-gray-50/30 dark:bg-slate-950/20 transition-all';
+    div.className = 'studio-card studio-list-enter flex flex-col gap-1.5 api-key-row group w-full border border-slate-200/70 dark:border-slate-800/70 p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/30';
 
     const row = document.createElement('div');
     row.className = 'flex gap-2 items-center w-full';
 
+    const rowIndex = ++apiKeyRowSeq;
     const input = document.createElement('input');
     input.type = 'text';
+    input.name = `nai_custom_api_key_${rowIndex}`;
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.setAttribute('aria-label', `NovelAI 自定义 API Key ${rowIndex}`);
     input.value = val || '';
     input.placeholder = 'pst-xxxxxxxxxxxxxxxx...';
     input.className = 'art-input flex-1 px-4 py-3 rounded-xl text-xs outline-none font-mono tracking-tight';
@@ -1821,7 +1890,8 @@ function addApiKeyInputRow(val = '') {
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.setAttribute('onclick', 'removeApiKeyInputRow(this)');
-    removeBtn.className = 'p-3 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-xl transition-all';
+    removeBtn.setAttribute('aria-label', '删除此 API Key');
+    removeBtn.className = 'studio-icon-btn p-3 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-400 hover:text-red-500 rounded-xl transition-colors cursor-pointer';
     removeBtn.title = '删除';
     removeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>';
 
@@ -1829,7 +1899,7 @@ function addApiKeyInputRow(val = '') {
     row.appendChild(removeBtn);
 
     const balanceEl = document.createElement('div');
-    balanceEl.className = 'api-key-balance text-[10px] text-gray-400 px-3 hidden';
+    balanceEl.className = 'api-key-balance text-[10px] text-slate-400 dark:text-slate-500 px-3 hidden';
 
     div.appendChild(row);
     div.appendChild(balanceEl);
@@ -1838,16 +1908,24 @@ function addApiKeyInputRow(val = '') {
 
 function removeApiKeyInputRow(button) {
     const row = button.closest('.api-key-row');
-    if (row) {
-        row.classList.add('scale-95', 'opacity-0');
-        setTimeout(() => {
-            row.remove();
-            const container = document.getElementById('apiKeyList');
-            if (container && container.children.length === 0) {
-                addApiKeyInputRow();
-            }
-        }, 200);
+    if (!row) return;
+
+    const finalizeRemove = () => {
+        row.remove();
+        const container = document.getElementById('apiKeyList');
+        if (container && container.children.length === 0) {
+            addApiKeyInputRow();
+        }
+    };
+
+    const reduced = Boolean(motionController?.prefersReducedMotion?.()) || document.documentElement?.classList?.contains('low-perf');
+    if (reduced) {
+        finalizeRemove();
+        return;
     }
+
+    row.classList.add('transition-opacity', 'duration-150', 'opacity-0');
+    setTimeout(finalizeRemove, 150);
 }
 
 // --- 角色提示词 (Character Prompts) 管理 ---
@@ -2068,22 +2146,36 @@ function switchSettingsTab(tabName) {
     // 1. 切换 Tab 按钮高亮
     const tabContainer = document.getElementById('settingsTabs');
     if (tabContainer) {
+        tabContainer.setAttribute?.('role', 'tablist');
         const btns = tabContainer.querySelectorAll('.settings-tab-btn');
         btns.forEach(btn => {
-            if (btn.id === `settingsTab-${tabName}`) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
+            const isActive = btn.id === `settingsTab-${tabName}`;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute?.('role', 'tab');
+            btn.setAttribute?.('aria-selected', isActive ? 'true' : 'false');
         });
     }
 
-    // 2. 切换右侧面板显隐
+    // 2. 切换右侧面板显隐（含平滑入场动效）
     const panels = document.querySelectorAll('.settings-panel');
+    const reduced = Boolean(motionController?.prefersReducedMotion?.()) || document.documentElement?.classList?.contains('low-perf');
     panels.forEach(panel => {
         if (panel.id === `settingsPanel-${tabName}`) {
-            panel.classList.remove('hidden');
+            panel.classList.remove('view-fade-enter');
+            if (typeof motionController?.enter === 'function') {
+                motionController.enter(panel);
+            } else {
+                panel.classList.remove('hidden');
+            }
+            if (!reduced) {
+                if (typeof requestAnimationFrame === 'function') {
+                    requestAnimationFrame(() => panel.classList.add('view-fade-enter'));
+                } else {
+                    panel.classList.add('view-fade-enter');
+                }
+            }
         } else {
+            panel.classList.remove('view-fade-enter');
             panel.classList.add('hidden');
         }
     });
@@ -2118,15 +2210,15 @@ function updateSettingsUserCard() {
     if (!token) {
         cardContainer.innerHTML = `
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-gray-400 pointer-events-none" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-slate-500 dark:text-slate-400 pointer-events-none" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <div class="flex flex-col min-w-0">
-                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium">个人中心</span>
-                    <span class="text-[11px] font-bold text-gray-600 dark:text-gray-300 truncate">未登录账户</span>
+                    <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">个人中心</span>
+                    <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">未登录账户</span>
                 </div>
             </div>
-            <button type="button" onclick="openUserModalFromSettings()" class="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1">
+            <button type="button" onclick="openUserModalFromSettings()" class="w-full py-2 bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-[10px] font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg> 注册 / 登录账户
             </button>
         `;
@@ -2143,15 +2235,15 @@ function updateSettingsUserCard() {
         }
         cardContainer.innerHTML = `
             <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-emerald-500 pointer-events-none" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <div class="w-8 h-8 rounded-full bg-slate-900/10 dark:bg-white/10 border border-slate-300/60 dark:border-slate-700/80 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-slate-800 dark:text-slate-100 pointer-events-none" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <div class="flex flex-col min-w-0 flex-1">
-                    <span class="js-settings-username text-[11px] font-bold text-gray-800 dark:text-gray-100 truncate block w-full max-w-[120px]"></span>
-                    <span class="js-settings-credits text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block"></span>
+                    <span class="js-settings-username text-[11px] font-bold text-slate-900 dark:text-slate-100 truncate block w-full max-w-[120px]"></span>
+                    <span class="js-settings-credits text-[10px] text-slate-600 dark:text-slate-300 font-medium block tabular-nums"></span>
                 </div>
             </div>
-            <button type="button" onclick="logoutUser()" class="w-full py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-gray-500 dark:text-gray-400 rounded-xl text-[10px] font-bold transition-all">
+            <button type="button" onclick="logoutUser()" class="w-full py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white rounded-xl text-[10px] font-bold transition-colors cursor-pointer">
                 退出登录
             </button>
         `;
@@ -2166,10 +2258,10 @@ function updateSettingsUserCard() {
     if (mobileAccountText) {
         if (!token) {
             mobileAccountText.textContent = "账户";
-            mobileAccountText.parentElement.classList.remove('bg-emerald-100', 'dark:bg-emerald-500/20');
+            mobileAccountText.parentElement?.classList?.remove('bg-slate-900', 'text-white', 'dark:bg-white', 'dark:text-slate-900');
         } else {
             mobileAccountText.textContent = "已登录";
-            mobileAccountText.parentElement.classList.add('bg-emerald-100', 'dark:bg-emerald-500/20');
+            mobileAccountText.parentElement?.classList?.add('bg-slate-900', 'text-white', 'dark:bg-white', 'dark:text-slate-900');
         }
     }
 }
@@ -2242,18 +2334,18 @@ window.fetchAndShowAllKeysBalances = async function(keys) {
                             } catch (_) {}
                         }
                     }
-                    setStatusMessage(balanceEl, detailText, 'text-emerald-500 font-semibold');
+                    setStatusMessage(balanceEl, detailText, STATUS_SUCCESS_CLASS);
                 } else {
-                    setStatusMessage(balanceEl, `✗ ${data.error || '验证失败'}`, 'text-red-500');
+                    setStatusMessage(balanceEl, `✗ ${data.error || '验证失败'}`, STATUS_DANGER_CLASS);
                 }
             } else {
                 const text = await res.text();
                 let errMsg = '查询失败';
                 try { errMsg = JSON.parse(text).error || errMsg; } catch(_) {}
-                setStatusMessage(balanceEl, `✗ ${errMsg}`, 'text-red-500');
+                setStatusMessage(balanceEl, `✗ ${errMsg}`, STATUS_DANGER_CLASS);
             }
         } catch (e) {
-            setStatusMessage(balanceEl, `✗ 查询异常: ${e.message}`, 'text-red-500');
+            setStatusMessage(balanceEl, `✗ 查询异常: ${e.message}`, STATUS_DANGER_CLASS);
         }
     });
 };
@@ -2268,7 +2360,7 @@ async function verifyCustomApiKey() {
     const keys = Array.from(inputs).map(i => i.value.trim()).filter(k => k);
     
     if (keys.length === 0) {
-        setStatusMessage(statusEl, '✗ 请至少输入一个 API Key', 'text-red-500');
+        setStatusMessage(statusEl, '✗ 请至少输入一个 API Key', STATUS_DANGER_CLASS);
         return;
     }
 
@@ -2277,7 +2369,7 @@ async function verifyCustomApiKey() {
 
     verifyBtn.disabled = true;
     verifyBtn.textContent = '验证中...';
-    setStatusMessage(statusEl, `⭮ 正在连接 NovelAI 验证 (共 ${keys.length} 个 Key)...`, 'text-gray-400');
+    setStatusMessage(statusEl, `正在连接 NovelAI 验证 (共 ${keys.length} 个 Key)...`, 'text-slate-400 dark:text-slate-500');
 
     try {
         const res = await fetch(apiUrl('/verify-key'), {
@@ -2293,7 +2385,8 @@ async function verifyCustomApiKey() {
                 localStorage.setItem('nai_custom_api_key', keysRaw);
                 const opusUsage = data.opusUsage || (data.details && data.details[0] && data.details[0].opusUsage);
                 const msgSpan = document.createElement('span');
-                msgSpan.className = 'text-green-500';
+                msgSpan.className = STATUS_SUCCESS_CLASS;
+                msgSpan.style.color = 'var(--status-success)';
                 msgSpan.appendChild(document.createTextNode('✔ 验证成功! 首个 Key 订阅: '));
                 const tierBold = document.createElement('b');
                 tierBold.textContent = data.tierName || '';
@@ -2316,15 +2409,15 @@ async function verifyCustomApiKey() {
                 }
                 setTimeout(() => closeApiKeyModal(), 2000);
             } else if (data.error) {
-                setStatusMessage(statusEl, `✗ ${data.error}`, 'text-red-500');
+                setStatusMessage(statusEl, `✗ ${data.error}`, STATUS_DANGER_CLASS);
             } else {
-                setStatusMessage(statusEl, '✗ 验证失败，请检查 Key 是否有效', 'text-red-500');
+                setStatusMessage(statusEl, '✗ 验证失败，请检查 Key 是否有效', STATUS_DANGER_CLASS);
             }
         } else {
-            setStatusMessage(statusEl, '✗ 验证服务无响应，请确保后端代理正在运行', 'text-red-500');
+            setStatusMessage(statusEl, '✗ 验证服务无响应，请确保后端代理正在运行', STATUS_DANGER_CLASS);
         }
     } catch (e) {
-        setStatusMessage(statusEl, `✗ 验证异常: ${e.message}（请确保后端服务正常运行）`, 'text-red-500');
+        setStatusMessage(statusEl, `✗ 验证异常: ${e.message}（请确保后端服务正常运行）`, STATUS_DANGER_CLASS);
     } finally {
         verifyBtn.disabled = false;
         verifyBtn.textContent = '验证并保存';
@@ -2340,7 +2433,7 @@ function clearCustomApiKey() {
     }
     document.getElementById('apiKeyClearBtn').classList.add('hidden');
     const statusEl = document.getElementById('apiKeyStatus');
-    setStatusMessage(statusEl, '✔ 已清除自定义 Key', 'text-gray-500');
+    setStatusMessage(statusEl, '✔ 已清除自定义 Key', 'text-slate-500 dark:text-slate-400');
     
     // 隐藏顶部自定义 Key 余额显示
     const oldDesktop = document.getElementById('creditDisplayDesktop');
