@@ -60,13 +60,24 @@ export async function onRequest(context) {
       };
     };
 
+    const MAX_VERIFY_KEYS = 10;
     const isMulti = Array.isArray(apiKeys);
     const keysToVerify = isMulti
-      ? apiKeys.map(k => (k || '').trim()).filter(Boolean)
-      : (apiKey && apiKey.trim() ? [apiKey.trim()] : []);
+      ? apiKeys.filter(k => typeof k === 'string').map(k => k.trim()).filter(Boolean)
+      : (typeof apiKey === 'string' && apiKey.trim() ? [apiKey.trim()] : []);
 
     if (keysToVerify.length === 0) {
       return new Response(JSON.stringify({ error: '请输入 API Key' }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      });
+    }
+
+    if (keysToVerify.length > MAX_VERIFY_KEYS) {
+      return new Response(JSON.stringify({ error: `单次最多支持验证 ${MAX_VERIFY_KEYS} 个 API Key` }), {
         status: 400,
         headers: {
           'Content-Type': 'application/json',

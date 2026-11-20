@@ -1445,6 +1445,7 @@ export class UIController {
             
             const img = document.createElement('img');
             img.src = item.imageUrl;
+            img.alt = item.prompt ? `生成图像预览: ${String(item.prompt).slice(0, 80)}` : `生成图像 ${index + 1}`;
             img.className = 'max-w-full max-h-full object-contain shadow-2xl rounded-lg border-2 border-transparent transition-colors duration-150';
             
             // 如果是第一张图，默认高亮选中并初始化选择回调（但不进入聚焦单图模式以保留网格）
@@ -1454,9 +1455,9 @@ export class UIController {
                 if (onSelect) onSelect(item);
             }
             
-            // 聚焦按钮叠加层
+            // 聚焦按钮叠加层（支持键盘焦点与无悬停触屏设备）
             const focusOverlay = document.createElement('div');
-            focusOverlay.className = 'absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg z-10';
+            focusOverlay.className = 'studio-focus-overlay absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity rounded-lg z-10';
             focusOverlay.innerHTML = `
                 <button type="button" class="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white border border-white/30 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-[transform,background-color] duration-150 transform hover:scale-105 active:scale-95 shadow-xl">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 pointer-events-none" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>

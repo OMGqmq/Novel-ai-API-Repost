@@ -152,3 +152,21 @@ export async function verifyJwt(token, secret) {
     return null;
   }
 }
+
+/**
+ * Constant-time string comparison using SHA-256 digests so neither content nor length leaks via timing.
+ */
+export async function timingSafeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const [hashA, hashB] = await Promise.all([
+    crypto.subtle.digest('SHA-256', stringToBuffer(a)),
+    crypto.subtle.digest('SHA-256', stringToBuffer(b))
+  ]);
+  const bytesA = new Uint8Array(hashA);
+  const bytesB = new Uint8Array(hashB);
+  let diff = 0;
+  for (let i = 0; i < bytesA.length; i++) {
+    diff |= bytesA[i] ^ bytesB[i];
+  }
+  return diff === 0;
+}

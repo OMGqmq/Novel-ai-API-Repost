@@ -383,6 +383,28 @@ export class AdminController {
         }
     }
 
+    _ensureChartJsLoaded() {
+        if (typeof Chart !== 'undefined') return Promise.resolve();
+        if (this._chartJsLoadPromise) return this._chartJsLoadPromise;
+        if (typeof document === 'undefined' || !document.head) {
+            return Promise.reject(new Error('图表组件不可用'));
+        }
+        this._chartJsLoadPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js';
+            script.integrity = 'sha384-Emf5ZVIUiarAdhkgtqK+5/Z5qIvM6QoVrS+qAVtfyZVuD5lIHrac0me485+Antp0';
+            script.crossOrigin = 'anonymous';
+            script.referrerPolicy = 'no-referrer';
+            script.onload = () => resolve();
+            script.onerror = () => {
+                this._chartJsLoadPromise = null;
+                reject(new Error('Chart.js 加载失败'));
+            };
+            document.head.appendChild(script);
+        });
+        return this._chartJsLoadPromise;
+    }
+
     async fetchAdminStats() {
         const adminToken = localStorage.getItem('nai_admin_token');
         const rangeSelect = document.getElementById('statsRangeSelect');
@@ -460,6 +482,9 @@ export class AdminController {
                     });
                 }
             }
+
+            // 按需懒加载 Chart.js，避免普通访客首屏加载约 200KB 图表脚本
+            await this._ensureChartJsLoaded();
 
             // Draw trend line chart
             const trendData = data.trend || [];

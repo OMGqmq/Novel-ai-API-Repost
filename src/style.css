@@ -52,6 +52,13 @@
 
     --scrollbar-thumb: #64748b;
     --scrollbar-track: transparent;
+
+    /* Semantic Z-Index Scale */
+    --z-canvas: 0;
+    --z-panel: 40;
+    --z-drawer: 50;
+    --z-overlay: 60;
+    --z-toast: 120;
 }
 
 html {
@@ -3356,5 +3363,16 @@ html.low-perf .studio-list-enter {
     }
     input[type="range"]::-moz-range-progress {
         background: Highlight;
+    }
+}
+
+/* Touch / non-hover devices: keep gallery focus trigger accessible without requiring pointer hover */
+@media (hover: none) {
+    .studio-focus-overlay {
+        opacity: 1;
+        align-items: flex-end;
+        justify-content: flex-end;
+        padding: 0.5rem;
+        background: transparent;
     }
 }

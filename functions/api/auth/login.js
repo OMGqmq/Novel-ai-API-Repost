@@ -1,4 +1,4 @@
-import { hashPassword, signJwt } from '../../_crypto-helper.js';
+import { hashPassword, signJwt, timingSafeEqual } from '../../_crypto-helper.js';
 
 export async function onRequest(context) {
   // 只允许 POST 请求
@@ -28,9 +28,10 @@ export async function onRequest(context) {
   }
 
   try {
-    const { username, password } = await request.json();
+    const body = await request.json();
+    const { username, password } = body || {};
 
-    if (!username || !password) {
+    if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password) {
       return new Response(JSON.stringify({ error: '用户名和密码不能为空' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
@@ -48,9 +49,9 @@ export async function onRequest(context) {
       });
     }
 
-    // 验证密码哈希 (统一采用 Cloudflare 支持的 100,000 次迭代)
+    // 验证密码哈希 (统一采用 Cloudflare 支持的 100,000 次迭代，恒定时间比对防时序侧信道)
     const passwordHash = await hashPassword(password, user.salt, 100000);
-    if (passwordHash !== user.password_hash) {
+    if (!(await timingSafeEqual(passwordHash, user.password_hash))) {
       return new Response(JSON.stringify({ error: '用户名或密码错误' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }

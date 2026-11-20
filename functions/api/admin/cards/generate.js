@@ -1,3 +1,5 @@
+import { timingSafeEqual } from '../../../_crypto-helper.js';
+
 export async function onRequest(context) {
   // 只允许 POST 请求
   if (context.request.method !== 'POST') {
@@ -17,11 +19,11 @@ export async function onRequest(context) {
     });
   }
 
-  // 校验管理员身份
+  // 校验管理员身份（恒定时间比对）
   const adminToken = (request.headers.get('x-admin-token') || "").trim();
   const serverAdminToken = (env.ADMIN_TOKEN || "").trim();
 
-  if (!serverAdminToken || adminToken !== serverAdminToken) {
+  if (!serverAdminToken || !adminToken || !(await timingSafeEqual(adminToken, serverAdminToken))) {
     return new Response(JSON.stringify({ error: '权限不足，拒绝访问。' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' }

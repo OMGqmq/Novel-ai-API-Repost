@@ -4,9 +4,13 @@ import path from 'node:path';
 import { onRequest as generateHandler } from '../functions/generate.js';
 import { onRequest as augmentHandler } from '../functions/augment.js';
 import { onRequest as rechargeHandler } from '../functions/api/auth/recharge.js';
+import { onRequest as loginHandler } from '../functions/api/auth/login.js';
+import { onRequest as profileHandler } from '../functions/api/auth/profile.js';
+import { onRequest as verifyKeyHandler } from '../functions/verify-key.js';
+import { onRequest as danbooruHandler } from '../functions/danbooru.js';
 import { onRequest as chatProxyHandler } from '../functions/api/chat-proxy.js';
 import { rollbackQuota } from '../functions/_auth-manager.js';
-import { signJwt, verifyJwt } from '../functions/_crypto-helper.js';
+import { signJwt, verifyJwt, timingSafeEqual } from '../functions/_crypto-helper.js';
 import { NotebookManager } from '../src/notebook.js';
 
 const RAW_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
@@ -387,6 +391,93 @@ describe('Security Hardening & P0 Regression Suite', () => {
       expect(dockerfile).toContain('COPY gallery_index.json');
       expect(dockerfile).toContain('COPY presets');
       expect(dockerfile).toContain('USER node');
+    });
+  });
+
+  describe('7. P1 Backend Hardening (timingSafeEqual, Type Validation, Batch Caps, Profile Status)', () => {
+    it('timingSafeEqual compares strings accurately across equal, unequal, and non-string inputs', async () => {
+      expect(await timingSafeEqual('secret-token-123', 'secret-token-123')).toBe(true);
+      expect(await timingSafeEqual('secret-token-123', 'secret-token-124')).toBe(false);
+      expect(await timingSafeEqual('short', 'much-longer-token')).toBe(false);
+      expect(await timingSafeEqual(null, 'token')).toBe(false);
+    });
+
+    it('login rejects non-string username/password with HTTP 400 instead of 500', async () => {
+      const res = await loginHandler({
+        request: new Request('https://example.com/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: { $ne: '' }, password: ['x'] })
+        }),
+        env: { DB: { prepare: vi.fn() }, JWT_SECRET }
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('profile rejects Banned users with HTTP 403', async () => {
+      const token = await signJwt({ id: 7, username: 'banned_profile' }, JWT_SECRET);
+      const mockDb = {
+        prepare: vi.fn(() => ({
+          bind: vi.fn(() => ({
+            first: vi.fn(async () => ({ id: 7, username: 'banned_profile', role: 'User', credits: 10, status: 'Banned' }))
+          }))
+        }))
+      };
+      const res = await profileHandler({
+        request: new Request('https://example.com/api/auth/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        env: { DB: mockDb, JWT_SECRET }
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('verify-key rejects batches larger than 10 API keys with HTTP 400', async () => {
+      const fetchMock = vi.fn();
+      global.fetch = fetchMock;
+      const res = await verifyKeyHandler({
+        request: new Request('https://example.com/verify-key', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKeys: Array.from({ length: 11 }, (_, i) => `pst-key-${i}`) })
+        })
+      });
+      expect(res.status).toBe(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('danbooru safely clamps NaN/negative limit & page and non-string tags', async () => {
+      const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify([]), { status: 200 }));
+      global.fetch = fetchMock;
+      const res = await danbooruHandler({
+        request: new Request('https://example.com/danbooru', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags: 12345, limit: -99, page: 'NaN' })
+        })
+      });
+      expect(res.status).toBe(200);
+      const calledUrl = new URL(fetchMock.mock.calls[0][0]);
+      expect(calledUrl.searchParams.get('limit')).toBe('1');
+      expect(calledUrl.searchParams.get('page')).toBe('1');
+    });
+  });
+
+  describe('8. P1 Frontend Performance & Accessibility Hygiene', () => {
+    it('removes dead Lucide CDN and eager Chart.js CDN, and uses semantic landmarks, auth form, and alt attributes', () => {
+      const rootDir = path.resolve(process.cwd());
+      const html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+      expect(html).not.toContain('unpkg.com/lucide');
+      expect(html).not.toContain('chart.umd.min.js');
+      expect(html).toContain('<main aria-label="创作画布工作区"');
+      expect(html).toContain('<aside id="mobileControls"');
+      expect((html.match(/<h1\b/g) || []).length).toBe(1);
+      expect(html).toContain('<form id="authForm"');
+      expect(html).toContain('autocomplete="username"');
+      expect(html).toContain('autocomplete="current-password"');
+      expect(html).toContain('<label for="prompt"');
+      expect(html).toContain('<label for="steps"');
+      expect(html).not.toContain('id="lightboxMainImg" src=""');
     });
   });
 });

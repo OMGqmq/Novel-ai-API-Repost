@@ -82,19 +82,24 @@ export async function onRequest(context) {
     const url = new URL(request.url);
     if (request.method === 'GET') {
       tags = url.searchParams.get('tags') || '';
-      limit = Math.min(parseInt(url.searchParams.get('limit') || '20', 10), 50);
-      page = Math.max(parseInt(url.searchParams.get('page') || '1', 10), 1);
+      const rawLimit = parseInt(url.searchParams.get('limit') || '20', 10);
+      const rawPage = parseInt(url.searchParams.get('page') || '1', 10);
+      limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 20, 1), 50);
+      page = Math.min(Math.max(Number.isFinite(rawPage) ? rawPage : 1, 1), 1000);
     } else if (request.method === 'POST') {
       const body = await request.json().catch(() => ({}));
-      tags = body.tags || '';
-      limit = Math.min(parseInt(body.limit || '20', 10), 50);
-      page = Math.max(parseInt(body.page || '1', 10), 1);
+      tags = typeof body?.tags === 'string' ? body.tags : '';
+      const rawLimit = parseInt(body?.limit ?? '20', 10);
+      const rawPage = parseInt(body?.page ?? '1', 10);
+      limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 20, 1), 50);
+      page = Math.min(Math.max(Number.isFinite(rawPage) ? rawPage : 1, 1), 1000);
     }
   } catch (e) {
     // Ignore URL parse error
   }
 
-  const cleanTags = tags.replace(/date:[^\s]+/g, '').replace(/score:>=/g, 'score:').trim() || '1girl';
+  const safeTags = typeof tags === 'string' ? tags : '';
+  const cleanTags = safeTags.replace(/date:[^\s]+/g, '').replace(/score:>=/g, 'score:').trim() || '1girl';
   let sanitizedPosts = [];
 
   // 1. 尝试 Danbooru 官方全量接口

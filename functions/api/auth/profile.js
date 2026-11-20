@@ -39,11 +39,23 @@ export async function onRequest(context) {
   }
 
   try {
-    // 查库获取最新余额，防止被并发篡改
-    const user = await db.prepare("SELECT id, username, role, credits FROM users WHERE id = ?").bind(payload.id).first();
+    // 查库获取最新余额及账号状态，防止被并发篡改或封禁后继续访问
+    const user = await db.prepare("SELECT id, username, role, credits, status FROM users WHERE id = ?").bind(payload.id).first();
     if (!user) {
       return new Response(JSON.stringify({ error: '用户不存在' }), {
         status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    if (user.status === 'Banned') {
+      return new Response(JSON.stringify({ error: '您的账号已被管理员封禁。' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    if (user.status === 'Pending') {
+      return new Response(JSON.stringify({ error: '您的账号处于待审核状态。' }), {
+        status: 403,
         headers: { 'Content-Type': 'application/json' }
       });
     }

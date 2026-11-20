@@ -2,7 +2,7 @@
  * Cloudflare Pages Functions AI Chat Proxy
  * Forwards chat completions with Anti-SSRF, HTTPS enforcement, and authorization checks.
  */
-import { verifyJwt } from '../_crypto-helper.js';
+import { verifyJwt, timingSafeEqual } from '../_crypto-helper.js';
 
 const TRUSTED_AI_HOSTS = new Set([
   'api.openai.com',
@@ -199,7 +199,7 @@ export async function onRequest(context) {
       const adminToken = (request.headers.get('x-admin-token') || '').trim();
       const serverAdminToken = (env?.ADMIN_TOKEN || '').trim();
       const authHeader = (request.headers.get('Authorization') || '').trim();
-      let isAuthorized = !!(serverAdminToken && adminToken === serverAdminToken);
+      let isAuthorized = Boolean(serverAdminToken && adminToken && (await timingSafeEqual(adminToken, serverAdminToken)));
 
       if (!isAuthorized && authHeader.startsWith('Bearer ') && env?.JWT_SECRET) {
         const token = authHeader.substring(7).trim();

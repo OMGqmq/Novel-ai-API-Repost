@@ -3,7 +3,7 @@
  * Handles authentication, JWT users, VIP card verification, and rate limiting.
  */
 
-import { verifyJwt } from './_crypto-helper.js';
+import { verifyJwt, timingSafeEqual } from './_crypto-helper.js';
 import { GUEST_DAILY_IP_LIMIT, GUEST_DAILY_GLOBAL_LIMIT, USER_DAILY_FREE_LIMIT } from './_config.js';
 
 function getBeijingDateString() {
@@ -39,8 +39,8 @@ export async function authenticate(request, env) {
     return { apiKey, isVip: true, userRole: "CustomAPI", remainingCredits: -1 };
   }
 
-  // B. Admin Token
-  if (serverAdminToken && adminToken === serverAdminToken) {
+  // B. Admin Token (恒定时间比对防时序侧信道)
+  if (serverAdminToken && adminToken && (await timingSafeEqual(adminToken, serverAdminToken))) {
     return { apiKey, isVip: true, userRole: "Admin", remainingCredits: -1 };
   }
 

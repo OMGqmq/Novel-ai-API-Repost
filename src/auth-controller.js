@@ -133,6 +133,10 @@ export class AuthController {
         }
         if (submitBtn) submitBtn.textContent = isLogin ? '登录' : '注册 (赠送10点)';
         if (authPanel) authPanel.dataset.tab = isLogin ? 'login' : 'register';
+        const passwordEl = document.getElementById('authPassword');
+        if (passwordEl?.setAttribute) {
+            passwordEl.setAttribute('autocomplete', isLogin ? 'current-password' : 'new-password');
+        }
     }
 
     async submitAuth() {
