@@ -478,6 +478,18 @@ describe('Security Hardening & P0 Regression Suite', () => {
       expect(html).toContain('<label for="prompt"');
       expect(html).toContain('<label for="steps"');
       expect(html).not.toContain('id="lightboxMainImg" src=""');
+      // Secondary panels for Random Prompts and Character Prompts default to collapsed
+      expect(html).toMatch(/id="randomPromptToolsPanel"[^>]*class="[^"]*\bhidden\b/);
+      expect(html).toContain('id="rpToggleAllBtn"');
+      expect(html).toContain('id="charToggleAllBtn"');
+
+      const charSrc = fs.readFileSync(path.join(rootDir, 'src/char-prompt-manager.js'), 'utf8');
+      expect(charSrc).toContain('aria-expanded="${startExpanded ? \'true\' : \'false\'}"');
+      expect(charSrc).toContain('toggleAllRows(');
+
+      const rpSrc = fs.readFileSync(path.join(rootDir, 'src/random-prompt-controller.js'), 'utf8');
+      expect(rpSrc).toContain('this._expandedCategories = new Set()');
+      expect(rpSrc).toContain('toggleAllFold(');
     });
   });
 });

@@ -491,14 +491,20 @@ describe('Regression Suite: Random Prompt Contamination & Switch Alignment', () 
                 const foldBtn = rightGroup.children.find((btn) => btn.getAttribute('aria-label') === '展开或收起');
                 expect(foldBtn).toBeTruthy();
 
-                expect(body.classList.contains('hidden')).toBe(false);
-                foldBtn.dispatchEvent({ type: 'click', stopPropagation: () => {} });
+                // Categories default to collapsed to keep the sidebar compact
                 expect(body.classList.contains('hidden')).toBe(true);
                 expect(chevron.classList.contains('-rotate-90')).toBe(true);
+                expect(foldBtn.getAttribute('aria-expanded')).toBe('false');
 
                 foldBtn.dispatchEvent({ type: 'click', stopPropagation: () => {} });
                 expect(body.classList.contains('hidden')).toBe(false);
                 expect(chevron.classList.contains('-rotate-90')).toBe(false);
+                expect(foldBtn.getAttribute('aria-expanded')).toBe('true');
+
+                foldBtn.dispatchEvent({ type: 'click', stopPropagation: () => {} });
+                expect(body.classList.contains('hidden')).toBe(true);
+                expect(chevron.classList.contains('-rotate-90')).toBe(true);
+                expect(foldBtn.getAttribute('aria-expanded')).toBe('false');
             } finally {
                 globalThis.document = origDoc;
                 globalThis.window = origWin;

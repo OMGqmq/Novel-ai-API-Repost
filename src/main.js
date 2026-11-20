@@ -1939,6 +1939,10 @@ function addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, au
 }
 window.addCharacterPromptRow = addCharacterPromptRow;
 
+window.toggleAllCharacterRows = (forceExpand) => {
+    charPromptManager.toggleAllRows(forceExpand);
+};
+
 function removeCharacterPromptRow(button) {
     charPromptManager.removeCharacterPromptRow(button);
 }
@@ -2707,6 +2711,14 @@ function toggleRandomCategoryFold(name, event) {
     randomPromptController.toggleFold(name, event);
 }
 window.toggleRandomCategoryFold = toggleRandomCategoryFold;
+
+window.toggleAllRandomCategories = (forceExpand) => {
+    randomPromptController.toggleAllFold(forceExpand);
+};
+
+window.toggleRandomPromptTools = () => {
+    window.togglePanel('randomPromptToolsPanel', 'randomPromptToolsChevron');
+};
 
 function updateRandomCategoryContent(name, content) {
     randomPromptController.updateCategoryContent(name, content);

@@ -284,7 +284,73 @@ export class CharPromptManager {
         }
     }
 
-    addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, autoPos = true, enabled = true, isInitializing = false) {
+    _isAccordionGrid(bodyEl) {
+        const accordionBody = typeof bodyEl?.querySelector === 'function'
+            ? bodyEl.querySelector('.studio-accordion-body')
+            : null;
+        return Boolean(
+            accordionBody &&
+            typeof getComputedStyle === 'function' &&
+            getComputedStyle(accordionBody)?.display === 'grid'
+        );
+    }
+
+    _setRowExpanded(row, shouldExpand) {
+        if (!row || typeof row.querySelector !== 'function') return;
+        const rowHeader = row.querySelector('.char-row-header');
+        const rowContent = row.querySelector('.char-row-content');
+        const rowChevron = row.querySelector('.char-row-chevron');
+        if (!rowContent) return;
+
+        const open = Boolean(shouldExpand);
+        const usesAccordion = this._isAccordionGrid(rowContent);
+        if (usesAccordion) {
+            rowContent.classList.remove('hidden');
+            if (open) rowContent.classList.add('is-open');
+            else rowContent.classList.remove('is-open');
+        } else {
+            if (open) {
+                rowContent.classList.remove('hidden');
+                rowContent.classList.add('is-open');
+            } else {
+                rowContent.classList.add('hidden');
+                rowContent.classList.remove('is-open');
+            }
+        }
+        if (rowChevron?.classList) {
+            if (open) rowChevron.classList.add('rotate-90');
+            else rowChevron.classList.remove('rotate-90');
+        }
+        rowHeader?.setAttribute?.('aria-expanded', open ? 'true' : 'false');
+    }
+
+    _syncToggleAllButton() {
+        const btn = typeof document !== 'undefined' ? document.getElementById('charToggleAllBtn') : null;
+        const container = typeof document !== 'undefined' ? document.getElementById('characterPromptsContainer') : null;
+        if (!btn || !container || typeof container.querySelectorAll !== 'function') return;
+        const rows = Array.from(container.querySelectorAll('.character-prompt-row'));
+        if (rows.length < 2) {
+            btn.classList.add('hidden');
+            return;
+        }
+        btn.classList.remove('hidden');
+        const anyOpen = rows.some((r) => r.querySelector?.('.char-row-content')?.classList?.contains('is-open'));
+        btn.textContent = anyOpen ? '全部收起' : '全部展开';
+        btn.setAttribute?.('aria-pressed', anyOpen ? 'true' : 'false');
+    }
+
+    toggleAllRows(forceExpand) {
+        const container = typeof document !== 'undefined' ? document.getElementById('characterPromptsContainer') : null;
+        if (!container || typeof container.querySelectorAll !== 'function') return;
+        const rows = Array.from(container.querySelectorAll('.character-prompt-row'));
+        if (rows.length === 0) return;
+        const anyOpen = rows.some((r) => r.querySelector?.('.char-row-content')?.classList?.contains('is-open'));
+        const targetExpand = typeof forceExpand === 'boolean' ? forceExpand : !anyOpen;
+        rows.forEach((row) => this._setRowExpanded(row, targetExpand));
+        this._syncToggleAllButton();
+    }
+
+    addCharacterPromptRow(promptVal = '', negVal = '', x = 0.5, y = 0.5, autoPos = true, enabled = true, isInitializing = false, expanded = undefined) {
         const container = document.getElementById('characterPromptsContainer');
         if (!container) return;
 
@@ -297,8 +363,13 @@ export class CharPromptManager {
             return;
         }
 
+        // 二级角色卡片默认收起以节省空间；仅在用户手动点击「添加角色」新建空白行时展开该新行
+        const startExpanded = typeof expanded === 'boolean'
+            ? expanded
+            : (!isInitializing && !promptVal);
+
         const div = document.createElement('div');
-        div.className = 'flex flex-col gap-2.5 character-prompt-row studio-card studio-list-enter border border-slate-200/80 dark:border-slate-800 p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-900/30 transition-[opacity,transform,border-color,background-color] duration-150';
+        div.className = 'flex flex-col character-prompt-row studio-card studio-list-enter border border-slate-200/80 dark:border-slate-800 px-3 py-2 rounded-2xl bg-slate-50/70 dark:bg-slate-900/30 transition-[opacity,transform,border-color,background-color] duration-150';
 
         const safeX = typeof x === 'number' && !isNaN(x) ? Math.max(0.01, Math.min(0.99, x)) : 0.5;
         const safeY = typeof y === 'number' && !isNaN(y) ? Math.max(0.01, Math.min(0.99, y)) : 0.5;
@@ -306,13 +377,17 @@ export class CharPromptManager {
         // 获取当前模型版本以决定默认显示 5x5 网格还是 2D 连续画板
         const activeModel = this.currentModel || (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : 'v3') || 'v3';
         const isV5 = activeModel === 'v5';
+        const initialPosChip = autoPos
+            ? 'Auto'
+            : (isV5 ? `${Math.round(safeX * 100)}%,${Math.round(safeY * 100)}%` : this._coordToGridLabel(safeX, safeY));
 
         div.innerHTML = `
-            <div class="flex justify-between items-center select-none cursor-pointer char-row-header" aria-expanded="true">
-                <div class="flex items-center gap-1.5 min-w-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 char-row-chevron transform rotate-90 shrink-0"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            <div class="flex justify-between items-center gap-2 select-none cursor-pointer char-row-header min-h-[28px]" role="button" tabindex="0" aria-expanded="${startExpanded ? 'true' : 'false'}">
+                <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 char-row-chevron transform ${startExpanded ? 'rotate-90' : ''} shrink-0"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest character-index-label shrink-0 whitespace-nowrap">角色</span>
-                    <span class="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[120px] char-row-summary font-normal"></span>
+                    <span class="char-pos-chip text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0 tabular-nums">${initialPosChip}</span>
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 truncate min-w-0 char-row-summary font-normal"></span>
                 </div>
                 <div class="flex items-center gap-1.5 char-row-actions shrink-0">
                     <label class="flex items-center gap-1.5 cursor-pointer select-none text-[9px] text-slate-500 dark:text-slate-400 font-bold shrink-0">
@@ -325,9 +400,9 @@ export class CharPromptManager {
                     </button>
                 </div>
             </div>
-            <div class="char-row-content studio-accordion is-open">
+            <div class="char-row-content studio-accordion ${startExpanded ? 'is-open' : 'hidden'}">
                 <div class="studio-accordion-body">
-                    <div class="studio-accordion-inner space-y-2">
+                    <div class="studio-accordion-inner space-y-2 pt-2.5 pb-1">
                 <div class="space-y-1">
                     <label class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">描述提示词 (Character Prompt)</label>
                     <input type="text" autocomplete="off" class="char-prompt-input art-input w-full px-3 py-2 rounded-xl text-xs outline-none" placeholder="填入角色特征tag，例如: 1girl, blond hair, blue eyes" />
@@ -429,43 +504,29 @@ export class CharPromptManager {
         div._applyEnabledState = applyEnabledState;
         applyEnabledState(enabled);
 
-        // 监听折叠/展开
+        // 监听折叠/展开（点击或键盘 Enter/Space）
         const rowHeader = div.querySelector('.char-row-header');
         const rowContent = div.querySelector('.char-row-content');
         const rowChevron = div.querySelector('.char-row-chevron');
         const rowActions = div.querySelector('.char-row-actions');
 
+        const toggleThisRow = () => {
+            if (!rowContent) return;
+            const currentlyOpen = this._isAccordionGrid(rowContent)
+                ? rowContent.classList.contains('is-open')
+                : !rowContent.classList.contains('hidden');
+            this._setRowExpanded(div, !currentlyOpen);
+            this._syncToggleAllButton();
+        };
+
         if (rowHeader && rowContent && rowChevron) {
-            rowHeader.addEventListener('click', () => {
-                const accordionBody = typeof rowContent.querySelector === 'function'
-                    ? rowContent.querySelector('.studio-accordion-body')
-                    : null;
-                const usesAccordion = Boolean(
-                    accordionBody &&
-                    typeof getComputedStyle === 'function' &&
-                    getComputedStyle(accordionBody)?.display === 'grid'
-                );
-                if (usesAccordion) {
-                    const isOpen = rowContent.classList.contains('is-open');
-                    rowContent.classList.remove('hidden');
-                    rowContent.classList.toggle('is-open', !isOpen);
-                    rowChevron.classList.toggle('rotate-90', !isOpen);
-                    rowHeader.setAttribute?.('aria-expanded', !isOpen ? 'true' : 'false');
-                    return;
-                }
-                const isCollapsed = rowContent.classList.contains('hidden');
-                if (isCollapsed) {
-                    rowContent.classList.remove('hidden');
-                    rowContent.classList.add('is-open');
-                    rowChevron.classList.add('rotate-90');
-                    rowHeader.setAttribute?.('aria-expanded', 'true');
-                } else {
-                    rowContent.classList.add('hidden');
-                    rowContent.classList.remove('is-open');
-                    rowChevron.classList.remove('rotate-90');
-                    rowHeader.setAttribute?.('aria-expanded', 'false');
+            rowHeader.addEventListener('keydown', (e) => {
+                if (e && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault?.();
+                    toggleThisRow();
                 }
             });
+            rowHeader.addEventListener('click', toggleThisRow);
         }
 
         // 阻止右侧按钮冒泡，以防止点击它们时触发折叠
@@ -486,7 +547,7 @@ export class CharPromptManager {
             const val = promptInput.value.trim();
             if (val) {
                 const cleanVal = val.replace(/[\{\}\[\]\(\)]/g, '').trim();
-                summarySpan.textContent = `(${cleanVal.length > 18 ? cleanVal.slice(0, 18) + '...' : cleanVal})`;
+                summarySpan.textContent = `(${cleanVal.length > 22 ? cleanVal.slice(0, 22) + '...' : cleanVal})`;
             } else {
                 summarySpan.textContent = '';
             }
@@ -585,10 +646,25 @@ export class CharPromptManager {
         });
 
         // 监听 AI 自动位置开关
+        const posChip = div.querySelector('.char-pos-chip');
+        const syncPosChip = (isAuto, cx, cy) => {
+            if (!posChip) return;
+            const model = this.currentModel || 'v3';
+            if (isAuto) {
+                posChip.textContent = 'Auto';
+            } else if (model === 'v5') {
+                posChip.textContent = `${Math.round(cx * 100)}%,${Math.round(cy * 100)}%`;
+            } else {
+                posChip.textContent = this._coordToGridLabel(cx, cy);
+            }
+        };
+        div._syncPosChip = syncPosChip;
+
         if (autoPosCheckbox) {
             autoPosCheckbox.addEventListener('change', (e) => {
                 if (autoPosCheckbox.disabled) return;
                 const model = this.currentModel || 'v3';
+                autoPosCheckbox.setAttribute?.('aria-checked', e.target.checked ? 'true' : 'false');
                 if (e.target.checked) {
                     if (v5PosWrapper) v5PosWrapper.classList.add('hidden');
                     if (v45GridWrapper) v45GridWrapper.classList.add('hidden');
@@ -601,9 +677,13 @@ export class CharPromptManager {
                     if (coordsLabel) {
                         coordsLabel.textContent = "X: 50% | Y: 50%";
                     }
+                    syncPosChip(true, 0.5, 0.5);
                 } else {
                     if (model === 'v5' && v5PosWrapper) v5PosWrapper.classList.remove('hidden');
                     if (model === 'v4.5' && v45GridWrapper) v45GridWrapper.classList.remove('hidden');
+                    const curX = parseFloat(posXInput?.value || '0.5');
+                    const curY = parseFloat(posYInput?.value || '0.5');
+                    syncPosChip(false, curX, curY);
                 }
                 this.saveCharacterPromptsState();
             });
@@ -624,6 +704,12 @@ export class CharPromptManager {
             : 0;
         div.style?.setProperty?.('--sibling-index', String(Math.min(existingCount, 10)));
         container.appendChild(div);
+
+        // 若浏览器支持 CSS grid-template-rows 手风琴，移除 hidden 以保证首次展开有顺滑过渡动画
+        if (!startExpanded && rowContent && this._isAccordionGrid(rowContent)) {
+            rowContent.classList.remove('hidden');
+        }
+
         this.updateCharacterIndexLabels();
         this.updatePadAspectRatio();
 
@@ -670,6 +756,8 @@ export class CharPromptManager {
                 badge.classList.add('hidden');
             }
         }
+
+        this._syncToggleAllButton();
     }
 
     setCharPosition(target, x, y) {
@@ -705,6 +793,10 @@ export class CharPromptManager {
         }
         if (coordsLabel) {
             coordsLabel.textContent = `X: ${(finalX * 100).toFixed(0)}% | Y: ${(finalY * 100).toFixed(0)}%`;
+        }
+        if (typeof row._syncPosChip === 'function') {
+            const autoPosCheckbox = row.querySelector('.char-auto-pos');
+            row._syncPosChip(Boolean(autoPosCheckbox?.checked), finalX, finalY);
         }
 
         this._highlightMatchingGridCell(row, finalX, finalY);

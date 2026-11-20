@@ -7,11 +7,86 @@ export class RandomPromptController {
     constructor() {
         this.manager = null;
         this.promptHelper = null;
+        this._expandedCategories = new Set();
     }
 
     bind(manager, promptHelper) {
         this.manager = manager;
         this.promptHelper = promptHelper;
+    }
+
+    _countTagGroups(content) {
+        if (!content || typeof content !== 'string') return 0;
+        return content
+            .split(';')
+            .map((g) => g.replace(/^[,\s]+|[,\s]+$/g, '').trim())
+            .filter(Boolean).length;
+    }
+
+    _isAccordionGrid(bodyEl) {
+        const accordionBody = typeof bodyEl?.querySelector === 'function'
+            ? bodyEl.querySelector('.studio-accordion-body')
+            : null;
+        return Boolean(
+            accordionBody &&
+            typeof getComputedStyle === 'function' &&
+            getComputedStyle(accordionBody)?.display === 'grid'
+        );
+    }
+
+    _applyFoldState(name, shouldExpand) {
+        const body = document.getElementById(`rp-body-${name}`);
+        const chevron = document.getElementById(`rp-chevron-${name}`);
+        const foldBtn = document.getElementById(`rp-fold-btn-${name}`);
+        const header = document.getElementById(`rp-header-${name}`);
+        if (!body) return;
+
+        if (shouldExpand) {
+            this._expandedCategories.add(name);
+        } else {
+            this._expandedCategories.delete(name);
+        }
+
+        const usesAccordion = this._isAccordionGrid(body);
+        if (usesAccordion) {
+            body.classList.remove('hidden');
+            body.classList.toggle('is-open', Boolean(shouldExpand));
+        } else {
+            body.classList.toggle('hidden', !shouldExpand);
+            body.classList.toggle('is-open', Boolean(shouldExpand));
+        }
+
+        chevron?.classList?.toggle?.('-rotate-90', !shouldExpand);
+        foldBtn?.setAttribute?.('aria-expanded', shouldExpand ? 'true' : 'false');
+        header?.classList?.toggle?.('border-b', Boolean(shouldExpand));
+        header?.classList?.toggle?.('border-slate-200/80', Boolean(shouldExpand));
+        header?.classList?.toggle?.('dark:border-slate-800/80', Boolean(shouldExpand));
+        this._syncToggleAllButton();
+    }
+
+    _syncToggleAllButton() {
+        const btn = typeof document !== 'undefined' ? document.getElementById('rpToggleAllBtn') : null;
+        if (!btn || !this.manager) return;
+        const categories = this.manager.getCategories?.() || [];
+        if (categories.length === 0) {
+            btn.classList.add('hidden');
+            return;
+        }
+        btn.classList.remove('hidden');
+        const anyOpen = categories.some((c) => this._expandedCategories.has(String(c.name || '')));
+        btn.textContent = anyOpen ? '全部收起' : '全部展开';
+        btn.setAttribute?.('aria-pressed', anyOpen ? 'true' : 'false');
+    }
+
+    toggleAllFold(forceExpand) {
+        if (!this.manager) return;
+        const categories = this.manager.getCategories?.() || [];
+        if (categories.length === 0) return;
+        const anyOpen = categories.some((c) => this._expandedCategories.has(String(c.name || '')));
+        const targetExpand = typeof forceExpand === 'boolean' ? forceExpand : !anyOpen;
+        categories.forEach((cat) => {
+            this._applyFoldState(String(cat.name || ''), targetExpand);
+        });
     }
 
     renderList() {
@@ -39,6 +114,8 @@ export class RandomPromptController {
 
         categories.forEach((cat, idx) => {
             const catName = String(cat.name || '');
+            const isExpanded = this._expandedCategories.has(catName);
+            const groupCount = this._countTagGroups(cat.content);
             const item = document.createElement('div');
             item.className = 'studio-card studio-list-enter border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-white/70 dark:bg-slate-900/40 shadow-sm';
             item.style?.setProperty?.('--sibling-index', String(Math.min(idx, 10)));
@@ -46,10 +123,11 @@ export class RandomPromptController {
             // Header and body opacity + disabled state if not enabled
             const headerOpacity = cat.enabled ? '' : 'opacity-60';
             const bodyOpacity = cat.enabled ? '' : 'opacity-40 pointer-events-none';
+            const headerBorder = isExpanded ? 'border-b border-slate-200/80 dark:border-slate-800/80' : '';
 
             const header = document.createElement('div');
             header.id = `rp-header-${catName}`;
-            header.className = `flex justify-between items-center bg-slate-50/70 dark:bg-slate-950/20 px-4 py-2.5 border-b border-slate-200/80 dark:border-slate-800/80 cursor-pointer select-none transition-opacity duration-200 ${headerOpacity}`.trim();
+            header.className = `flex justify-between items-center gap-2 bg-slate-50/70 dark:bg-slate-950/20 px-3.5 py-2 cursor-pointer select-none transition-opacity duration-200 ${headerBorder} ${headerOpacity}`.trim();
             header.addEventListener('click', (event) => {
                 if (typeof window !== 'undefined' && typeof window.toggleRandomCategoryFold === 'function') {
                     window.toggleRandomCategoryFold(catName, event);
@@ -59,7 +137,7 @@ export class RandomPromptController {
             });
 
             const leftGroup = document.createElement('div');
-            leftGroup.className = 'flex items-center gap-2 min-w-0';
+            leftGroup.className = 'flex items-center gap-2 min-w-0 flex-1';
             leftGroup.addEventListener('click', (e) => e.stopPropagation());
 
             const checkbox = document.createElement('input');
@@ -81,11 +159,17 @@ export class RandomPromptController {
             titleSpan.className = 'text-xs font-bold text-slate-700 dark:text-slate-200 capitalize truncate';
             titleSpan.textContent = catName;
 
+            const countBadge = document.createElement('span');
+            countBadge.id = `rp-count-${catName}`;
+            countBadge.className = 'text-[9px] font-mono tabular-nums px-1.5 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0';
+            countBadge.textContent = `${groupCount} 组`;
+
             leftGroup.appendChild(checkbox);
             leftGroup.appendChild(titleSpan);
+            leftGroup.appendChild(countBadge);
 
             const rightGroup = document.createElement('div');
-            rightGroup.className = 'flex items-center gap-1.5 shrink-0';
+            rightGroup.className = 'flex items-center gap-1 shrink-0';
             rightGroup.addEventListener('click', (e) => e.stopPropagation());
 
             if (cat.custom) {
@@ -109,10 +193,13 @@ export class RandomPromptController {
             foldBtn.id = `rp-fold-btn-${catName}`;
             foldBtn.className = 'studio-icon-btn w-7 h-7 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg transition-colors duration-150 cursor-pointer';
             foldBtn.setAttribute('aria-label', '展开或收起');
-            foldBtn.setAttribute('aria-expanded', 'true');
-            foldBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 transition-transform duration-200 pointer-events-none"><path d="m6 9 6 6 6-6"/></svg>`;
+            foldBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+            foldBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 transition-transform duration-200 pointer-events-none ${isExpanded ? '' : '-rotate-90'}"><path d="m6 9 6 6 6-6"/></svg>`;
             const chevronSvg = foldBtn.querySelector('svg');
-            if (chevronSvg) chevronSvg.id = `rp-chevron-${catName}`;
+            if (chevronSvg) {
+                chevronSvg.id = `rp-chevron-${catName}`;
+                if (!isExpanded) chevronSvg.classList?.add?.('-rotate-90');
+            }
             foldBtn.addEventListener('click', (event) => {
                 event.stopPropagation();
                 if (typeof window !== 'undefined' && typeof window.toggleRandomCategoryFold === 'function') {
@@ -128,7 +215,7 @@ export class RandomPromptController {
 
             const body = document.createElement('div');
             body.id = `rp-body-${catName}`;
-            body.className = `studio-accordion is-open transition-opacity duration-200 ${bodyOpacity}`.trim();
+            body.className = `studio-accordion ${isExpanded ? 'is-open' : 'hidden'} transition-opacity duration-200 ${bodyOpacity}`.trim();
 
             const accordionBody = document.createElement('div');
             accordionBody.className = 'studio-accordion-body';
@@ -145,6 +232,7 @@ export class RandomPromptController {
             if (!cat.enabled) textarea.disabled = true;
             textarea.value = cat.content || '';
             textarea.addEventListener('input', (e) => {
+                countBadge.textContent = `${this._countTagGroups(e.target.value)} 组`;
                 if (typeof window !== 'undefined' && typeof window.updateRandomCategoryContent === 'function') {
                     window.updateRandomCategoryContent(catName, e.target.value);
                 } else {
@@ -165,10 +253,17 @@ export class RandomPromptController {
             item.appendChild(body);
             container.appendChild(item);
 
+            // 若浏览器支持 CSS grid-template-rows 手风琴，移除 hidden 以保证首次展开有顺滑过渡动画
+            if (!isExpanded && this._isAccordionGrid(body)) {
+                body.classList.remove('hidden');
+            }
+
             if (this.promptHelper) {
                 this.promptHelper.registerInput(textarea, placeholder);
             }
         });
+
+        this._syncToggleAllButton();
     }
 
     toggleEnabled(checked) {
@@ -213,39 +308,17 @@ export class RandomPromptController {
         if (event) {
             // Prevent toggling when clicking inputs/buttons inside header
             const target = event.target;
-            if (target.closest('input') || target.closest('button')) {
+            if (target?.closest?.('input') || target?.closest?.('button')) {
                 return;
             }
         }
         const body = document.getElementById(`rp-body-${name}`);
-        const chevron = document.getElementById(`rp-chevron-${name}`);
-        const foldBtn = document.getElementById(`rp-fold-btn-${name}`);
-        if (body && chevron) {
-            const accordionBody = typeof body.querySelector === 'function'
-                ? body.querySelector('.studio-accordion-body')
-                : null;
-            const usesAccordion = Boolean(
-                accordionBody &&
-                typeof getComputedStyle === 'function' &&
-                getComputedStyle(accordionBody)?.display === 'grid'
-            );
-            if (usesAccordion) {
-                const isOpen = body.classList.contains('is-open');
-                body.classList.remove('hidden');
-                body.classList.toggle('is-open', !isOpen);
-                chevron.classList.toggle('-rotate-90', isOpen);
-                foldBtn?.setAttribute?.('aria-expanded', !isOpen ? 'true' : 'false');
-                return;
-            }
-            const isCollapsed = body.classList.toggle('hidden');
-            body.classList.toggle('is-open', !isCollapsed);
-            foldBtn?.setAttribute?.('aria-expanded', isCollapsed ? 'false' : 'true');
-            if (isCollapsed) {
-                chevron.classList.add('-rotate-90');
-            } else {
-                chevron.classList.remove('-rotate-90');
-            }
-        }
+        if (!body) return;
+
+        const isCurrentlyOpen = this._isAccordionGrid(body)
+            ? body.classList.contains('is-open')
+            : !body.classList.contains('hidden');
+        this._applyFoldState(name, !isCurrentlyOpen);
     }
 
     updateCategoryContent(name, content) {
@@ -254,6 +327,7 @@ export class RandomPromptController {
 
     async deleteCategory(name) {
         if (await window.showConfirm(`确定要删除自定义分类 “${name}” 吗？`, "确认删除")) {
+            this._expandedCategories.delete(name);
             this.manager.removeCategory(name);
             this.renderList();
         }
@@ -272,6 +346,8 @@ export class RandomPromptController {
             window.showToast(res.error, "error");
         } else {
             input.value = '';
+            // 仅展开刚刚新建的分类，方便立即填写词条，其余分类继续保持收起
+            this._expandedCategories.add(name);
             this.renderList();
             window.showToast(`添加类别 “${name}” 成功`, "success");
         }
