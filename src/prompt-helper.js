@@ -112,20 +112,30 @@ export class PromptHelper {
                 if (cachedResponse) {
                     data = await cachedResponse.json();
                     
-                    fetch(TAGS_URL)
-                        .then(response => {
-                            if (response.ok) {
-                                cache.put(TAGS_URL, response.clone());
-                                response.json().then(freshData => {
-                                    this.updateTagData(freshData);
-                                }).catch(() => {});
-                            }
-                        })
-                        .catch(() => {});
+                    const SYNC_TTL_MS = 24 * 60 * 60 * 1000;
+                    let lastSync = 0;
+                    try {
+                        lastSync = parseInt(localStorage.getItem('nai_tags_last_sync') || '0', 10) || 0;
+                    } catch (_) {}
+
+                    if (Date.now() - lastSync > SYNC_TTL_MS) {
+                        fetch(TAGS_URL)
+                            .then(response => {
+                                if (response.ok) {
+                                    cache.put(TAGS_URL, response.clone());
+                                    try { localStorage.setItem('nai_tags_last_sync', String(Date.now())); } catch (_) {}
+                                    response.json().then(freshData => {
+                                        this.updateTagData(freshData);
+                                    }).catch(() => {});
+                                }
+                            })
+                            .catch(() => {});
+                    }
                 } else {
                     const response = await fetch(TAGS_URL);
                     if (response.ok) {
                         await cache.put(TAGS_URL, response.clone());
+                        try { localStorage.setItem('nai_tags_last_sync', String(Date.now())); } catch (_) {}
                         data = await response.clone().json();
                     } else {
                         data = await response.json();

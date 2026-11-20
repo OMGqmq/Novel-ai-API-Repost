@@ -235,10 +235,22 @@ export async function onRequest(context) {
       method: 'POST',
       headers,
       body: typeof body === 'string' ? body : JSON.stringify(body),
+      redirect: 'manual',
       signal: AbortSignal.timeout(60000)
     });
 
+    if (upstreamResponse.status >= 300 && upstreamResponse.status < 400 && upstreamResponse.headers.get('location')) {
+      return new Response(JSON.stringify({ error: '安全限制：禁止上游代理重定向' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
     const respHeaders = new Headers(upstreamResponse.headers);
+    respHeaders.delete('content-encoding');
+    respHeaders.delete('content-length');
+    respHeaders.delete('transfer-encoding');
+    respHeaders.delete('set-cookie');
     respHeaders.set('Access-Control-Allow-Origin', '*');
 
     return new Response(upstreamResponse.body, {

@@ -10,11 +10,13 @@ COPY server.js ./
 COPY functions ./functions
 COPY src ./src
 COPY images ./images
+COPY presets ./presets
+COPY classified_tags.json ./
+COPY gallery_index.json ./
 COPY index.html ./
-COPY .env.example ./
 
-# 创建 SQLite 持久化数据目录
-RUN mkdir -p /app/data
+# 创建 SQLite 持久化数据目录并设置非 root 运行权限
+RUN mkdir -p /app/data && chown -R node:node /app/data
 
 EXPOSE 3000
 
@@ -24,5 +26,7 @@ ENV HOST=0.0.0.0
 ENV DB_PATH=/app/data/nai.db
 
 VOLUME ["/app/data"]
+
+USER node
 
 CMD ["node", "server.js"]

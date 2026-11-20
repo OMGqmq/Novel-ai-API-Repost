@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+tests
+docs
+data
+.env
+.env.*
+*.log
+*.db
+*.db-shm
+*.db-wal
+vitest.config.js

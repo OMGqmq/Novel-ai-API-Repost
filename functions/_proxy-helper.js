@@ -70,7 +70,11 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
       throw new AuthError("角色参考功能会消耗 Anlas 算力，仅限自定义 API Key 或管理员使用", 403);
     }
 
-    const isV45 = (data.version === 'v4.5' || (data.model && data.model.includes('4-5')));
+    const normVer = String(data.version || '').toLowerCase().trim();
+    const isV45 = (
+      normVer === 'v4.5' || normVer === 'v4' || normVer === 'v4-full' || normVer === 'v4-curated' ||
+      (typeof data.model === 'string' && (data.model.includes('4-5') || data.model.includes('4.5')))
+    );
     if (isRestricted && isV45 && data.vibe_image && isRawImageBase64(data.vibe_image)) {
       throw new AuthError("V4.5 氛围直接编码会消耗官方 Anlas 算力，仅限自定义 API Key 或管理员使用", 403);
     }
@@ -78,9 +82,19 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
     if (targetUrl && targetUrl.includes('/ai/upscale') && isRestricted && userRole === 'Free') {
       throw new AuthError("4x AI 超分辨率放大功能会消耗服务器付费 Anlas 算力，仅限 VIP 用户或自定义 API Key 使用", 403);
     }
+
+    if (targetUrl && targetUrl.includes('/ai/augment-image') && isRestricted && data.req_type === 'bg-removal') {
+      throw new AuthError("AI 背景移除功能会消耗官方 Anlas 算力，仅限自定义 API Key 或管理员使用", 403);
+    }
     
-    const width = parseInt(data.width) || 832;
-    const height = parseInt(data.height) || 1216;
+    const rawWidth = (data.width !== undefined && data.width !== null && data.width !== '') ? Number(data.width) : 832;
+    const rawHeight = (data.height !== undefined && data.height !== null && data.height !== '') ? Number(data.height) : 1216;
+    const width = Number.isFinite(rawWidth) ? Math.trunc(rawWidth) : 832;
+    const height = Number.isFinite(rawHeight) ? Math.trunc(rawHeight) : 1216;
+
+    if (width < 64 || height < 64) {
+      throw new AuthError("无效的图像分辨率参数，宽高必须不小于 64 像素", 400);
+    }
 
     if (isRestricted && (width * height > MAX_FREE_PIXELS)) {
       throw new AuthError("分辨率超出 Opus 免费限制", 400);
@@ -88,6 +102,14 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
 
     // 4. 构建 payload
     const payload = buildPayload(data, isRestricted, width, height);
+
+    // 4.5 二次防线：基于最终构建出的 payload.model 校验 V4.5 未编码原图（防止通过别名/大小写绕过）
+    const isV45Payload = typeof payload?.model === 'string' && (payload.model.includes('4-5') || payload.model.includes('4.5'));
+    if (isRestricted && isV45Payload && Array.isArray(payload?.parameters?.reference_image_multiple)) {
+      if (payload.parameters.reference_image_multiple.some(item => isRawImageBase64(item))) {
+        throw new AuthError("V4.5 氛围直接编码会消耗官方 Anlas 算力，仅限自定义 API Key 或管理员使用", 403);
+      }
+    }
 
     // 5. 原子化预扣除算力/配额 (防并发刷算力)
     deductionReceipt = await preDeductQuota(auth, env);
@@ -133,6 +155,9 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
             for (let idx = 0; idx < payload.parameters.reference_image_multiple.length; idx++) {
               const item = payload.parameters.reference_image_multiple[idx];
               if (isRawImageBase64(item)) {
+                if (isRestricted) {
+                  throw new AuthError("V4.5 氛围直接编码会消耗官方 Anlas 算力，仅限自定义 API Key 或管理员使用", 403);
+                }
                 const cleanImg = item.replace(/^data:image\/[a-z]+;base64,/, '').trim();
                 const info = payload.parameters.reference_information_extracted_multiple?.[idx] !== undefined
                   ? payload.parameters.reference_information_extracted_multiple[idx]
@@ -207,8 +232,12 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
       }
     }
 
-    // 7. 透传响应
+    // 7. 透传响应（剥离压缩与长度头，防止 Node fetch 自动解压后与原 Content-Encoding 冲突）
     const newHeaders = new Headers(response.headers);
+    newHeaders.delete('content-encoding');
+    newHeaders.delete('content-length');
+    newHeaders.delete('transfer-encoding');
+    newHeaders.delete('set-cookie');
     if (data.version === 'zimage') {
       newHeaders.set('Content-Type', response.headers.get('Content-Type') || 'image/jpeg');
     } else {

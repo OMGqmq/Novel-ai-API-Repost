@@ -4,9 +4,33 @@
  */
 
 function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    if (str === undefined || str === null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function generateSafeNoteId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function sanitizeNoteId(rawId) {
+    if (typeof rawId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(rawId)) {
+        return rawId;
+    }
+    return generateSafeNoteId();
+}
+
+function sanitizePreviewUrl(rawUrl) {
+    if (typeof rawUrl !== 'string') return null;
+    const trimmed = rawUrl.trim();
+    if (/^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=\s]+$/i.test(trimmed)) {
+        return trimmed;
+    }
+    return null;
 }
 
 function formatNoteDate(ts) {
@@ -160,18 +184,22 @@ export class NotebookManager {
             return;
         }
 
-        this.listContainerEl.innerHTML = notes.map((note, idx) => `
-            <div class="group studio-card studio-list-enter bg-slate-50/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl border border-slate-200/80 dark:border-slate-700/50 p-3 hover:border-slate-300 dark:hover:border-slate-600 transition-[border-color,background-color] duration-150" style="--sibling-index: ${Math.min(idx, 10)}" data-note-id="${note.id}">
+        const safeModel = escapeHtml(model);
+        this.listContainerEl.innerHTML = notes.map((note, idx) => {
+            const safeNoteId = escapeHtml(note.id);
+            const safePreview = sanitizePreviewUrl(note.preview);
+            return `
+            <div class="group studio-card studio-list-enter bg-slate-50/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl border border-slate-200/80 dark:border-slate-700/50 p-3 hover:border-slate-300 dark:hover:border-slate-600 transition-[border-color,background-color] duration-150" style="--sibling-index: ${Math.min(idx, 10)}" data-note-id="${safeNoteId}">
                 <div class="flex items-start justify-between gap-2 mb-1.5">
                     <span class="text-[9px] text-slate-500 dark:text-slate-400 font-mono tabular-nums">${formatNoteDate(note.createdAt)}</span>
                     <div class="studio-hover-actions flex items-center gap-1">
-                        <button type="button" onclick="bindCurrentCanvasToNote('${model}','${note.id}')" class="studio-icon-btn w-7 h-7 p-1.5 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-150 cursor-pointer" title="绑定当前画布图片" aria-label="绑定当前画布图片">
+                        <button type="button" data-model="${safeModel}" data-note-id="${safeNoteId}" onclick="bindCurrentCanvasToNote(this.dataset.model, this.dataset.noteId)" class="studio-icon-btn w-7 h-7 p-1.5 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-150 cursor-pointer" title="绑定当前画布图片" aria-label="绑定当前画布图片">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
                         </button>
-                        <button type="button" onclick="editNotebookNote('${model}','${note.id}')" class="studio-icon-btn w-7 h-7 p-1.5 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-150 cursor-pointer" title="编辑" aria-label="编辑笔记">
+                        <button type="button" data-model="${safeModel}" data-note-id="${safeNoteId}" onclick="editNotebookNote(this.dataset.model, this.dataset.noteId)" class="studio-icon-btn w-7 h-7 p-1.5 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-150 cursor-pointer" title="编辑" aria-label="编辑笔记">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
                         </button>
-                        <button type="button" onclick="deleteNotebookNote('${model}','${note.id}')" class="studio-icon-btn w-7 h-7 p-1.5 hover:bg-red-100 dark:hover:bg-red-950/30 rounded-md text-slate-500 dark:text-slate-400 hover:text-red-500 transition-colors duration-150 cursor-pointer" title="删除" aria-label="删除笔记">
+                        <button type="button" data-model="${safeModel}" data-note-id="${safeNoteId}" onclick="deleteNotebookNote(this.dataset.model, this.dataset.noteId)" class="studio-icon-btn w-7 h-7 p-1.5 hover:bg-red-100 dark:hover:bg-red-950/30 rounded-md text-slate-500 dark:text-slate-400 hover:text-red-500 transition-colors duration-150 cursor-pointer" title="删除" aria-label="删除笔记">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                         </button>
                     </div>
@@ -181,19 +209,20 @@ export class NotebookManager {
                         <div class="text-xs text-slate-700 dark:text-slate-200 leading-relaxed line-clamp-3 break-all">${escapeHtml(note.prompt)}</div>
                         ${note.negative ? `<div class="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-1 break-all mt-1"><span class="text-slate-400 dark:text-slate-500">neg:</span> ${escapeHtml(note.negative)}</div>` : ''}
                     </div>
-                    ${note.preview ? `
+                    ${safePreview ? `
                     <div class="shrink-0 relative group/preview">
-                        <img src="${note.preview}" class="w-14 h-20 object-cover rounded-lg shadow-sm border border-slate-200/70 dark:border-slate-700 cursor-zoom-in" onclick="event.stopPropagation(); viewNotebookNotePreview('${model}', '${note.id}')">
-                        <button type="button" onclick="event.stopPropagation(); removeNotePreview('${model}', '${note.id}')" class="note-preview-del-btn absolute top-1 right-1 w-[18px] h-[18px] bg-slate-900/65 hover:bg-slate-900/90 dark:bg-slate-950/75 dark:hover:bg-slate-900 text-white/90 hover:text-white backdrop-blur-sm border border-white/15 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover/preview:opacity-100 focus-visible:opacity-100 transition-[opacity,background-color,transform] duration-150 active:scale-90 cursor-pointer" title="移除预览图" aria-label="移除预览图"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-2.5 h-2.5 pointer-events-none" aria-hidden="true"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg></button>
+                        <img src="${escapeHtml(safePreview)}" data-model="${safeModel}" data-note-id="${safeNoteId}" class="w-14 h-20 object-cover rounded-lg shadow-sm border border-slate-200/70 dark:border-slate-700 cursor-zoom-in" onclick="event.stopPropagation(); viewNotebookNotePreview(this.dataset.model, this.dataset.noteId)">
+                        <button type="button" data-model="${safeModel}" data-note-id="${safeNoteId}" onclick="event.stopPropagation(); removeNotePreview(this.dataset.model, this.dataset.noteId)" class="note-preview-del-btn absolute top-1 right-1 w-[18px] h-[18px] bg-slate-900/65 hover:bg-slate-900/90 dark:bg-slate-950/75 dark:hover:bg-slate-900 text-white/90 hover:text-white backdrop-blur-sm border border-white/15 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover/preview:opacity-100 focus-visible:opacity-100 transition-[opacity,background-color,transform] duration-150 active:scale-90 cursor-pointer" title="移除预览图" aria-label="移除预览图"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-2.5 h-2.5 pointer-events-none" aria-hidden="true"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg></button>
                     </div>
                     ` : ''}
                 </div>
-                <button type="button" onclick="applyNotebookNote('${model}','${note.id}')"
+                <button type="button" data-model="${safeModel}" data-note-id="${safeNoteId}" onclick="applyNotebookNote(this.dataset.model, this.dataset.noteId)"
                     class="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 text-[10px] font-bold rounded-lg shadow-sm transition-colors duration-150 flex items-center justify-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 pointer-events-none"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg> 一键使用
                 </button>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
 
     applyNote(model, noteId) {
@@ -213,7 +242,10 @@ export class NotebookManager {
         const note = notes.find(n => n.id === noteId);
         if (!note) return;
 
-        const container = this.listContainerEl.querySelector(`[data-note-id="${noteId}"]`);
+        const safeModel = escapeHtml(model);
+        const safeNoteId = escapeHtml(noteId);
+        const selectorId = typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(noteId) : noteId;
+        const container = this.listContainerEl.querySelector(`[data-note-id="${selectorId}"]`);
         if (!container) return;
 
         container.innerHTML = `
@@ -223,8 +255,8 @@ export class NotebookManager {
                 <label class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">负向提示词</label>
                 <textarea id="editNoteNeg" name="nai_edit_note_neg" autocomplete="off" rows="2" class="art-input w-full px-3 py-2 rounded-lg text-xs outline-none shadow-sm resize-none text-slate-600 dark:text-slate-300">${escapeHtml(note.negative || '')}</textarea>
                 <div class="flex gap-2 pt-1">
-                    <button type="button" onclick="cancelEditNote('${model}')" class="flex-1 py-2 text-[10px] font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-150 cursor-pointer">取消</button>
-                    <button type="button" onclick="confirmEditNote('${model}','${noteId}')" class="flex-1 py-2 text-[10px] font-bold rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 shadow-sm transition-colors duration-150 cursor-pointer">保存</button>
+                    <button type="button" data-model="${safeModel}" onclick="cancelEditNote(this.dataset.model)" class="flex-1 py-2 text-[10px] font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-150 cursor-pointer">取消</button>
+                    <button type="button" data-model="${safeModel}" data-note-id="${safeNoteId}" onclick="confirmEditNote(this.dataset.model, this.dataset.noteId)" class="flex-1 py-2 text-[10px] font-bold rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 shadow-sm transition-colors duration-150 cursor-pointer">保存</button>
                 </div>
             </div>
         `;
@@ -389,16 +421,20 @@ export class NotebookManager {
                     return;
                 }
 
+                const sanitizeImportedNotes = (items) => items
+                    .filter(imp => imp && typeof imp.prompt === 'string' && imp.prompt.trim().length > 0)
+                    .map(imp => ({
+                        id: sanitizeNoteId(imp.id),
+                        prompt: imp.prompt,
+                        negative: typeof imp.negative === 'string' ? imp.negative : '',
+                        preview: sanitizePreviewUrl(imp.preview),
+                        createdAt: Number.isFinite(Number(imp.createdAt)) ? Number(imp.createdAt) : Date.now()
+                    }));
+
                 let v3Added = 0;
                 if (v3Import.length > 0) {
                     const currentV3 = this.getNotebookNotes('v3');
-                    const preparedImportV3 = v3Import.map(imp => ({
-                        id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
-                        prompt: imp.prompt,
-                        negative: imp.negative || '',
-                        preview: imp.preview || null,
-                        createdAt: imp.createdAt || Date.now()
-                    }));
+                    const preparedImportV3 = sanitizeImportedNotes(v3Import);
                     const mergedV3 = this._mergeNotes(currentV3, preparedImportV3);
                     v3Added = mergedV3.length - currentV3.length;
                     this.saveNotebookNotes('v3', mergedV3);
@@ -407,13 +443,7 @@ export class NotebookManager {
                 let v4Added = 0;
                 if (v4Import.length > 0) {
                     const currentV4 = this.getNotebookNotes('v4.5');
-                    const preparedImportV4 = v4Import.map(imp => ({
-                        id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
-                        prompt: imp.prompt,
-                        negative: imp.negative || '',
-                        preview: imp.preview || null,
-                        createdAt: imp.createdAt || Date.now()
-                    }));
+                    const preparedImportV4 = sanitizeImportedNotes(v4Import);
                     const mergedV4 = this._mergeNotes(currentV4, preparedImportV4);
                     v4Added = mergedV4.length - currentV4.length;
                     this.saveNotebookNotes('v4.5', mergedV4);
@@ -422,13 +452,7 @@ export class NotebookManager {
                 let v5Added = 0;
                 if (v5Import.length > 0) {
                     const currentV5 = this.getNotebookNotes('v5');
-                    const preparedImportV5 = v5Import.map(imp => ({
-                        id: imp.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
-                        prompt: imp.prompt,
-                        negative: imp.negative || '',
-                        preview: imp.preview || null,
-                        createdAt: imp.createdAt || Date.now()
-                    }));
+                    const preparedImportV5 = sanitizeImportedNotes(v5Import);
                     const mergedV5 = this._mergeNotes(currentV5, preparedImportV5);
                     v5Added = mergedV5.length - currentV5.length;
                     this.saveNotebookNotes('v5', mergedV5);

@@ -491,8 +491,10 @@ export function createLightboxController({
                 if (charTitle) {
                     charTitle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> 角色提示词 (${charList.length}人)`;
                 }
+                const charPromptsForCopy = [];
                 charListEl.innerHTML = charList.map((c, i) => {
                     const p = c.prompt || c.char_caption || '';
+                    charPromptsForCopy.push(p);
                     let uc = c.negative_prompt || c.negative || c.uc || '';
                     if (!uc && meta?.v4_negative_prompt?.caption?.char_captions?.[i]) {
                         const negC = meta.v4_negative_prompt.caption.char_captions[i];
@@ -510,7 +512,7 @@ export function createLightboxController({
                         <div class="p-2.5 bg-white/5 border border-white/10 rounded-xl space-y-1 text-xs studio-list-enter" style="--sibling-index: ${Math.min(i, 10)};">
                             <div class="flex justify-between items-center">
                                 <span class="text-[10px] font-semibold text-slate-200">角色 ${i + 1} ${posLabel ? `<span class="text-slate-400 font-mono text-[9px]">· ${escapeHtml(posLabel)}</span>` : ''}</span>
-                                <button type="button" onclick="navigator.clipboard.writeText(${JSON.stringify(p)}); window.showToast('角色提示词已复制', 'success')" class="text-slate-400 hover:text-white text-[10px] flex items-center gap-0.5 cursor-pointer" aria-label="复制角色提示词">
+                                <button type="button" data-char-copy-idx="${i}" class="text-slate-400 hover:text-white text-[10px] flex items-center gap-0.5 cursor-pointer" aria-label="复制角色提示词">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-2.5 h-2.5 pointer-events-none"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                                 </button>
                             </div>
@@ -519,6 +521,20 @@ export function createLightboxController({
                         </div>
                     `;
                 }).join('');
+                if (typeof charListEl.querySelectorAll === 'function') {
+                    charListEl.querySelectorAll('[data-char-copy-idx]').forEach((btn) => {
+                        btn.addEventListener('click', () => {
+                            const idx = Number(btn.getAttribute('data-char-copy-idx'));
+                            const promptText = charPromptsForCopy[idx] ?? '';
+                            if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                                navigator.clipboard.writeText(promptText).catch(() => {});
+                            }
+                            if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+                                window.showToast('角色提示词已复制', 'success');
+                            }
+                        });
+                    });
+                }
                 const mc = getLightboxMotionController();
                 if (mc && typeof mc.setStaggerIndices === 'function' && typeof charListEl.querySelectorAll === 'function') {
                     mc.setStaggerIndices(charListEl, '.studio-list-enter', 10);

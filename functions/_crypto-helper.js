@@ -142,8 +142,8 @@ export async function verifyJwt(token, secret) {
 
     const payload = JSON.parse(base64urlDecode(encodedPayload));
     
-    // Validate expiration
-    if (payload.exp && Date.now() / 1000 > payload.exp) {
+    // Validate expiration (exp claim is mandatory)
+    if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp) || Date.now() / 1000 > payload.exp) {
       return null;
     }
 

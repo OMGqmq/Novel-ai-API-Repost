@@ -275,7 +275,7 @@ export async function rollbackQuota(receipt, env) {
       ).bind(receipt.key).run();
     } else if (receipt.type === 'card_credits' && receipt.userKey) {
       await env.DB.prepare(
-        "UPDATE cards SET credits = credits + 1, is_used = 0, updated_at = datetime('now', '+8 hours') WHERE card_key = ?"
+        "UPDATE cards SET credits = credits + 1, is_used = 0, updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND used_by_id IS NULL"
       ).bind(receipt.userKey).run();
     } else if (receipt.type === 'guest_limit' && receipt.globalKey && receipt.ipKey) {
       const sql = "UPDATE free_limits SET count = MAX(0, count - 1), updated_at = datetime('now', '+8 hours') WHERE key = ?";

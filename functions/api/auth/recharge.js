@@ -72,26 +72,44 @@ export async function onRequest(context) {
       });
     }
 
-    // 3. 校验用户是否存在
-    const user = await db.prepare("SELECT credits FROM users WHERE id = ?").bind(payload.id).first();
+    // 3. 校验用户是否存在及账号状态
+    const user = await db.prepare("SELECT credits, status FROM users WHERE id = ?").bind(payload.id).first();
     if (!user) {
       return new Response(JSON.stringify({ error: '用户不存在' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' }
       });
     }
+    if (user.status === 'Banned') {
+      return new Response(JSON.stringify({ error: '您的账号已被管理员封禁，禁止充值。' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    if (user.status === 'Pending') {
+      return new Response(JSON.stringify({ error: '您的账号处于待审核状态，暂不可充值。' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     const currentCredits = user.credits;
     const addedCredits = card.credits;
+    if (!Number.isFinite(addedCredits) || addedCredits <= 0) {
+      return new Response(JSON.stringify({ error: '该卡密余额已耗尽，无法充值。' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
     const newCredits = currentCredits + addedCredits;
 
-    // 4. 原子性操作：先独占式更新卡密状态（作为 Gatekeeper 防重防并发，同时清零卡密面额防止双花）
+    // 4. 原子性操作：先独占式更新卡密状态（作为 Gatekeeper 防重防并发，并校验面额未被并发扣减）
     const cardUpdateResult = await db.prepare(
-      "UPDATE cards SET is_used = 1, credits = 0, used_by_id = ?, used_at = datetime('now', '+8 hours'), updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND is_used = 0"
-    ).bind(payload.id, trimmedCardKey).run();
+      "UPDATE cards SET is_used = 1, credits = 0, used_by_id = ?, used_at = datetime('now', '+8 hours'), updated_at = datetime('now', '+8 hours') WHERE card_key = ? AND is_used = 0 AND credits = ?"
+    ).bind(payload.id, trimmedCardKey, addedCredits).run();
 
     if (!cardUpdateResult || !cardUpdateResult.meta || cardUpdateResult.meta.changes === 0) {
-      return new Response(JSON.stringify({ error: '卡密已被使用或不存在，请勿重复充值。' }), {
+      return new Response(JSON.stringify({ error: '卡密已被使用、余额已变动或不存在，请重试或检查卡密状态。' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
