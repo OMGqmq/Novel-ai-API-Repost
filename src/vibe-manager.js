@@ -869,7 +869,7 @@ export class VibeManager {
 
         container.innerHTML = `
             <div class="space-y-2">
-                <input type="range" id="vibeInfo" min="0.01" max="1.0" value="${currentVal}" data-default="1.0" step="0.01" class="w-full cursor-pointer enhanced-range">
+                <input type="range" id="vibeInfo" min="0.01" max="1.0" value="${currentVal}" data-default="1.0" step="0.01" class="w-full appearance-none cursor-pointer enhanced-range">
                 <div id="vibeStrengthsChips"></div>
                 <div id="vibeEncodeStatus"></div>
             </div>

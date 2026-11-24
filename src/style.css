@@ -34,6 +34,15 @@
     --accent-primary-fg: #f8fafc;
     --accent-soft: rgba(15, 23, 42, 0.08);
 
+    /* Studio Range Slider Tokens (Light) */
+    --slider-track-color: rgba(15, 23, 42, 0.14);
+    --slider-track-ring: rgba(15, 23, 42, 0.13);
+    --slider-fill-color: #0f172a;
+    --slider-thumb-bg: #ffffff;
+    --slider-thumb-border: #0f172a;
+    --slider-thumb-shadow: 0 1px 3px rgba(15, 23, 42, 0.24), 0 4px 10px rgba(15, 23, 42, 0.08);
+    --slider-halo-color: rgba(15, 23, 42, 0.11);
+
     --status-success: #047857;
     --status-success-bg: rgba(16, 185, 129, 0.12);
     --status-warning: #b45309;
@@ -89,6 +98,15 @@ html.dark {
     --accent-primary: #f8fafc;
     --accent-primary-fg: #0f172a;
     --accent-soft: rgba(248, 250, 252, 0.12);
+
+    /* Studio Range Slider Tokens (Dark) */
+    --slider-track-color: rgba(148, 163, 184, 0.24);
+    --slider-track-ring: rgba(255, 255, 255, 0.12);
+    --slider-fill-color: #f8fafc;
+    --slider-thumb-bg: #0f172a;
+    --slider-thumb-border: #f8fafc;
+    --slider-thumb-shadow: 0 1px 4px rgba(2, 6, 23, 0.72), 0 0 0 1px rgba(15, 23, 42, 0.5);
+    --slider-halo-color: rgba(248, 250, 252, 0.16);
 
     --status-success: #34d399;
     --status-success-bg: rgba(52, 211, 153, 0.16);
@@ -1285,12 +1303,12 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
 /* Compact Brush Size & Strength Popover */
 .inpaint-params-popover {
     pointer-events: auto;
-    width: 224px;
-    padding: 10px 12px;
+    width: min(256px, calc(100vw - 1.5rem));
+    padding: 12px 14px;
     border-radius: 18px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     background: var(--surface-panel);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
@@ -1736,100 +1754,162 @@ html.low-perf .custom-select-options {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.14) !important;
 }
 
-/* --- 统一控制台滑动条 (Range Slider) 美化与无障碍增强 --- */
+/* --- 统一工作台与浮动工具坞滑动条 (Studio Tactile Range Slider) --- */
 input[type="range"] {
-    -webkit-appearance: none;
-    appearance: none;
-    background: var(--border-subtle);
-    border-radius: 9999px;
-    height: 6px;
-    transition: background-color var(--dur-fast) var(--ease-in-out);
+    --slider-track-size: 6px;
+    --slider-thumb-size: 18px;
+    --slider-track-radius: 999px;
+    --slider-thumb-radius: 50%;
+    --slider-direction: to right;
+
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    inline-size: 100%;
+    block-size: 1.75rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent !important;
+    accent-color: var(--slider-fill-color);
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+input[type="range"]:dir(rtl) {
+    --slider-direction: to left;
+}
+
+.inpaint-params-popover input[type="range"],
+.outpaint-brush-popover input[type="range"],
+.canvas-utility-popover input[type="range"] {
+    --slider-track-size: 5px;
+    --slider-thumb-size: 16px;
+    block-size: 1.5rem;
+}
+
+@media (pointer: coarse) {
+    input[type="range"] {
+        --slider-thumb-size: 22px;
+        block-size: 2.25rem;
+    }
+    .inpaint-params-popover input[type="range"],
+    .outpaint-brush-popover input[type="range"],
+    .canvas-utility-popover input[type="range"] {
+        --slider-track-size: 6px;
+        --slider-thumb-size: 20px;
+        block-size: 2rem;
+    }
 }
 
 input[type="range"]:focus-visible {
-    outline: 2px solid var(--border-focus);
-    outline-offset: 4px;
-    border-radius: 9999px;
+    outline: 2px solid var(--slider-fill-color);
+    outline-offset: 3px;
+    border-radius: 999px;
 }
 
-input[type="range"].enhanced-range:not(.brush-size-slider) {
-    height: 24px;
-    background: transparent;
-    accent-color: var(--accent-primary);
+.range-val-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 2.35rem;
+    padding: 0.125rem 0.425rem;
+    border-radius: 0.45rem;
+    background: var(--accent-soft);
+    color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
 }
 
-/* Chrome/Safari/Webkit 轨道与滑块 (与 Firefox 规则严格分离) */
-input[type="range"].enhanced-range:not(.brush-size-slider)::-webkit-slider-runnable-track {
-    height: 6px;
-    border-radius: 9999px;
-    background-color: var(--border-subtle);
-    background-image: linear-gradient(to right, var(--accent-primary) 0%, var(--accent-primary) var(--range-pct, 0%), transparent var(--range-pct, 0%), transparent 100%);
+/* Chrome / Safari / Edge (WebKit/Blink) 轨道与瓷环滑块 — 与 Firefox 规则严格分离 */
+input[type="range"]::-webkit-slider-runnable-track {
+    block-size: var(--slider-track-size);
+    border: 0;
+    border-radius: var(--slider-track-radius);
+    background: linear-gradient(
+        var(--slider-direction),
+        var(--slider-fill-color) 0%,
+        var(--slider-fill-color) var(--range-pct, 0%),
+        var(--slider-track-color) var(--range-pct, 0%),
+        var(--slider-track-color) 100%
+    );
+    box-shadow: inset 0 0 0 1px var(--slider-track-ring);
 }
 
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 9999px;
-    background: var(--accent-primary);
-    cursor: pointer;
-    border: 2px solid var(--surface-elevated);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    transition: transform var(--dur-micro) var(--ease-out-spring), background-color var(--dur-micro) var(--ease-in-out);
-}
-
-input[type="range"].enhanced-range:not(.brush-size-slider)::-webkit-slider-thumb {
-    margin-block-start: -5px;
+    box-sizing: border-box;
+    inline-size: var(--slider-thumb-size);
+    block-size: var(--slider-thumb-size);
+    margin-block-start: calc((var(--slider-track-size) - var(--slider-thumb-size)) / 2);
+    border-radius: var(--slider-thumb-radius);
+    background: var(--slider-thumb-bg);
+    border: 2px solid var(--slider-thumb-border);
+    box-shadow: var(--slider-thumb-shadow);
+    cursor: grab;
+    transition: transform var(--dur-micro) var(--ease-out-spring), box-shadow var(--dur-micro) var(--ease-in-out), border-color var(--dur-micro) var(--ease-in-out);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-    transform: scale(1.16);
+    transform: scale(1.08);
+    box-shadow: 0 0 0 4px var(--slider-halo-color), var(--slider-thumb-shadow);
 }
 
 input[type="range"]:active::-webkit-slider-thumb {
-    transform: scale(1.06);
+    cursor: grabbing;
+    transform: scale(1.12);
+    box-shadow: 0 0 0 6px var(--slider-halo-color), var(--slider-thumb-shadow);
 }
 
 input[type="range"]:focus-visible::-webkit-slider-thumb {
-    box-shadow: 0 0 0 3px var(--accent-soft), 0 2px 6px rgba(0, 0, 0, 0.22);
+    box-shadow: 0 0 0 4px var(--slider-halo-color), var(--slider-thumb-shadow);
 }
 
-/* Firefox 轨道、进度填充与滑块 */
+/* Firefox 轨道、进度填充与瓷环滑块 */
 input[type="range"]::-moz-range-track {
-    height: 6px;
-    border-radius: 9999px;
-    background: var(--border-subtle);
+    block-size: var(--slider-track-size);
+    border: 0;
+    border-radius: var(--slider-track-radius);
+    background: var(--slider-track-color);
+    box-shadow: inset 0 0 0 1px var(--slider-track-ring);
 }
 
 input[type="range"]::-moz-range-progress {
-    height: 6px;
-    border-radius: 9999px;
-    background: var(--accent-primary);
+    block-size: var(--slider-track-size);
+    border-radius: var(--slider-track-radius);
+    background: var(--slider-fill-color);
 }
 
 input[type="range"]::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
     box-sizing: border-box;
-    border-radius: 9999px;
-    background: var(--accent-primary);
-    cursor: pointer;
-    border: 2px solid var(--surface-elevated);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    transition: transform var(--dur-micro) var(--ease-out-spring), background-color var(--dur-micro) var(--ease-in-out);
+    inline-size: var(--slider-thumb-size);
+    block-size: var(--slider-thumb-size);
+    border-radius: var(--slider-thumb-radius);
+    background: var(--slider-thumb-bg);
+    border: 2px solid var(--slider-thumb-border);
+    box-shadow: var(--slider-thumb-shadow);
+    cursor: grab;
+    transition: transform var(--dur-micro) var(--ease-out-spring), box-shadow var(--dur-micro) var(--ease-in-out), border-color var(--dur-micro) var(--ease-in-out);
 }
 
 input[type="range"]::-moz-range-thumb:hover {
-    transform: scale(1.16);
+    transform: scale(1.08);
+    box-shadow: 0 0 0 4px var(--slider-halo-color), var(--slider-thumb-shadow);
 }
 
 input[type="range"]:active::-moz-range-thumb {
-    transform: scale(1.06);
+    cursor: grabbing;
+    transform: scale(1.12);
+    box-shadow: 0 0 0 6px var(--slider-halo-color), var(--slider-thumb-shadow);
 }
 
 input[type="range"]:focus-visible::-moz-range-thumb {
-    box-shadow: 0 0 0 3px var(--accent-soft), 0 2px 6px rgba(0, 0, 0, 0.22);
+    box-shadow: 0 0 0 4px var(--slider-halo-color), var(--slider-thumb-shadow);
 }
 
 /* 兼容低性能模式下的滑块特效 */
@@ -2132,17 +2212,19 @@ html.low-perf input[type="range"]::-moz-range-thumb {
     right: calc(100% + 10px);
     top: 50%;
     transform: translateY(-50%);
-    align-items: center;
-    gap: 6px;
-    padding: 5px 8px;
-    border-radius: 9999px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 9px;
+    width: min(252px, calc(100vw - 1.5rem));
+    padding: 11px 13px;
+    border-radius: 18px;
     background: var(--surface-panel);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
     border: 1px solid var(--border-subtle);
     color: var(--text-secondary);
     box-shadow: var(--shadow-popover);
-    white-space: nowrap;
+    white-space: normal;
     transition: opacity var(--dur-fast) var(--ease-in-out), transform var(--dur-fast) var(--ease-out-spring);
 }
 .outpaint-brush-popover[data-closing="true"],

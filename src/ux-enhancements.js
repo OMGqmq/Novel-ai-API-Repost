@@ -169,7 +169,30 @@ function isPromptEditableTarget(el) {
     return false;
 }
 
+let _rangeValuePatched = false;
+
+function patchRangeValueProperty() {
+    if (_rangeValuePatched || typeof HTMLInputElement === 'undefined') return;
+    try {
+        const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+        if (!desc || typeof desc.set !== 'function' || typeof desc.get !== 'function') return;
+        _rangeValuePatched = true;
+        Object.defineProperty(HTMLInputElement.prototype, 'value', {
+            configurable: true,
+            enumerable: desc.enumerable,
+            get: desc.get,
+            set(val) {
+                desc.set.call(this, val);
+                if (this && this.type === 'range') {
+                    updateRangeProgress(this);
+                }
+            }
+        });
+    } catch (_) {}
+}
+
 export function initRangeSliderEnhancements(root = typeof document !== 'undefined' ? document : null) {
+    patchRangeValueProperty();
     if (!root || typeof root.querySelectorAll !== 'function') return;
 
     const bindSlider = (slider) => {
@@ -204,14 +227,17 @@ export function initRangeSliderEnhancements(root = typeof document !== 'undefine
     const sliders = root.querySelectorAll('input[type="range"]');
     sliders.forEach(bindSlider);
 
-    if (typeof root.addEventListener === 'function') {
-        root.addEventListener('input', (e) => {
+    if (typeof root.addEventListener === 'function' && !root._rangeListenersBound) {
+        root._rangeListenersBound = true;
+        const onRangeMutate = (e) => {
             const target = e?.target;
             if (target && target.type === 'range') {
                 bindSlider(target);
                 updateRangeProgress(target);
             }
-        });
+        };
+        root.addEventListener('input', onRangeMutate);
+        root.addEventListener('change', onRangeMutate);
     }
 }
 
@@ -333,6 +359,25 @@ export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}
         } catch (_) {}
     };
     setTimeout(refreshAllRanges, 120);
+
+    if (typeof MutationObserver !== 'undefined' && document.body && typeof document.body.nodeType === 'number') {
+        try {
+            const rangeObserver = new MutationObserver((mutations) => {
+                for (const m of mutations) {
+                    if (!m.addedNodes) continue;
+                    for (const node of m.addedNodes) {
+                        if (!node || node.nodeType !== 1) continue;
+                        if (node.tagName === 'INPUT' && node.type === 'range') {
+                            initRangeSliderEnhancements(document);
+                        } else if (typeof node.querySelectorAll === 'function' && node.querySelectorAll('input[type="range"]').length > 0) {
+                            initRangeSliderEnhancements(node);
+                        }
+                    }
+                }
+            });
+            rangeObserver.observe(document.body, { childList: true, subtree: true });
+        } catch (_) {}
+    }
 
     // 2. Desktop Productivity Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {

@@ -813,6 +813,10 @@ describe('Mobile & Full Canvas Refactor Upgrade', () => {
             expect(css).toMatch(/@media\s*\(pointer:\s*coarse\)\s*\{[\s\S]*min-width:\s*44px;[\s\S]*min-height:\s*44px;/);
             expect(css).toMatch(/\.resize-handle::after,\s*\.crop-handle::after/);
             expect(css).toContain('grid-template-columns: repeat(5, minmax(44px, 1fr))');
+            expect(css).toContain('--slider-thumb-bg');
+            expect(css).toContain('margin-block-start: calc((var(--slider-track-size) - var(--slider-thumb-size)) / 2)');
+            expect(css).not.toMatch(/::-webkit-slider-[^,{]+,\s*[^,{]*::-moz-range-/);
+            expect(html).toContain('class="range-val-pill"');
         });
     });
 });
