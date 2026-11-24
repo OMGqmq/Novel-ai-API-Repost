@@ -5,6 +5,14 @@
  * pinch-zoom/pan, mask peek/hide, and 1-click base-image revert.
  */
 import * as motionMod from './motion-controller.js';
+import {
+    buildAuthPool,
+    StrokeCoalescer,
+    rasterizePolygon,
+    rasterizeRect,
+    invertMaskCanvas,
+    dilateMaskCanvas
+} from './canvas-core.js';
 
 export class InpaintEditor {
     constructor(dependencies = {}) {
@@ -54,6 +62,26 @@ export class InpaintEditor {
         this._modalCloseTimer = null;
         this._stageTransitionTimer = null;
         this._wheelWillChangeTimer = null;
+
+        this.sketchCanvas = typeof document !== 'undefined' ? document.getElementById('inpaintSketchCanvas') : null;
+        this.sketchCtx = this.sketchCanvas?.getContext?.('2d') || null;
+        this.selPreviewCanvas = typeof document !== 'undefined' ? document.getElementById('inpaintSelectionPreviewCanvas') : null;
+        this.selPreviewCtx = this.selPreviewCanvas?.getContext?.('2d') || null;
+
+        this.redoHistory = [];
+        this.layerMode = 'mask';
+        this.sketchColor = '#ef4444';
+        this.eyedropperActive = false;
+        this.sketchDirty = false;
+        this.sketchHistory = [];
+        this.sketchRedoHistory = [];
+        this._lassoPoints = [];
+        this._rectStart = null;
+        this._rectEnd = null;
+        this._brushRingTimer = null;
+        this._strokeCoalescer = new StrokeCoalescer({
+            onFlushPoints: (pts) => this._flushStrokePoints(pts)
+        });
 
         this._bindEvents();
     }
@@ -336,6 +364,12 @@ export class InpaintEditor {
             const dispH = Math.round(natH * fitScale);
             maskEl.style.width = `${dispW}px`;
             maskEl.style.height = `${dispH}px`;
+            for (const extraEl of [this.sketchCanvas, this.selPreviewCanvas]) {
+                if (extraEl && extraEl.style) {
+                    extraEl.style.width = `${dispW}px`;
+                    extraEl.style.height = `${dispH}px`;
+                }
+            }
         }
     }
 
@@ -440,8 +474,26 @@ export class InpaintEditor {
             if (val2) val2.textContent = val;
         };
 
-        document.getElementById('inpaintBrushSize')?.addEventListener('input', e => syncBrushSize(e.target.value));
-        document.getElementById('inpaintBrushSizeMobile')?.addEventListener('input', e => syncBrushSize(e.target.value));
+        document.getElementById('inpaintBrushSize')?.addEventListener('input', e => {
+            syncBrushSize(e.target.value);
+            if (this.isActive()) this._showBrushSizePreviewRing(e.target.value);
+        });
+        document.getElementById('inpaintBrushSizeMobile')?.addEventListener('input', e => {
+            syncBrushSize(e.target.value);
+            if (this.isActive()) this._showBrushSizePreviewRing(e.target.value);
+        });
+        if (typeof document !== 'undefined') {
+            document.querySelectorAll?.('[data-sketch-color]')?.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    this.setSketchColor(btn.dataset.sketchColor);
+                    this.setEyedropper(false);
+                });
+            });
+            document.getElementById('inpaintSketchColorInput')?.addEventListener('input', (e) => {
+                this.setSketchColor(e.target.value);
+                this.setEyedropper(false);
+            });
+        }
 
         const syncStrength = (val) => {
             const formatted = parseFloat(val).toFixed(2);
@@ -514,17 +566,37 @@ export class InpaintEditor {
             document.addEventListener('keydown', (e) => {
                 if (!this.isActive()) return;
                 const tag = e.target?.tagName?.toUpperCase?.() || '';
-                if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+                const key = (e.key || '').toLowerCase();
                 if (e.code === 'Space') {
                     this._spacePressed = true;
-                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                } else if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && key === 'z') || key === 'y')) {
+                    e.preventDefault();
+                    this.redo();
+                } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'z') {
                     e.preventDefault();
                     this.undo();
-                } else if (e.key === 'Escape') {
-                    if (this.paramsPopoverOpen) {
-                        this.toggleParamsPopover(false);
-                    } else {
-                        this.close();
+                } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+                    if (key === 'b') this.setTool('brush');
+                    else if (key === 'e') this.setTool('eraser');
+                    else if (key === 'l') this.setTool('lasso');
+                    else if (key === 'r') this.setTool('rect');
+                    else if (key === 'h') this.setTool('move');
+                    else if (key === 's') this.toggleSketchLayer();
+                    else if (key === 'i') this.invertMask();
+                    else if (e.key === '[' || e.key === ']') {
+                        const slider = document.getElementById('inpaintBrushSize');
+                        if (slider) {
+                            const next = Math.max(5, Math.min(300, (parseInt(slider.value, 10) || 60) + (e.key === ']' ? 8 : -8)));
+                            slider.value = String(next);
+                            slider.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    } else if (e.key === 'Escape') {
+                        if (this.paramsPopoverOpen) {
+                            this.toggleParamsPopover(false);
+                        } else {
+                            this.close();
+                        }
                     }
                 }
             });
@@ -621,6 +693,12 @@ export class InpaintEditor {
 
             // 2-finger pinch-zoom / pan takeover (rollback tiny accidental 1-finger dot)
             if (this.activePointers.size >= 2) {
+                this._strokeCoalescer.cancel();
+                this._hideTouchLoupe();
+                this._lassoPoints = [];
+                this._rectStart = null;
+                this._rectEnd = null;
+                this._clearSelectionPreview();
                 if (this.drawing && (Date.now() - this._strokeStartTime < 200) && this._strokeMovedDist < 14) {
                     this.undo();
                 }
@@ -642,14 +720,27 @@ export class InpaintEditor {
                 return;
             }
 
-            // Restore full mask visibility as soon as user starts painting
-            if (this.maskHidden) {
-                this.toggleMaskVisibility(false);
-            } else if (this.maskPeek) {
-                this.setMaskPeek(false);
+            // Touch Eyedropper mode for Sketch color picking
+            if (this.eyedropperActive) {
+                const pos = this._getCanvasPos(e);
+                this.drawing = true;
+                this._sampleCanvasColorAt(pos);
+                if (e.pointerType === 'touch') {
+                    this._updateTouchLoupe(pos, e.clientX, e.clientY);
+                }
+                return;
             }
 
-            if (this.tool === 'fill') {
+            // Restore full mask visibility as soon as user starts painting
+            if (this.layerMode === 'mask') {
+                if (this.maskHidden) {
+                    this.toggleMaskVisibility(false);
+                } else if (this.maskPeek) {
+                    this.setMaskPeek(false);
+                }
+            }
+
+            if (this.layerMode === 'mask' && this.tool === 'fill') {
                 const pos = this._getCanvasPos(e);
                 const tolerance = parseInt(document.getElementById('inpaintFillTolerance')?.value || 15);
                 this.saveMaskState();
@@ -657,17 +748,48 @@ export class InpaintEditor {
                 return;
             }
 
+            const pos = this._getCanvasPos(e);
+
+            if (this.layerMode === 'mask' && this.tool === 'lasso') {
+                this.drawing = true;
+                this._strokeStartTime = Date.now();
+                this._strokeMovedDist = 0;
+                this.lastPos = pos;
+                this._lassoPoints = [pos];
+                this._renderSelectionPreview();
+                if (e.pointerType === 'touch') this._updateTouchLoupe(pos, e.clientX, e.clientY);
+                return;
+            }
+
+            if (this.layerMode === 'mask' && this.tool === 'rect') {
+                this.drawing = true;
+                this._strokeStartTime = Date.now();
+                this._strokeMovedDist = 0;
+                this.lastPos = pos;
+                this._rectStart = pos;
+                this._rectEnd = pos;
+                this._renderSelectionPreview();
+                if (e.pointerType === 'touch') this._updateTouchLoupe(pos, e.clientX, e.clientY);
+                return;
+            }
+
             this.drawing = true;
             this._strokeStartTime = Date.now();
             this._strokeMovedDist = 0;
-            this.saveMaskState();
-            const pos = this._getCanvasPos(e);
+            if (this.layerMode === 'sketch') {
+                this._saveSketchState();
+            } else {
+                this.saveMaskState();
+            }
             this.lastPos = pos;
-            if (this.tool === 'blur') {
+            if (this.layerMode === 'mask' && this.tool === 'blur') {
                 const intensity = parseInt(document.getElementById('inpaintBlurStrength')?.value || 50);
                 this._blurMask(pos, Math.max(2, this.getBrushSize() / 2), intensity);
             } else {
                 this._drawDotOrStart(pos);
+            }
+            if (e.pointerType === 'touch') {
+                this._updateTouchLoupe(pos, e.clientX, e.clientY);
             }
         });
 
@@ -695,18 +817,45 @@ export class InpaintEditor {
             if (!this.drawing) return;
 
             const pos = this._getCanvasPos(e);
-            if (this.lastPos) {
-                this._strokeMovedDist += Math.hypot(pos.x - this.lastPos.x, pos.y - this.lastPos.y);
-                if (this.tool === 'blur') {
-                    const intensity = parseInt(document.getElementById('inpaintBlurStrength')?.value || 50);
-                    this._blurMask(pos, Math.max(2, this.getBrushSize() / 2), intensity);
-                } else {
-                    this._drawStroke(this.lastPos, pos);
-                }
-            } else {
-                this._drawDotOrStart(pos);
+            if (this.eyedropperActive) {
+                this._sampleCanvasColorAt(pos);
+                if (e.pointerType === 'touch') this._updateTouchLoupe(pos, e.clientX, e.clientY);
+                return;
             }
-            this.lastPos = pos;
+
+            if (this.layerMode === 'mask' && this.tool === 'lasso') {
+                const prev = this._lassoPoints[this._lassoPoints.length - 1];
+                if (!prev || Math.hypot(pos.x - prev.x, pos.y - prev.y) >= 2) {
+                    this._lassoPoints.push(pos);
+                    if (prev) this._strokeMovedDist += Math.hypot(pos.x - prev.x, pos.y - prev.y);
+                    this._renderSelectionPreview();
+                }
+                if (e.pointerType === 'touch') this._updateTouchLoupe(pos, e.clientX, e.clientY);
+                this.lastPos = pos;
+                return;
+            }
+
+            if (this.layerMode === 'mask' && this.tool === 'rect') {
+                if (this._rectStart) {
+                    this._rectEnd = pos;
+                    this._strokeMovedDist = Math.hypot(pos.x - this._rectStart.x, pos.y - this._rectStart.y);
+                    this._renderSelectionPreview();
+                }
+                if (e.pointerType === 'touch') this._updateTouchLoupe(pos, e.clientX, e.clientY);
+                this.lastPos = pos;
+                return;
+            }
+
+            if (this.layerMode === 'mask' && this.tool === 'blur') {
+                const intensity = parseInt(document.getElementById('inpaintBlurStrength')?.value || 50);
+                this._blurMask(pos, Math.max(2, this.getBrushSize() / 2), intensity);
+                this.lastPos = pos;
+            } else {
+                this._strokeCoalescer.enqueue(e, (ev) => this._getCanvasPos(ev));
+            }
+            if (e.pointerType === 'touch') {
+                this._updateTouchLoupe(pos, e.clientX, e.clientY);
+            }
         });
 
         const stopDrawing = (e) => {
@@ -723,6 +872,31 @@ export class InpaintEditor {
                 this.pinchStart = null;
             }
             if (this.activePointers.size === 0) {
+                if (this.eyedropperActive && this.drawing) {
+                    this.setEyedropper(false);
+                } else if (this.drawing && this.layerMode === 'mask' && this.tool === 'lasso') {
+                    this._clearSelectionPreview();
+                    if (this._lassoPoints.length >= 3) {
+                        this.saveMaskState();
+                        rasterizePolygon(this.maskCtx, this._lassoPoints);
+                    }
+                    this._lassoPoints = [];
+                } else if (this.drawing && this.layerMode === 'mask' && this.tool === 'rect') {
+                    this._clearSelectionPreview();
+                    if (this._rectStart && this._rectEnd) {
+                        const dx = Math.abs(this._rectEnd.x - this._rectStart.x);
+                        const dy = Math.abs(this._rectEnd.y - this._rectStart.y);
+                        if (dx >= 2 && dy >= 2) {
+                            this.saveMaskState();
+                            rasterizeRect(this.maskCtx, this._rectStart, this._rectEnd);
+                        }
+                    }
+                    this._rectStart = null;
+                    this._rectEnd = null;
+                } else {
+                    this._strokeCoalescer.flush();
+                }
+                this._hideTouchLoupe();
                 this.isPanning = false;
                 this.drawing = false;
                 this.lastPos = null;
@@ -887,6 +1061,14 @@ export class InpaintEditor {
             this.imgNaturalH = img.naturalHeight || img.height || 512;
             this._fitCanvasToContainer(img);
             this.history = [];
+            this.redoHistory = [];
+            this.sketchHistory = [];
+            this.sketchRedoHistory = [];
+            this.sketchDirty = false;
+            this.eyedropperActive = false;
+            this._lassoPoints = [];
+            this._rectStart = null;
+            this._rectEnd = null;
             this.activePointers.clear();
             this.isOpen = true;
             this.maskHidden = false;
@@ -895,12 +1077,25 @@ export class InpaintEditor {
             if (this.maskCanvas?.classList) {
                 this.maskCanvas.classList.remove('hidden', 'pointer-events-none', 'mask-hidden', 'mask-peek');
             }
+            if (this.sketchCanvas?.classList) {
+                this.sketchCanvas.classList.remove('hidden');
+            }
+            if (this.selPreviewCanvas?.classList) {
+                this.selPreviewCanvas.classList.remove('hidden');
+            }
             if (this.canvasWrap?.classList) {
                 this.canvasWrap.classList.add('inpaint-live');
             }
 
             this.syncOverlayGeometry();
-            this.resetZoom({ immediate: true });
+            const pv = this.ui?.previewViewport?.getState?.();
+            if (pv && pv.scale > 1.02) {
+                this.viewport = { scale: pv.scale, x: pv.x, y: pv.y };
+                this.applyViewportTransform({ animate: false });
+            } else {
+                this.resetZoom({ immediate: true });
+            }
+            this.setLayerMode(options.layerMode === 'sketch' ? 'sketch' : 'mask');
             this._syncToggleBtnState();
             this._syncRevertOrigBtnVisibility();
             this._syncRestoreBtnVisibility();
@@ -921,6 +1116,23 @@ export class InpaintEditor {
     close() {
         this.isOpen = false;
         this.history = [];
+        this.redoHistory = [];
+        this.sketchHistory = [];
+        this.sketchRedoHistory = [];
+        this.sketchDirty = false;
+        this.eyedropperActive = false;
+        this._lassoPoints = [];
+        this._rectStart = null;
+        this._rectEnd = null;
+        this._strokeCoalescer?.cancel?.();
+        this._clearSelectionPreview();
+        this._hideTouchLoupe();
+        if (this._brushRingTimer) {
+            clearTimeout(this._brushRingTimer);
+            this._brushRingTimer = null;
+        }
+        document.getElementById('brushSizePreviewRing')?.classList?.add('hidden');
+        document.getElementById('inpaintSketchPalette')?.classList?.add('hidden');
         if (typeof document !== 'undefined' && document.body?.classList) {
             document.body.classList.remove('inpaint-active');
         }
@@ -935,6 +1147,12 @@ export class InpaintEditor {
             this.maskCanvas.classList.add('hidden', 'pointer-events-none');
             this.maskCanvas.classList.remove('mask-peek', 'mask-hidden');
         }
+        if (this.sketchCanvas?.classList) {
+            this.sketchCanvas.classList.add('hidden');
+        }
+        if (this.selPreviewCanvas?.classList) {
+            this.selPreviewCanvas.classList.add('hidden');
+        }
         if (this.canvasWrap?.classList) {
             this.canvasWrap.classList.remove('inpaint-live');
         }
@@ -944,6 +1162,7 @@ export class InpaintEditor {
         }
         this._setStageInteracting(false);
         this.resetZoom({ immediate: true });
+        this.ui?.previewViewport?.reset?.();
         this._syncToggleBtnState();
         this._syncRevertOrigBtnVisibility();
 
@@ -958,14 +1177,27 @@ export class InpaintEditor {
     }
 
     setTool(tool) {
+        if ((tool === 'lasso' || tool === 'rect') && this.layerMode === 'sketch') {
+            this.setLayerMode('mask');
+        }
         this.tool = tool;
-        document.getElementById('inpaintBrushBtn')?.classList.toggle('tool-active', tool === 'brush');
-        document.getElementById('inpaintEraserBtn')?.classList.toggle('tool-active', tool === 'eraser');
-        document.getElementById('inpaintMoveBtn')?.classList.toggle('tool-active', tool === 'move');
-        document.getElementById('inpaintBlurBtn')?.classList.toggle('tool-active', tool === 'blur');
-        document.getElementById('inpaintFillBtn')?.classList.toggle('tool-active', tool === 'fill');
+        const toolButtons = [
+            ['inpaintBrushBtn', tool === 'brush'],
+            ['inpaintEraserBtn', tool === 'eraser'],
+            ['inpaintLassoBtn', tool === 'lasso'],
+            ['inpaintRectBtn', tool === 'rect'],
+            ['inpaintMoveBtn', tool === 'move'],
+            ['inpaintBlurBtn', tool === 'blur'],
+            ['inpaintFillBtn', tool === 'fill']
+        ];
+        for (const [id, active] of toolButtons) {
+            const btn = document.getElementById(id);
+            if (!btn) continue;
+            btn.classList?.toggle('tool-active', active);
+            btn.setAttribute?.('aria-pressed', active ? 'true' : 'false');
+        }
         if (this.maskCanvas && this.maskCanvas.style) {
-            this.maskCanvas.style.cursor = tool === 'move' ? 'grab' : 'none';
+            this.maskCanvas.style.cursor = tool === 'move' ? 'grab' : (tool === 'lasso' || tool === 'rect' || this.eyedropperActive ? 'crosshair' : 'none');
         }
         const blurWrap = document.getElementById('blurStrengthWrap');
         if (blurWrap) this._setSubControlVisible(blurWrap, tool === 'blur', { displayFlex: true });
@@ -1031,10 +1263,58 @@ export class InpaintEditor {
         if (!extracted) return;
         this.history.push(extracted);
         if (this.history.length > 20) this.history.shift();
+        this.redoHistory = [];
+    }
+
+    _saveSketchState() {
+        if (!this.sketchCanvas || !this.sketchCtx) return;
+        try {
+            const w = this.sketchCanvas.width;
+            const h = this.sketchCanvas.height;
+            if (!w || !h) return;
+            const imgData = this.sketchCtx.getImageData(0, 0, w, h);
+            if (!imgData?.data) return;
+            this.sketchHistory.push({
+                width: w,
+                height: h,
+                data: new Uint8ClampedArray(imgData.data)
+            });
+            if (this.sketchHistory.length > 20) this.sketchHistory.shift();
+            this.sketchRedoHistory = [];
+        } catch (_) {}
+    }
+
+    _restoreSketchSnapshot(snap) {
+        if (!snap || !this.sketchCtx || !this.sketchCanvas) return;
+        const w = snap.width || this.sketchCanvas.width;
+        const h = snap.height || this.sketchCanvas.height;
+        const imgData = this.sketchCtx.createImageData(w, h);
+        imgData.data.set(snap.data);
+        this.sketchCtx.putImageData(imgData, 0, 0);
+        this.sketchDirty = this._hasSketchContent();
     }
 
     undo() {
+        if (this.layerMode === 'sketch' && this.sketchHistory.length > 0) {
+            try {
+                const w = this.sketchCanvas.width;
+                const h = this.sketchCanvas.height;
+                const cur = this.sketchCtx.getImageData(0, 0, w, h);
+                if (cur?.data) {
+                    this.sketchRedoHistory.push({ width: w, height: h, data: new Uint8ClampedArray(cur.data) });
+                    if (this.sketchRedoHistory.length > 20) this.sketchRedoHistory.shift();
+                }
+            } catch (_) {}
+            const prev = this.sketchHistory.pop();
+            this._restoreSketchSnapshot(prev);
+            return;
+        }
         if (this.history.length === 0) return;
+        const current = this._extractCurrentAlpha();
+        if (current) {
+            this.redoHistory.push(current);
+            if (this.redoHistory.length > 20) this.redoHistory.shift();
+        }
         const state = this.history.pop();
         if (this.maskPeek) this.setMaskPeek(false);
         if (typeof ImageData !== 'undefined' && state instanceof ImageData) {
@@ -1046,6 +1326,249 @@ export class InpaintEditor {
             const h = state.height || this.maskCanvas.height;
             this._writeAlphaToMask(state.alpha, w, h);
         }
+    }
+
+    redo() {
+        if (this.layerMode === 'sketch' && this.sketchRedoHistory.length > 0) {
+            try {
+                const w = this.sketchCanvas.width;
+                const h = this.sketchCanvas.height;
+                const cur = this.sketchCtx.getImageData(0, 0, w, h);
+                if (cur?.data) {
+                    this.sketchHistory.push({ width: w, height: h, data: new Uint8ClampedArray(cur.data) });
+                    if (this.sketchHistory.length > 20) this.sketchHistory.shift();
+                }
+            } catch (_) {}
+            const next = this.sketchRedoHistory.pop();
+            this._restoreSketchSnapshot(next);
+            return;
+        }
+        if (this.redoHistory.length === 0) return;
+        const current = this._extractCurrentAlpha();
+        if (current) {
+            this.history.push(current);
+            if (this.history.length > 20) this.history.shift();
+        }
+        const state = this.redoHistory.pop();
+        if (this.maskPeek) this.setMaskPeek(false);
+        if (state && state.alpha) {
+            const w = state.width || this.maskCanvas.width;
+            const h = state.height || this.maskCanvas.height;
+            this._writeAlphaToMask(state.alpha, w, h);
+        }
+    }
+
+    invertMask() {
+        if (!this.maskCtx || !this.maskCanvas) return;
+        this.saveMaskState();
+        invertMaskCanvas(this.maskCtx, this.maskCanvas.width, this.maskCanvas.height);
+        this.setMaskPeek(false);
+    }
+
+    growMask(radiusPx = 8) {
+        if (!this.maskCtx || !this.maskCanvas) return;
+        this.saveMaskState();
+        dilateMaskCanvas(this.maskCtx, this.maskCanvas.width, this.maskCanvas.height, radiusPx);
+        this.setMaskPeek(false);
+    }
+
+    setLayerMode(mode = 'mask') {
+        const next = mode === 'sketch' ? 'sketch' : 'mask';
+        this.layerMode = next;
+        const sketchBtn = document.getElementById('inpaintSketchBtn');
+        if (sketchBtn) {
+            sketchBtn.classList?.toggle('tool-active', next === 'sketch');
+            sketchBtn.setAttribute?.('aria-pressed', next === 'sketch' ? 'true' : 'false');
+        }
+        const palette = document.getElementById('inpaintSketchPalette');
+        if (palette) {
+            palette.classList?.toggle('hidden', next !== 'sketch');
+        }
+        if (next === 'sketch' && (this.tool === 'move' || this.tool === 'lasso' || this.tool === 'rect')) {
+            this.setTool('brush');
+        }
+        if (next !== 'sketch') {
+            this.setEyedropper(false);
+        }
+    }
+
+    toggleSketchLayer() {
+        this.setLayerMode(this.layerMode === 'sketch' ? 'mask' : 'sketch');
+    }
+
+    setSketchColor(color) {
+        if (!color) return;
+        this.sketchColor = color;
+        const picker = document.getElementById('inpaintSketchColorInput');
+        if (picker && /^#[0-9a-fA-F]{6}$/.test(color)) picker.value = color;
+        document.querySelectorAll?.('[data-sketch-color]')?.forEach((btn) => {
+            btn.classList?.toggle('active', (btn.dataset.sketchColor || '').toLowerCase() === color.toLowerCase());
+        });
+    }
+
+    setEyedropper(active) {
+        this.eyedropperActive = Boolean(active);
+        const btn = document.getElementById('inpaintEyedropperBtn');
+        if (btn) {
+            btn.classList?.toggle('tool-active', this.eyedropperActive);
+            btn.setAttribute?.('aria-pressed', this.eyedropperActive ? 'true' : 'false');
+        }
+        if (this.maskCanvas?.style) {
+            this.maskCanvas.style.cursor = this.eyedropperActive ? 'crosshair' : (this.tool === 'move' ? 'grab' : 'none');
+        }
+    }
+
+    toggleEyedropper() {
+        this.setEyedropper(!this.eyedropperActive);
+    }
+
+    clearSketch() {
+        if (!this.sketchCtx || !this.sketchCanvas) return;
+        this._saveSketchState();
+        this.sketchCtx.clearRect(0, 0, this.sketchCanvas.width, this.sketchCanvas.height);
+        this.sketchDirty = false;
+    }
+
+    _hasSketchContent() {
+        if (!this.sketchCtx || !this.sketchCanvas || !this.sketchCanvas.width || !this.sketchCanvas.height) {
+            return false;
+        }
+        try {
+            const data = this.sketchCtx.getImageData(0, 0, this.sketchCanvas.width, this.sketchCanvas.height).data;
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i + 3] > 10) return true;
+            }
+        } catch (_) {}
+        return false;
+    }
+
+    _sampleCanvasColorAt(pos) {
+        if (!pos) return null;
+        const x = Math.max(0, Math.min((this.maskCanvas?.width || 1) - 1, Math.round(pos.x)));
+        const y = Math.max(0, Math.min((this.maskCanvas?.height || 1) - 1, Math.round(pos.y)));
+        const readPx = (ctx) => {
+            try {
+                const px = ctx?.getImageData?.(x, y, 1, 1)?.data;
+                return px && px.length >= 4 ? px : null;
+            } catch (_) {
+                return null;
+            }
+        };
+        let px = this.sketchCtx ? readPx(this.sketchCtx) : null;
+        if (!px || px[3] <= 20) {
+            px = this.baseCtx ? readPx(this.baseCtx) : null;
+        }
+        if (!px) return null;
+        const toHex = (n) => Number(n || 0).toString(16).padStart(2, '0');
+        const hex = `#${toHex(px[0])}${toHex(px[1])}${toHex(px[2])}`;
+        this.setSketchColor(hex);
+        return hex;
+    }
+
+    _flushStrokePoints(points) {
+        if (!this.drawing || !Array.isArray(points) || points.length === 0) return;
+        for (const pos of points) {
+            if (this.lastPos) {
+                this._strokeMovedDist += Math.hypot(pos.x - this.lastPos.x, pos.y - this.lastPos.y);
+                this._drawStroke(this.lastPos, pos);
+            } else {
+                this._drawDotOrStart(pos);
+            }
+            this.lastPos = pos;
+        }
+    }
+
+    _renderSelectionPreview() {
+        const ctx = this.selPreviewCtx;
+        const canvas = this.selPreviewCanvas;
+        if (!ctx || !canvas) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(2, (canvas.width || 512) / 260);
+        ctx.setLineDash?.([8, 6]);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        if (this.tool === 'lasso' && this._lassoPoints.length >= 2) {
+            ctx.beginPath();
+            ctx.moveTo(this._lassoPoints[0].x, this._lassoPoints[0].y);
+            for (let i = 1; i < this._lassoPoints.length; i++) {
+                ctx.lineTo(this._lassoPoints[i].x, this._lassoPoints[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        } else if (this.tool === 'rect' && this._rectStart && this._rectEnd) {
+            const x = Math.min(this._rectStart.x, this._rectEnd.x);
+            const y = Math.min(this._rectStart.y, this._rectEnd.y);
+            const w = Math.abs(this._rectEnd.x - this._rectStart.x);
+            const h = Math.abs(this._rectEnd.y - this._rectStart.y);
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeRect(x, y, w, h);
+        }
+        ctx.restore();
+    }
+
+    _clearSelectionPreview() {
+        if (this.selPreviewCtx && this.selPreviewCanvas) {
+            this.selPreviewCtx.clearRect(0, 0, this.selPreviewCanvas.width, this.selPreviewCanvas.height);
+        }
+    }
+
+    _updateTouchLoupe(pos, clientX, clientY) {
+        if (typeof document === 'undefined') return;
+        const loupe = document.getElementById('canvasTouchLoupe');
+        const loupeCanvas = document.getElementById('canvasTouchLoupeCanvas');
+        if (!loupe) return;
+        const vw = typeof window !== 'undefined' && window.innerWidth ? window.innerWidth : 400;
+        if (loupe.style) {
+            loupe.style.left = `${Math.max(54, Math.min(vw - 54, clientX))}px`;
+            loupe.style.top = `${Math.max(58, clientY - 96)}px`;
+        }
+        loupe.classList?.remove('hidden');
+        const ctx = loupeCanvas?.getContext?.('2d');
+        if (ctx && this.baseCanvas && pos) {
+            const srcSize = 40;
+            const half = srcSize / 2;
+            const sx = pos.x - half;
+            const sy = pos.y - half;
+            ctx.clearRect(0, 0, 96, 96);
+            ctx.drawImage(this.baseCanvas, sx, sy, srcSize, srcSize, 0, 0, 96, 96);
+            if (this.sketchCanvas && this._hasSketchContent()) {
+                ctx.drawImage(this.sketchCanvas, sx, sy, srcSize, srcSize, 0, 0, 96, 96);
+            }
+            ctx.strokeStyle = this.layerMode === 'sketch' ? this.sketchColor : '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(48, 48, 8, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    }
+
+    _hideTouchLoupe() {
+        if (typeof document !== 'undefined') {
+            document.getElementById('canvasTouchLoupe')?.classList?.add('hidden');
+        }
+    }
+
+    _showBrushSizePreviewRing(sizeVal) {
+        if (typeof document === 'undefined') return;
+        const ring = document.getElementById('brushSizePreviewRing');
+        if (!ring) return;
+        const rect = this.maskCanvas?.getBoundingClientRect?.();
+        const displayScale = (rect && rect.width > 0 && this.maskCanvas?.width > 0)
+            ? (rect.width / this.maskCanvas.width)
+            : 1;
+        const px = Math.min(280, Math.max(8, Math.round(Number(sizeVal || this.getBrushSize()) * displayScale)));
+        if (ring.style) {
+            ring.style.width = `${px}px`;
+            ring.style.height = `${px}px`;
+        }
+        ring.classList?.remove('hidden');
+        if (this._brushRingTimer) clearTimeout(this._brushRingTimer);
+        this._brushRingTimer = setTimeout(() => {
+            this._brushRingTimer = null;
+            ring.classList?.add('hidden');
+        }, 650);
     }
 
     clearMask() {
@@ -1184,44 +1707,52 @@ export class InpaintEditor {
     _drawDotOrStart(pos) {
         const r = this.getBrushSize();
         const tool = this.tool;
-        this.maskCtx.save();
+        const isSketch = this.layerMode === 'sketch' && this.sketchCtx;
+        const ctx = isSketch ? this.sketchCtx : this.maskCtx;
+        if (!ctx) return;
+        ctx.save();
         if (tool === 'eraser') {
-            this.maskCtx.globalCompositeOperation = 'destination-out';
-            this.maskCtx.fillStyle = 'rgba(0,0,0,1)';
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0,0,0,1)';
         } else {
-            this.maskCtx.globalCompositeOperation = 'source-over';
-            this.maskCtx.fillStyle = '#FFFFFF';
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = isSketch ? (this.sketchColor || '#ef4444') : '#FFFFFF';
         }
-        this.maskCtx.beginPath();
-        this.maskCtx.arc(pos.x, pos.y, r / 2, 0, Math.PI * 2);
-        this.maskCtx.fill();
-        this.maskCtx.restore();
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, r / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        if (isSketch && tool !== 'eraser') this.sketchDirty = true;
     }
 
     _drawStroke(from, to) {
         const r = this.getBrushSize();
         const tool = this.tool;
-        this.maskCtx.save();
-        this.maskCtx.lineCap = 'round';
-        this.maskCtx.lineJoin = 'round';
-        this.maskCtx.lineWidth = r;
+        const isSketch = this.layerMode === 'sketch' && this.sketchCtx;
+        const ctx = isSketch ? this.sketchCtx : this.maskCtx;
+        if (!ctx) return;
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = r;
 
         if (tool === 'eraser') {
-            this.maskCtx.globalCompositeOperation = 'destination-out';
-            this.maskCtx.strokeStyle = 'rgba(0,0,0,1)';
-            this.maskCtx.beginPath();
-            this.maskCtx.moveTo(from.x, from.y);
-            this.maskCtx.lineTo(to.x, to.y);
-            this.maskCtx.stroke();
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.strokeStyle = 'rgba(0,0,0,1)';
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(to.x, to.y);
+            ctx.stroke();
         } else if (tool === 'brush') {
-            this.maskCtx.globalCompositeOperation = 'source-over';
-            this.maskCtx.strokeStyle = '#FFFFFF';
-            this.maskCtx.beginPath();
-            this.maskCtx.moveTo(from.x, from.y);
-            this.maskCtx.lineTo(to.x, to.y);
-            this.maskCtx.stroke();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = isSketch ? (this.sketchColor || '#ef4444') : '#FFFFFF';
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(to.x, to.y);
+            ctx.stroke();
+            if (isSketch) this.sketchDirty = true;
         }
-        this.maskCtx.restore();
+        ctx.restore();
     }
 
     _floodFill(startX, startY, tolerance) {
@@ -1287,6 +1818,16 @@ export class InpaintEditor {
         this.baseCanvas.height = this.imgNaturalH;
         this.maskCanvas.width = this.imgNaturalW;
         this.maskCanvas.height = this.imgNaturalH;
+        if (this.sketchCanvas && this.sketchCtx) {
+            this.sketchCanvas.width = this.imgNaturalW;
+            this.sketchCanvas.height = this.imgNaturalH;
+            this.sketchCtx.clearRect(0, 0, this.imgNaturalW, this.imgNaturalH);
+        }
+        if (this.selPreviewCanvas && this.selPreviewCtx) {
+            this.selPreviewCanvas.width = this.imgNaturalW;
+            this.selPreviewCanvas.height = this.imgNaturalH;
+            this.selPreviewCtx.clearRect(0, 0, this.imgNaturalW, this.imgNaturalH);
+        }
 
         this.baseCtx.drawImage(img, 0, 0, this.imgNaturalW, this.imgNaturalH);
         this.maskCtx.clearRect(0, 0, this.imgNaturalW, this.imgNaturalH);
@@ -1354,6 +1895,9 @@ export class InpaintEditor {
             img.onload = () => {
                 ctx.imageSmoothingEnabled = true;
                 ctx.drawImage(img, 0, 0, targetW, targetH);
+                if (this.sketchCanvas && this._hasSketchContent()) {
+                    ctx.drawImage(this.sketchCanvas, 0, 0, targetW, targetH);
+                }
                 resolve(tempCanvas.toDataURL('image/png').split(',')[1]);
             };
             img.src = this.originalImgSrc;
@@ -1434,11 +1978,26 @@ export class InpaintEditor {
 
     async doInpaint() {
         if (this._isSubmitting) return;
-        if (!this._hasPaintedMask()) {
+        const hasMask = this._hasPaintedMask();
+        const hasSketch = this._hasSketchContent();
+        if (!hasMask && !hasSketch) {
             if (typeof window !== 'undefined' && window.showToast) {
-                window.showToast('请先在图片上涂抹需要局部重绘的区域', 'warning');
+                window.showToast('请先在图片上涂抹需要局部重绘的区域或涂鸦线稿', 'warning');
             }
             return;
+        }
+
+        if (!hasMask && hasSketch && this.maskCanvas && this.maskCtx && this.sketchCtx) {
+            const w = this.maskCanvas.width;
+            const h = this.maskCanvas.height;
+            const sData = this.sketchCtx.getImageData(0, 0, w, h).data;
+            const alphaArr = new Uint8Array(w * h);
+            for (let i = 0; i < alphaArr.length; i++) {
+                alphaArr[i] = sData[i * 4 + 3] > 10 ? 255 : 0;
+            }
+            this.saveMaskState();
+            this._writeAlphaToMask(alphaArr, w, h);
+            dilateMaskCanvas(this.maskCtx, w, h, 10);
         }
 
         this._isSubmitting = true;
@@ -1482,16 +2041,9 @@ export class InpaintEditor {
             const imageB64 = await this._exportBaseImageAsBase64(targetW, targetH);
             const inpaintPromptText = document.getElementById('inpaintPrompt')?.value?.trim() || document.getElementById('prompt')?.value?.trim() || '';
 
-            const authBase = {
-                adminToken: this.store.getSetting('nai_admin_token'),
-                userKey: this.store.getSetting('nai_user_key'),
-                userToken: (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function' ? localStorage.getItem('nai_user_token') : '') || ""
-            };
             const customApiKeyRaw = this.store.getSetting('nai_custom_api_key');
             const customApiKeys = (customApiKeyRaw || "").split(/[\n,]/).map(k => k.trim()).filter(k => k);
-            const auths = customApiKeys.length > 0
-                ? customApiKeys.map(key => ({ ...authBase, customApiKey: key }))
-                : [{ ...authBase, customApiKey: "" }];
+            const auths = buildAuthPool(this.store);
 
             if (typeof this.prepareBeforeGenerate === 'function') {
                 await this.prepareBeforeGenerate(selectedVersion, auths, customApiKeys.length > 0);
@@ -1543,6 +2095,15 @@ export class InpaintEditor {
                 throw firstError;
             }
 
+            const seamlessEl = typeof document !== 'undefined' ? document.getElementById('inpaintSeamlessToggle') : null;
+            const seamlessEnabled = Boolean(seamlessEl && seamlessEl.checked);
+            if (seamlessEnabled && successfulResults[0]?.blob) {
+                const blended = await this._featherBlendResult(successfulResults[0].blob, targetW, targetH);
+                if (blended?.imageUrl) {
+                    successfulResults[0] = { ...successfulResults[0], ...blended };
+                }
+            }
+
             if (this.ui && this.ui.currentRightView !== 'preview' && typeof this.ui.switchRightView === 'function') {
                 this.ui.switchRightView('preview');
             }
@@ -1556,6 +2117,10 @@ export class InpaintEditor {
 
             // Persistent Inpaint Mode: stay open on main canvas, keep mask intact & soften opacity for result inspection!
             if (this.isOpen) {
+                if (hasSketch && this.sketchCtx && this.sketchCanvas) {
+                    this.sketchCtx.clearRect(0, 0, this.sketchCanvas.width, this.sketchCanvas.height);
+                    this.sketchDirty = false;
+                }
                 this.hasGeneratedInSession = true;
                 this.setMaskPeek(true);
                 this._syncRevertOrigBtnVisibility();

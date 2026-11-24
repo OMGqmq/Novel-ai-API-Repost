@@ -1023,6 +1023,7 @@ export function createLightboxController({
         else if (type === 'outpaint') outpaintEditor.open();
         else if (type === 'lineart') postProcess.doAugment('lineart');
         else if (type === 'sketch') postProcess.doAugment('sketch');
+        else if (type === 'bg-removal') postProcess.doAugment('bg-removal');
     }
 
     function toggleLightboxSidebarMobile() {

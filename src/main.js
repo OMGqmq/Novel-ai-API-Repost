@@ -24,6 +24,8 @@ import { RandomPromptManager } from './random-prompt-manager.js';
 import { RandomPromptController } from './random-prompt-controller.js';
 import { InspirationManager } from './inspiration-manager.js';
 import { MotionController } from './motion-controller.js';
+import { initRovingToolbar } from './canvas-core.js';
+import { createCanvasIOController, CropEditor } from './canvas-crop-io.js';
 
 import { getMimeFromFilename, dataUrlToBlob, triggerDownload } from './download-helper.js';
 import { extractMetadata } from './png-metadata.js';
@@ -1418,6 +1420,9 @@ const postProcess = createPostProcessController({
 const {
     getActiveCanvasImage,
     doAugment,
+    openColorizePopover,
+    closeColorizePopover,
+    doColorize,
     openEnhanceModal,
     closeEnhanceModal,
     setEnhancePreset,
@@ -2482,8 +2487,63 @@ const outpaintEditor = new OutpaintEditor({
     engine: engine,
     store: store,
     getExtraParams: validateAndCollectExtraParams,
-    prepareBeforeGenerate: prepareEditorBeforeGenerate
+    prepareBeforeGenerate: prepareEditorBeforeGenerate,
+    onShowToast: showToast
 });
+
+const canvasIO = createCanvasIOController({
+    appState,
+    ui,
+    getActiveModel: () => els.model?.value || document.getElementById('modelValue')?.value || 'v3',
+    onOpenInpaint: () => inpaintEditor.open(),
+    onShowToast: showToast
+});
+
+const cropEditor = new CropEditor({
+    appState,
+    onApplyCrop: async ({ dataUrl, width, height }) => {
+        await canvasIO.loadImageDataUrlToCanvas(dataUrl, { width, height });
+    },
+    onShowToast: showToast
+});
+
+if (typeof document !== 'undefined') {
+    const vpMeta = document.querySelector?.('meta[name="viewport"]');
+    const vpContent = vpMeta?.getAttribute?.('content') || '';
+    if (vpMeta && vpContent && !vpContent.includes('viewport-fit')) {
+        vpMeta.setAttribute('content', `${vpContent}, viewport-fit=cover`);
+    }
+    const fileInput = document.getElementById('canvasFileInput');
+    fileInput?.addEventListener('change', async (e) => {
+        const file = e.target?.files?.[0];
+        if (file) {
+            await canvasIO.handleCanvasFileInput(file);
+        }
+        if (e.target) e.target.value = '';
+    });
+    canvasIO.bindGlobalPasteAndDrop();
+    initRovingToolbar(document.querySelector('#inpaintModal .inpaint-dock-capsule'));
+    initRovingToolbar(document.getElementById('outpaintToolbarInner'));
+    initRovingToolbar(document.querySelector('#cropDockHost .inpaint-dock-capsule'));
+}
+
+function triggerCanvasUpload() {
+    document.getElementById('canvasFileInput')?.click?.();
+}
+
+function createBlankCanvasPreset(w, h) {
+    return canvasIO.createBlankCanvas(w, h, { autoSketch: true });
+}
+
+function createBlankCanvasFromPopover() {
+    const w = parseInt(document.getElementById('blankCanvasW')?.value || '832', 10);
+    const h = parseInt(document.getElementById('blankCanvasH')?.value || '1216', 10);
+    return canvasIO.createBlankCanvas(w, h, { autoSketch: true });
+}
+
+function openCropEditor() {
+    return cropEditor.open();
+}
 
 // =================== 图库大图详情弹窗 (Lightbox) ===================
 const lightboxController = createLightboxController({
@@ -2539,13 +2599,30 @@ Object.assign(window, {
     inpaintToggleMaskVis: () => inpaintEditor.toggleMaskVisibility(),
     inpaintRevertOriginal: () => inpaintEditor.revertToOriginalImage(),
     inpaintUndo: () => inpaintEditor.undo(),
+    inpaintRedo: () => inpaintEditor.redo(),
+    inpaintInvertMask: () => inpaintEditor.invertMask(),
+    inpaintGrowMask: () => inpaintEditor.growMask(),
+    toggleInpaintSketchLayer: () => inpaintEditor.toggleSketchLayer(),
+    toggleInpaintEyedropper: () => inpaintEditor.toggleEyedropper(),
+    inpaintClearSketch: () => inpaintEditor.clearSketch(),
     inpaintClearMask: () => inpaintEditor.clearMask(),
     inpaintRestoreMask: () => inpaintEditor.restoreLastMask(true),
     inpaintRetryOriginal: () => inpaintEditor.retryLastSession(),
     inpaintContinueNew: () => inpaintEditor.continueOnCurrentImage(false),
     inpaintResetZoom: () => inpaintEditor.resetZoom(),
+    resetPreviewZoom: () => ui.resetPreviewZoom(),
     toggleInpaintDrawer: () => inpaintEditor.toggleDrawer(),
     doInpaint: () => inpaintEditor.doInpaint(),
+    doAugment,
+    openColorizePopover,
+    closeColorizePopover,
+    submitColorizePopover: () => doColorize(),
+    canvasIO,
+    cropEditor,
+    triggerCanvasUpload,
+    createBlankCanvasPreset,
+    createBlankCanvasFromPopover,
+    openCropEditor,
     resetLightboxZoom,
     ui,
     outpaintEditor,
@@ -2797,7 +2874,96 @@ initUxEnhancements({
     inpaintEditor
 });
 
-// --- Native HTML5 Drag and Drop NovelAI PNG Metadata Auto-Fill ---
+// --- Native HTML5 Drag and Drop: Canvas Import vs NovelAI PNG Metadata Auto-Fill ---
+async function applyDroppedPngMetadata(file) {
+    if (!(file.type === 'image/png' || file.name.toLowerCase().endsWith('.png'))) {
+        return canvasIO.handleCanvasFileInput(file);
+    }
+    try {
+        const buffer = await file.arrayBuffer();
+        const meta = extractMetadata(buffer);
+        if (meta && (meta.Description || meta.Comment)) {
+            let count = 0;
+            if (meta.Description) {
+                const promptEl = document.getElementById('prompt');
+                if (promptEl) {
+                    promptEl.value = meta.Description;
+                    promptEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    count++;
+                }
+            }
+            if (meta.Comment) {
+                try {
+                    const commentObj = JSON.parse(meta.Comment);
+                    if (commentObj.uc) {
+                        const negEl = document.getElementById('negativePrompt');
+                        if (negEl) {
+                            negEl.value = commentObj.uc;
+                            negEl.dispatchEvent(new Event('input', { bubbles: true }));
+                            count++;
+                        }
+                    }
+                    if (commentObj.steps) {
+                        const stepsEl = document.getElementById('steps');
+                        if (stepsEl) {
+                            stepsEl.value = commentObj.steps;
+                            stepsEl.dispatchEvent(new Event('input', { bubbles: true }));
+                            count++;
+                        }
+                    }
+                    if (commentObj.scale) {
+                        const scaleEl = document.getElementById('scale');
+                        if (scaleEl) {
+                            scaleEl.value = commentObj.scale;
+                            scaleEl.dispatchEvent(new Event('input', { bubbles: true }));
+                            count++;
+                        }
+                    }
+                    if (commentObj.seed) {
+                        const seedEl = document.getElementById('seed');
+                        if (seedEl) {
+                            seedEl.value = commentObj.seed;
+                            seedEl.dispatchEvent(new Event('input', { bubbles: true }));
+                            count++;
+                        }
+                    }
+                    if (commentObj.sampler) {
+                        const samplerEl = document.getElementById('sampler');
+                        if (samplerEl) {
+                            samplerEl.value = commentObj.sampler;
+                            samplerEl.dispatchEvent(new Event('change', { bubbles: true }));
+                            count++;
+                        }
+                    }
+                    if (commentObj.width && commentObj.height) {
+                        const resSelect = document.getElementById('resolution');
+                        if (resSelect) {
+                            const targetVal = `${commentObj.width},${commentObj.height}`;
+                            let found = false;
+                            for (let opt of resSelect.options) {
+                                if (opt.value === targetVal) { found = true; break; }
+                            }
+                            if (!found) {
+                                resSelect.add(new Option(`${commentObj.width} x ${commentObj.height}`, targetVal));
+                            }
+                            resSelect.value = targetVal;
+                            resSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            count++;
+                        }
+                    }
+                } catch (_) {}
+            }
+            if (count > 0 && window.showToast) {
+                window.showToast(`已从拖拽图片中解析并自动填入 ${count} 项生成参数！`, 'success');
+            }
+        } else if (window.showToast) {
+            window.showToast('拖拽的图片中未检测到 NovelAI 生成元数据', 'info');
+        }
+    } catch (err) {
+        console.error('Failed to parse dropped image metadata:', err);
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -2810,91 +2976,11 @@ if (typeof window !== 'undefined') {
         }
         const file = e.dataTransfer?.files?.[0];
         if (!file) return;
-        if (file.type === 'image/png' || file.name.toLowerCase().endsWith('.png')) {
-            e.preventDefault();
-            try {
-                const buffer = await file.arrayBuffer();
-                const meta = extractMetadata(buffer);
-                if (meta && (meta.Description || meta.Comment)) {
-                    let count = 0;
-                    if (meta.Description) {
-                        const promptEl = document.getElementById('prompt');
-                        if (promptEl) {
-                            promptEl.value = meta.Description;
-                            promptEl.dispatchEvent(new Event('input', { bubbles: true }));
-                            count++;
-                        }
-                    }
-                    if (meta.Comment) {
-                        try {
-                            const commentObj = JSON.parse(meta.Comment);
-                            if (commentObj.uc) {
-                                const negEl = document.getElementById('negativePrompt');
-                                if (negEl) {
-                                    negEl.value = commentObj.uc;
-                                    negEl.dispatchEvent(new Event('input', { bubbles: true }));
-                                    count++;
-                                }
-                            }
-                            if (commentObj.steps) {
-                                const stepsEl = document.getElementById('steps');
-                                if (stepsEl) {
-                                    stepsEl.value = commentObj.steps;
-                                    stepsEl.dispatchEvent(new Event('input', { bubbles: true }));
-                                    count++;
-                                }
-                            }
-                            if (commentObj.scale) {
-                                const scaleEl = document.getElementById('scale');
-                                if (scaleEl) {
-                                    scaleEl.value = commentObj.scale;
-                                    scaleEl.dispatchEvent(new Event('input', { bubbles: true }));
-                                    count++;
-                                }
-                            }
-                            if (commentObj.seed) {
-                                const seedEl = document.getElementById('seed');
-                                if (seedEl) {
-                                    seedEl.value = commentObj.seed;
-                                    seedEl.dispatchEvent(new Event('input', { bubbles: true }));
-                                    count++;
-                                }
-                            }
-                            if (commentObj.sampler) {
-                                const samplerEl = document.getElementById('sampler');
-                                if (samplerEl) {
-                                    samplerEl.value = commentObj.sampler;
-                                    samplerEl.dispatchEvent(new Event('change', { bubbles: true }));
-                                    count++;
-                                }
-                            }
-                            if (commentObj.width && commentObj.height) {
-                                const resSelect = document.getElementById('resolution');
-                                if (resSelect) {
-                                    const targetVal = `${commentObj.width},${commentObj.height}`;
-                                    let found = false;
-                                    for (let opt of resSelect.options) {
-                                        if (opt.value === targetVal) { found = true; break; }
-                                    }
-                                    if (!found) {
-                                        resSelect.add(new Option(`${commentObj.width} x ${commentObj.height}`, targetVal));
-                                    }
-                                    resSelect.value = targetVal;
-                                    resSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                                    count++;
-                                }
-                            }
-                        } catch (_) {}
-                    }
-                    if (count > 0 && window.showToast) {
-                        window.showToast(`已从拖拽图片中解析并自动填入 ${count} 项生成参数！`, 'success');
-                    }
-                } else if (window.showToast) {
-                    window.showToast('拖拽的图片中未检测到 NovelAI 生成元数据', 'info');
-                }
-            } catch (err) {
-                console.error('Failed to parse dropped image metadata:', err);
-            }
-        }
+        const isImg = file.type?.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name || '');
+        if (!isImg) return;
+        e.preventDefault();
+        await canvasIO.handleDroppedImageFile(file, e.target, {
+            applyMetadataFn: applyDroppedPngMetadata
+        });
     });
 }

@@ -2,6 +2,8 @@
  * UI Controller Module
  * Handles DOM element references, class toggling, and view state management.
  */
+import { CanvasViewportController } from './canvas-core.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const UI_SVG_PATHS = {
     'chevron-down': [{ tag: 'path', d: 'M19 9l-7 7-7-7' }],
@@ -90,6 +92,44 @@ export class UIController {
         this._initBasicBindings();
         this._initCustomSelects();
         this._initCompareInteractions();
+        this._initPreviewViewportInteractions();
+    }
+
+    _initPreviewViewportInteractions() {
+        const wrap = document.getElementById('inpaintCanvasWrap');
+        const stage = document.getElementById('inpaintCanvasStage');
+        const badge = document.getElementById('canvasZoomPill');
+        if (!wrap || !stage || typeof wrap.addEventListener !== 'function' || typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+            return;
+        }
+        this.previewViewport = new CanvasViewportController({
+            wrapEl: wrap,
+            stageEl: stage,
+            badgeEl: badge,
+            minScale: 1,
+            maxScale: 5,
+            doubleTapScale: 2.2,
+            isEnabled: () => {
+                const singleArea = document.getElementById('singleResultArea');
+                if (!singleArea || singleArea.classList.contains('hidden')) return false;
+                if (window.inpaintEditor?.isOpen) return false;
+                if (window.outpaintEditor?.isOpen) return false;
+                if (window.cropEditor?.isOpen) return false;
+                return true;
+            },
+            canSingleFingerPan: () => (this.previewViewport?.scale || 1) > 1.02,
+            canDoubleTap: (e) => !e.target?.closest?.('.canvas-compare-divider, .canvas-compare-handle'),
+            onTransformChange: () => {
+                if (window.inpaintEditor?.isOpen && badge) {
+                    badge.classList.add('hidden');
+                }
+            }
+        });
+        this.previewViewport.attach();
+    }
+
+    resetPreviewZoom() {
+        this.previewViewport?.reset?.();
     }
 
     _getElements() {
@@ -1304,6 +1344,7 @@ export class UIController {
     }
 
     resetPreview() {
+        this.previewViewport?.reset?.();
         if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
             window.inpaintEditor.close();
         }
@@ -1337,6 +1378,7 @@ export class UIController {
     }
 
     showGrid() {
+        this.previewViewport?.reset?.();
         const { resultGrid, singleResultArea, backToGridBtn, placeholder } = this.els;
         if (resultGrid.children.length === 0) return;
         if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {

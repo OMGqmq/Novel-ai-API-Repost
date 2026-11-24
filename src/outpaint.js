@@ -1,4 +1,5 @@
 import * as motionMod from './motion-controller.js';
+import { buildAuthPool, stitchOutpaintWithFeather } from './canvas-core.js';
 
 export class OutpaintEditor {
     constructor(dependencies) {
@@ -6,6 +7,7 @@ export class OutpaintEditor {
         this.store = dependencies.store;
         this.getExtraParams = dependencies.getExtraParams;
         this.prepareBeforeGenerate = dependencies.prepareBeforeGenerate;
+        this.onShowToast = dependencies.onShowToast || null;
 
         this.els = {
             area: document.getElementById('outpaintArea'),
@@ -14,10 +16,15 @@ export class OutpaintEditor {
             maskCanvas: document.getElementById('outpaintMaskCanvas'),
             selection: document.getElementById('outpaintSelection'),
             sizeLabel: document.getElementById('outpaintSizeLabel'),
+            metaBadge: document.getElementById('outpaintMetaBadge'),
             sourceImg: document.getElementById('singleResultImg'),
             brushControl: document.getElementById('outpaintBrushControl'),
             brushSizeInput: document.getElementById('outpaintBrushSize'),
             brushSizeVal: document.getElementById('outpaintBrushSizeVal'),
+            strengthInput: document.getElementById('outpaintStrength'),
+            strengthVal: document.getElementById('outpaintStrengthVal'),
+            presetsPopover: document.getElementById('outpaintPresetsPopover'),
+            presetsBtn: document.getElementById('outpaintPresetsBtn'),
             modeMoveBtn: document.getElementById('outpaintModeMove'),
             modePaintBtn: document.getElementById('outpaintModePaint'),
             toolbar: document.getElementById('outpaintToolbar'),
@@ -42,10 +49,15 @@ export class OutpaintEditor {
         this.selection = { x: 0, y: 0, w: 512, h: 512 };
         
         // Mode state
+        this.isOpen = false;
         this.mode = 'move'; // 'move' or 'paint'
         this.tool = 'brush'; // 'brush' or 'eraser'
         this.isPainting = false;
         this.lastPos = null;
+        this.presetsOpen = false;
+        this._paintStartTime = 0;
+        this._spacePressed = false;
+        this._brushRingTimer = null;
 
         // Toolbar state
         this.isToolbarCollapsed = false;
@@ -53,6 +65,8 @@ export class OutpaintEditor {
         // History state
         this.history = [];
         this.maskHistory = [];
+        this.redoHistory = [];
+        this.maskRedoHistory = [];
         this.maxHistory = 10;
         this.maxMaskHistory = 10;
         
@@ -74,6 +88,14 @@ export class OutpaintEditor {
         this._zoomTransitionTimer = null;
 
         this._bindEvents();
+    }
+
+    _notify(msg, type = 'info') {
+        if (typeof this.onShowToast === 'function') {
+            this.onShowToast(msg, type);
+        } else if (typeof alert === 'function') {
+            alert(msg);
+        }
     }
 
     _getMotionController() {
@@ -298,6 +320,10 @@ export class OutpaintEditor {
                 this.els.modePaintBtn.setAttribute?.('aria-pressed', 'false');
             }
         } else {
+            if (this.els.strengthInput && this.els.strengthInput.dataset?.userModified !== 'true') {
+                this.els.strengthInput.value = '0.70';
+                if (this.els.strengthVal) this.els.strengthVal.textContent = '0.70';
+            }
             if (this.els.selection) {
                 this.els.selection.classList.remove('cursor-move');
                 this.els.selection.classList.add('cursor-crosshair');
@@ -392,15 +418,27 @@ export class OutpaintEditor {
         if (typeof window !== 'undefined' && window.inpaintEditor?.isOpen) {
             window.inpaintEditor.close();
         }
+        if (typeof window !== 'undefined' && window.cropEditor?.isOpen) {
+            window.cropEditor.close();
+        }
         if (typeof window !== 'undefined' && window.charPromptManager?.isOpen) {
             window.charPromptManager.closeStage();
         }
+        this.isOpen = true;
         this.history = [];
         this.maskHistory = [];
+        this.redoHistory = [];
+        this.maskRedoHistory = [];
+        this.togglePresetsPopover(false);
         this.setMode('move');
         this.setTool('brush');
         this.toggleToolbar(true); // Ensure toolbar is visible / expanded
         this.toggleSnap(false); // Reset snap state
+        if (this.els.strengthInput) {
+            this.els.strengthInput.value = '1.0';
+            if (this.els.strengthInput.dataset) delete this.els.strengthInput.dataset.userModified;
+        }
+        if (this.els.strengthVal) this.els.strengthVal.textContent = '1.00';
         if (this.els.toolbar && this.els.toolbar.style) {
             this.els.toolbar.style.left = '';
             this.els.toolbar.style.top = '';
@@ -450,8 +488,19 @@ export class OutpaintEditor {
     }
 
     close() {
+        this.isOpen = false;
         this.history = [];
         this.maskHistory = [];
+        this.redoHistory = [];
+        this.maskRedoHistory = [];
+        this.togglePresetsPopover(false);
+        if (typeof document !== 'undefined') {
+            document.getElementById('brushSizePreviewRing')?.classList?.add('hidden');
+        }
+        if (this._brushRingTimer) {
+            clearTimeout(this._brushRingTimer);
+            this._brushRingTimer = null;
+        }
         this.isPainting = false;
         this.isPanning = false;
         this.isDraggingSelection = false;
@@ -498,6 +547,7 @@ export class OutpaintEditor {
         };
         this.history.push(state);
         if (this.history.length > this.maxHistory) this.history.shift();
+        this.redoHistory = [];
     }
 
     saveMaskState() {
@@ -513,6 +563,20 @@ export class OutpaintEditor {
         }
         this.maskHistory.push({ width: w, height: h, alpha });
         if (this.maskHistory.length > this.maxMaskHistory) this.maskHistory.shift();
+        this.maskRedoHistory = [];
+    }
+
+    _snapshotCurrentMask() {
+        if (!this.els.maskCanvas || !this.maskCtx) return null;
+        const w = this.els.maskCanvas.width;
+        const h = this.els.maskCanvas.height;
+        if (!w || !h) return null;
+        const data = this.maskCtx.getImageData(0, 0, w, h).data;
+        const alpha = new Uint8Array(w * h);
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            alpha[j] = data[i + 3];
+        }
+        return { width: w, height: h, alpha };
     }
 
     _restoreMaskState(state) {
@@ -557,6 +621,11 @@ export class OutpaintEditor {
 
     undo() {
         if (this.mode === 'paint' && this.maskHistory.length > 0) {
+            const curMask = this._snapshotCurrentMask();
+            if (curMask) {
+                this.maskRedoHistory.push(curMask);
+                if (this.maskRedoHistory.length > this.maxMaskHistory) this.maskRedoHistory.shift();
+            }
             const state = this.maskHistory.pop();
             this._restoreMaskState(state);
             return;
@@ -564,13 +633,29 @@ export class OutpaintEditor {
 
         if (this.history.length === 0) {
             if (this.maskHistory.length > 0) {
+                const curMask = this._snapshotCurrentMask();
+                if (curMask) {
+                    this.maskRedoHistory.push(curMask);
+                    if (this.maskRedoHistory.length > this.maxMaskHistory) this.maskRedoHistory.shift();
+                }
                 const state = this.maskHistory.pop();
                 this._restoreMaskState(state);
                 return;
             }
-            alert('没有可撤销的操作');
+            this._notify('没有可撤销的操作', 'warning');
             return;
         }
+        try {
+            this.redoHistory.push({
+                width: this.els.canvas.width,
+                height: this.els.canvas.height,
+                imageData: this.ctx.getImageData(0, 0, this.els.canvas.width, this.els.canvas.height),
+                selection: { ...this.selection },
+                transform: { ...this.transform }
+            });
+            if (this.redoHistory.length > this.maxHistory) this.redoHistory.shift();
+        } catch (_) {}
+
         const state = this.history.pop();
         
         this.els.canvas.width = state.width;
@@ -587,6 +672,103 @@ export class OutpaintEditor {
         const finalBase64 = this.els.canvas.toDataURL('image/png');
         if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
         window.lastSelectedImageUrl = finalBase64;
+        if (window.appState?.currentImageData) {
+            window.appState.currentImageData.imageUrl = finalBase64;
+            window.appState.currentImageData.image = finalBase64;
+        }
+    }
+
+    redo() {
+        if (this.mode === 'paint' && this.maskRedoHistory.length > 0) {
+            const curMask = this._snapshotCurrentMask();
+            if (curMask) {
+                this.maskHistory.push(curMask);
+                if (this.maskHistory.length > this.maxMaskHistory) this.maskHistory.shift();
+            }
+            const nextMask = this.maskRedoHistory.pop();
+            this._restoreMaskState(nextMask);
+            return;
+        }
+        if (this.redoHistory.length === 0) {
+            if (this.maskRedoHistory.length > 0) {
+                const curMask = this._snapshotCurrentMask();
+                if (curMask) {
+                    this.maskHistory.push(curMask);
+                    if (this.maskHistory.length > this.maxMaskHistory) this.maskHistory.shift();
+                }
+                const nextMask = this.maskRedoHistory.pop();
+                this._restoreMaskState(nextMask);
+                return;
+            }
+            this._notify('没有可重做的操作', 'warning');
+            return;
+        }
+        try {
+            this.history.push({
+                width: this.els.canvas.width,
+                height: this.els.canvas.height,
+                imageData: this.ctx.getImageData(0, 0, this.els.canvas.width, this.els.canvas.height),
+                selection: { ...this.selection },
+                transform: { ...this.transform }
+            });
+            if (this.history.length > this.maxHistory) this.history.shift();
+        } catch (_) {}
+
+        const state = this.redoHistory.pop();
+        this.els.canvas.width = state.width;
+        this.els.canvas.height = state.height;
+        this.ctx.putImageData(state.imageData, 0, 0);
+        this.selection = { ...state.selection };
+        this.transform = { ...state.transform };
+        this._applyTransform();
+        this._updateSelectionDOM();
+
+        const finalBase64 = this.els.canvas.toDataURL('image/png');
+        if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
+        window.lastSelectedImageUrl = finalBase64;
+        if (window.appState?.currentImageData) {
+            window.appState.currentImageData.imageUrl = finalBase64;
+            window.appState.currentImageData.image = finalBase64;
+        }
+    }
+
+    togglePresetsPopover(force = null) {
+        const next = typeof force === 'boolean' ? force : !this.presetsOpen;
+        this.presetsOpen = next;
+        const pop = this.els.presetsPopover || document.getElementById('outpaintPresetsPopover');
+        const btn = this.els.presetsBtn || document.getElementById('outpaintPresetsBtn');
+        if (pop) pop.classList?.toggle('hidden', !next);
+        if (btn) btn.setAttribute?.('aria-expanded', next ? 'true' : 'false');
+    }
+
+    applyQuickPreset(preset) {
+        const cw = this.els.canvas?.width || 512;
+        const ch = this.els.canvas?.height || 512;
+        const maxPx = this.maxPixels || 1048576;
+
+        let w = Math.max(512, Math.min(1024, Math.ceil(cw / 64) * 64));
+        let h = Math.max(512, Math.min(1024, Math.ceil(ch / 64) * 64));
+        if (preset === 'center-1.5x') {
+            w = Math.max(512, Math.round((cw * 1.5) / 64) * 64);
+            h = Math.max(512, Math.round((ch * 1.5) / 64) * 64);
+        }
+        while (w * h > maxPx && (w > 64 || h > 64)) {
+            if (w >= h && w > 64) w -= 64;
+            else if (h > 64) h -= 64;
+            else break;
+        }
+
+        let x = Math.round((cw - w) / 2);
+        let y = Math.round((ch - h) / 2);
+        if (preset === 'left') x = -Math.round(w * 0.45);
+        else if (preset === 'right') x = cw - Math.round(w * 0.55);
+        else if (preset === 'top') y = -Math.round(h * 0.45);
+        else if (preset === 'bottom') y = ch - Math.round(h * 0.55);
+
+        this.selection = { x, y, w, h };
+        this._updateSelectionDOM();
+        this._scheduleRender();
+        this.togglePresetsPopover(false);
     }
 
     _hasPaintedMask() {
@@ -790,18 +972,21 @@ export class OutpaintEditor {
             const steps = parseInt(document.getElementById('steps')?.value || 28);
             const scale = parseFloat(document.getElementById('scale')?.value || 5);
             const sampler = document.getElementById('sampler')?.value || 'k_euler';
-            const strength = hasPaintedMask ? 0.7 : 1.0;
+            const strEl = this.els.strengthInput || document.getElementById('outpaintStrength');
+            let strength = hasPaintedMask ? 0.7 : 1.0;
+            if (strEl) {
+                if (strEl.dataset?.userModified === 'true') {
+                    strength = Math.max(0.1, Math.min(1.0, parseFloat(strEl.value) || strength));
+                } else {
+                    strEl.value = strength.toFixed(2);
+                    if (this.els.strengthVal) this.els.strengthVal.textContent = strength.toFixed(2);
+                }
+            }
 
             // Handling Multi-API Keys gracefully
-            const adminToken = this.store.getSetting('nai_admin_token');
-            const userKey = this.store.getSetting('nai_user_key');
             const customApiKeyRaw = this.store.getSetting('nai_custom_api_key', '');
             const customKeys = customApiKeyRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k);
-            
-            const authBase = { adminToken, userKey, userToken: (typeof localStorage !== 'undefined' ? localStorage.getItem('nai_user_token') : null) || "" };
-            const authsToTry = customKeys.length > 0 
-                ? customKeys.map(key => ({ ...authBase, customApiKey: key }))
-                : [{ ...authBase, customApiKey: "" }];
+            const authsToTry = buildAuthPool(this.store);
 
             if (typeof this.prepareBeforeGenerate === 'function') {
                 await this.prepareBeforeGenerate(modelVersion, authsToTry, customKeys.length > 0);
@@ -875,7 +1060,15 @@ export class OutpaintEditor {
                 const combinedCtx = combinedCanvas.getContext('2d');
 
                 combinedCtx.drawImage(this.els.canvas, -newCanvasX, -newCanvasY);
-                combinedCtx.drawImage(newImg, roundX - newCanvasX, roundY - newCanvasY, targetW, targetH);
+                stitchOutpaintWithFeather(
+                    combinedCtx,
+                    newImg,
+                    roundX - newCanvasX,
+                    roundY - newCanvasY,
+                    targetW,
+                    targetH,
+                    { featherPx: isPureGeneration ? 0 : 24, canvasW: finalW, canvasH: finalH }
+                );
 
                 this.els.canvas.width = finalW;
                 this.els.canvas.height = finalH;
@@ -895,6 +1088,12 @@ export class OutpaintEditor {
                 console.log(hasPaintedMask ? "Inpaint generated" : "Outpaint generated");
                 if (this.els.sourceImg) this.els.sourceImg.src = finalBase64;
                 window.lastSelectedImageUrl = finalBase64;
+                if (window.appState?.currentImageData) {
+                    window.appState.currentImageData.imageUrl = finalBase64;
+                    window.appState.currentImageData.image = finalBase64;
+                    window.appState.currentImageData.width = finalW;
+                    window.appState.currentImageData.height = finalH;
+                }
             };
             newImg.onerror = (err) => {
                 if (newImg.src && newImg.src.startsWith('blob:')) {
@@ -913,7 +1112,7 @@ export class OutpaintEditor {
 
         } catch (err) {
             console.error(err);
-            alert('操作失败: ' + err.message);
+            this._notify('操作失败: ' + err.message, 'error');
         } finally {
             if (this._samplingTimer) {
                 clearInterval(this._samplingTimer);
@@ -1071,13 +1270,17 @@ export class OutpaintEditor {
             this.els.selection.style.transform = `translate(${x}px, ${y}px)`;
         }
         
+        const maxPx = this.maxPixels || 1048576;
+        const exceedsMax = this.selection.w * this.selection.h > maxPx;
         if (this.els.sizeLabel) {
             this.els.sizeLabel.textContent = `${w} x ${h}`;
-            if (this.selection.w * this.selection.h > this.maxPixels) {
-                this.els.sizeLabel.classList.add('text-red-400');
-            } else {
-                this.els.sizeLabel.classList.remove('text-red-400');
-            }
+            this.els.sizeLabel.classList?.toggle('text-red-400', exceedsMax);
+        }
+        const metaBadge = this.els.metaBadge || document.getElementById('outpaintMetaBadge');
+        if (metaBadge) {
+            metaBadge.textContent = exceedsMax ? '超出上限' : 'Opus 免点';
+            metaBadge.classList?.remove('hidden', 'text-emerald-300', 'text-red-400');
+            metaBadge.classList?.add(exceedsMax ? 'text-red-400' : 'text-emerald-300');
         }
     }
 
@@ -1163,10 +1366,31 @@ export class OutpaintEditor {
 
         this.els.brushSizeInput?.addEventListener('input', e => {
             if (this.els.brushSizeVal) this.els.brushSizeVal.textContent = e.target.value;
+            const ring = typeof document !== 'undefined' ? document.getElementById('brushSizePreviewRing') : null;
+            if (ring && this.isOpen) {
+                const px = Math.min(280, Math.max(8, Math.round((Number(e.target.value) || 60) * (this.transform.scale || 1))));
+                ring.style.width = `${px}px`;
+                ring.style.height = `${px}px`;
+                ring.classList?.remove('hidden');
+                if (this._brushRingTimer) clearTimeout(this._brushRingTimer);
+                this._brushRingTimer = setTimeout(() => {
+                    this._brushRingTimer = null;
+                    ring.classList?.add('hidden');
+                }, 650);
+            }
+        });
+
+        this.els.strengthInput?.addEventListener('input', e => {
+            if (e.target.dataset) e.target.dataset.userModified = 'true';
+            if (this.els.strengthVal) this.els.strengthVal.textContent = parseFloat(e.target.value).toFixed(2);
         });
 
         const startTwoFingerPinch = (e) => {
             if (!e.touches || e.touches.length < 2) return false;
+            if (this.isPainting && (Date.now() - this._paintStartTime < 220) && this.maskHistory.length > 0) {
+                const prev = this.maskHistory.pop();
+                this._restoreMaskState(prev);
+            }
             const t0 = e.touches[0];
             const t1 = e.touches[1];
             const dist = Math.max(10, Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY));
@@ -1186,8 +1410,9 @@ export class OutpaintEditor {
         const handlePanStart = (e) => {
             if (startTwoFingerPinch(e)) return;
 
-            if (this.mode === 'paint' && (e.target === this.els.maskCanvas || e.target === this.els.selection)) {
+            if (!this._spacePressed && this.mode === 'paint' && (e.target === this.els.maskCanvas || e.target === this.els.selection)) {
                 this.isPainting = true;
+                this._paintStartTime = Date.now();
                 this.saveMaskState();
                 this._drawOnMask(this._getMaskPos(e), true);
                 return;
@@ -1195,7 +1420,7 @@ export class OutpaintEditor {
 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            if (e.target === this.els.area || e.target === this.els.canvas) {
+            if (this._spacePressed || e.target === this.els.area || e.target === this.els.canvas) {
                 this.isPanning = true;
                 this._setGestureWillChange(this.els.container, true);
                 this.lastMouse = { x: clientX, y: clientY };
@@ -1467,8 +1692,31 @@ export class OutpaintEditor {
             this.clampToolbarPosition();
         });
         window.addEventListener('keydown', (e) => {
-            if (e && e.key === 'Escape' && this.els.area && !this.els.area.classList.contains('hidden')) {
-                this.close();
+            const activeArea = this.els.area && !this.els.area.classList.contains('hidden');
+            if (!activeArea || !e) return;
+            const tag = e.target?.tagName?.toUpperCase?.() || '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            const key = (e.key || '').toLowerCase();
+            if (e.code === 'Space') {
+                this._spacePressed = true;
+                e.preventDefault?.();
+            } else if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && key === 'z') || key === 'y')) {
+                e.preventDefault?.();
+                this.redo();
+            } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'z') {
+                e.preventDefault?.();
+                this.undo();
+            } else if (e.key === 'Escape') {
+                if (this.presetsOpen) {
+                    this.togglePresetsPopover(false);
+                } else {
+                    this.close();
+                }
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e?.code === 'Space') {
+                this._spacePressed = false;
             }
         });
     }

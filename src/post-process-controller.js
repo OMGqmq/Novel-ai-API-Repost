@@ -111,16 +111,20 @@ export function createPostProcessController({
     }
 
     function getActiveCanvasImage() {
-        if (ui.els.singleResultImg && !ui.els.singleResultArea.classList.contains('hidden') && ui.els.singleResultImg.src) {
-            const src = ui.els.singleResultImg.src;
-            if (src && !src.startsWith('chrome-extension') && src !== window.location.href) {
+        const singleImg = ui?.els?.singleResultImg;
+        const singleArea = ui?.els?.singleResultArea;
+        if (singleImg && !singleArea?.classList?.contains('hidden') && singleImg.src) {
+            const src = singleImg.src;
+            const winHref = typeof window !== 'undefined' ? window.location?.href : '';
+            if (src && !src.startsWith('chrome-extension') && src !== winHref) {
                 return src;
             }
         }
-        if (ui.els.resultGrid && !ui.els.resultGrid.classList.contains('hidden')) {
-            const selectedImg = ui.els.resultGrid.querySelector('img[data-selected="true"], img.border-slate-900, img.border-blue-500');
+        const grid = ui?.els?.resultGrid;
+        if (grid && !grid.classList?.contains('hidden')) {
+            const selectedImg = grid.querySelector?.('img[data-selected="true"], img.border-slate-900, img.border-blue-500');
             if (selectedImg && selectedImg.src) return selectedImg.src;
-            const firstImg = ui.els.resultGrid.querySelector('img');
+            const firstImg = grid.querySelector?.('img');
             if (firstImg && firstImg.src) return firstImg.src;
         }
         if (typeof window !== 'undefined' && window.lastSelectedImageUrl) {
@@ -129,15 +133,18 @@ export function createPostProcessController({
         return null;
     }
 
-    async function doAugment(reqType) {
-        if (!appState.currentImageData || !(appState.currentImageData.imageUrl || appState.currentImageData.image)) return;
-        const imageUrl = appState.currentImageData.imageUrl || appState.currentImageData.image;
+    async function doAugment(reqType, extra = {}) {
+        const imageUrl = appState.currentImageData?.imageUrl || appState.currentImageData?.image || getActiveCanvasImage();
+        if (!imageUrl) {
+            notifyPostProcess("请先生成或导入图片后再处理", 'warning');
+            return;
+        }
         const authsToTry = _getAuthsToTry();
 
         ui.setLoading(true, "处理中...");
         try {
             const { base64Data, width: w, height: h } = await _imageUrlToCappedBase64(imageUrl);
-            const params = { req_type: reqType, width: w, height: h, image: base64Data };
+            const params = { req_type: reqType, width: w, height: h, image: base64Data, ...extra };
 
             let result = null;
             let lastError = null;
@@ -154,10 +161,12 @@ export function createPostProcessController({
 
             if (result.userRole) ui.updateCreditDisplay(result.userRole);
 
+            const basePrompt = appState.currentImageData?.prompt || "";
+            const baseModel = appState.currentImageData?.model || "v3";
             const reader2 = new FileReader();
             reader2.readAsDataURL(result.blob);
             reader2.onloadend = async () => {
-                await saveToHistory(reader2.result, `[${reqType}] ` + (appState.currentImageData.prompt || ""), appState.currentImageData.model || "v3", result, true);
+                await saveToHistory(reader2.result, `[${reqType}] ` + basePrompt, baseModel, result, true);
             };
 
             ui.showResultImages([result], (selected) => {
@@ -173,6 +182,41 @@ export function createPostProcessController({
         } finally {
             ui.setLoading(false);
         }
+    }
+
+    function openColorizePopover(triggerEl = null) {
+        const imageUrl = getActiveCanvasImage();
+        if (!imageUrl) {
+            notifyPostProcess("请先生成或导入图片后再上色", 'warning');
+            return;
+        }
+        const pop = document.getElementById('colorizePopover');
+        if (!pop) return;
+        try {
+            if (typeof pop.showPopover === 'function') {
+                pop.showPopover(triggerEl ? { source: triggerEl } : undefined);
+            } else {
+                pop.classList?.remove('hidden');
+            }
+        } catch (_) {
+            pop.showPopover?.();
+        }
+    }
+
+    function closeColorizePopover() {
+        const pop = document.getElementById('colorizePopover');
+        if (!pop) return;
+        try {
+            if (typeof pop.hidePopover === 'function') pop.hidePopover();
+            else pop.classList?.add('hidden');
+        } catch (_) {}
+    }
+
+    async function doColorize() {
+        const prompt = document.getElementById('colorizePromptInput')?.value?.trim() || '';
+        const defry = Math.max(0, Math.min(5, parseInt(document.getElementById('colorizeDefryRange')?.value || '0', 10) || 0));
+        closeColorizePopover();
+        await doAugment('colorize', { prompt, defry });
     }
 
     function openEnhanceModal() {
@@ -222,6 +266,13 @@ export function createPostProcessController({
         if (noiseSlider && noiseVal) {
             noiseSlider.addEventListener('input', () => {
                 noiseVal.textContent = parseFloat(noiseSlider.value).toFixed(2);
+            });
+        }
+        const defrySlider = document.getElementById('colorizeDefryRange');
+        const defryVal = document.getElementById('colorizeDefryVal');
+        if (defrySlider && defryVal) {
+            defrySlider.addEventListener('input', () => {
+                defryVal.textContent = String(parseInt(defrySlider.value || '0', 10) || 0);
             });
         }
     }
@@ -363,6 +414,9 @@ export function createPostProcessController({
     return {
         getActiveCanvasImage,
         doAugment,
+        openColorizePopover,
+        closeColorizePopover,
+        doColorize,
         openEnhanceModal,
         closeEnhanceModal,
         setEnhancePreset,
