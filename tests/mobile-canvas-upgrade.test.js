@@ -16,6 +16,7 @@ import { createCanvasIOController, CropEditor } from '../src/canvas-crop-io.js';
 import { InpaintEditor } from '../src/inpaint.js';
 import { OutpaintEditor } from '../src/outpaint.js';
 import { createPostProcessController } from '../src/post-process-controller.js';
+import { initHorizontalDragAndWheelScroll } from '../src/ux-enhancements.js';
 
 function createSoftwareCanvas(width = 32, height = 32, defaultDataUrl = 'data:image/png;base64,MOCK') {
     let W = width;
@@ -818,7 +819,44 @@ describe('Mobile & Full Canvas Refactor Upgrade', () => {
             expect(css).not.toMatch(/::-webkit-slider-[^,{]+,\s*[^,{]*::-moz-range-/);
             expect(css).toMatch(/\.no-scrollbar,\s*\.custom-scroll-x\s*\{[\s\S]*scrollbar-width:\s*none;/);
             expect(css).toMatch(/\.toolbox-icon-dock\s*\{[\s\S]*overflow:\s*visible;/);
+            expect(css).toMatch(/#tagSearchCategoryTabs\s*\{[\s\S]*max-inline-size:\s*100%;/);
             expect(html).toContain('class="range-val-pill"');
+        });
+
+        it('enables desktop vertical wheel and mouse drag horizontal scrolling on #tagSearchCategoryTabs without firing accidental tab clicks', () => {
+            const rootListeners = {};
+            const mockRoot = {
+                addEventListener: (type, fn) => { rootListeners[type] = fn; },
+                removeEventListener: vi.fn()
+            };
+            const scroller = createMockEl('div', 'tagSearchCategoryTabs');
+            scroller.scrollWidth = 640;
+            scroller.clientWidth = 280;
+            scroller.scrollLeft = 0;
+
+            const tabBtn = { closest: () => scroller };
+            const cleanup = initHorizontalDragAndWheelScroll(mockRoot);
+
+            // 1. Vertical wheel deltaY translates to horizontal scrollLeft
+            const wheelEv = { target: tabBtn, deltaY: 90, deltaX: 0, preventDefault: vi.fn() };
+            rootListeners.wheel(wheelEv);
+            expect(scroller.scrollLeft).toBe(90);
+            expect(wheelEv.preventDefault).toHaveBeenCalled();
+
+            // 2. Mouse drag pans horizontally and suppresses click on release
+            rootListeners.pointerdown({ target: tabBtn, pointerType: 'mouse', button: 0, clientX: 200 });
+            rootListeners.pointermove({ pointerType: 'mouse', clientX: 140, preventDefault: vi.fn() });
+            expect(scroller.scrollLeft).toBe(150);
+            expect(scroller.classList.contains('is-drag-scrolling')).toBe(true);
+            rootListeners.pointerup({ pointerType: 'mouse', clientX: 140 });
+            expect(scroller.classList.contains('is-drag-scrolling')).toBe(false);
+
+            const clickEv = { preventDefault: vi.fn(), stopPropagation: vi.fn() };
+            rootListeners.click(clickEv);
+            expect(clickEv.preventDefault).toHaveBeenCalled();
+            expect(clickEv.stopPropagation).toHaveBeenCalled();
+
+            cleanup();
         });
     });
 });

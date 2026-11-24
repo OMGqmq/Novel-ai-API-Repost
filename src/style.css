@@ -359,12 +359,38 @@ label:active input[type="checkbox"].sr-only.peer:not(:disabled) + div::after {
 
 .studio-tabs {
     display: inline-flex;
+    max-inline-size: 100%;
     align-items: center;
     gap: 0.25rem;
     padding: 0.25rem;
     border-radius: var(--radius-control);
     background: var(--surface-subtle);
     border: 1px solid var(--border-subtle);
+}
+
+#tagSearchCategoryTabs {
+    display: flex;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+    margin-block-start: 0.625rem;
+    overflow-x: auto;
+    scroll-snap-type: inline proximity;
+    cursor: grab;
+}
+
+#tagSearchCategoryTabs > .studio-tab {
+    flex: none;
+    scroll-snap-align: start;
+}
+
+.is-drag-scrolling,
+.is-drag-scrolling * {
+    cursor: grabbing !important;
+    user-select: none !important;
+}
+.is-drag-scrolling {
+    scroll-snap-type: none !important;
 }
 
 .studio-tabs--vertical,

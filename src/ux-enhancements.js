@@ -241,6 +241,86 @@ export function initRangeSliderEnhancements(root = typeof document !== 'undefine
     }
 }
 
+const HORIZ_SCROLLER_SELECTOR = '#tagSearchCategoryTabs, .custom-scroll-x, .no-scrollbar, .char-stage-chips-bar, .canvas-filmstrip-track';
+
+export function initHorizontalDragAndWheelScroll(root = typeof document !== 'undefined' ? document : null) {
+    if (!root || typeof root.addEventListener !== 'function' || root._horizScrollBound) return () => {};
+    root._horizScrollBound = true;
+
+    let dragState = null;
+    let suppressClickUntil = 0;
+
+    const onWheel = (e) => {
+        if (!e || e.ctrlKey) return;
+        const scroller = e.target?.closest?.(HORIZ_SCROLLER_SELECTOR);
+        if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && e.deltaY !== 0) {
+            e.preventDefault?.();
+            scroller.scrollLeft += e.deltaY;
+        }
+    };
+
+    const onPointerDown = (e) => {
+        if (!e || (e.pointerType && e.pointerType !== 'mouse')) return;
+        if (e.button !== undefined && e.button !== 0) return;
+        const scroller = e.target?.closest?.(HORIZ_SCROLLER_SELECTOR);
+        if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+        dragState = {
+            scroller,
+            startX: e.clientX,
+            startScrollLeft: scroller.scrollLeft || 0,
+            moved: false
+        };
+    };
+
+    const onPointerMove = (e) => {
+        if (!dragState || !e) return;
+        const dx = e.clientX - dragState.startX;
+        if (!dragState.moved && Math.abs(dx) > 5) {
+            dragState.moved = true;
+            dragState.scroller.classList?.add('is-drag-scrolling');
+        }
+        if (dragState.moved) {
+            e.preventDefault?.();
+            dragState.scroller.scrollLeft = dragState.startScrollLeft - dx;
+        }
+    };
+
+    const onPointerUp = () => {
+        if (!dragState) return;
+        dragState.scroller.classList?.remove('is-drag-scrolling');
+        if (dragState.moved) {
+            suppressClickUntil = Date.now() + 80;
+        }
+        dragState = null;
+    };
+
+    const onClickCapture = (e) => {
+        if (Date.now() < suppressClickUntil) {
+            suppressClickUntil = 0;
+            e.preventDefault?.();
+            e.stopPropagation?.();
+        }
+    };
+
+    root.addEventListener('wheel', onWheel, { passive: false });
+    root.addEventListener('pointerdown', onPointerDown);
+    root.addEventListener('pointermove', onPointerMove);
+    root.addEventListener('pointerup', onPointerUp);
+    root.addEventListener('pointercancel', onPointerUp);
+    root.addEventListener('click', onClickCapture, true);
+
+    return () => {
+        root._horizScrollBound = false;
+        root.removeEventListener?.('wheel', onWheel);
+        root.removeEventListener?.('pointerdown', onPointerDown);
+        root.removeEventListener?.('pointermove', onPointerMove);
+        root.removeEventListener?.('pointerup', onPointerUp);
+        root.removeEventListener?.('pointercancel', onPointerUp);
+        root.removeEventListener?.('click', onClickCapture, true);
+    };
+}
+
 export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose, onOpen }) {
     if (!handleEl || !drawerEl || typeof handleEl.addEventListener !== 'function') return;
 
@@ -330,9 +410,10 @@ export function bindDrawerSwipeToClose({ handleEl, drawerEl, isExpanded, onClose
 export function initUxEnhancements({ onTriggerGenerate, ui, inpaintEditor } = {}) {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
-    // 1. Range Slider Progress, Switch Roles, Micro-Tooltips & Double-Click Reset
+    // 1. Range Slider Progress, Switch Roles, Horizontal Tab Drag/Wheel & Double-Click Reset
     initRangeSliderEnhancements(document);
     initSwitchAccessibility(document);
+    initHorizontalDragAndWheelScroll(document);
 
     const syncMicroTooltips = () => {
         try {

@@ -623,9 +623,12 @@ export class PromptHelper {
         if (!tabsEl) {
             tabsEl = document.createElement('div');
             tabsEl.id = 'tagSearchCategoryTabs';
-            tabsEl.className = 'px-4 pb-2 flex gap-1.5 overflow-x-auto custom-scroll-x shrink-0 select-none';
+            tabsEl.className = 'w-full max-w-full mt-2.5 px-1.5 py-1 flex gap-1.5 overflow-x-auto custom-scroll-x shrink-0 select-none';
+            tabsEl.setAttribute?.('role', 'tablist');
+            tabsEl.setAttribute?.('aria-label', '词库分类筛选');
             const searchContainer = this.searchInputEl.parentNode.parentNode;
             if (searchContainer) {
+                searchContainer.classList?.add('min-w-0', 'max-w-full', 'overflow-hidden');
                 searchContainer.appendChild(tabsEl);
             }
         }
@@ -637,17 +640,20 @@ export class PromptHelper {
 
     renderCategoryTabs(tabsEl) {
         if (!tabsEl) return;
+        const prevScrollLeft = tabsEl.scrollLeft || 0;
         tabsEl.innerHTML = '';
         tabsEl.classList?.add('studio-tabs');
         
         const allBtn = document.createElement('button');
         allBtn.type = 'button';
+        allBtn.setAttribute?.('role', 'tab');
         const isAllSelected = this.selectedSearchCategory === 'all';
         allBtn.className = `studio-tab px-3 py-1 text-[10px] font-bold rounded-lg border transition-[background-color,color,border-color] duration-150 cursor-pointer shrink-0 ${
             isAllSelected
             ? 'active bg-slate-900 text-white border-transparent dark:bg-white dark:text-slate-900 shadow-sm'
             : 'bg-slate-50 border-slate-200/80 text-slate-500 hover:text-slate-900 dark:bg-slate-800/60 dark:border-slate-700/60 dark:text-slate-400 dark:hover:text-white'
         }`;
+        allBtn.setAttribute?.('aria-selected', isAllSelected ? 'true' : 'false');
         allBtn.setAttribute?.('aria-pressed', isAllSelected ? 'true' : 'false');
         allBtn.textContent = '全部';
         allBtn.onclick = () => this.setSearchCategory('all');
@@ -656,6 +662,8 @@ export class PromptHelper {
         Object.entries(CATEGORY_NAMES_CN).forEach(([key, cnName]) => {
             const btn = document.createElement('button');
             btn.type = 'button';
+            btn.setAttribute?.('role', 'tab');
+            btn.dataset.catKey = key;
             const isSelected = this.selectedSearchCategory === key;
             
             btn.className = `studio-tab px-3 py-1 text-[10px] font-semibold rounded-lg border transition-[background-color,color,border-color] duration-150 cursor-pointer shrink-0 ${
@@ -663,11 +671,14 @@ export class PromptHelper {
                 ? 'active bg-slate-900 text-white border-transparent dark:bg-white dark:text-slate-900 shadow-sm'
                 : 'bg-slate-50 border-slate-200/80 text-slate-500 hover:text-slate-900 dark:bg-slate-800/60 dark:border-slate-700/60 dark:text-slate-400 dark:hover:text-white'
             }`;
+            btn.setAttribute?.('aria-selected', isSelected ? 'true' : 'false');
             btn.setAttribute?.('aria-pressed', isSelected ? 'true' : 'false');
             btn.textContent = cnName;
             btn.onclick = () => this.setSearchCategory(key);
             tabsEl.appendChild(btn);
         });
+
+        tabsEl.scrollLeft = prevScrollLeft;
     }
 
     setSearchCategory(cat) {
@@ -675,6 +686,12 @@ export class PromptHelper {
         const tabsEl = document.getElementById('tagSearchCategoryTabs');
         if (tabsEl) {
             this.renderCategoryTabs(tabsEl);
+            const activeTab = tabsEl.querySelector?.('[aria-selected="true"]');
+            try {
+                activeTab?.scrollIntoView?.({ block: 'nearest', inline: 'nearest', container: 'nearest' });
+            } catch (_) {
+                activeTab?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+            }
         }
         if (this.searchBtnEl) {
             this.searchBtnEl.click();
