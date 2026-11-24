@@ -152,6 +152,8 @@ html.dark {
         --border-subtle: #334155;
         --border-strong: #0f172a;
         --text-muted: #1e293b;
+        --scrollbar-thumb: #0f172a;
+        --scrollbar-track: #f1f5f9;
     }
     html.dark {
         --surface-panel: #020617;
@@ -160,6 +162,8 @@ html.dark {
         --border-subtle: #cbd5e1;
         --border-strong: #f8fafc;
         --text-muted: #e2e8f0;
+        --scrollbar-thumb: #ffffff;
+        --scrollbar-track: #0f172a;
     }
 }
 
@@ -198,23 +202,53 @@ p, .pretty-text {
 }
 
 /* Accessible subtle custom scrollbars (>= 3:1 contrast vs light/dark surfaces) */
-.custom-scroll {
+.custom-scroll,
+textarea,
+pre,
+.custom-select-options,
+:where(.overflow-y-auto, .overflow-x-auto):not(.no-scrollbar):not(.custom-scroll-x):not(.inpaint-dock-capsule):not(.outpaint-dock-scroll):not(.canvas-filmstrip-track):not(.char-stage-chips-bar) {
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 @supports not (scrollbar-color: auto) {
-    .custom-scroll::-webkit-scrollbar {
+    .custom-scroll,
+    textarea,
+    pre,
+    .custom-select-options {
+        scrollbar-width: auto;
+    }
+    .custom-scroll::-webkit-scrollbar,
+    textarea::-webkit-scrollbar,
+    pre::-webkit-scrollbar,
+    .custom-select-options::-webkit-scrollbar {
         width: 6px;
         height: 6px;
     }
-    .custom-scroll::-webkit-scrollbar-track {
+    .custom-scroll::-webkit-scrollbar-track,
+    textarea::-webkit-scrollbar-track,
+    pre::-webkit-scrollbar-track,
+    .custom-select-options::-webkit-scrollbar-track {
         background: var(--scrollbar-track);
     }
-    .custom-scroll::-webkit-scrollbar-thumb {
+    .custom-scroll::-webkit-scrollbar-thumb,
+    textarea::-webkit-scrollbar-thumb,
+    pre::-webkit-scrollbar-thumb,
+    .custom-select-options::-webkit-scrollbar-thumb {
         background-color: var(--scrollbar-thumb);
         border-radius: 9999px;
     }
+}
+
+.no-scrollbar,
+.custom-scroll-x {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar,
+.custom-scroll-x::-webkit-scrollbar {
+    display: none;
 }
 
 /* Pure-CSS scrollability edge fades without extra markup */
@@ -253,6 +287,31 @@ p, .pretty-text {
         animation: scrollFadeRevealStart linear both, scrollFadeHideEnd linear both;
         animation-timeline: scroll(self block);
         animation-range: 0 var(--scroll-fade-size), calc(100% - var(--scroll-fade-size)) 100%;
+    }
+
+    .no-scrollbar,
+    .custom-scroll-x,
+    .char-stage-chips-bar {
+        --scroll-fade-size: 1.25rem;
+        --fade-dir: right;
+        --fade-start-pos: 0;
+        --fade-end-pos: 100%;
+        scroll-padding-inline: 1rem;
+        mask:
+            linear-gradient(black, black) no-clip subtract,
+            linear-gradient(to var(--fade-dir), black, transparent) var(--fade-start-pos) 0 / var(--fade-start) 100% no-repeat no-clip,
+            linear-gradient(to var(--fade-dir), transparent, black) var(--fade-end-pos) 0 / var(--fade-end) 100% no-repeat no-clip;
+        animation: scrollFadeRevealStart linear both, scrollFadeHideEnd linear both;
+        animation-timeline: scroll(self inline);
+        animation-range: 0 var(--scroll-fade-size), calc(100% - var(--scroll-fade-size)) 100%;
+    }
+
+    .no-scrollbar:dir(rtl),
+    .custom-scroll-x:dir(rtl),
+    .char-stage-chips-bar:dir(rtl) {
+        --fade-dir: left;
+        --fade-start-pos: 100%;
+        --fade-end-pos: 0;
     }
 }
 
@@ -1012,6 +1071,7 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     align-items: center;
     gap: 4px;
     padding: 5px;
+    overflow: visible;
     border-radius: var(--radius-card);
     background: var(--surface-panel);
     backdrop-filter: blur(22px);
@@ -1238,7 +1298,7 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
     gap: 3px;
     padding: 5px 6px;
     max-width: 100%;
-    overflow-x: auto;
+    overflow: visible;
     scrollbar-width: none;
     -ms-overflow-style: none;
     border-radius: 9999px;
@@ -1254,6 +1314,7 @@ html.low-perf #inpaintMaskCanvas.mask-peek {
 }
 @media (max-width: 767px) {
     .inpaint-dock-capsule {
+        overflow-x: auto;
         padding: 4px 5px;
         gap: 2px;
     }
@@ -1765,6 +1826,7 @@ input[type="range"] {
     -webkit-appearance: none !important;
     appearance: none !important;
     inline-size: 100%;
+    min-inline-size: 0;
     block-size: 1.75rem;
     margin: 0;
     padding: 0;
@@ -3004,16 +3066,12 @@ body.char-stage-active #canvasFilmstripDock {
     touch-action: pan-x;
     padding: 1px 1px 6px 1px;
     border-bottom: 1px solid var(--border-subtle);
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 .char-stage-chips-bar::-webkit-scrollbar {
-    height: 3px;
-}
-
-.char-stage-chips-bar::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 9999px;
+    display: none;
 }
 
 .char-stage-dock-capsule {
@@ -3632,12 +3690,18 @@ html.dark .sketch-swatch.active {
 .canvas-utility-popover {
     width: min(19rem, calc(100vw - 2rem));
     padding: 0.875rem;
+    overflow: visible;
     border-radius: 1.25rem;
     background: rgba(255, 255, 255, 0.95);
     border: 1px solid rgba(15, 23, 42, 0.12);
     box-shadow: 0 20px 44px rgba(2, 6, 23, 0.22);
     backdrop-filter: blur(20px);
     margin: auto;
+}
+
+#vibeExportMenu[popover],
+dialog.native-modal {
+    overflow: visible;
 }
 html.dark .canvas-utility-popover {
     background: rgba(15, 23, 42, 0.94);

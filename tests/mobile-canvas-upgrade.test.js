@@ -816,6 +816,8 @@ describe('Mobile & Full Canvas Refactor Upgrade', () => {
             expect(css).toContain('--slider-thumb-bg');
             expect(css).toContain('margin-block-start: calc((var(--slider-track-size) - var(--slider-thumb-size)) / 2)');
             expect(css).not.toMatch(/::-webkit-slider-[^,{]+,\s*[^,{]*::-moz-range-/);
+            expect(css).toMatch(/\.no-scrollbar,\s*\.custom-scroll-x\s*\{[\s\S]*scrollbar-width:\s*none;/);
+            expect(css).toMatch(/\.toolbox-icon-dock\s*\{[\s\S]*overflow:\s*visible;/);
             expect(html).toContain('class="range-val-pill"');
         });
     });
