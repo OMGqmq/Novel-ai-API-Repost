@@ -138,4 +138,81 @@ describe('CharRefManager', () => {
         expect(manager.currentCharRefImageBase64).toBe('mockedPngBase64');
         expect(mockStore.setSetting).toHaveBeenCalledWith(expect.stringContaining('image'), 'mockedPngBase64');
     });
+
+    it('should support multiple reference images, V5 outfit mode, high strength (0-5), and QuotaExceededError resilience', async () => {
+        vi.spyOn(MockImage.prototype, 'width', 'get').mockReturnValue(800);
+        vi.spyOn(MockImage.prototype, 'height', 'get').mockReturnValue(1200);
+
+        mockElements.charRefEnabled.checked = true;
+        manager.loadState('v5');
+
+        await manager.handleCharRefImage({
+            target: {
+                files: [new Blob(['a']), new Blob(['b'])],
+                value: 'fakepath'
+            }
+        }, 'v5');
+
+        expect(manager.charRefItems.length).toBe(2);
+        manager.charRefItems[0].mode = 'character';
+        manager.charRefItems[0].strength = 1.25;
+        manager.charRefItems[1].mode = 'outfit';
+        manager.charRefItems[1].strength = 4.2;
+
+        const v5Payload = manager.getPayloadParams('v5');
+        expect(v5Payload.director_reference_images).toEqual(['mockedPngBase64', 'mockedPngBase64']);
+        expect(v5Payload.director_reference_descriptions).toEqual([
+            { use_coords: false, use_order: false, legacy_uc: false, caption: { base_caption: 'character', char_captions: [] } },
+            { use_coords: false, use_order: false, legacy_uc: false, caption: { base_caption: 'outfit', char_captions: [] } }
+        ]);
+        expect(v5Payload.director_reference_strength_values).toEqual([1.25, 4.2]);
+        expect(v5Payload.director_reference_secondary_strength_values).toEqual([0, 0]);
+        expect(v5Payload.director_reference_information_extracted).toEqual([1, 1]);
+
+        // Coerce outfit -> character&style when queried under v4.5
+        manager.itemsByModel['v4.5'] = [
+            { id: 'c1', imageBase64: 'mockedPngBase64', mode: 'outfit', strength: 2.5, fidelity: 0.75, enabled: true }
+        ];
+        manager.renderList('v4.5');
+        const v45Payload = manager.getPayloadParams('v4.5');
+        expect(v45Payload.director_reference_descriptions[0].caption.base_caption).toBe('character&style');
+        expect(v45Payload.director_reference_strength_values).toEqual([1]);
+        expect(v45Payload.director_reference_secondary_strength_values).toEqual([0.25]);
+
+        // QuotaExceededError should not crash saveState and should preserve items across loadState
+        mockStore.setSetting.mockImplementation((k) => {
+            if (k.includes('items')) throw new Error('QuotaExceededError');
+        });
+        mockStore.getSetting.mockReturnValue(null);
+        expect(() => manager.saveState('v5')).not.toThrow();
+        manager.loadState('v5');
+        expect(manager.charRefItems.length).toBe(2);
+    });
+
+    it('should restore multiple references and legacy character_mainoutfit from metadata', () => {
+        const stored = {};
+        mockStore.setSetting.mockImplementation((k, v) => { stored[k] = v; });
+        mockStore.getSetting.mockImplementation((k) => stored[k] ?? null);
+
+        const ok = manager.restoreFromMetadata({
+            director_reference_images: ['iVBORwAAA1', 'iVBORwAAA2', 'iVBORwAAA3'],
+            director_reference_descriptions: [
+                { caption: { base_caption: 'character_mainoutfit', char_captions: [] } },
+                { caption: { base_caption: 'outfit', char_captions: [] } },
+                { caption: { base_caption: 'style', char_captions: [] } }
+            ],
+            director_reference_strength_values: [1.0, 2.0, 1.5],
+            director_reference_secondary_strength_values: [0.0, 0.0, 0.0]
+        }, 'v5');
+
+        expect(ok).toBe(true);
+        const params = manager.getPayloadParams('v5');
+        expect(params.director_reference_images).toEqual(['iVBORwAAA1', 'iVBORwAAA2', 'iVBORwAAA3']);
+        expect(params.director_reference_descriptions.map(d => d.caption.base_caption)).toEqual([
+            'character',
+            'outfit',
+            'style'
+        ]);
+        expect(params.director_reference_strength_values).toEqual([1, 2, 1.5]);
+    });
 });

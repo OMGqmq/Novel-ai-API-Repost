@@ -657,6 +657,16 @@ export function createLightboxController({
         }
         const modelVer = normalizeModelVersion(rawModel || 'v3');
         if (window.setModel) window.setModel(modelVer);
+        const isCurated = meta?.variant === 'curated' ||
+            String(rawModel || '').toLowerCase().includes('curated') ||
+            String(meta?.Source || '').toLowerCase().includes('curated');
+        if (modelVer === 'v4.5' || modelVer === 'v5') {
+            if (typeof window.setModelVariant === 'function') {
+                window.setModelVariant(isCurated ? 'curated' : 'full', modelVer);
+            } else if (ui && typeof ui.setModelVariant === 'function') {
+                ui.setModelVariant(isCurated ? 'curated' : 'full', modelVer);
+            }
+        }
 
         const promptText = item.prompt || meta?.prompt || '';
         els.prompt.value = promptText;
@@ -859,21 +869,25 @@ export function createLightboxController({
             }
 
             if (meta.director_reference_images && meta.director_reference_images.length > 0) {
-                const charRefImgB64 = meta.director_reference_images[0];
-                const str = meta.director_reference_strength_values?.[0] !== undefined ? meta.director_reference_strength_values[0] : 1.0;
-                const secStr = meta.director_reference_secondary_strength_values?.[0] !== undefined ? meta.director_reference_secondary_strength_values[0] : 0.2;
-                const fidelity = (1.0 - secStr);
-                const desc = meta.director_reference_descriptions?.[0]
-                    ? (meta.director_reference_descriptions[0].caption?.base_caption || meta.director_reference_descriptions[0])
-                    : 'character&style';
+                if (typeof charRefManager.restoreFromMetadata === 'function') {
+                    charRefManager.restoreFromMetadata(meta, modelVer);
+                } else {
+                    const charRefImgB64 = meta.director_reference_images[0];
+                    const str = meta.director_reference_strength_values?.[0] !== undefined ? meta.director_reference_strength_values[0] : 1.0;
+                    const secStr = meta.director_reference_secondary_strength_values?.[0] !== undefined ? meta.director_reference_secondary_strength_values[0] : 0.2;
+                    const fidelity = (1.0 - secStr);
+                    const desc = meta.director_reference_descriptions?.[0]
+                        ? (meta.director_reference_descriptions[0].caption?.base_caption || meta.director_reference_descriptions[0])
+                        : 'character&style';
 
-                charRefManager.currentCharRefImageBase64 = charRefImgB64;
-                store.setSetting(charRefManager.getCharRefKey('nai_char_ref_image', modelVer), charRefImgB64);
-                store.setSetting(charRefManager.getCharRefKey('nai_char_ref_enabled', modelVer), 'true');
-                store.setSetting(charRefManager.getCharRefKey('nai_char_ref_strength', modelVer), str.toString());
-                store.setSetting(charRefManager.getCharRefKey('nai_char_ref_fidelity', modelVer), fidelity.toFixed(2));
-                store.setSetting(charRefManager.getCharRefKey('nai_char_ref_mode', modelVer), typeof desc === 'string' ? desc : 'character&style');
-                charRefManager.loadState(modelVer);
+                    charRefManager.currentCharRefImageBase64 = charRefImgB64;
+                    store.setSetting(charRefManager.getCharRefKey('nai_char_ref_image', modelVer), charRefImgB64);
+                    store.setSetting(charRefManager.getCharRefKey('nai_char_ref_enabled', modelVer), 'true');
+                    store.setSetting(charRefManager.getCharRefKey('nai_char_ref_strength', modelVer), str.toString());
+                    store.setSetting(charRefManager.getCharRefKey('nai_char_ref_fidelity', modelVer), fidelity.toFixed(2));
+                    store.setSetting(charRefManager.getCharRefKey('nai_char_ref_mode', modelVer), typeof desc === 'string' ? desc : 'character&style');
+                    charRefManager.loadState(modelVer);
+                }
             }
 
             const vibeImgs = meta.reference_image_multiple || (meta.vibe_image ? [meta.vibe_image] : null);

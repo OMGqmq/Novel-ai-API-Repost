@@ -414,6 +414,7 @@ function collectAdvancedAndModelParams(selectedVersion) {
         if (hasCustomCoords) extraParams.v4_prompt_use_coords = true;
 
         if (selectedVersion === 'v4.5') {
+            extraParams.variant = store.getSetting('nai_v45_variant', 'full') === 'curated' ? 'curated' : 'full';
             const skipCfgEl = document.getElementById('skipCfg');
             if (skipCfgEl) {
                 extraParams.skip_cfg_above_sigma = isExp && skipCfgEl.value ? parseInt(skipCfgEl.value) : null;
@@ -422,7 +423,9 @@ function collectAdvancedAndModelParams(selectedVersion) {
             const v5UcEl = document.getElementById('v5UcPreset');
             const v5QualityEl = document.getElementById('v5QualityPreset');
             const v5EffortEl = document.getElementById('v5Effort');
-            const effort = v5EffortEl?.value || 'high';
+            const v5Variant = store.getSetting('nai_v5_variant', 'full') === 'curated' ? 'curated' : 'full';
+            const effort = v5Variant === 'curated' ? 'high' : (v5EffortEl?.value || 'high');
+            extraParams.variant = v5Variant;
             extraParams.effort = effort;
             extraParams.ucPresetId = effort === 'medium' ? 'heavy' : (v5UcEl?.value || 'heavy');
             extraParams.qualityPresetId = v5QualityEl?.value || 'standard';
@@ -437,6 +440,8 @@ function collectAdvancedAndModelParams(selectedVersion) {
     if (selectedVersion !== 'v5') {
         const vibeParams = vibeManager.getPayloadParams(selectedVersion);
         Object.assign(extraParams, vibeParams);
+    }
+    if (selectedVersion === 'v4.5' || selectedVersion === 'v5') {
         const charRefParams = charRefManager.getPayloadParams(selectedVersion);
         Object.assign(extraParams, charRefParams);
     }
@@ -708,6 +713,7 @@ if (!supportsNativePopover && typeof document !== 'undefined') {
     });
 }
 
+window.setModelVariant = (variant, ver) => ui.setModelVariant(variant, ver);
 window.handleCharRefImage = (event) => charRefManager.handleCharRefImage(event, document.getElementById('modelValue').value);
 window.clearCharRefImage = () => charRefManager.clearCharRefImage(document.getElementById('modelValue').value);
 window.toggleCharRefEnabled = () => charRefManager.toggleCharRefEnabled(document.getElementById('modelValue').value);
@@ -1164,6 +1170,7 @@ async function doGenerate(rawOptions = {}) {
                         v4_neg_use_order: localParams.v4_neg_use_order !== undefined ? localParams.v4_neg_use_order : false,
                         deliberate_euler_ancestral_bug: localParams.deliberate_euler_ancestral_bug !== undefined ? localParams.deliberate_euler_ancestral_bug : false,
                         prefer_brownian: localParams.prefer_brownian !== undefined ? localParams.prefer_brownian : true,
+                        variant: localParams.variant || null,
                         effort: localParams.effort || null,
                         ucPresetId: localParams.ucPresetId || null,
                         qualityPresetId: localParams.qualityPresetId || null,

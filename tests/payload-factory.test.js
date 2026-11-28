@@ -229,18 +229,96 @@ describe('PayloadFactory', () => {
       expect(payload.parameters.inpaintImg2ImgStrength).toBe(0.85);
     });
 
-    it('V5 should NOT attach director reference or vibe transfer', () => {
+    it('V5 should attach Precise Reference (director_reference_*) on generate/img2img while still omitting Vibe Transfer', () => {
       const payload = createV5Payload({
         prompt: 'character test',
         vibe_image: 'base64vibe',
         vibe_info: 0.8,
         vibe_strength: 0.6,
-        director_reference_images: ['base64director'],
-        director_reference_descriptions: [{ caption: { base_caption: 'character' } }]
+        director_reference_images: ['data:image/png;base64,ref1', 'ref2'],
+        director_reference_descriptions: [
+          { caption: { base_caption: 'character' } },
+          'outfit'
+        ],
+        director_reference_strength_values: [1.5, 3.25]
       });
 
       expect(payload.parameters.reference_image_multiple).toBeUndefined();
+      expect(payload.parameters.director_reference_images).toEqual(['ref1', 'ref2']);
+      expect(payload.parameters.director_reference_descriptions).toEqual([
+        { caption: { base_caption: 'character', char_captions: [] }, legacy_uc: false },
+        { caption: { base_caption: 'outfit', char_captions: [] }, legacy_uc: false }
+      ]);
+      expect(payload.parameters.director_reference_strength_values).toEqual([1.5, 3.25]);
+      expect(payload.parameters.director_reference_secondary_strength_values).toEqual([0, 0]);
+      expect(payload.parameters.director_reference_information_extracted).toEqual([1, 1]);
+    });
+
+    it('V5 should omit director reference when action is infill (inpainting)', () => {
+      const payload = createV5Payload({
+        prompt: 'inpaint test',
+        action: 'infill',
+        image: 'base64img',
+        mask: 'base64mask',
+        director_reference_images: ['ref1'],
+        director_reference_descriptions: [{ caption: { base_caption: 'character', char_captions: [] } }],
+        director_reference_strength_values: [1.2],
+        director_reference_secondary_strength_values: [0.0],
+        director_reference_information_extracted: [1.0]
+      });
+
+      expect(payload.action).toBe('infill');
       expect(payload.parameters.director_reference_images).toBeUndefined();
+    });
+
+    it('should create Curated payloads for V4.5 and V5 including V4.5 Curated inpaint fallback for V5 Curated', () => {
+      const v45Curated = createPayload('v4.5', { ...baseData, variant: 'curated' });
+      expect(v45Curated.model).toBe('nai-diffusion-4-5-curated');
+
+      const v45CuratedAlias = createPayload('v4.5-curated', baseData);
+      expect(v45CuratedAlias.model).toBe('nai-diffusion-4-5-curated');
+
+      const v4CuratedAlias = createPayload('v4-curated', baseData);
+      expect(v4CuratedAlias.model).toBe('nai-diffusion-4-5-curated');
+
+      const v45CuratedInpaint = createPayload('v4.5', {
+        ...baseData,
+        variant: 'curated',
+        action: 'infill',
+        image: 'base64source',
+        mask: 'base64mask'
+      });
+      expect(v45CuratedInpaint.model).toBe('nai-diffusion-4-5-curated-inpainting');
+
+      // V5 Curated ignores medium effort and uses nai-diffusion-5-curated
+      const v5Curated = createPayload('v5', {
+        prompt: '1girl, cute',
+        negative_prompt: 'custom bad quality',
+        variant: 'curated',
+        effort: 'medium',
+        director_reference_images: ['ref1'],
+        director_reference_descriptions: [{ caption: { base_caption: 'outfit', char_captions: [] } }],
+        director_reference_strength_values: [2.0]
+      });
+      expect(v5Curated.model).toBe('nai-diffusion-5-curated');
+      expect(v5Curated.parameters.steps).toBe(28);
+      expect(v5Curated.parameters.negative_prompt).toBe('custom bad quality');
+      expect(v5Curated.parameters.director_reference_images).toEqual(['ref1']);
+
+      const v5CuratedAlias = createPayload('v5-curated', { prompt: 'test' });
+      expect(v5CuratedAlias.model).toBe('nai-diffusion-5-curated');
+
+      // V5 Curated inpainting transparently falls back to V4.5 Curated Inpainting
+      const v5CuratedInpaint = createPayload('v5-curated', {
+        prompt: '1girl, repair',
+        action: 'infill',
+        image: 'base64source',
+        mask: 'base64mask',
+        director_reference_images: ['ref1']
+      });
+      expect(v5CuratedInpaint.model).toBe('nai-diffusion-4-5-curated-inpainting');
+      expect(v5CuratedInpaint.parameters.params_version).toBe(3);
+      expect(v5CuratedInpaint.parameters.director_reference_images).toBeUndefined();
     });
   });
 

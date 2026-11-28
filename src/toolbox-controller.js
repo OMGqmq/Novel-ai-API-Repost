@@ -566,6 +566,13 @@ export function applyMetadataParameters() {
     try {
         let appliedCount = 0;
         const modelVer = document.getElementById('modelSelect')?.value || 'v4.5';
+        const rawSourceStr = String(parsedMetadata.Source || '').toLowerCase();
+        if (modelVer === 'v4.5' || modelVer === 'v5') {
+            const isCuratedMeta = rawSourceStr.includes('curated');
+            if (typeof window !== 'undefined' && typeof window.setModelVariant === 'function') {
+                window.setModelVariant(isCuratedMeta ? 'curated' : 'full', modelVer);
+            }
+        }
         
         if (parsedMetadata.Description) {
             const promptInput = document.getElementById('prompt');
@@ -734,25 +741,29 @@ export function applyMetadataParameters() {
                 // 恢复角色参考 (Char Ref)
                 const charMgr = charRefManager || window.charRefManager;
                 if (charMgr && store && commentObj.director_reference_images && commentObj.director_reference_images.length > 0) {
-                    const charRefImgB64 = commentObj.director_reference_images[0];
-                    const str = commentObj.director_reference_strength_values && commentObj.director_reference_strength_values[0] !== undefined
-                        ? commentObj.director_reference_strength_values[0]
-                        : 1.0;
-                    const secStr = commentObj.director_reference_secondary_strength_values && commentObj.director_reference_secondary_strength_values[0] !== undefined
-                        ? commentObj.director_reference_secondary_strength_values[0]
-                        : 0.2;
-                    const fidelity = (1.0 - secStr);
-                    const desc = commentObj.director_reference_descriptions && commentObj.director_reference_descriptions[0]
-                        ? (commentObj.director_reference_descriptions[0].caption?.base_caption || commentObj.director_reference_descriptions[0])
-                        : 'character&style';
+                    if (typeof charMgr.restoreFromMetadata === 'function') {
+                        charMgr.restoreFromMetadata(commentObj, modelVer);
+                    } else {
+                        const charRefImgB64 = commentObj.director_reference_images[0];
+                        const str = commentObj.director_reference_strength_values && commentObj.director_reference_strength_values[0] !== undefined
+                            ? commentObj.director_reference_strength_values[0]
+                            : 1.0;
+                        const secStr = commentObj.director_reference_secondary_strength_values && commentObj.director_reference_secondary_strength_values[0] !== undefined
+                            ? commentObj.director_reference_secondary_strength_values[0]
+                            : 0.2;
+                        const fidelity = (1.0 - secStr);
+                        const desc = commentObj.director_reference_descriptions && commentObj.director_reference_descriptions[0]
+                            ? (commentObj.director_reference_descriptions[0].caption?.base_caption || commentObj.director_reference_descriptions[0])
+                            : 'character&style';
 
-                    charMgr.currentCharRefImageBase64 = charRefImgB64;
-                    store.setSetting(charMgr.getCharRefKey('nai_char_ref_image', modelVer), charRefImgB64);
-                    store.setSetting(charMgr.getCharRefKey('nai_char_ref_enabled', modelVer), 'true');
-                    store.setSetting(charMgr.getCharRefKey('nai_char_ref_strength', modelVer), str.toString());
-                    store.setSetting(charMgr.getCharRefKey('nai_char_ref_fidelity', modelVer), fidelity.toFixed(2));
-                    store.setSetting(charMgr.getCharRefKey('nai_char_ref_mode', modelVer), typeof desc === 'string' ? desc : 'character&style');
-                    charMgr.loadState(modelVer);
+                        charMgr.currentCharRefImageBase64 = charRefImgB64;
+                        store.setSetting(charMgr.getCharRefKey('nai_char_ref_image', modelVer), charRefImgB64);
+                        store.setSetting(charMgr.getCharRefKey('nai_char_ref_enabled', modelVer), 'true');
+                        store.setSetting(charMgr.getCharRefKey('nai_char_ref_strength', modelVer), str.toString());
+                        store.setSetting(charMgr.getCharRefKey('nai_char_ref_fidelity', modelVer), fidelity.toFixed(2));
+                        store.setSetting(charMgr.getCharRefKey('nai_char_ref_mode', modelVer), typeof desc === 'string' ? desc : 'character&style');
+                        charMgr.loadState(modelVer);
+                    }
                     appliedCount++;
                 }
 

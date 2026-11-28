@@ -42,6 +42,13 @@ function extractVibeArrays(data) {
   return { vibe_images, vibe_info, vibe_strength };
 }
 
+function isCuratedVariant(data) {
+  const v = String(data?.variant || "").toLowerCase().trim();
+  const ver = String(data?.version || "").toLowerCase().trim();
+  const m = String(data?.model || "").toLowerCase().trim();
+  return v === "curated" || ver.includes("curated") || m.includes("curated");
+}
+
 /**
  * V3 Payload Builder (nai-diffusion-3)
  */
@@ -129,9 +136,12 @@ export function createV45Payload(data) {
   const scale = (data.scale !== undefined && data.scale !== null) ? parseFloat(data.scale) : 5.0;
   const sampler = data.sampler || "k_euler";
 
+  const isCurated = isCuratedVariant(data);
   const isInpaint = data.action === "infill" && !!data.mask;
   const action = isInpaint ? "infill" : (data.image ? "img2img" : "generate");
-  const model = isInpaint ? "nai-diffusion-4-5-full-inpainting" : "nai-diffusion-4-5-full";
+  const model = isInpaint
+    ? (isCurated ? "nai-diffusion-4-5-curated-inpainting" : "nai-diffusion-4-5-full-inpainting")
+    : (isCurated ? "nai-diffusion-4-5-curated" : "nai-diffusion-4-5-full");
 
   const isExperimental = data.v4_5_experimental === true;
   const { charCaptions, negCharCaptions } = extractCharCaptions(data.char_captions);
@@ -262,16 +272,30 @@ export const V5_MEDIUM_EFFORT_FIXED_UC = "lowres, artistic error, film grain, sc
 
 /**
  * V5 Payload Builder (nai-diffusion-5-full & nai-diffusion-5-full-medium)
- * Supports up to 32 character prompts, single-character positioning, and i2i/infill.
+ * Supports up to 32 character prompts, single-character positioning, i2i/infill,
+ * and Precise Reference (director_reference_*: character, style, character&style, outfit).
  * Effort Levels:
  *  - 'high': Standard full model (nai-diffusion-5-full), customizable steps & samplers.
  *  - 'medium': Distilled model (nai-diffusion-5-full-medium), locked 14 steps, Euler Ancestral, fixed Heavy UC.
- * Note: V5 does NOT support Character Reference (Director Reference) or Vibe Transfer.
+ * Note: V5 does NOT support Vibe Transfer or Inpainting + Precise Reference.
  */
 export function createV5Payload(data) {
-  const isMedium = String(data.effort || "").toLowerCase().trim() === "medium" ||
-                   String(data.model || "").toLowerCase().includes("medium") ||
-                   String(data.version || "").toLowerCase().includes("medium");
+  const isCurated = isCuratedVariant(data);
+  const isInpaint = data.action === "infill" && !!data.mask;
+  if (isCurated && isInpaint) {
+    return createV45Payload({
+      ...data,
+      variant: "curated",
+      scale: (data.scale !== undefined && data.scale !== null) ? parseFloat(data.scale) : 5.0,
+      director_reference_images: undefined
+    });
+  }
+
+  const isMedium = !isCurated && (
+    String(data.effort || "").toLowerCase().trim() === "medium" ||
+    String(data.model || "").toLowerCase().includes("medium") ||
+    String(data.version || "").toLowerCase().includes("medium")
+  );
 
   const prompt = data.prompt || "";
   let negative_prompt = data.negative_prompt || "";
@@ -282,11 +306,12 @@ export function createV5Payload(data) {
   const scale = (data.scale !== undefined && data.scale !== null) ? parseFloat(data.scale) : 1.9;
   const sampler = isMedium ? V5_MEDIUM_EFFORT_SAMPLER : (data.sampler || "k_euler_ancestral");
 
-  const isInpaint = data.action === "infill" && !!data.mask;
   const action = isInpaint ? "infill" : (data.image ? "img2img" : "generate");
-  
+
   let model;
-  if (isMedium) {
+  if (isCurated) {
+    model = "nai-diffusion-5-curated";
+  } else if (isMedium) {
     model = isInpaint ? "nai-diffusion-5-full-medium-inpainting" : "nai-diffusion-5-full-medium";
   } else {
     model = isInpaint ? "nai-diffusion-5-full-inpainting" : "nai-diffusion-5-full";
@@ -388,6 +413,44 @@ export function createV5Payload(data) {
     payload.recaptcha_token = data.recaptcha_token;
   }
 
+  if (!isInpaint && Array.isArray(data.director_reference_images) && data.director_reference_images.length > 0) {
+    const refImages = data.director_reference_images.map(img =>
+      typeof img === "string" ? img.replace(/^data:image\/[^;]+;base64,/, "").trim() : img
+    );
+    const rawDescs = Array.isArray(data.director_reference_descriptions) ? data.director_reference_descriptions : [];
+    const rawStrengths = Array.isArray(data.director_reference_strength_values) ? data.director_reference_strength_values : [];
+    const rawSecStrengths = Array.isArray(data.director_reference_secondary_strength_values) ? data.director_reference_secondary_strength_values : [];
+    const rawInfoExtracted = Array.isArray(data.director_reference_information_extracted) ? data.director_reference_information_extracted : [];
+
+    payload.parameters.director_reference_images = refImages;
+    payload.parameters.director_reference_descriptions = refImages.map((_, i) => {
+      const d = rawDescs[i];
+      const baseCaption = typeof d === "string" ? d : (d?.caption?.base_caption || "character&style");
+      const charCaps = Array.isArray(d?.caption?.char_captions) ? d.caption.char_captions : [];
+      return {
+        ...(typeof d === "object" && d !== null ? d : {}),
+        caption: {
+          ...(typeof d?.caption === "object" && d.caption !== null ? d.caption : {}),
+          base_caption: baseCaption,
+          char_captions: charCaps
+        },
+        legacy_uc: d?.legacy_uc !== undefined ? Boolean(d.legacy_uc) : false
+      };
+    });
+    payload.parameters.director_reference_strength_values = refImages.map((_, i) => {
+      const v = parseFloat(rawStrengths[i]);
+      return Number.isFinite(v) ? Math.round(v * 100) / 100 : 1.0;
+    });
+    payload.parameters.director_reference_secondary_strength_values = refImages.map((_, i) => {
+      const v = parseFloat(rawSecStrengths[i]);
+      return Number.isFinite(v) ? Math.round(v * 100) / 100 : 0.0;
+    });
+    payload.parameters.director_reference_information_extracted = refImages.map((_, i) => {
+      const v = parseFloat(rawInfoExtracted[i]);
+      return Number.isFinite(v) ? v : 1.0;
+    });
+  }
+
   if (isInpaint) {
     if (payload.parameters.sampler === "ddim" || payload.parameters.sampler === "ddim_v3") {
       payload.parameters.sampler = "k_euler_ancestral";
@@ -421,14 +484,20 @@ export function createV5Payload(data) {
  */
 export function createPayload(version, data) {
   const normVer = String(version || "").toLowerCase().trim();
+  if (normVer === "v5-curated" || normVer === "nai5-curated" || normVer === "v5_curated" || normVer === "nai-diffusion-5-curated") {
+    return createV5Payload({ ...data, version, variant: "curated" });
+  }
   if (normVer === "v5-medium" || normVer === "nai5-medium" || normVer === "v5_medium" || normVer === "nai-diffusion-5-full-medium") {
-    return createV5Payload({ ...data, effort: 'medium' });
+    return createV5Payload({ ...data, version, effort: "medium" });
   }
-  if (normVer === "v5" || normVer === "nai5" || normVer === "v5.0" || normVer === "nai-diffusion-5-full") {
-    return createV5Payload(data);
+  if (normVer === "v5" || normVer === "v5-full" || normVer === "nai5" || normVer === "nai5-full" || normVer === "v5.0" || normVer === "nai-diffusion-5-full") {
+    return createV5Payload({ ...data, version });
   }
-  if (normVer === "v4.5" || normVer === "v4" || normVer === "v4-full" || normVer === "v4-curated") {
-    return createV45Payload(data);
+  if (normVer === "v4.5-curated" || normVer === "v4_5_curated" || normVer === "v4-curated" || normVer === "nai-diffusion-4-5-curated") {
+    return createV45Payload({ ...data, version, variant: "curated" });
+  }
+  if (normVer === "v4.5" || normVer === "v4.5-full" || normVer === "v4" || normVer === "v4-full" || normVer === "nai-diffusion-4-5-full") {
+    return createV45Payload({ ...data, version });
   }
   return createV3Payload(data);
 }

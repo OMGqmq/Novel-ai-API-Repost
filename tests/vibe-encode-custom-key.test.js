@@ -315,6 +315,60 @@ describe('V4.5 Vibe Transfer Custom API Direct Encoding', () => {
       // Switching to 0.5 (not in bundle)
       expect(vibeManager.getCachedEncoding(vibeManager.rawImageBase64, 0.5)).toBeNull();
     });
+
+    it('should route encode-vibe and VibeManager to nai-diffusion-4-5-curated when Curated variant is active', async () => {
+      const rawImg = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      mockStore.getSetting.mockImplementation((k) => (k === 'nai_v45_variant' ? 'curated' : ''));
+      vibeManager.currentVibeImageBase64 = rawImg;
+      vibeManager.rawImageBase64 = rawImg;
+      vibeManager.currentVibeIsJson = false;
+
+      const mockEngine = {
+        encodeVibe: vi.fn().mockResolvedValue({
+          success: true,
+          encoding: 'CURATED_VIBE_TOKEN',
+          info: 1.0,
+          model: 'nai-diffusion-4-5-curated'
+        })
+      };
+
+      await vibeManager.ensureV45Encoded(mockEngine, { customApiKey: 'pst-curated-key' }, 'v4.5');
+      expect(mockEngine.encodeVibe).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'nai-diffusion-4-5-curated' }),
+        { customApiKey: 'pst-curated-key' }
+      );
+      expect(vibeManager.currentVibeDoc?.encodings?.['v4-5curated']).toBeDefined();
+
+      // Verify encode-vibe handler routes curated model strings properly
+      const mockFetch = vi.fn().mockResolvedValue(new Response(new Uint8Array([9, 8, 7]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/binary' }
+      }));
+      const originalFetch = global.fetch;
+      global.fetch = mockFetch;
+      try {
+        const res = await encodeVibeHandler({
+          request: new Request('http://localhost/encode-vibe', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-custom-api-key': 'pst-curated-key'
+            },
+            body: JSON.stringify({
+              image: rawImg,
+              model: 'nai-diffusion-4-5-curated',
+              information_extracted: 1.0
+            })
+          }),
+          env: { NOVELAI_API_KEY: 'server-key' }
+        });
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.model).toBe('nai-diffusion-4-5-curated');
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
   });
 });
 

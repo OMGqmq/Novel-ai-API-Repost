@@ -2074,6 +2074,17 @@ export class InpaintEditor {
                 ...extraParams
             };
 
+            if (selectedVersion === 'v5' && params.director_reference_images?.length > 0) {
+                delete params.director_reference_images;
+                delete params.director_reference_descriptions;
+                delete params.director_reference_strength_values;
+                delete params.director_reference_secondary_strength_values;
+                delete params.director_reference_information_extracted;
+                if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+                    window.showToast('V5 局部重绘暂不支持角色参考，本次重绘已自动跳过参考图', 'info');
+                }
+            }
+
             const fetchPromises = auths.map(auth => this.engine.generate(params, auth));
             const results = await Promise.allSettled(fetchPromises);
 

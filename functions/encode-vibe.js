@@ -44,11 +44,12 @@ export async function onRequest(context) {
     }
 
     const rawModel = (data.model || data.version || 'v4.5').toLowerCase();
-    let modelName = 'nai-diffusion-4-5-full';
+    const isCurated = rawModel.includes('curated') || String(data.variant || '').toLowerCase() === 'curated';
+    let modelName = isCurated ? 'nai-diffusion-4-5-curated' : 'nai-diffusion-4-5-full';
     if (rawModel.includes('4-5') || rawModel.includes('4.5')) {
-      modelName = 'nai-diffusion-4-5-full';
+      modelName = isCurated ? 'nai-diffusion-4-5-curated' : 'nai-diffusion-4-5-full';
     } else if (rawModel.includes('4')) {
-      modelName = 'nai-diffusion-4-full';
+      modelName = isCurated ? 'nai-diffusion-4-curated' : 'nai-diffusion-4-full';
     }
 
     const info = data.information_extracted !== undefined && !isNaN(data.information_extracted)

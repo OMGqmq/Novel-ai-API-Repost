@@ -708,6 +708,9 @@ export class AiChatManager {
 
     buildSystemPrompt(settings, canvasState) {
         const normModel = (canvasState.model || 'v5').toLowerCase();
+        const activeVariant = normModel === 'v5'
+            ? (localStorage.getItem('nai_v5_variant') === 'curated' ? 'curated' : 'full')
+            : (normModel === 'v4.5' ? (localStorage.getItem('nai_v45_variant') === 'curated' ? 'curated' : 'full') : 'full');
         let systemContext = (settings.systemPrompt || this.service.defaultSystemPrompt || '').trim();
 
         if (settings.nai5RulesEnabled !== false) {
@@ -717,8 +720,8 @@ export class AiChatManager {
         const modelDesc = normModel === 'v3' 
             ? 'V3 (nai-diffusion-3) - 【注意: V3 底层架构不支持独立多角色，禁止调用 add_character 工具】' 
             : (normModel === 'v4.5' 
-                ? 'V4.5 (nai-diffusion-4-5-full) - 【注意: V4.5 角色位置使用 5x5 网格 A1~E5】' 
-                : 'V5 (nai-diffusion-5-full) - 【注意: V5 角色位置使用 2D 连续自由坐标 0.0~1.0】');
+                ? `V4.5 (nai-diffusion-4-5-${activeVariant}) - 【注意: V4.5 角色位置使用 5x5 网格 A1~E5】` 
+                : `V5 (nai-diffusion-5-${activeVariant}) - 【注意: V5 角色位置使用 2D 连续自由坐标 0.0~1.0】`);
 
         const charCount = canvasState.characters ? canvasState.characters.length : 0;
         const charSummary = charCount > 0 

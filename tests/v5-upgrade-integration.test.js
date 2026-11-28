@@ -234,30 +234,54 @@ describe('NovelAI V5 Full Upgrade & Integration Tests', () => {
       };
     });
 
-    it('CharRefManager should restrict character reference to V4.5 and disallow V5', () => {
+    it('CharRefManager should support V4.5 and V5 Precise Reference while disallowing V3', () => {
       const mockStore = {
         getSetting: vi.fn((key) => {
           if (key === 'nai_char_ref_enabled_v4') return 'true';
           if (key === 'nai_char_ref_strength_v4') return '0.9';
           return null;
-        })
+        }),
+        setSetting: vi.fn()
       };
 
       const manager = new CharRefManager({ store: mockStore });
       expect(manager.getCharRefKey('test_key', 'v4.5')).toBe('test_key_v4');
+      expect(manager.getCharRefKey('test_key', 'v5')).toBe('test_key_v5');
       expect(manager.getCharRefKey('test_key', 'v3')).toBe('test_key');
 
-      // Validation test: V5 should NOT be allowed
-      manager.currentCharRefImageBase64 = 'data:image/png;base64,xxxx';
       global.document.getElementById('charRefEnabled').checked = true;
 
-      const v5Valid = manager.isValidForModel('v5', true);
-      expect(v5Valid.isValid).toBe(false);
-      expect(v5Valid.error).toContain('暂不支持');
+      // V5 Precise Reference validation + payload (strength up to 5.0, outfit mode, secondary=0.0)
+      manager.loadState('v5');
+      manager.charRefItems = [{
+        id: 'cr_test',
+        imageBase64: 'data:image/png;base64,xxxx',
+        mode: 'outfit',
+        strength: 3.5,
+        fidelity: 0.8,
+        enabled: true
+      }];
 
-      const v45Valid = manager.isValidForModel('v4.5', true);
-      expect(v45Valid.isValid).toBe(true);
+      expect(manager.isValidForModel('v5', true).isValid).toBe(true);
+      expect(manager.isValidForModel('v5', false).isValid).toBe(false);
 
+      const v5Params = manager.getPayloadParams('v5');
+      expect(v5Params.director_reference_images).toEqual(['xxxx']);
+      expect(v5Params.director_reference_descriptions[0].caption).toEqual({
+        base_caption: 'outfit',
+        char_captions: []
+      });
+      expect(v5Params.director_reference_strength_values).toEqual([3.5]);
+      expect(v5Params.director_reference_secondary_strength_values).toEqual([0]);
+
+      // V4.5 validation
+      manager.loadState('v4.5');
+      manager.currentCharRefImageBase64 = 'data:image/png;base64,yyyy';
+      expect(manager.isValidForModel('v4.5', true).isValid).toBe(true);
+
+      // V3 remains disallowed
+      manager.loadState('v3');
+      manager.currentCharRefImageBase64 = 'data:image/png;base64,zzzz';
       const v3Valid = manager.isValidForModel('v3', true);
       expect(v3Valid.isValid).toBe(false);
     });
@@ -314,6 +338,36 @@ describe('NovelAI V5 Full Upgrade & Integration Tests', () => {
       expect(global.document.getElementById('stepsValue').textContent).toBe('28');
       expect(global.document.getElementById('sampler').value).toBe('k_euler');
       expect(global.document.getElementById('stepsWrapper').classList.remove).toHaveBeenCalledWith('opacity-50', 'pointer-events-none');
+    });
+
+    it('UIController.setModelVariant toggles Curated variant and unlocks V5 Medium effort when V5 Curated is active', async () => {
+      const { UIController } = await import('../src/ui.js');
+      global.localStorage.setItem('nai_steps', '28');
+      global.localStorage.setItem('nai_sampler', 'k_euler_ancestral');
+      global.localStorage.setItem('nai_v5_effort', 'medium');
+      global.document.getElementById('modelValue').value = 'v5';
+      global.document.getElementById('v5Effort').value = 'medium';
+
+      const ctx = {
+        getModelVariant: UIController.prototype.getModelVariant,
+        _syncModelVariantControls: UIController.prototype._syncModelVariantControls,
+        _syncModelBadges: UIController.prototype._syncModelBadges,
+        updateV5EffortUI: UIController.prototype.updateV5EffortUI
+      };
+
+      // Switch to V5 Curated -> unlocks 14-step Medium lock and sets badge to High (Curated)
+      UIController.prototype.setModelVariant.call(ctx, 'curated', 'v5');
+      expect(global.localStorage.getItem('nai_v5_variant')).toBe('curated');
+      expect(global.document.getElementById('v5EffortBadge').textContent).toBe('High (Curated)');
+      expect(global.document.getElementById('v5EffortWrapper').classList.add).toHaveBeenCalledWith('opacity-50', 'pointer-events-none');
+      expect(global.document.getElementById('modelBadge').innerText).toBe('V5 (CUR) MODE');
+
+      // Switch back to V5 Full -> restores Medium 14-step lock
+      UIController.prototype.setModelVariant.call(ctx, 'full', 'v5');
+      expect(global.localStorage.getItem('nai_v5_variant')).toBe('full');
+      expect(global.document.getElementById('v5EffortBadge').textContent).toBe('Medium (14步)');
+      expect(global.document.getElementById('steps').value).toBe('14');
+      expect(global.document.getElementById('modelBadge').innerText).toBe('V5 (MED) MODE');
     });
 
     it('CharPromptManager binds to nai_model_version on refresh so V5 does not fall back to V4.5', async () => {

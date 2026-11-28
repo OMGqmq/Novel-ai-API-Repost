@@ -72,7 +72,7 @@ export async function handleNovelAIProxy(context, { targetUrl, buildPayload }) {
 
     const normVer = String(data.version || '').toLowerCase().trim();
     const isV45 = (
-      normVer === 'v4.5' || normVer === 'v4' || normVer === 'v4-full' || normVer === 'v4-curated' ||
+      normVer.startsWith('v4') || normVer.includes('4-5') || normVer.includes('4.5') ||
       (typeof data.model === 'string' && (data.model.includes('4-5') || data.model.includes('4.5')))
     );
     if (isRestricted && isV45 && data.vibe_image && isRawImageBase64(data.vibe_image)) {

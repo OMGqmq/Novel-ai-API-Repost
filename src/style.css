@@ -3846,3 +3846,55 @@ html.dark .canvas-utility-popover {
         justify-content: center;
     }
 }
+
+/* Precise / Character Reference Mode Segmented Radio Pills */
+.char-ref-mode-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(3.25rem, 1fr));
+    gap: 0.25rem;
+    padding: 0.2rem;
+    border-radius: 0.65rem;
+    background: var(--surface-subtle, rgba(241, 245, 249, 0.85));
+    border: 1px solid var(--border-subtle, rgba(226, 232, 240, 0.9));
+}
+html.dark .char-ref-mode-group {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(51, 65, 85, 0.7);
+}
+.char-ref-mode-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem 0.35rem;
+    border-radius: 0.45rem;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: rgb(100 116 139);
+    cursor: pointer;
+    user-select: none;
+    text-align: center;
+    transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+html.dark .char-ref-mode-label {
+    color: rgb(148 163 184);
+}
+.char-ref-mode-label:hover {
+    color: rgb(15 23 42);
+}
+html.dark .char-ref-mode-label:hover {
+    color: rgb(248 250 252);
+}
+.char-ref-mode-radio:checked + .char-ref-mode-label {
+    background: #ffffff;
+    color: rgb(15 23 42);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+html.dark .char-ref-mode-radio:checked + .char-ref-mode-label {
+    background: rgb(248 250 252);
+    color: rgb(15 23 42);
+}
+.char-ref-mode-radio:focus-visible + .char-ref-mode-label {
+    outline: 2px solid var(--focus-ring, #0f172a);
+    outline-offset: 1px;
+}

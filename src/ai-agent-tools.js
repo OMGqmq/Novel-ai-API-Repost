@@ -408,7 +408,7 @@ export function resolveCharacterPosition(model = 'v5', position = null, autoPos 
   rawY = Math.max(0.01, Math.min(0.99, isNaN(rawY) ? 0.5 : rawY));
 
   // 2. V4.5 模型：5x5 离散网格点阵吸附 (A1~E5)
-  if (normModel === 'v4.5' || normModel === 'nai-diffusion-4-5-full') {
+  if (normModel === 'v4.5' || normModel.includes('4.5') || normModel.includes('4-5') || normModel.startsWith('v4')) {
     const col = Math.max(0, Math.min(4, Math.floor(rawX * 5)));
     const row = Math.max(0, Math.min(4, Math.floor(rawY * 5)));
     const snapX = (col * 2 + 1) / 10;

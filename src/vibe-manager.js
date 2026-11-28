@@ -159,10 +159,31 @@ export class VibeManager {
         return `${len}_${clean.slice(0, 32)}_${clean.slice(mid, mid + 32)}_${clean.slice(-32)}`;
     }
 
-    getCacheKey(rawImg, info) {
+    _isCuratedV45(model = 'v4.5') {
+        const m = String(model || '').toLowerCase();
+        if (m.includes('curated')) return true;
+        if (m === 'v4.5' || m.includes('4-5') || m.includes('4.5')) {
+            const sVal = this.store?.getSetting?.('nai_v45_variant');
+            if (sVal) return sVal === 'curated';
+            if (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function') {
+                return localStorage.getItem('nai_v45_variant') === 'curated';
+            }
+        }
+        return false;
+    }
+
+    _getV45ModelId(model = 'v4.5') {
+        return this._isCuratedV45(model) ? 'nai-diffusion-4-5-curated' : 'nai-diffusion-4-5-full';
+    }
+
+    _getV45DocSectionKey(model = 'v4.5') {
+        return this._isCuratedV45(model) ? 'v4-5curated' : 'v4-5full';
+    }
+
+    getCacheKey(rawImg, info, model = 'v4.5') {
         const fp = this.getImageFingerprint(rawImg);
         const infoKey = parseFloat(info).toFixed(2);
-        return `${fp}_${infoKey}`;
+        return this._isCuratedV45(model) ? `curated_${fp}_${infoKey}` : `${fp}_${infoKey}`;
     }
 
     _getImageMimeType(b64) {
@@ -181,9 +202,14 @@ export class VibeManager {
         return `data:${mime};base64,${b64}`;
     }
 
-    _getDocEncodingsSection(doc = this.currentVibeDoc) {
+    _getDocEncodingsSection(doc = this.currentVibeDoc, model = 'v4.5') {
         const encodings = doc?.encodings;
         if (!encodings) return null;
+        if (this._isCuratedV45(model)) {
+            const cur = encodings['v4-5curated'] || encodings['v4curated'];
+            if (cur && Object.keys(cur).length > 0) return cur;
+            return encodings['v4-5curated'] || null;
+        }
         const v45 = encodings['v4-5full'];
         if (v45 && Object.keys(v45).length > 0) return v45;
         const v4 = encodings['v4full'];
@@ -191,9 +217,9 @@ export class VibeManager {
         return v45 || v4 || null;
     }
 
-    getCachedEncoding(rawImg, info) {
+    getCachedEncoding(rawImg, info, model = 'v4.5') {
         // 1. Check in currentVibeDoc
-        const section = this._getDocEncodingsSection();
+        const section = this._getDocEncodingsSection(this.currentVibeDoc, model);
         if (section) {
             const targetInfo = parseFloat(info);
             for (const item of Object.values(section)) {
@@ -210,13 +236,13 @@ export class VibeManager {
 
         // 2. Fallback to Map cache
         if (!rawImg) return null;
-        const key = this.getCacheKey(rawImg, info);
+        const key = this.getCacheKey(rawImg, info, model);
         return this.vibeEncodingsCache.get(key) || null;
     }
 
-    setCachedEncoding(rawImg, info, encoding) {
+    setCachedEncoding(rawImg, info, encoding, model = 'v4.5') {
         if (!rawImg || !encoding) return;
-        const key = this.getCacheKey(rawImg, info);
+        const key = this.getCacheKey(rawImg, info, model);
         this.vibeEncodingsCache.set(key, encoding);
         this.encodedVibeData = {
             rawImage: rawImg,
@@ -255,7 +281,7 @@ export class VibeManager {
         return (p1 + p2 + p1 + p2).slice(0, 64);
     }
 
-    syncDocToCache() {
+    syncDocToCache(model = 'v4.5') {
         if (!this.currentVibeDoc) return;
         this.availableVibeEncodings = [];
 
@@ -263,7 +289,7 @@ export class VibeManager {
             this.rawImageBase64 = this.currentVibeDoc.image.replace(/^data:image\/[a-z]+;base64,/, '');
         }
 
-        const section = this._getDocEncodingsSection();
+        const section = this._getDocEncodingsSection(this.currentVibeDoc, model);
         if (section) {
             Object.values(section).forEach(item => {
                 if (item && item.encoding) {
@@ -275,7 +301,7 @@ export class VibeManager {
                         info: info
                     });
                     if (this.rawImageBase64) {
-                        this.setCachedEncoding(this.rawImageBase64, info, item.encoding);
+                        this.setCachedEncoding(this.rawImageBase64, info, item.encoding, model);
                     }
                 }
             });
@@ -285,7 +311,7 @@ export class VibeManager {
         this.availableVibeEncodings.sort((a, b) => a.info - b.info);
     }
 
-    buildDocFromCurrentState(model) {
+    buildDocFromCurrentState(model = 'v4.5') {
         const raw = this.rawImageBase64 || this.currentVibeImageBase64;
         if (!raw) return null;
         const docId = this.generateDocId(raw);
@@ -294,6 +320,9 @@ export class VibeManager {
         const info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : 1.0;
         const vibeStrengthEl = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
         const str = vibeStrengthEl ? parseFloat(vibeStrengthEl.value) : 0.6;
+        const sectionKey = this._getV45DocSectionKey(model);
+        const modelId = this._getV45ModelId(model);
+        const isCurated = this._isCuratedV45(model);
 
         this.currentVibeDoc = {
             identifier: "novelai-vibe-transfer",
@@ -305,23 +334,26 @@ export class VibeManager {
             thumbnail: null,
             createdAt: Date.now(),
             importInfo: {
-                model: 'nai-diffusion-4-5-full',
+                model: modelId,
                 information_extracted: info,
                 strength: str
             },
             encodings: {
-                "v4-5full": {}
+                [sectionKey]: {}
             }
         };
 
-        // Populate only encodings belonging to the active source image fingerprint
+        // Populate only encodings belonging to the active source image fingerprint & variant
         for (const [k, v] of this.vibeEncodingsCache.entries()) {
-            if (rawFp && !k.startsWith(`${rawFp}_`)) continue;
+            const matchesPrefix = isCurated
+                ? (rawFp ? k.startsWith(`curated_${rawFp}_`) : k.startsWith('curated_'))
+                : (!k.startsWith('curated_') && (!rawFp || k.startsWith(`${rawFp}_`)));
+            if (!matchesPrefix) continue;
             const infoStr = k.split('_').pop();
             const infoNum = parseFloat(infoStr);
             if (!isNaN(infoNum)) {
                 const encKey = this.generateEncodingKey(docId, infoNum, v);
-                this.currentVibeDoc.encodings['v4-5full'][encKey] = {
+                this.currentVibeDoc.encodings[sectionKey][encKey] = {
                     encoding: v,
                     params: { information_extracted: infoNum }
                 };
@@ -330,13 +362,13 @@ export class VibeManager {
 
         if (this.currentVibeImageBase64 && !this.isRawImage(this.currentVibeImageBase64)) {
             const encKey = this.generateEncodingKey(docId, info, this.currentVibeImageBase64);
-            this.currentVibeDoc.encodings['v4-5full'][encKey] = {
+            this.currentVibeDoc.encodings[sectionKey][encKey] = {
                 encoding: this.currentVibeImageBase64,
                 params: { information_extracted: info }
             };
         }
 
-        this.syncDocToCache();
+        this.syncDocToCache(model);
         return this.currentVibeDoc;
     }
 
@@ -945,7 +977,7 @@ export class VibeManager {
             }
         }
 
-        let cachedToken = this.getCachedEncoding(rawImg, currentInfo);
+        let cachedToken = this.getCachedEncoding(rawImg, currentInfo, model);
         const checkSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3 shrink-0" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
 
         if (cachedToken) {
@@ -989,7 +1021,7 @@ export class VibeManager {
         const info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : 1.0;
         const rawImg = this.rawImageBase64 || (this.isRawImage(this.currentVibeImageBase64) ? this.currentVibeImageBase64 : null);
 
-        const cached = this.getCachedEncoding(rawImg, info);
+        const cached = this.getCachedEncoding(rawImg, info, model);
         if (cached) {
             this.currentVibeImageBase64 = cached;
             this.encodedVibeData = {
@@ -1000,9 +1032,30 @@ export class VibeManager {
             return false;
         }
 
-        if (!this.isRawImage(this.currentVibeImageBase64) && !(hasRawBackedJsonDoc && rawImg)) return false;
+        if (!rawImg && !this.isRawImage(this.currentVibeImageBase64)) return false;
 
         return true;
+    }
+
+    onVariantChange(model = 'v4.5') {
+        this.syncDocToCache(model);
+        if (this.rawImageBase64) {
+            const vibeInfoEl = typeof document !== 'undefined' ? document.getElementById('vibeInfo') : null;
+            const info = vibeInfoEl ? parseFloat(vibeInfoEl.value) : 1.0;
+            const cached = this.getCachedEncoding(this.rawImageBase64, info, model);
+            if (cached) {
+                this.currentVibeImageBase64 = cached;
+                this.encodedVibeData = {
+                    rawImage: this.rawImageBase64,
+                    info,
+                    encoding: cached
+                };
+            } else {
+                this.currentVibeImageBase64 = this.rawImageBase64;
+                this.encodedVibeData = null;
+            }
+        }
+        this.updateVibeStatus(model);
     }
 
     async ensureV45Encoded(engine, auth, model = 'v4.5') {
@@ -1015,7 +1068,7 @@ export class VibeManager {
 
         if (!rawImg) return;
 
-        const cached = this.getCachedEncoding(rawImg, info);
+        const cached = this.getCachedEncoding(rawImg, info, model);
         if (cached) {
             this.currentVibeImageBase64 = cached;
             this.encodedVibeData = {
@@ -1027,9 +1080,12 @@ export class VibeManager {
             return;
         }
 
+        const modelId = this._getV45ModelId(model);
+        const sectionKey = this._getV45DocSectionKey(model);
+
         const res = await engine.encodeVibe({
             image: rawImg,
-            model: 'nai-diffusion-4-5-full',
+            model: modelId,
             information_extracted: info
         }, auth);
 
@@ -1038,14 +1094,14 @@ export class VibeManager {
                 this.buildDocFromCurrentState(model);
             }
             if (!this.currentVibeDoc.encodings) {
-                this.currentVibeDoc.encodings = { "v4-5full": {} };
+                this.currentVibeDoc.encodings = { [sectionKey]: {} };
             }
-            if (!this.currentVibeDoc.encodings["v4-5full"]) {
-                this.currentVibeDoc.encodings["v4-5full"] = {};
+            if (!this.currentVibeDoc.encodings[sectionKey]) {
+                this.currentVibeDoc.encodings[sectionKey] = {};
             }
 
             const encKey = this.generateEncodingKey(this.currentVibeDoc.id, info, res.encoding);
-            this.currentVibeDoc.encodings["v4-5full"][encKey] = {
+            this.currentVibeDoc.encodings[sectionKey][encKey] = {
                 encoding: res.encoding,
                 params: {
                     information_extracted: info
@@ -1053,12 +1109,12 @@ export class VibeManager {
             };
             const strengthEl = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
             this.currentVibeDoc.importInfo = {
-                model: 'nai-diffusion-4-5-full',
+                model: modelId,
                 information_extracted: info,
                 strength: parseFloat(strengthEl?.value || 0.6)
             };
 
-            this.syncDocToCache();
+            this.syncDocToCache(model);
             this.currentVibeImageBase64 = res.encoding;
             this.saveState(model);
             this.updateVibeStatus(model);
@@ -1072,7 +1128,7 @@ export class VibeManager {
         
         let token = (!this.isRawImage(this.currentVibeImageBase64)) ? this.currentVibeImageBase64 : null;
         if (!token && rawImg) {
-            token = this.getCachedEncoding(rawImg, info);
+            token = this.getCachedEncoding(rawImg, info, model);
         }
         if (!token && this.availableVibeEncodings.length > 0) {
             token = this.availableVibeEncodings[0].base64;
@@ -1119,14 +1175,14 @@ export class VibeManager {
         const vibeStrengthEl = typeof document !== 'undefined' ? document.getElementById('vibeStrength') : null;
         const currentStrength = vibeStrengthEl ? parseFloat(vibeStrengthEl.value) : 0.6;
 
-        const encSection = this._getDocEncodingsSection();
+        const encSection = this._getDocEncodingsSection(this.currentVibeDoc, model);
         if (!this.currentVibeDoc || !this.currentVibeDoc.encodings || !encSection || Object.keys(encSection).length === 0) {
             notifyVibeMessage("当前尚未包含官方编码，请先点击【立即编码】后再导出 .nai4vibe 文件。", { type: 'warning', useAlertModal: true });
             return;
         }
 
         this.currentVibeDoc.importInfo = {
-            model: 'nai-diffusion-4-5-full',
+            model: this._getV45ModelId(model),
             information_extracted: currentInfo,
             strength: currentStrength
         };

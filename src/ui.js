@@ -248,6 +248,7 @@ export class UIController {
             samplerSettingsWrapper: document.getElementById('samplerSettingsWrapper'),
             img2imgSettingsWrapper: document.getElementById('img2imgSettingsWrapper'),
             vibeSettingsWrapper: document.getElementById('vibeSettingsWrapper'),
+            charRefSettingsWrapper: document.getElementById('charRefSettingsWrapper'),
             zimageSettingsWrapper: document.getElementById('zimageSettingsWrapper'),
             advancedSettingsWrapper: document.getElementById('advancedSettingsWrapper'),
             adminPanelBtn: document.getElementById('adminPanelBtn'),
@@ -702,15 +703,102 @@ export class UIController {
         }
     }
 
+    getModelVariant(ver) {
+        const target = ver || (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : null) || 'v4.5';
+        const key = target === 'v5' ? 'nai_v5_variant' : (target === 'v4.5' ? 'nai_v45_variant' : null);
+        if (!key) return 'full';
+        try {
+            return localStorage.getItem(key) === 'curated' ? 'curated' : 'full';
+        } catch (_) {
+            return 'full';
+        }
+    }
+
+    _syncModelBadges(ver, variant) {
+        const eff = typeof document !== 'undefined' ? (document.getElementById('v5Effort')?.value || 'high') : 'high';
+        const isV5Curated = ver === 'v5' && variant === 'curated';
+        const isV45Curated = ver === 'v4.5' && variant === 'curated';
+
+        const badge = typeof document !== 'undefined' ? document.getElementById('modelBadge') : null;
+        if (badge) {
+            let label = 'V3';
+            if (ver === 'zimage') label = 'ZIMAGE';
+            else if (ver === 'v5') label = isV5Curated ? 'V5 (CUR)' : (eff === 'medium' ? 'V5 (MED)' : 'V5');
+            else if (ver === 'v4.5') label = isV45Curated ? 'V4.5 (CUR)' : 'V4.5';
+            badge.innerText = label + ' MODE';
+        }
+
+        const mini = typeof document !== 'undefined' ? document.getElementById('modelStatusMini') : null;
+        if (mini) {
+            let miniLabel = 'V3';
+            if (ver === 'zimage') miniLabel = 'ZImage';
+            else if (ver === 'v5') miniLabel = isV5Curated ? 'V5 Curated' : 'V5';
+            else if (ver === 'v4.5') miniLabel = isV45Curated ? 'V4.5 Curated' : 'V4.5';
+            mini.innerText = miniLabel;
+        }
+    }
+
+    _syncModelVariantControls(ver, variant) {
+        const wrapper = typeof document !== 'undefined' ? document.getElementById('modelVariantWrapper') : null;
+        const supportsVariant = ver === 'v4.5' || ver === 'v5';
+        if (wrapper?.classList) {
+            if (supportsVariant) wrapper.classList.remove('hidden');
+            else wrapper.classList.add('hidden');
+        }
+        const fullRadio = typeof document !== 'undefined' ? document.getElementById('modelVariantFull') : null;
+        const curatedRadio = typeof document !== 'undefined' ? document.getElementById('modelVariantCurated') : null;
+        const hintEl = typeof document !== 'undefined' ? document.getElementById('modelVariantHint') : null;
+        const isCurated = variant === 'curated';
+        if (fullRadio) fullRadio.checked = !isCurated;
+        if (curatedRadio) curatedRadio.checked = isCurated;
+        if (hintEl) hintEl.textContent = isCurated ? '精选纯净画风' : '完整数据集';
+    }
+
+    setModelVariant(variant, ver) {
+        const activeVer = ver || (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : null) || 'v4.5';
+        const normVariant = variant === 'curated' ? 'curated' : 'full';
+        if (activeVer === 'v4.5' || activeVer === 'v5') {
+            try {
+                localStorage.setItem(activeVer === 'v5' ? 'nai_v5_variant' : 'nai_v45_variant', normVariant);
+            } catch (_) {}
+        }
+        this._syncModelVariantControls(activeVer, normVariant);
+        this._syncModelBadges(activeVer, normVariant);
+
+        if (activeVer === 'v5') {
+            let savedEffort = 'high';
+            try {
+                savedEffort = localStorage.getItem('nai_v5_effort') || (typeof document !== 'undefined' ? document.getElementById('v5Effort')?.value : null) || 'high';
+            } catch (_) {
+                savedEffort = (typeof document !== 'undefined' ? document.getElementById('v5Effort')?.value : null) || 'high';
+            }
+            this.updateV5EffortUI(savedEffort);
+        }
+        if (activeVer === 'v4.5' && typeof window !== 'undefined' && window.vibeManager?.onVariantChange) {
+            window.vibeManager.onVariantChange('v4.5', normVariant);
+        }
+    }
+
     setModel(ver) {
+        let requestedCurated = null;
         if (typeof ver === 'string') {
             const lower = ver.toLowerCase().trim();
+            if (lower.includes('curated')) requestedCurated = 'curated';
+            else if (lower.includes('full')) requestedCurated = 'full';
+
             if (lower.includes('zimage')) ver = 'zimage';
             else if (lower.includes('4.5') || lower.includes('4-5') || lower.includes('v4') || lower.includes('diffusion-4')) ver = 'v4.5';
             else if (lower.includes('5') || lower.includes('v5') || lower.includes('diffusion-5')) ver = 'v5';
             else if (lower.includes('3') || lower.includes('v3') || lower.includes('diffusion-3')) ver = 'v3';
             else ver = 'v3';
         }
+        if (requestedCurated && (ver === 'v4.5' || ver === 'v5')) {
+            try {
+                localStorage.setItem(ver === 'v5' ? 'nai_v5_variant' : 'nai_v45_variant', requestedCurated);
+            } catch (_) {}
+        }
+        const activeVariant = this.getModelVariant(ver);
+
         const modelInput = document.getElementById('modelValue');
         if (modelInput) modelInput.value = ver;
         document.querySelectorAll('[data-model-toggle]').forEach(container => {
@@ -733,22 +821,8 @@ export class UIController {
             else if (ver === 'zimage') bg.style.transform = 'translateX(300%)';
             else bg.style.transform = 'translateX(0)';
         });
-        const badge = document.getElementById('modelBadge');
-        if (badge) {
-            let label = 'V3';
-            if (ver === 'zimage') label = 'ZIMAGE';
-            else if (ver === 'v5') label = 'V5';
-            else if (ver === 'v4.5') label = 'V4.5';
-            badge.innerText = label + ' MODE';
-        }
-        const mini = document.getElementById('modelStatusMini');
-        if (mini) {
-            let miniLabel = 'V3';
-            if (ver === 'zimage') miniLabel = 'ZImage';
-            else if (ver === 'v5') miniLabel = 'V5';
-            else if (ver === 'v4.5') miniLabel = 'V4.5';
-            mini.innerText = miniLabel;
-        }
+        this._syncModelVariantControls(ver, activeVariant);
+        this._syncModelBadges(ver, activeVariant);
 
         // 控制 V4.5 专属参数面板的显示/隐藏（仅在 V4.5 且开启了实验性配置时显示）
         const isV45Exp = localStorage.getItem('v4_5_experimental') === 'true';
@@ -839,6 +913,15 @@ export class UIController {
             else vibeWrap.classList.remove('hidden');
         }
 
+        const charRefWrap = document.getElementById('charRefSettingsWrapper');
+        if (charRefWrap) {
+            if (ver === 'v4.5' || ver === 'v5') charRefWrap.classList.remove('hidden');
+            else charRefWrap.classList.add('hidden');
+        }
+        if (typeof window !== 'undefined' && window.charRefManager && typeof window.charRefManager.syncModelUI === 'function') {
+            window.charRefManager.syncModelUI(ver);
+        }
+
         const zimageWrap = document.getElementById('zimageSettingsWrapper');
         if (zimageWrap) {
             if (isZImage) zimageWrap.classList.remove('hidden');
@@ -855,31 +938,45 @@ export class UIController {
     }
 
     updateV5EffortUI(effort = 'high') {
-        const isMed = effort === 'medium';
+        const currentModel = document.getElementById('modelValue')?.value;
+        let v5Variant = 'full';
+        try {
+            v5Variant = typeof this?.getModelVariant === 'function'
+                ? this.getModelVariant('v5')
+                : (typeof localStorage !== 'undefined' && localStorage.getItem?.('nai_v5_variant') === 'curated' ? 'curated' : 'full');
+        } catch (_) {}
+        const isV5Curated = currentModel === 'v5' && v5Variant === 'curated';
+        const effectiveEffort = isV5Curated ? 'high' : effort;
+        const isMed = effectiveEffort === 'medium';
+
         const badge = document.getElementById('v5EffortBadge');
         const v5Effort = document.getElementById('v5Effort');
+        const effortWrapper = document.getElementById('v5EffortWrapper');
         const syncSelectUI = (el) => {
             const opt = el?.options?.[el.selectedIndex];
             const lbl = el?.parentElement?.querySelector('.custom-select-label');
             if (opt && lbl) lbl.textContent = opt.textContent;
         };
 
-        if (v5Effort && v5Effort.value !== effort) {
-            v5Effort.value = effort;
+        if (effortWrapper?.classList) {
+            effortWrapper.classList[isV5Curated ? 'add' : 'remove']('opacity-50', 'pointer-events-none');
+        }
+
+        if (v5Effort && v5Effort.value !== effectiveEffort) {
+            v5Effort.value = effectiveEffort;
             syncSelectUI(v5Effort);
         }
 
         if (badge) {
-            badge.textContent = isMed ? 'Medium (14步)' : 'High';
-            badge.className = isMed
+            badge.textContent = isV5Curated ? 'High (Curated)' : (isMed ? 'Medium (14步)' : 'High');
+            badge.className = (!isV5Curated && isMed)
                 ? 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400'
                 : 'text-[9px] px-1.5 py-0.5 rounded font-semibold bg-slate-900/10 dark:bg-white/10 text-slate-700 dark:text-slate-200';
         }
 
         const modelBadge = document.getElementById('modelBadge');
-        const currentModel = document.getElementById('modelValue')?.value;
         if (modelBadge && currentModel === 'v5') {
-            modelBadge.innerText = (isMed ? 'V5 (MED)' : 'V5') + ' MODE';
+            modelBadge.innerText = isV5Curated ? 'V5 (CUR) MODE' : ((isMed ? 'V5 (MED)' : 'V5') + ' MODE');
         }
 
         const isLocked = currentModel === 'v5' && isMed;
@@ -1206,6 +1303,10 @@ export class UIController {
         try {
             const modelVal = (typeof document !== 'undefined' ? document.getElementById('modelValue')?.value : '') || 'v3';
             if (modelVal === 'zimage') return false;
+
+            if ((modelVal === 'v4.5' || modelVal === 'v5') && typeof window !== 'undefined' && window.charRefManager?.hasActiveReferences?.(modelVal)) {
+                return true;
+            }
 
             const stepsEl = this.els?.steps || (typeof document !== 'undefined' ? document.getElementById('steps') : null);
             const steps = stepsEl ? parseInt(stepsEl.value, 10) : 28;

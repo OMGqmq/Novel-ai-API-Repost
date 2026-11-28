@@ -1013,6 +1013,16 @@ export class OutpaintEditor {
                 params.mask = finalMaskBase64;
                 params.strength = strength;
                 params.action = action;
+                if (modelVersion === 'v5' && action === 'infill' && params.director_reference_images?.length > 0) {
+                    delete params.director_reference_images;
+                    delete params.director_reference_descriptions;
+                    delete params.director_reference_strength_values;
+                    delete params.director_reference_secondary_strength_values;
+                    delete params.director_reference_information_extracted;
+                    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+                        window.showToast('V5 局部重绘暂不支持角色参考，本次扩图已自动跳过参考图', 'info');
+                    }
+                }
             }
 
             let result = null;
