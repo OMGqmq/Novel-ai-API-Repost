@@ -91,6 +91,7 @@ export class UIController {
 
         this._initBasicBindings();
         this._initCustomSelects();
+        this._initModelVariantMenus();
         this._initCompareInteractions();
         this._initPreviewViewportInteractions();
     }
@@ -739,19 +740,211 @@ export class UIController {
     }
 
     _syncModelVariantControls(ver, variant) {
-        const wrapper = typeof document !== 'undefined' ? document.getElementById('modelVariantWrapper') : null;
-        const supportsVariant = ver === 'v4.5' || ver === 'v5';
-        if (wrapper?.classList) {
-            if (supportsVariant) wrapper.classList.remove('hidden');
-            else wrapper.classList.add('hidden');
+        const v45Var = (ver === 'v4.5' && variant) ? variant : this.getModelVariant('v4.5');
+        const v5Var = (ver === 'v5' && variant) ? variant : this.getModelVariant('v5');
+
+        if (typeof document === 'undefined') return;
+        document.querySelectorAll?.('[data-model-label="v4.5"]')?.forEach?.(el => {
+            el.textContent = v45Var === 'curated' ? '4.5 Cur' : 'V4.5';
+        });
+        document.querySelectorAll?.('[data-model-label="v5"]')?.forEach?.(el => {
+            el.textContent = v5Var === 'curated' ? 'V5 Cur' : 'NAI V5';
+        });
+
+        document.querySelectorAll?.('[data-variant-option]')?.forEach?.(optBtn => {
+            const optVer = optBtn.getAttribute('data-variant-ver');
+            const optVal = optBtn.getAttribute('data-variant-option');
+            const targetVar = optVer === 'v5' ? v5Var : v45Var;
+            optBtn.setAttribute('aria-checked', optVal === targetVar ? 'true' : 'false');
+        });
+    }
+
+    _initModelVariantMenus() {
+        if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
+        const triggers = document.querySelectorAll('[data-variant-trigger]');
+        if (!triggers || triggers.length === 0) return;
+
+        const hasFocusgroup = typeof HTMLElement !== 'undefined' && 'focusGroup' in HTMLElement.prototype;
+        const hasAnchorPos = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('position-area', 'block-end');
+        const hasPopover = typeof HTMLElement !== 'undefined' && 'showPopover' in HTMLElement.prototype;
+
+        const closeMenu = (menu, trigger, restoreFocus = false) => {
+            if (!menu) return;
+            if (hasPopover && typeof menu.hidePopover === 'function') {
+                try {
+                    if (menu.matches?.(':popover-open')) menu.hidePopover();
+                } catch (_) {}
+            } else {
+                menu.classList?.remove('is-open');
+                trigger?.setAttribute?.('aria-expanded', 'false');
+            }
+            if (restoreFocus) trigger?.focus?.();
+        };
+
+        const positionMenuFallback = (menu, trigger) => {
+            if (hasAnchorPos || typeof trigger.getBoundingClientRect !== 'function') return;
+            const anchorEl = trigger.closest?.('[data-model-slot]') || trigger;
+            const rect = anchorEl.getBoundingClientRect();
+            const menuRect = typeof menu.getBoundingClientRect === 'function' ? menu.getBoundingClientRect() : null;
+            const vw = typeof window !== 'undefined' ? (window.innerWidth || 1024) : 1024;
+            const vh = typeof window !== 'undefined' ? (window.innerHeight || 768) : 768;
+            const menuW = (menuRect && menuRect.width) || 152;
+            const menuH = (menuRect && menuRect.height) || 96;
+            const left = Math.max(8, Math.min(vw - menuW - 8, rect.left + (rect.width - menuW) / 2));
+            const openUp = rect.bottom + menuH + 12 > vh && rect.top > menuH + 12;
+            const top = openUp ? Math.max(8, rect.top - menuH - 6) : Math.round(rect.bottom + 6);
+            menu.style.left = `${Math.round(left)}px`;
+            menu.style.top = `${top}px`;
+        };
+
+        const openMenu = (menu, trigger, fromKeyboard = false) => {
+            if (!menu) return;
+            menu._enterFromKeyboard = Boolean(fromKeyboard);
+            if (hasPopover && typeof menu.showPopover === 'function') {
+                try {
+                    if (menu.matches?.(':popover-open')) {
+                        menu.hidePopover();
+                        return;
+                    }
+                    menu.showPopover({ source: trigger });
+                } catch (_) {
+                    try { menu.showPopover(); } catch (__) {}
+                }
+            } else {
+                const currentlyOpen = menu.classList?.contains('is-open');
+                if (currentlyOpen) {
+                    closeMenu(menu, trigger, false);
+                    return;
+                }
+                document.querySelectorAll('.model-variant-popover.is-open').forEach(m => m.classList.remove('is-open'));
+                menu.classList?.add('is-open');
+                trigger?.setAttribute?.('aria-expanded', 'true');
+                positionMenuFallback(menu, trigger);
+                if (fromKeyboard) {
+                    const target = menu.querySelector('.model-variant-item[aria-checked="true"], .model-variant-item');
+                    target?.focus?.({ preventScroll: true });
+                }
+            }
+        };
+
+        this._toggleVariantMenuForTrigger = (trigger, fromKeyboard = false) => {
+            const menu = trigger?.nextElementSibling?.classList?.contains('model-variant-popover')
+                ? trigger.nextElementSibling
+                : document.querySelector(`[data-variant-menu="${trigger?.getAttribute?.('data-variant-trigger')}"]`);
+            if (!menu) return;
+            if (hasPopover && menu.matches?.(':popover-open')) closeMenu(menu, trigger, false);
+            else openMenu(menu, trigger, fromKeyboard);
+        };
+
+        triggers.forEach((trigger) => {
+            const menu = trigger.nextElementSibling;
+            if (!menu || !menu.classList?.contains('model-variant-popover') || trigger._variantBound) return;
+            trigger._variantBound = true;
+
+            const focusGroupEl = menu.querySelector('[focusgroup~="menu"]');
+            const items = Array.from(menu.querySelectorAll('.model-variant-item'));
+
+            if (!hasFocusgroup && focusGroupEl) {
+                focusGroupEl.setAttribute('role', 'menu');
+                focusGroupEl.addEventListener('keydown', (e) => {
+                    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key) || items.length === 0) return;
+                    const idx = items.indexOf(document.activeElement);
+                    let nextIdx = 0;
+                    if (e.key === 'Home') nextIdx = 0;
+                    else if (e.key === 'End') nextIdx = items.length - 1;
+                    else if (idx >= 0) nextIdx = (idx + (e.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    items[nextIdx]?.focus?.({ preventScroll: true });
+                }, true);
+            }
+
+            let pressedByPointer = false;
+            trigger.addEventListener('pointerdown', () => { pressedByPointer = true; });
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const viaKbd = !pressedByPointer;
+                pressedByPointer = false;
+                openMenu(menu, trigger, viaKbd);
+            });
+            trigger.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (hasPopover && menu.matches?.(':popover-open')) {
+                        const target = menu.querySelector('.model-variant-item[aria-checked="true"], .model-variant-item');
+                        target?.focus?.({ preventScroll: true });
+                    } else {
+                        openMenu(menu, trigger, true);
+                    }
+                }
+            });
+
+            menu.addEventListener('toggle', (e) => {
+                const isOpen = e.newState === 'open' || menu.matches?.(':popover-open');
+                trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                if (isOpen) {
+                    positionMenuFallback(menu, trigger);
+                    if (menu._enterFromKeyboard) {
+                        menu._enterFromKeyboard = false;
+                        const target = menu.querySelector('.model-variant-item[aria-checked="true"], .model-variant-item');
+                        target?.focus?.({ preventScroll: true });
+                    }
+                }
+            });
+
+            menu.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeMenu(menu, trigger, true);
+                } else if (e.key === 'Tab') {
+                    closeMenu(menu, trigger, false);
+                }
+            });
+
+            items.forEach((item) => {
+                item.addEventListener('pointermove', () => item.focus?.({ preventScroll: true }));
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const ver = item.getAttribute('data-variant-ver');
+                    const opt = item.getAttribute('data-variant-option') === 'curated' ? 'curated' : 'full';
+                    try {
+                        localStorage.setItem(ver === 'v5' ? 'nai_v5_variant' : 'nai_v45_variant', opt);
+                    } catch (_) {}
+                    const curModel = document.getElementById('modelValue')?.value;
+                    if (curModel !== ver) {
+                        if (typeof window !== 'undefined' && typeof window.setModel === 'function') window.setModel(ver);
+                        else this.setModel(ver);
+                    } else {
+                        this.setModelVariant(opt, ver);
+                    }
+                    closeMenu(menu, trigger, false);
+                });
+            });
+        });
+
+        if (!this._variantGlobalCloseBound) {
+            this._variantGlobalCloseBound = true;
+            document.addEventListener('click', (e) => {
+                if (!hasPopover && !e.target?.closest?.('.model-variant-popover, [data-variant-trigger], [data-model-btn]')) {
+                    document.querySelectorAll('.model-variant-popover.is-open').forEach(m => m.classList.remove('is-open'));
+                    document.querySelectorAll('[data-variant-trigger]').forEach(t => t.setAttribute('aria-expanded', 'false'));
+                }
+            });
         }
-        const fullRadio = typeof document !== 'undefined' ? document.getElementById('modelVariantFull') : null;
-        const curatedRadio = typeof document !== 'undefined' ? document.getElementById('modelVariantCurated') : null;
-        const hintEl = typeof document !== 'undefined' ? document.getElementById('modelVariantHint') : null;
-        const isCurated = variant === 'curated';
-        if (fullRadio) fullRadio.checked = !isCurated;
-        if (curatedRadio) curatedRadio.checked = isCurated;
-        if (hintEl) hintEl.textContent = isCurated ? '精选纯净画风' : '完整数据集';
+    }
+
+    handleModelTabClick(ver, btnEl) {
+        const currentVer = document.getElementById('modelValue')?.value;
+        if (currentVer !== ver) {
+            if (typeof window !== 'undefined' && typeof window.setModel === 'function') window.setModel(ver);
+            else this.setModel(ver);
+            return;
+        }
+        const slotTrigger = btnEl?.parentElement?.querySelector?.('[data-variant-trigger]');
+        if (slotTrigger && typeof this._toggleVariantMenuForTrigger === 'function') {
+            this._toggleVariantMenuForTrigger(slotTrigger, false);
+        }
     }
 
     setModelVariant(variant, ver) {
@@ -812,6 +1005,15 @@ export class UIController {
                 btn.classList.toggle('dark:text-white', isMatch);
                 btn.classList.toggle('text-slate-600', !isMatch);
                 btn.classList.toggle('dark:text-slate-300', !isMatch);
+            }
+        });
+        document.querySelectorAll('[data-variant-trigger]').forEach(trigger => {
+            const isMatch = trigger.getAttribute('data-variant-trigger') === ver;
+            if (trigger.classList) {
+                trigger.classList.toggle('text-slate-900', isMatch);
+                trigger.classList.toggle('dark:text-white', isMatch);
+                trigger.classList.toggle('text-slate-500', !isMatch);
+                trigger.classList.toggle('dark:text-slate-400', !isMatch);
             }
         });
         document.querySelectorAll('.switch-bg').forEach(bg => {

@@ -714,6 +714,7 @@ if (!supportsNativePopover && typeof document !== 'undefined') {
 }
 
 window.setModelVariant = (variant, ver) => ui.setModelVariant(variant, ver);
+window.handleModelTabClick = (ver, btnEl) => ui.handleModelTabClick(ver, btnEl);
 window.handleCharRefImage = (event) => charRefManager.handleCharRefImage(event, document.getElementById('modelValue').value);
 window.clearCharRefImage = () => charRefManager.clearCharRefImage(document.getElementById('modelValue').value);
 window.toggleCharRefEnabled = () => charRefManager.toggleCharRefEnabled(document.getElementById('modelValue').value);

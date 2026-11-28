@@ -46,7 +46,7 @@
     </script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f172a'/%3E%3Cpath d='M16 6l2.4 7.6L26 16l-7.6 2.4L16 26l-2.4-7.6L6 16l7.6-2.4z' fill='%23ffffff'/%3E%3C/svg%3E">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <link rel="stylesheet" href="src/style.css?v=20261128_2">
+    <link rel="stylesheet" href="src/style.css?v=20261128_3">
 </head>
 
 <body
@@ -823,12 +823,58 @@
                 <button type="button" data-model-btn="v3" aria-pressed="true" onclick="setModel('v3')"
                     class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-slate-900 dark:text-white relative transition-colors">NAI
                     V3</button>
-                <button type="button" data-model-btn="v4.5" aria-pressed="false" onclick="setModel('v4.5')"
-                    class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-slate-600 dark:text-slate-300 relative flex items-center justify-center gap-1 transition-colors">V4.5
-                    <span class="w-1.5 h-1.5 rounded-full border border-slate-500 dark:border-slate-400"></span></button>
-                <button type="button" data-model-btn="v5" aria-pressed="false" onclick="setModel('v5')"
-                    class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-slate-600 dark:text-slate-300 relative flex items-center justify-center gap-1 transition-colors">NAI V5
-                    <span class="w-1.5 h-1.5 rounded-full bg-slate-700 dark:bg-slate-200"></span></button>
+                <div data-model-slot="v4.5" class="flex-1 relative z-10 flex items-stretch justify-center min-w-0">
+                    <button type="button" data-model-btn="v4.5" aria-pressed="false" onclick="window.handleModelTabClick ? window.handleModelTabClick('v4.5', this) : setModel('v4.5')"
+                        class="pl-2 pr-0.5 py-2 text-xs font-semibold cursor-pointer text-slate-600 dark:text-slate-300 transition-colors whitespace-nowrap flex items-center justify-center"><span data-model-label="v4.5">V4.5</span></button>
+                    <button type="button" id="v45VariantTriggerDesk" data-variant-trigger="v4.5" aria-label="选择 V4.5 权重分支" aria-haspopup="menu" aria-expanded="false"
+                        class="model-variant-trigger pr-1.5 pl-0.5 py-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer flex items-center justify-center transition-colors">
+                        <svg viewBox="0 0 12 12" class="w-2.5 h-2.5 model-variant-caret transition-transform duration-150 pointer-events-none" aria-hidden="true"><path d="M2.5 4.25 6 8l3.5-3.75z" fill="currentColor"/></svg>
+                    </button>
+                    <div id="v45VariantMenuDesk" popover="auto" class="model-variant-popover" data-variant-menu="v4.5">
+                        <div focusgroup="menu nomemory" aria-labelledby="v45VariantTriggerDesk" class="model-variant-menu-inner">
+                            <div role="group" aria-label="V4.5 权重版本">
+                                <button type="button" role="menuitemradio" aria-checked="true" data-variant-option="full" data-variant-ver="v4.5" class="model-variant-item">
+                                    <span class="flex flex-col text-left leading-tight">
+                                        <span class="text-xs font-semibold">Full</span>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal">完整数据集</span>
+                                    </span>
+                                </button>
+                                <button type="button" role="menuitemradio" aria-checked="false" data-variant-option="curated" data-variant-ver="v4.5" class="model-variant-item">
+                                    <span class="flex flex-col text-left leading-tight">
+                                        <span class="text-xs font-semibold">Curated</span>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal">精选纯净画风</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div data-model-slot="v5" class="flex-1 relative z-10 flex items-stretch justify-center min-w-0">
+                    <button type="button" data-model-btn="v5" aria-pressed="false" onclick="window.handleModelTabClick ? window.handleModelTabClick('v5', this) : setModel('v5')"
+                        class="pl-2 pr-0.5 py-2 text-xs font-semibold cursor-pointer text-slate-600 dark:text-slate-300 transition-colors whitespace-nowrap flex items-center justify-center"><span data-model-label="v5">NAI V5</span></button>
+                    <button type="button" id="v5VariantTriggerDesk" data-variant-trigger="v5" aria-label="选择 V5 权重分支" aria-haspopup="menu" aria-expanded="false"
+                        class="model-variant-trigger pr-1.5 pl-0.5 py-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer flex items-center justify-center transition-colors">
+                        <svg viewBox="0 0 12 12" class="w-2.5 h-2.5 model-variant-caret transition-transform duration-150 pointer-events-none" aria-hidden="true"><path d="M2.5 4.25 6 8l3.5-3.75z" fill="currentColor"/></svg>
+                    </button>
+                    <div id="v5VariantMenuDesk" popover="auto" class="model-variant-popover" data-variant-menu="v5">
+                        <div focusgroup="menu nomemory" aria-labelledby="v5VariantTriggerDesk" class="model-variant-menu-inner">
+                            <div role="group" aria-label="V5 权重版本">
+                                <button type="button" role="menuitemradio" aria-checked="true" data-variant-option="full" data-variant-ver="v5" class="model-variant-item">
+                                    <span class="flex flex-col text-left leading-tight">
+                                        <span class="text-xs font-semibold">Full</span>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal">完整数据集</span>
+                                    </span>
+                                </button>
+                                <button type="button" role="menuitemradio" aria-checked="false" data-variant-option="curated" data-variant-ver="v5" class="model-variant-item">
+                                    <span class="flex flex-col text-left leading-tight">
+                                        <span class="text-xs font-semibold">Curated</span>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal">精选纯净画风</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <button type="button" data-model-btn="zimage" aria-pressed="false" onclick="setModel('zimage')"
                     class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-slate-600 dark:text-slate-300 relative transition-colors">ZImage</button>
                 <input type="hidden" id="modelValue" value="v3">
@@ -871,31 +917,60 @@
                 <button type="button" data-model-btn="v3" aria-pressed="true" onclick="setModel('v3')"
                     class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-slate-900 dark:text-white relative transition-colors">NAI
                     V3</button>
-                <button type="button" data-model-btn="v4.5" aria-pressed="false" onclick="setModel('v4.5')"
-                    class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-slate-600 dark:text-slate-400 relative flex items-center justify-center gap-1 transition-colors">V4.5
-                    <span class="w-1.5 h-1.5 rounded-full border border-slate-500 dark:border-slate-400"></span></button>
-                <button type="button" data-model-btn="v5" aria-pressed="false" onclick="setModel('v5')"
-                    class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-slate-600 dark:text-slate-400 relative flex items-center justify-center gap-1 transition-colors">NAI V5
-                    <span class="w-1.5 h-1.5 rounded-full bg-slate-700 dark:bg-slate-200"></span></button>
+                <div data-model-slot="v4.5" class="flex-1 relative z-10 flex items-stretch justify-center min-w-0">
+                    <button type="button" data-model-btn="v4.5" aria-pressed="false" onclick="window.handleModelTabClick ? window.handleModelTabClick('v4.5', this) : setModel('v4.5')"
+                        class="pl-2 pr-0.5 py-2 text-xs font-semibold cursor-pointer text-slate-600 dark:text-slate-400 transition-colors whitespace-nowrap flex items-center justify-center"><span data-model-label="v4.5">V4.5</span></button>
+                    <button type="button" id="v45VariantTriggerMob" data-variant-trigger="v4.5" aria-label="选择 V4.5 权重分支" aria-haspopup="menu" aria-expanded="false"
+                        class="model-variant-trigger pr-1.5 pl-0.5 py-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer flex items-center justify-center transition-colors">
+                        <svg viewBox="0 0 12 12" class="w-2.5 h-2.5 model-variant-caret transition-transform duration-150 pointer-events-none" aria-hidden="true"><path d="M2.5 4.25 6 8l3.5-3.75z" fill="currentColor"/></svg>
+                    </button>
+                    <div id="v45VariantMenuMob" popover="auto" class="model-variant-popover" data-variant-menu="v4.5">
+                        <div focusgroup="menu nomemory" aria-labelledby="v45VariantTriggerMob" class="model-variant-menu-inner">
+                            <div role="group" aria-label="V4.5 权重版本">
+                                <button type="button" role="menuitemradio" aria-checked="true" data-variant-option="full" data-variant-ver="v4.5" class="model-variant-item">
+                                    <span class="flex flex-col text-left leading-tight">
+                                        <span class="text-xs font-semibold">Full</span>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal">完整数据集</span>
+                                    </span>
+                                </button>
+                                <button type="button" role="menuitemradio" aria-checked="false" data-variant-option="curated" data-variant-ver="v4.5" class="model-variant-item">
+                                    <span class="flex flex-col text-left leading-tight">
+                                        <span class="text-xs font-semibold">Curated</span>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal">精选纯净画风</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div data-model-slot="v5" class="flex-1 relative z-10 flex items-stretch justify-center min-w-0">
+                    <button type="button" data-model-btn="v5" aria-pressed="false" onclick="window.handleModelTabClick ? window.handleModelTabClick('v5', this) : setModel('v5')"
+                        class="pl-2 pr-0.5 py-2 text-xs font-semibold cursor-pointer text-slate-600 dark:text-slate-400 transition-colors whitespace-nowrap flex items-center justify-center"><span data-model-label="v5">NAI V5</span></button>
+                    <button type="button" id="v5VariantTriggerMob" data-variant-trigger="v5" aria-label="选择 V5 权重分支" aria-haspopup="menu" aria-expanded="false"
+                        class="model-variant-trigger pr-1.5 pl-0.5 py-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer flex items-center justify-center transition-colors">
+                        <svg viewBox="0 0 12 12" class="w-2.5 h-2.5 model-variant-caret transition-transform duration-150 pointer-events-none" aria-hidden="true"><path d="M2.5 4.25 6 8l3.5-3.75z" fill="currentColor"/></svg>
+                    </button>
+                    <div id="v5VariantMenuMob" popover="auto" class="model-variant-popover" data-variant-menu="v5">
+                        <div focusgroup="menu nomemory" aria-labelledby="v5VariantTriggerMob" class="model-variant-menu-inner">
+                            <div role="group" aria-label="V5 权重版本">
+                                <button type="button" role="menuitemradio" aria-checked="true" data-variant-option="full" data-variant-ver="v5" class="model-variant-item">
+                                    <span class="flex flex-col text-left leading-tight">
+                                        <span class="text-xs font-semibold">Full</span>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal">完整数据集</span>
+                                    </span>
+                                </button>
+                                <button type="button" role="menuitemradio" aria-checked="false" data-variant-option="curated" data-variant-ver="v5" class="model-variant-item">
+                                    <span class="flex flex-col text-left leading-tight">
+                                        <span class="text-xs font-semibold">Curated</span>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal">精选纯净画风</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <button type="button" data-model-btn="zimage" aria-pressed="false" onclick="setModel('zimage')"
                     class="flex-1 text-center py-2 text-xs font-semibold z-10 cursor-pointer text-slate-600 dark:text-slate-400 relative transition-colors">ZImage</button>
-            </div>
-
-            <!-- V4.5 / V5 权重分支切换 (Full / Curated) -->
-            <div id="modelVariantWrapper" class="hidden">
-                <fieldset class="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 m-0">
-                    <legend class="sr-only">模型权重版本 (Full / Curated)</legend>
-                    <div class="flex items-center gap-1.5 min-w-0">
-                        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">权重分支</span>
-                        <span id="modelVariantHint" class="text-[10px] text-slate-400 dark:text-slate-500 truncate">完整数据集</span>
-                    </div>
-                    <div class="char-ref-mode-group shrink-0 min-w-[148px]">
-                        <input type="radio" id="modelVariantFull" name="nai_model_variant" value="full" class="sr-only char-ref-mode-radio" checked onchange="window.setModelVariant && window.setModelVariant('full')">
-                        <label for="modelVariantFull" class="char-ref-mode-label px-2.5">Full 完整</label>
-                        <input type="radio" id="modelVariantCurated" name="nai_model_variant" value="curated" class="sr-only char-ref-mode-radio" onchange="window.setModelVariant && window.setModelVariant('curated')">
-                        <label for="modelVariantCurated" class="char-ref-mode-label px-2.5">Curated 精选</label>
-                    </div>
-                </fieldset>
             </div>
 
             <div class="space-y-2">
@@ -2900,7 +2975,7 @@
 <!-- 全局统一下载静默锚点，用于规避 Chrome/Edge 对动态创建 A 标签的多文件安全拦截 -->
     <a id="globalDownloadAnchor" style="display: none;" rel="noopener"></a>
 
-    <script type="module" src="src/main.js?v=20261128_2"></script>
+    <script type="module" src="src/main.js?v=20261128_3"></script>
 </body>
 
 </html>

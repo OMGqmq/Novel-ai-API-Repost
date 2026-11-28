@@ -3898,3 +3898,124 @@ html.dark .char-ref-mode-radio:checked + .char-ref-mode-label {
     outline: 2px solid var(--focus-ring, #0f172a);
     outline-offset: 1px;
 }
+
+/* Inline Model Selector Full/Curated Variant Popover Menu */
+.model-variant-trigger[aria-expanded="true"] .model-variant-caret {
+    transform: rotate(180deg);
+}
+.model-variant-trigger:focus-visible,
+[data-model-btn]:focus-visible {
+    outline: 2px solid var(--focus-ring, #0f172a);
+    outline-offset: -2px;
+    border-radius: 0.45rem;
+}
+.model-variant-popover {
+    display: none;
+    min-inline-size: 9.5rem;
+    padding: 0.3rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    box-shadow: 0 12px 28px -6px rgba(15, 23, 42, 0.16);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    color: rgb(30 41 59);
+    z-index: 70;
+}
+html.dark .model-variant-popover {
+    background: rgba(15, 23, 42, 0.96);
+    border-color: rgba(51, 65, 85, 0.9);
+    box-shadow: 0 14px 32px -6px rgba(2, 6, 23, 0.65);
+    color: rgb(241 245 249);
+}
+.model-variant-popover[popover]:is(:popover-open, .\:popover-open),
+.model-variant-popover.is-open {
+    display: block;
+}
+@media (prefers-reduced-motion: no-preference) {
+    @supports (transition-behavior: allow-discrete) and selector(:popover-open) {
+        .model-variant-popover[popover] {
+            opacity: 0;
+            translate: 0 -0.25rem;
+            transition: opacity, translate, display, overlay;
+            transition-duration: 0.14s;
+            transition-behavior: allow-discrete;
+        }
+        .model-variant-popover[popover]:popover-open {
+            opacity: 1;
+            translate: 0 0;
+            transition-duration: 0.1s;
+            @starting-style {
+                opacity: 0;
+                translate: 0 -0.25rem;
+            }
+        }
+    }
+}
+@supports (position-area: block-end) {
+    #v45VariantTriggerDesk { anchor-name: --v45-var-desk; }
+    #v45VariantMenuDesk[popover] { position-anchor: --v45-var-desk; }
+    #v5VariantTriggerDesk { anchor-name: --v5-var-desk; }
+    #v5VariantMenuDesk[popover] { position-anchor: --v5-var-desk; }
+    #v45VariantTriggerMob { anchor-name: --v45-var-mob; }
+    #v45VariantMenuMob[popover] { position-anchor: --v45-var-mob; }
+    #v5VariantTriggerMob { anchor-name: --v5-var-mob; }
+    #v5VariantMenuMob[popover] { position-anchor: --v5-var-mob; }
+    .model-variant-popover[popover] {
+        inset: auto;
+        margin: 0;
+        margin-block-start: 0.45rem;
+        position-area: block-end;
+        position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+    }
+}
+@supports not (position-area: block-end) {
+    .model-variant-popover {
+        position: fixed;
+        inset: auto;
+        margin: 0;
+    }
+}
+.model-variant-menu-inner > [role="group"] > button.model-variant-item,
+.model-variant-item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    inline-size: 100%;
+    padding: 0.425rem 0.55rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    transition: background-color 120ms ease;
+}
+.model-variant-item:hover {
+    background: rgba(241, 245, 249, 0.9);
+}
+html.dark .model-variant-item:hover {
+    background: rgba(30, 41, 59, 0.9);
+}
+.model-variant-item:focus-visible {
+    outline: 2px solid var(--focus-ring, #0f172a);
+    outline-offset: -1px;
+    background: rgba(241, 245, 249, 0.9);
+}
+html.dark .model-variant-item:focus-visible {
+    background: rgba(30, 41, 59, 0.9);
+}
+.model-variant-item::before {
+    content: "";
+    flex: none;
+    inline-size: 0.9rem;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    color: rgb(15 23 42);
+}
+html.dark .model-variant-item::before {
+    color: rgb(248 250 252);
+}
+.model-variant-item[aria-checked="true"]::before {
+    content: "✓";
+}

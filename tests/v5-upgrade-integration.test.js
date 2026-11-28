@@ -370,6 +370,21 @@ describe('NovelAI V5 Full Upgrade & Integration Tests', () => {
       expect(global.document.getElementById('modelBadge').innerText).toBe('V5 (MED) MODE');
     });
 
+    it('index.html exposes inline triangle variant menus on V4.5 & V5 without dot indicators or standalone wrapper', async () => {
+      const fs = await import('node:fs');
+      const path = await import('node:path');
+      const html = fs.readFileSync(path.resolve(import.meta.dirname, '..', 'index.html'), 'utf8');
+      expect(html).not.toContain('id="modelVariantWrapper"');
+      expect(html).toContain('data-variant-trigger="v4.5"');
+      expect(html).toContain('data-variant-trigger="v5"');
+      expect(html).toContain('id="v45VariantMenuDesk" popover="auto"');
+      expect(html).toContain('id="v5VariantMenuDesk" popover="auto"');
+      expect(html).toContain('id="v45VariantMenuMob" popover="auto"');
+      expect(html).toContain('id="v5VariantMenuMob" popover="auto"');
+      expect(html).not.toMatch(/data-model-btn="v4\.5"[\s\S]{0,300}rounded-full/);
+      expect(html).not.toMatch(/data-model-btn="v5"[\s\S]{0,300}rounded-full/);
+    });
+
     it('CharPromptManager binds to nai_model_version on refresh so V5 does not fall back to V4.5', async () => {
       const { CharPromptManager } = await import('../src/char-prompt-manager.js');
       const mockStore = {
